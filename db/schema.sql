@@ -75,6 +75,61 @@ CREATE UNIQUE INDEX IF NOT EXISTS creators_website_domain_unique
   WHERE website_domain IS NOT NULL;
 
 -- =============================================================
+-- NOTIFICATIONS
+-- =============================================================
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id INTEGER,
+  user_id TEXT,
+  type VARCHAR(100) NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  meta JSONB DEFAULT '{}'::jsonb,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_creator_id ON notifications (creator_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (is_read);
+
+-- Trigger function to notify application of notification changes
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'notify_notifications_change') THEN
+    CREATE FUNCTION notify_notifications_change() RETURNS trigger AS $$
+    DECLARE
+      payload JSON;
+      nid UUID;
+      ncreator INTEGER;
+      nis_read BOOLEAN;
+    BEGIN
+      nid := COALESCE(NEW.id, OLD.id);
+      ncreator := COALESCE(NEW.creator_id, OLD.creator_id);
+      nis_read := COALESCE(NEW.is_read, OLD.is_read);
+      payload = json_build_object('id', nid, 'creator_id', ncreator, 'is_read', nis_read);
+      PERFORM pg_notify('notifications_channel', payload::text);
+      IF (TG_OP = 'DELETE') THEN
+        RETURN OLD;
+      ELSE
+        RETURN NEW;
+      END IF;
+    END;
+    $$ LANGUAGE plpgsql;
+  END IF;
+END$$;
+
+-- Create trigger to call the function on insert or update
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_notifications_notify') THEN
+    CREATE TRIGGER trg_notifications_notify
+    AFTER INSERT OR UPDATE OR DELETE ON notifications
+    FOR EACH ROW EXECUTE PROCEDURE notify_notifications_change();
+  END IF;
+END$$;
+
+-- =============================================================
 -- WEBSITES
 -- =============================================================
 CREATE TABLE IF NOT EXISTS websites (

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
+import { api, AUTH_ENDPOINTS, SOCIAL_ENDPOINTS } from '@/app/_lib/api';
+import { calculateYouTubePrice, YouTubePricingResult } from '@/app/_lib/pricing/youtubePricing';
 import type { AuthResponse, User } from '@/app/_types/auth';
 import {
   ArrowPathIcon,
@@ -94,6 +95,8 @@ export default function ConnectAccountsPage() {
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [socialUnlocked, setSocialUnlocked] = useState(false);
+  const [youtubePricing, setYoutubePricing] = useState<Record<string, YouTubePricingResult>>({});
+  const [youtubeVideos, setYoutubeVideos] = useState<Record<string, any[]>>({});
 
   const popupRef = useRef<Window | null>(null);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
@@ -130,6 +133,33 @@ export default function ConnectAccountsPage() {
     fetchAll();
   }, [fetchAll]);
 
+  // Fetch video stats for YouTube accounts and compute pricing
+  useEffect(() => {
+    const run = async () => {
+      if (!user) return;
+      const ytAccounts = accounts.filter(a => a.provider === 'youtube');
+      if (!ytAccounts.length) return;
+
+      for (const acc of ytAccounts) {
+        try {
+          const res = await api.get(SOCIAL_ENDPOINTS.videoStats('youtube', user.user_uuid));
+          if (!res.ok) continue;
+          const videos = Array.isArray(res.data?.data) ? res.data.data : [];
+          setYoutubeVideos(prev => ({ ...prev, [acc.username]: videos }));
+          const viewsArr = videos.map((v: any) => Number(v.views || 0));
+          const MV = viewsArr.length ? viewsArr.reduce((s: number, x: number) => s + x, 0) / viewsArr.length : (acc.analysis.total_views || 0);
+          const S = Number(acc.followers || 0);
+          const TV = Number(acc.analysis.total_views || 0);
+          const pricing = calculateYouTubePrice(S, TV, MV, viewsArr);
+          setYoutubePricing(prev => ({ ...prev, [acc.username]: pricing }));
+        } catch (err) {
+          console.error('Failed to compute YouTube pricing for', acc.username, err);
+        }
+      }
+    };
+    run();
+  }, [accounts, user]);
+
   const handleConnect = async (provider: string) => {
     const platform = PLATFORMS.find((p) => p.id === provider);
     if (platform?.comingSoon || socialLocked) return;
@@ -140,7 +170,17 @@ export default function ConnectAccountsPage() {
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/connect/${provider}`, { credentials: 'include' });
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => ({}));
+      } else {
+        const text = await res.text();
+        console.error('Expected JSON from connect endpoint but received:', text);
+        setError(`Failed to initiate ${provider} connection.`);
+        return;
+      }
+
       if (data.success && data.url) {
         const width = 600;
         const height = 700;
@@ -339,8 +379,21 @@ export default function ConnectAccountsPage() {
                   <div className="p-5">
                     <span className="text-[10px] font-bold text-(--color-muted) uppercase">Rank</span>
                     <p className="text-sm font-black uppercase text-blue-400">{account.analysis.recommendation}</p>
+                    {account.provider === 'youtube' && youtubePricing[account.username] && (
+                      <div className="mt-2 text-[13px]">
+                        <span className="text-[10px] text-(--color-muted) uppercase">Estimated ad price</span>
+                        <div className="text-lg font-bold">{Number(youtubePricing[account.username].Price_RWF).toLocaleString()} RWF</div>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Only show total posts for YouTube; detailed analytics processed in background */}
+                {account.provider === 'youtube' && (
+                  <div className="p-4">
+                    <div className="mb-1 text-sm text-(--color-muted)">Total posts: <span className="font-bold text-(--color-white)"> { (youtubeVideos[account.username]?.length) ?? 0 }</span></div>
+                  </div>
+                )}
               </div>
             );
           })}

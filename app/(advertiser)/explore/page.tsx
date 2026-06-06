@@ -37,10 +37,9 @@ export default function ExplorePage() {
     <div className="mx-auto max-w-7xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[color:var(--color-white)]">Explore</h1>
+          <h1 className="text-3xl font-bold text-[color:var(--color-white)]">Launchpad</h1>
           <p className="mt-2 max-w-2xl text-sm text-[color:var(--color-muted)]">
-            This is the merged Yepper launchpad. The legacy AdPromoter and AdOwner flows now live in the same Next.js
-            app and the remaining route surfaces resolve here.
+            Access all features for Yepper creators in one place. Connect accounts, view analytics, and manage your profile to get the most out of your Yepper experience.
           </p>
         </div>
 

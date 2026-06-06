@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import dns from 'dns/promises';
 import { readFileSync } from 'fs';
 import { query } from './db.js';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -87,6 +88,68 @@ function hashValue(value) {
     .createHash('sha256')
     .update(`${value || 'unknown'}:${process.env.TRACKING_HASH_SALT || 'yepper-local-salt'}`)
     .digest('hex');
+}
+
+// ----------------------------
+// Mailer & Notifications
+// ----------------------------
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const FROM_EMAIL = process.env.FROM_EMAIL || `no-reply@${(process.env.FRONTEND_ORIGIN || 'localhost').replace(/^https?:\/\//, '')}`;
+
+let mailer = null;
+if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
+  mailer = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+} else {
+  console.warn('SMTP not configured — emails will be skipped. Set SMTP_HOST/PORT/USER/PASS in env to enable.');
+}
+
+async function sendEmail(to, subject, html) {
+  if (!mailer) {
+    console.log(`Skipping email to ${to}: SMTP not configured.`);
+    return false;
+  }
+  try {
+    await mailer.sendMail({ from: FROM_EMAIL, to, subject, html });
+    return true;
+  } catch (err) {
+    console.error('Failed to send email', err);
+    return false;
+  }
+}
+
+async function createNotification({ creatorId = null, userId = null, type = 'general', title = '', body = '', meta = {} }) {
+  try {
+    // Deduplicate certain notification types (avoid duplicate social connect messages)
+    if (creatorId && (type === 'social_connected' || type === 'social_disconnected')) {
+      const provider = String(meta.provider || '');
+      const socialUser = String(meta.socialUser || '');
+      const dupCheck = await query(
+        `SELECT 1 FROM notifications WHERE creator_id = $1 AND type = $2 AND (meta->> 'provider') = $3 AND (meta->> 'socialUser') = $4 AND created_at > NOW() - INTERVAL '60 seconds' LIMIT 1;`,
+        [creatorId, type, provider, socialUser]
+      );
+      if (dupCheck.rowCount > 0) {
+        return false;
+      }
+    }
+
+    await query(
+      `INSERT INTO notifications (creator_id, user_id, type, title, body, meta, is_read, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, false, NOW());`,
+      [creatorId, userId, type, title, body, JSON.stringify(meta || {})]
+    );
+    return true;
+  } catch (err) {
+    console.error('Failed to create notification', err);
+    return false;
+  }
 }
 
 function scriptEscape(value) {
@@ -583,6 +646,29 @@ app.get('/auth/google/callback', async (req, res) => {
       path: '/',
     });
 
+    // Create a welcome notification and send welcome email for new accounts
+    try {
+      if (needsOnboarding) {
+        await createNotification({
+          creatorId: row.id,
+          type: 'welcome',
+          title: 'Welcome to Yepper',
+          body: `Hello ${fullName || email}, thank you for choosing Yepper as your monetization platform. Connect your social media accounts to get started.`,
+          meta: { action: 'connect_social' },
+        });
+
+        const emailHtml = `<p>Hello ${fullName || email},</p>
+          <p>Thank you for choosing Yepper as your monetization platform — we're here to help.</p>
+          <p><a href="${FRONTEND_URL}/connect-accounts" style="display:inline-block;padding:10px 14px;background:#111;color:#fff;border-radius:8px;text-decoration:none;">Connect Social Media</a></p>
+          <p>— The Yepper Team</p>`;
+
+        // Send welcome email (non-blocking failures are logged)
+        await sendEmail(email, 'Welcome to Yepper', emailHtml);
+      }
+    } catch (err) {
+      console.error('Failed to create welcome notification/email:', err);
+    }
+
     res.redirect(`${FRONTEND_URL}${redirectPath}`);
   } catch (error) {
     console.error('Unexpected error in Google callback:', error);
@@ -726,6 +812,12 @@ app.post('/auth/logout', (req, res) => {
       return res.status(409).json({ success: false, message: 'Username is already taken.' });
     }
 
+
+    // Read current values for change detection
+    const cur = await query(`SELECT username, what_they_do FROM creators WHERE id = $1 LIMIT 1;`, [session]);
+    const oldUsername = cur.rows[0]?.username ?? null;
+    const oldWhat = cur.rows[0]?.what_they_do ?? null;
+
     await query(
       `UPDATE creators
        SET username     = $1,
@@ -735,6 +827,48 @@ app.post('/auth/logout', (req, res) => {
        WHERE id = $4;`,
       [normalizedUsername, normalizedWhatTheyDo, avatar || null, session],
     );
+
+    try {
+      const changes = [];
+      if (oldUsername !== normalizedUsername) {
+        changes.push({ field: 'username', from: oldUsername, to: normalizedUsername });
+      }
+      if (oldWhat !== normalizedWhatTheyDo) {
+        changes.push({ field: 'what_they_do', from: oldWhat, to: normalizedWhatTheyDo });
+      }
+
+      if (changes.length > 0) {
+        // Build a human-friendly message
+        let title = 'Profile update';
+        let bodyMsg = 'Your profile was updated.';
+        const meta = { changes };
+
+        if (changes.length === 1 && changes[0].field === 'username') {
+          bodyMsg = `username changed from ${changes[0].from || '—'} to ${changes[0].to}`;
+        } else if (changes.length === 1 && changes[0].field === 'what_they_do') {
+          bodyMsg = `identity changed from ${changes[0].from || '—'} to ${changes[0].to}`;
+          // attach an icon hint for frontend
+          const mapping = {
+            'Content Creator': '🎬',
+            'Web Developer': '💻',
+            'Graphic Designer': '🎨',
+          };
+          meta.icon = mapping[changes[0].to] || null;
+        } else {
+          bodyMsg = changes.map(c => `${c.field} changed`).join(', ');
+        }
+
+        await createNotification({
+          creatorId: parseInt(session),
+          type: 'profile_updated',
+          title,
+          body: bodyMsg,
+          meta,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to create profile update notification:', err);
+    }
 
     return res.json({ success: true, message: 'Profile updated successfully.' });
   });
@@ -781,6 +915,18 @@ app.post('/auth/logout', (req, res) => {
      WHERE id = $3;`,
     [normalizedUsername, normalizedWhatTheyDo, session],
   );
+
+  try {
+    await createNotification({
+      creatorId: parseInt(session),
+      type: 'onboarding_completed',
+      title: 'Welcome aboard',
+      body: 'Onboarding completed. Your profile is ready.',
+      meta: {},
+    });
+  } catch (err) {
+    console.error('Failed to create onboarding notification:', err);
+  }
 
   return res.json({ success: true, data: { message: 'Onboarding completed.' } });
 });
@@ -859,8 +1005,258 @@ app.get('/api/social/stats', async (req, res) => {
 });
 
 app.get('/api/social/video-stats', async (req, res) => {
-  return res.json({ success: true, data: [] }); 
+  const session = req.cookies?.yepper_session;
+  if (!session) return res.status(401).json({ success: false, message: 'No active session.' });
+
+  const provider = String(req.query.provider || 'youtube').toLowerCase();
+  if (provider !== 'youtube') return res.json({ success: true, data: [] });
+
+  try {
+    // Get connected account for this creator
+    const accRes = await query(`SELECT access_token, refresh_token, social_id, stats FROM connected_accounts WHERE creator_id = $1::int AND provider = $2 LIMIT 1;`, [session, 'youtube']);
+    if (accRes.rowCount === 0) return res.json({ success: true, data: [] });
+
+    let { access_token: accessToken, refresh_token: refreshToken, social_id: channelId, stats } = accRes.rows[0];
+
+    async function refreshAccessToken() {
+      if (!refreshToken) return null;
+      try {
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: process.env.YOUTUBE_CLIENT_ID || '',
+            client_secret: process.env.YOUTUBE_CLIENT_SECRET || '',
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+          }),
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok) throw new Error(tokenData.error_description || tokenData.error || 'Refresh failed');
+        accessToken = tokenData.access_token;
+        // Persist new access token
+        await query(`UPDATE connected_accounts SET access_token = $1 WHERE creator_id = $2::int AND provider = 'youtube';`, [accessToken, session]);
+        return accessToken;
+      } catch (err) {
+        console.error('Failed to refresh YouTube access token', err);
+        return null;
+      }
+    }
+
+    // Helper to call YouTube API with auto-refresh on 401
+    async function ytFetch(url) {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (r.status === 401 && refreshToken) {
+        const newToken = await refreshAccessToken();
+        if (newToken) return fetch(url, { headers: { Authorization: `Bearer ${newToken}` } });
+      }
+      return r;
+    }
+
+    // List recent uploads (up to 50)
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodeURIComponent(channelId)}&order=date&type=video&maxResults=50`;
+    const searchRes = await ytFetch(searchUrl);
+    if (!searchRes.ok) {
+      console.warn('YouTube search failed', await searchRes.text());
+      return res.json({ success: true, data: [] });
+    }
+    const searchData = await searchRes.json();
+    const videoIds = (searchData.items || []).map(it => it.id?.videoId).filter(Boolean);
+    if (!videoIds.length) return res.json({ success: true, data: [] });
+
+    // Fetch video statistics in batch (50 max per request)
+    const vids = [];
+    const chunks = [];
+    for (let i = 0; i < videoIds.length; i += 50) chunks.push(videoIds.slice(i, i + 50));
+    for (const ch of chunks) {
+      const vidsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ch.join(',')}`;
+      const vidsRes = await ytFetch(vidsUrl);
+      if (!vidsRes.ok) {
+        console.warn('YouTube videos.list failed', await vidsRes.text());
+        continue;
+      }
+      const vidsData = await vidsRes.json();
+      for (const v of vidsData.items || []) {
+        vids.push({
+          id: v.id,
+          title: v.snippet?.title || 'Untitled',
+          thumbnail: v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url || '',
+          views: Number(v.statistics?.viewCount || 0),
+          likes: Number(v.statistics?.likeCount || 0),
+          comments: Number(v.statistics?.commentCount || 0),
+          url: `https://www.youtube.com/watch?v=${v.id}`,
+          publishedAt: v.snippet?.publishedAt,
+        });
+      }
+    }
+
+    // Optionally update stored stats (followers/views/videoCount)
+    try {
+      const totalViews = vids.reduce((s, v) => s + (Number(v.views) || 0), 0);
+      await query(`UPDATE connected_accounts SET stats = $1 WHERE creator_id = $2::int AND provider = 'youtube';`, [JSON.stringify({ followers: stats?.followers || null, views: totalViews, videoCount: vids.length }), session]);
+    } catch (err) {
+      console.warn('Failed to update connected_accounts stats', err);
+    }
+
+    return res.json({ success: true, data: vids });
+  } catch (err) {
+    console.error('Failed to fetch YouTube video stats', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch video stats' });
+  }
 });
+
+// Notifications - list and mark read
+app.get('/api/notifications', async (req, res) => {
+  const session = req.cookies?.yepper_session;
+  if (!session) return res.status(401).json({ success: false });
+  try {
+    // Pagination
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 10)));
+    const offset = Math.max(0, Number(req.query.offset || 0));
+
+    const result = await query(
+      `SELECT id, type, title, body, meta, is_read, created_at
+       FROM notifications
+       WHERE (creator_id = $1::int OR user_id = $1::text)
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3;`,
+      [session, limit, offset]
+    );
+
+    // Also return total unread count for badge
+    const unreadRes = await query(`SELECT COUNT(*)::int AS count FROM notifications WHERE (creator_id = $1::int OR user_id = $1::text) AND is_read = false;`, [session]);
+    const unread = Number(unreadRes.rows[0]?.count || 0);
+
+    return res.json({ success: true, data: result.rows, meta: { unread } });
+  } catch (err) {
+    console.error('Failed to fetch notifications', err);
+    return res.status(500).json({ success: false });
+  }
+});
+
+app.post('/api/notifications/mark-read', async (req, res) => {
+  const session = req.cookies?.yepper_session;
+  if (!session) return res.status(401).json({ success: false });
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ success: false });
+  console.log('mark-read called', { session: String(session), id });
+  try {
+    const result = await query(`UPDATE notifications SET is_read = true WHERE id = $1 AND (creator_id = $2::int OR user_id = $2::text) RETURNING id;`, [id, session]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found or not owned by you.' });
+    }
+
+    return res.json({ success: true, data: { id: result.rows[0].id } });
+  } catch (err) {
+    console.error('Failed to mark notification read', (err && err.stack) || err);
+    return res.status(500).json({ success: false, message: (err && err.message) || 'Server error while marking notification read.' });
+  }
+});
+
+// Delete a notification
+app.delete('/api/notifications/:id', async (req, res) => {
+  const session = req.cookies?.yepper_session;
+  if (!session) return res.status(401).json({ success: false });
+  const id = String(req.params.id || '').trim();
+  if (!id) return res.status(400).json({ success: false });
+  try {
+    const result = await query(`DELETE FROM notifications WHERE id = $1 AND (creator_id = $2::int OR user_id = $2::text) RETURNING id;`, [id, session]);
+    if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'Not found or not owned by you.' });
+    return res.json({ success: true, data: { id: result.rows[0].id } });
+  } catch (err) {
+    console.error('Failed to delete notification', err);
+    return res.status(500).json({ success: false });
+  }
+});
+
+// Server-Sent Events: realtime unread count per logged-in creator
+const sseClients = new Map(); // Map<creatorId, Set<res>>
+
+async function getUnreadCount(creatorId) {
+  const result = await query(
+    `SELECT COUNT(*)::int AS count FROM notifications WHERE (creator_id = $1::int OR user_id = $1::text) AND is_read = false;`,
+    [creatorId]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
+async function broadcastUnreadCount(creatorId) {
+  const clients = sseClients.get(String(creatorId));
+  if (!clients || clients.size === 0) return;
+  const count = await getUnreadCount(creatorId);
+  const payload = `event: unread\ndata: ${JSON.stringify({ count })}\n\n`;
+  for (const res of clients) {
+    try {
+      res.write(payload);
+    } catch (err) {
+      // ignore write errors; cleanup will happen elsewhere
+      console.error('SSE write error', err);
+    }
+  }
+}
+
+app.get('/api/notifications/stream', async (req, res) => {
+  const session = req.cookies?.yepper_session;
+  if (!session) return res.status(401).end();
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  const creatorId = String(session);
+  const set = sseClients.get(creatorId) || new Set();
+  set.add(res);
+  sseClients.set(creatorId, set);
+
+  // Send initial count
+  try {
+    const initial = await getUnreadCount(creatorId);
+    res.write(`event: unread\ndata: ${JSON.stringify({ count: initial })}\n\n`);
+  } catch (err) {
+    console.error('Failed to send initial unread count', err);
+  }
+
+  // Remove client when connection closes
+  req.on('close', () => {
+    const s = sseClients.get(creatorId);
+    if (s) {
+      s.delete(res);
+      if (s.size === 0) sseClients.delete(creatorId);
+    }
+  });
+});
+
+// Listen to Postgres NOTIFY channel for notifications changes
+import pg from 'pg';
+const CONNECTION_STRING = process.env.DATABASE_URL;
+if (CONNECTION_STRING) {
+  const client = new pg.Client({
+    connectionString: CONNECTION_STRING,
+    ssl: process.env.PGSSLMODE !== 'disable' ? { rejectUnauthorized: false } : false,
+  });
+
+  client.connect().then(() => {
+    client.query('LISTEN notifications_channel');
+    client.on('notification', async (msg) => {
+      try {
+        const payload = JSON.parse(msg.payload || '{}');
+        const creatorId = payload.creator_id || payload.creatorId || null;
+        if (creatorId) {
+          await broadcastUnreadCount(String(creatorId));
+        }
+      } catch (err) {
+        console.error('Failed to handle notifications_channel payload', err);
+      }
+    });
+    console.log('Listening for notifications_channel events');
+  }).catch((err) => {
+    console.error('Failed to start Postgres LISTEN client', err);
+  });
+} else {
+  console.warn('DATABASE_URL not set — skipping Postgres LISTEN setup');
+}
 
 app.get('/api/website/tracker.js', async (req, res) => {
   // Website tracking script endpoint removed — respond with empty script
@@ -1369,6 +1765,19 @@ app.get('/api/connect/:provider/callback', async (req, res) => {
       [creator_id, provider, socialUser, JSON.stringify({ followers: socialFollowers, views: socialViews, videoCount: socialVideos }), socialAvatar, accessToken, refreshToken, socialId]
     );
 
+    try {
+      const parsedCreatorId = parseInt(creator_id);
+      await createNotification({
+        creatorId: parsedCreatorId,
+        type: 'social_connected',
+        title: `${provider.toUpperCase()} connected`,
+        body: `Your ${provider} account (${socialUser}) has been connected.`,
+        meta: { provider, socialUser },
+      });
+    } catch (err) {
+      console.error('Failed to create connect notification:', err);
+    }
+
     res.send(`
       <html>
         <body style="background: #000; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin:0;">
@@ -1396,6 +1805,18 @@ app.post('/api/social/disconnect/:provider', async (req, res) => {
     `DELETE FROM connected_accounts WHERE creator_id = $1 AND provider = $2`,
     [session, provider]
   );
+
+  try {
+    await createNotification({
+      creatorId: parseInt(session),
+      type: 'social_disconnected',
+      title: `${provider.toUpperCase()} disconnected`,
+      body: `Your ${provider} account was disconnected from Yepper.`,
+      meta: { provider },
+    });
+  } catch (err) {
+    console.error('Failed to create disconnect notification:', err);
+  }
 
   return res.json({ success: true, message: 'Account disconnected.' });
 });

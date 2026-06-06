@@ -17,7 +17,7 @@ import type { ApiError } from '@/app/_types/auth';
 
 // Use same-origin API routes so the frontend no longer points at an external backend.
 // This keeps the UI code unchanged but routes requests to local Next.js API handlers.
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 // ── Generic response wrapper ───────────────────────────────────
 

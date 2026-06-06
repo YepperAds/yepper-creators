@@ -33,7 +33,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/solid';
 
-import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
+import { api, AUTH_ENDPOINTS, BASE_URL } from '@/app/_lib/api';
 import { useState, useEffect } from 'react';
 import SettingsModal from './SettingsModal';
 
@@ -44,6 +44,7 @@ export default function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -57,6 +58,85 @@ export default function Sidebar() {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Fetch initial unread count and subscribe to SSE for realtime updates
+  useEffect(() => {
+    let es: EventSource | null = null;
+
+    async function loadInitial() {
+      try {
+        const res = await api.get('/api/notifications?limit=1&offset=0');
+        if (res.ok) {
+          const payload: any = res.data;
+          const unread = payload?.meta?.unread ?? 0;
+          setUnreadCount(Number(unread || 0));
+        }
+      } catch (err) {
+        console.error('Failed to load initial notifications for badge', err);
+      }
+    }
+
+    loadInitial();
+
+    try {
+      es = new EventSource(`${BASE_URL}/api/notifications/stream`);
+      try { (es as any).withCredentials = true; } catch {}
+
+      es.addEventListener('unread', (ev) => {
+        try {
+          const payload = JSON.parse((ev as MessageEvent).data);
+          setUnreadCount(Number(payload.count || 0));
+        } catch (err) {
+          console.error('Invalid SSE unread payload', err);
+        }
+      });
+
+      // If SSE fails (cross-origin cookies), fall back to polling
+      let pollInterval: any = null;
+      const startPolling = () => {
+        if (pollInterval) return;
+        pollInterval = setInterval(async () => {
+          try {
+            const res = await api.get('/api/notifications?limit=1&offset=0');
+            if (res.ok) {
+              const payload: any = res.data;
+              setUnreadCount(Number(payload?.meta?.unread || 0));
+            }
+          } catch (err) {
+            console.error('Polling notifications failed', err);
+          }
+        }, 15_000);
+      };
+
+      es.onerror = (err) => {
+        console.warn('Notifications SSE error, falling back to polling', err);
+        startPolling();
+      };
+
+      // If connection is closed, start polling
+      es.onclose = () => startPolling();
+
+    } catch (err) {
+      console.error('Failed to open notifications SSE', err);
+      // Start polling immediately on error
+      const poll = setInterval(async () => {
+        try {
+          const res = await api.get('/api/notifications');
+          if (res.ok) {
+            const rows: any[] = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+            setUnreadCount(rows.filter((r) => !r.is_read).length);
+          }
+        } catch (err) {
+          console.error('Polling notifications failed', err);
+        }
+      }, 15_000);
+      return () => clearInterval(poll);
+    }
+
+    return () => {
+      if (es) es.close();
+    };
   }, []);
 
   const isActive = (path?: string) => path ? pathname?.startsWith(path) : false;
@@ -185,7 +265,7 @@ export default function Sidebar() {
                           ? 'absolute top-1.5 right-1.5 w-3.5 h-3.5 text-[8px]' 
                           : 'ml-auto w-5 h-5 text-[10px]'
                       }`}>
-                        +0
+                        {unreadCount > 0 ? String(unreadCount) : '0'}
                       </span>
                     )}
 
@@ -197,7 +277,7 @@ export default function Sidebar() {
                     {collapsed && !openDropdown && (
                       <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-(--color-surface-3) text-(--color-white) border border-(--color-border) text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/navitem:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg flex items-center gap-2">
                         {item.label}
-                        {item.label === 'Notifications' && <span className="px-1.5 py-0.5 bg-(--color-coral) text-white rounded-sm text-[9px]">+0</span>}
+                        {item.label === 'Notifications' && <span className="px-1.5 py-0.5 bg-(--color-coral) text-white rounded-sm text-[9px]">{unreadCount > 0 ? String(unreadCount) : '0'}</span>}
                       </div>
                     )}
                   </ButtonOrLink>

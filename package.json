@@ -8,17 +8,26 @@
     "start": "next start",
     "lint": "eslint",
     "backend:dev": "cd backend && npm run dev",
-    "backend:start": "cd backend && npm run start"
+    "backend:start": "cd backend && npm run start",
+    "backend-adsense:dev": "cd backend-adsense && node server.js",
+    "backend-adsense:start": "cd backend-adsense && node server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run backend:dev\" \"npm run backend-adsense:dev\""
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@tanstack/react-query": "^5.83.0",
+    "@tanstack/react-query-devtools": "^5.83.0",
+    "axios": "^1.5.0",
+    "framer-motion": "^12.23.6",
     "lucide-react": "^1.8.0",
     "next": "16.2.2",
     "next-themes": "^0.4.6",
     "nodemon": "^3.1.14",
     "pg": "^8.11.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.45.4",
+    "react-hot-toast": "^2.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

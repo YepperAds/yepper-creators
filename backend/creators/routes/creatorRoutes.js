@@ -1,0 +1,51 @@
+'use strict';
+
+const express    = require('express');
+const router     = express.Router();
+const controller = require('../controllers/creatorController');
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+router.get('/auth/creator/google',          controller.googleInitiate);
+router.get('/auth/creator/google/callback', controller.googleCallback);
+router.get('/auth/creator/session',         controller.getSession);
+router.get('/auth/creator/check-username',  controller.checkUsername);
+router.post('/auth/creator/logout',         controller.logout);
+
+// ─── Social stats ─────────────────────────────────────────────────────────────
+router.get('/api/social/stats',              controller.getSocialStats);
+router.get('/api/social/video-stats',        controller.getSocialVideoStats);
+router.post('/api/social/disconnect/:provider', controller.disconnectSocial);
+
+// ─── Social OAuth ─────────────────────────────────────────────────────────────
+router.get('/api/connect/:provider',          controller.socialConnect);
+router.get('/api/connect/:provider/callback', controller.socialConnectCallback);
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+router.get('/api/notifications',              controller.getNotifications);
+router.post('/api/notifications/mark-read',   controller.markNotificationsRead);
+router.delete('/api/notifications/:id',       controller.deleteNotification);
+router.get('/api/notifications/stream',       controller.notificationsStream);
+
+// ─── Website ─────────────────────────────────────────────────────────────────
+router.get('/api/website',                    controller.getWebsite);
+router.post('/api/website/start',             controller.startWebsite);
+router.post('/api/website/verify',            controller.verifyWebsite);
+router.post('/api/website/traffic/refresh',   controller.refreshTraffic);
+router.delete('/api/website',                 controller.deleteWebsite);
+router.post('/api/website/connect',           controller.connectWebsite);
+
+// ─── Deprecated tracking stubs (410 Gone) ────────────────────────────────────
+router.get('/api/website/tracker.js',         (req, res) => res.type('application/javascript').status(410).send(''));
+router.options('/api/website/collect',        (req, res) => res.sendStatus(410));
+router.use('/api/website/collect',            express.text({ type: 'text/plain', limit: '20kb' }));
+router.post('/api/website/collect',           (req, res) => res.sendStatus(410));
+
+// ─── Adsense bridge ───────────────────────────────────────────────────────────
+router.get('/api/handoff/:token/data',        controller.getHandoffData);
+router.post('/api/adsense/proceed',           controller.adsenseProceed);
+router.get('/api/adsense/handoff/:token',     controller.redeemHandoff);
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+router.get('/api/webhooks/instagram',         controller.instagramWebhook);
+
+module.exports = router;

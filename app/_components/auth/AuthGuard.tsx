@@ -5,34 +5,25 @@ import { useRouter } from 'next/navigation';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { AuthResponse } from '@/app/_types/auth';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AuthGuard — redirects authenticated users away from public auth pages.
-// Wrap auth pages (login, etc.) with this so logged-in creators can't access them.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     async function check() {
-      const result = await api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession);
+      try {
+        const result = await api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession);
 
-      if (result.ok && result.data?.success && result.data.data?.user) {
-        const user = result.data.data.user;
-        // Onboarding not done (for Creators: check username and what_they_do)
-        if (!user.username || !user.what_they_do) {
-          router.replace('/onboarding');
+        if (result.ok && result.data?.success && result.data.data?.user) {
+          router.replace('/choose-role');
         } else {
-          // Fully onboarded → go to dashboard
-          router.replace('/explore');
+          // Covers 401, 503, network errors — just show the login form
+          setChecked(true);
         }
-      } else {
-        // Not logged in → show the auth page
+      } catch {
         setChecked(true);
       }
     }
-
     check();
   }, [router]);
 

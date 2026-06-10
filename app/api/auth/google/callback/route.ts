@@ -1,103 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/app/_lib/db';
+
+const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';
 
 interface GoogleTokenResponse {
   access_token: string;
-  expires_in: number;
   id_token?: string;
-  scope?: string;
-  token_type: string;
-  refresh_token?: string;
 }
 
 interface GoogleUserInfo {
-  sub: string;
-  email: string;
-  name: string;
+  sub:      string;
+  email:    string;
+  name:     string;
   picture?: string;
 }
 
 export async function GET(req: NextRequest) {
-  const code = req.nextUrl.searchParams.get('code');
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const origin = req.nextUrl.origin;
+  const code          = req.nextUrl.searchParams.get('code');
+  const clientId      = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret  = process.env.GOOGLE_CLIENT_SECRET;
+  const origin        = req.nextUrl.origin;
 
-  if (!code) {
-    return NextResponse.redirect('/login?error=missing_code');
-  }
+  if (!code)                      return NextResponse.redirect(new URL('/login?error=missing_code', origin));
+  if (!clientId || !clientSecret) return NextResponse.redirect(new URL('/login?error=google_config', origin));
 
-  if (!clientId || !clientSecret) {
-    return NextResponse.redirect('/login?error=google_config_missing');
-  }
-
-  const redirectUri = `${origin}/api/auth/google/callback`;
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+  // 1. Exchange code for tokens
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id: clientId,
+      client_id:     clientId,
       client_secret: clientSecret,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code',
+      redirect_uri:  `${origin}/api/auth/google/callback`,
+      grant_type:    'authorization_code',
     }),
   });
 
-  if (!tokenResponse.ok) {
-    return NextResponse.redirect('/login?error=invalid_token_response');
-  }
+  if (!tokenRes.ok) return NextResponse.redirect(new URL('/login?error=token_exchange', origin));
 
-  const tokenData = (await tokenResponse.json()) as GoogleTokenResponse;
+  const tokenData = (await tokenRes.json()) as GoogleTokenResponse;
+  if (!tokenData.access_token) return NextResponse.redirect(new URL('/login?error=no_access_token', origin));
 
-  if (!tokenData.access_token) {
-    return NextResponse.redirect('/login?error=missing_access_token');
-  }
-
-  const profileResponse = await fetch(
+  // 2. Fetch Google profile
+  const profileRes = await fetch(
     `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(tokenData.access_token)}`,
   );
+  if (!profileRes.ok) return NextResponse.redirect(new URL('/login?error=user_info', origin));
 
-  if (!profileResponse.ok) {
-    return NextResponse.redirect('/login?error=invalid_user_info');
-  }
+  const profile = (await profileRes.json()) as GoogleUserInfo;
+  if (!profile.sub || !profile.email) return NextResponse.redirect(new URL('/login?error=invalid_profile', origin));
 
-  const profile = (await profileResponse.json()) as GoogleUserInfo;
+  // 3. Exchange Google profile for a Yepper JWT
+  let jwt: string | null = null;
+  try {
+    const exchangeRes = await fetch(`${ADSENSE_API}/api/auth/google-exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        googleId: profile.sub,
+        email:    profile.email,
+        name:     profile.name,
+        avatar:   profile.picture ?? '',
+      }),
+      cache: 'no-store',
+    });
 
-  if (!profile.sub || !profile.email) {
-    return NextResponse.redirect('/login?error=invalid_google_profile');
-  }
+    if (exchangeRes.ok) {
+      const data = (await exchangeRes.json()) as { success: boolean; token?: string };
+      if (data.success && data.token) jwt = data.token;
+    }
+  } catch { /* handled below */ }
 
-  const displayName = profile.name ?? '';
-  const avatar = profile.picture ?? null;
+  if (!jwt) return NextResponse.redirect(new URL('/login?error=google_exchange_failed', origin));
 
-  const result = await query<{
-    id: number;
-    business_name: string | null;
-  }>(
-    `INSERT INTO businesses (google_id, email, full_name, avatar, updated_at, created_at)
-     VALUES ($1, $2, $3, $4, NOW(), NOW())
-     ON CONFLICT (google_id)
-     DO UPDATE SET email = EXCLUDED.email,
-                   full_name = EXCLUDED.full_name,
-                   avatar = EXCLUDED.avatar,
-                   updated_at = NOW()
-     RETURNING id, business_name;`,
-    [profile.sub, profile.email, displayName, avatar],
-  );
+  // 4. Set both session cookies and redirect to role selection
+  const res = NextResponse.redirect(new URL('/choose-role', origin));
 
-  const row = result.rows[0];
-  const redirectPath = row?.business_name ? '/explore' : '/onboarding';
-  const response = NextResponse.redirect(new URL(redirectPath, origin));
-  response.cookies.set('yepper_session', String(row.id), {
-    httpOnly: true,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  const cookieOpts = {
+    path:     '/',
+    sameSite: 'lax' as const,
+    secure:   process.env.NODE_ENV === 'production',
+    maxAge:   60 * 60 * 24 * 7,
+  };
+  res.cookies.set('yepper_session', jwt, { ...cookieOpts, httpOnly: true });
+  res.cookies.set('yepper_token',   jwt, { ...cookieOpts, httpOnly: false });
 
-  return response;
+  return res;
 }

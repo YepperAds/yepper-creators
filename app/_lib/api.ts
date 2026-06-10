@@ -31,7 +31,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResult<T>> {
-  const url = `${BASE_URL}${path}`;
+  const url = path.startsWith('/api/') ? path : `${BASE_URL}${path}`;
 
   try {
     const controller = new AbortController();
@@ -95,9 +95,9 @@ export const api = {
 // Swap the path strings here when the PHP routes change.
 
 export const AUTH_ENDPOINTS = {
-  checkSession:  '/auth/session',        // GET (backend OAuth server)
-  logout:        '/auth/logout',          // POST — backend logout
-  exchangeToken: '/api/auth/exchange-token',  // POST — Google OAuth token → session
+  checkSession:  '/api/auth/session',
+  logout:        '/api/auth/logout',
+  exchangeToken: '/api/auth/exchange-token',
 } as const;
 
 // ── Social / Connect-Accounts endpoints ───────────────────────

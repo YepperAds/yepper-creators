@@ -1,0 +1,489 @@
+'use client';
+// @ts-nocheck
+
+// PricingTiers.js
+// Determines the web owner's tier from GSC organic clicks (if connected) or
+// marks them as Unverified. Emits price data upward AND renders a visible
+// tier badge + price cap in the add-space modal.
+
+import { useEffect } from 'react';
+
+// ── Tier definitions (matches pricing xlsx) ──────────────────────────────────
+const TRAFFIC_TIERS = [
+  {
+    tier: 'unverified',
+    label: 'Unverified',
+    description: 'GSC connected but under 500 monthly organic clicks — 63,000 RWF total cap split across all spaces',
+    min: 0,
+    max: 0,
+    color: '#f59e0b',
+    bg: '#fffbeb',
+    border: '#fcd34d',
+    textColor: '#92400e',
+  },
+  {
+    tier: 'starter',
+    label: 'Starter',
+    description: '500 – 2,000 monthly visitors',
+    min: 500,
+    max: 2000,
+    color: '#3b82f6',
+    bg: '#eff6ff',
+    border: '#93c5fd',
+    textColor: '#1e40af',
+  },
+  {
+    tier: 'basic',
+    label: 'Basic',
+    description: '2,001 – 10,000 monthly visitors',
+    min: 2001,
+    max: 10000,
+    color: '#10b981',
+    bg: '#ecfdf5',
+    border: '#6ee7b7',
+    textColor: '#065f46',
+  },
+  {
+    tier: 'standard',
+    label: 'Standard',
+    description: '10,001 – 50,000 monthly visitors',
+    min: 10001,
+    max: 50000,
+    color: '#8b5cf6',
+    bg: '#f5f3ff',
+    border: '#c4b5fd',
+    textColor: '#4c1d95',
+  },
+  {
+    tier: 'premium',
+    label: 'Premium',
+    description: '50,001 – 200,000 monthly visitors',
+    min: 50001,
+    max: 200000,
+    color: '#f97316',
+    bg: '#fff7ed',
+    border: '#fdba74',
+    textColor: '#7c2d12',
+  },
+  {
+    tier: 'elite',
+    label: 'Elite',
+    description: '200,001+ monthly visitors',
+    min: 200001,
+    max: Infinity,
+    color: '#000000',
+    bg: '#f9fafb',
+    border: '#111827',
+    textColor: '#000000',
+  },
+];
+
+// ── Exact prices per space per tier (from Yepper pricing xlsx) ───────────────
+const TIER_PRICES = {
+  unverified: {
+    // 63,000 total cap — individual space prices allocated by visibility
+    totalCap: 63000,
+    'Header': 9000,
+    'Above The Fold': 7800,
+    'Sticky Sidebar': 6000,
+    'Mobile Interstitial': 6000,
+    'Overlay': 5400,
+    'Floating': 4800,
+    'Modal': 4200,
+    'Left Rail': 3600,
+    'Right Rail': 3600,
+    'Sidebar': 3000,
+    'In Feed': 2400,
+    'Inline Content': 2400,
+    'Beneath Title': 2100,
+    'Pro Footer': 1500,
+    'Bottom': 1200,
+  },
+  starter: {
+    'Header': 3000,
+    'Above The Fold': 2600,
+    'Sticky Sidebar': 2000,
+    'Mobile Interstitial': 2000,
+    'Overlay': 1800,
+    'Floating': 1600,
+    'Modal': 1400,
+    'Left Rail': 1200,
+    'Right Rail': 1200,
+    'Sidebar': 1000,
+    'In Feed': 800,
+    'Inline Content': 800,
+    'Beneath Title': 700,
+    'Pro Footer': 500,
+    'Bottom': 400,
+  },
+  basic: {
+    'Header': 15000,
+    'Above The Fold': 13000,
+    'Sticky Sidebar': 10000,
+    'Mobile Interstitial': 10000,
+    'Overlay': 9000,
+    'Floating': 8000,
+    'Modal': 7000,
+    'Left Rail': 6000,
+    'Right Rail': 6000,
+    'Sidebar': 5000,
+    'In Feed': 4000,
+    'Inline Content': 4000,
+    'Beneath Title': 3500,
+    'Pro Footer': 2500,
+    'Bottom': 2000,
+  },
+  standard: {
+    'Header': 30000,
+    'Above The Fold': 26000,
+    'Sticky Sidebar': 20000,
+    'Mobile Interstitial': 20000,
+    'Overlay': 18000,
+    'Floating': 16000,
+    'Modal': 14000,
+    'Left Rail': 12000,
+    'Right Rail': 12000,
+    'Sidebar': 10000,
+    'In Feed': 8000,
+    'Inline Content': 8000,
+    'Beneath Title': 7000,
+    'Pro Footer': 5000,
+    'Bottom': 4000,
+  },
+  premium: {
+    'Header': 82000,
+    'Above The Fold': 71000,
+    'Sticky Sidebar': 55000,
+    'Mobile Interstitial': 55000,
+    'Overlay': 49000,
+    'Floating': 44000,
+    'Modal': 38000,
+    'Left Rail': 33000,
+    'Right Rail': 33000,
+    'Sidebar': 27000,
+    'In Feed': 22000,
+    'Inline Content': 22000,
+    'Beneath Title': 19000,
+    'Pro Footer': 14000,
+    'Bottom': 11000,
+  },
+  elite: {
+    'Header': 220000,
+    'Above The Fold': 190000,
+    'Sticky Sidebar': 148000,
+    'Mobile Interstitial': 148000,
+    'Overlay': 132000,
+    'Floating': 118000,
+    'Modal': 102000,
+    'Left Rail': 88000,
+    'Right Rail': 88000,
+    'Sidebar': 73000,
+    'In Feed': 59000,
+    'Inline Content': 59000,
+    'Beneath Title': 51000,
+    'Pro Footer': 37000,
+    'Bottom': 29000,
+  },
+};
+
+// Map spaceType strings (from categoryDetails) → canonical price table keys
+const SPACE_TYPE_MAP = {
+  'Header': 'Header',
+  'Above The Fold': 'Above The Fold',
+  'Sticky Sidebar': 'Sticky Sidebar',
+  'stickySidebar': 'Sticky Sidebar',
+  'Mobile Interstitial': 'Mobile Interstitial',
+  'mobileInterstial': 'Mobile Interstitial',
+  'Overlay': 'Overlay',
+  'overlay': 'Overlay',
+  'Floating': 'Floating',
+  'floating': 'Floating',
+  'Modal': 'Modal',
+  'modalPic': 'Modal',
+  'Left Rail': 'Left Rail',
+  'leftRail': 'Left Rail',
+  'Right Rail': 'Right Rail',
+  'rightRail': 'Right Rail',
+  'Sidebar': 'Sidebar',
+  'sidebar': 'Sidebar',
+  'In Feed': 'In Feed',
+  'inFeed': 'In Feed',
+  'Inline Content': 'Inline Content',
+  'inlineContent': 'Inline Content',
+  'Beneath Title': 'Beneath Title',
+  'beneathTitle': 'Beneath Title',
+  'Pro Footer': 'Pro Footer',
+  'proFooter': 'Pro Footer',
+  'Bottom': 'Bottom',
+  'bottom': 'Bottom',
+};
+
+// ── Exported helpers ─────────────────────────────────────────────────────────
+
+/** Determine tier from GSC organic clicks (last 28 days). */
+export function getTierFromGsc(gscData) {
+  if (!gscData || !gscData.connected || !gscData.siteMatched) {
+    return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
+  }
+  const clicks = gscData.summary?.clicks || 0;
+  // GSC gives 28-day clicks; extrapolate to monthly (~30 days)
+  const monthly = Math.round(clicks * (30 / 28));
+  // If monthly < 500, they don't qualify for any verified tier yet — still Unverified
+  if (monthly < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
+  return (
+    TRAFFIC_TIERS.find(t => t.tier !== 'unverified' && monthly >= t.min && monthly <= t.max) ||
+    TRAFFIC_TIERS.find(t => t.tier === 'unverified')
+  );
+}
+
+/** Get the price cap for a given space type at a given tier. */
+export function getPriceForTier(tier, spaceType) {
+  const key = SPACE_TYPE_MAP[spaceType] || spaceType;
+  const prices = TIER_PRICES[tier] || TIER_PRICES.unverified;
+  return prices[key] ?? null;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+// Now renders a visible tier badge + price for this space type.
+
+const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType, gscData, grantedTier  }: any) => {
+
+  // Resolve tier priority: grantedTier (admin grant) > GSC data > monthlyTraffic > unverified
+  const resolvedTier = (() => {
+    if (grantedTier) {
+      // Admin granted traffic is active — use that tier directly for pricing
+      return TRAFFIC_TIERS.find(t => t.tier === grantedTier) || TRAFFIC_TIERS.find(t => t.tier === 'unverified');
+    }
+    if (gscData !== undefined) {
+      // gscData was explicitly passed — use it
+      return getTierFromGsc(gscData);
+    }
+    // Legacy path: no gscData prop, use monthlyTraffic
+    const v = parseInt(monthlyTraffic) || 0;
+    if (v < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
+    return (
+      TRAFFIC_TIERS.find(t => t.tier !== 'unverified' && v >= t.min && v <= t.max) ||
+      TRAFFIC_TIERS.find(t => t.tier === 'starter')
+    );
+  })();
+
+  const tierKey    = resolvedTier.tier;
+  const priceKey   = SPACE_TYPE_MAP[spaceType] || spaceType;
+  const spacePrice = TIER_PRICES[tierKey]?.[priceKey] ?? null;
+  const ownerEarns = spacePrice ? Math.round(spacePrice * 0.70) : null;
+  const yepperCut  = spacePrice ? spacePrice - ownerEarns : null;
+
+  // Compute monthly GSC clicks for display
+  const gscMonthlyClicks = (() => {
+    if (!gscData?.connected || !gscData?.siteMatched) return null;
+    return Math.round((gscData.summary?.clicks || 0) * (30 / 28));
+  })();
+
+  // Emit price data upward
+  useEffect(() => {
+    if (tierKey === 'unverified') {
+      onPriceSelect({
+        price: spacePrice || 0,
+        visitors: 0,
+        tier: 'unverified',
+        visitorRange: { min: 0, max: 0 },
+        ownerEarns: ownerEarns || 0,
+        yepperCut: yepperCut || 0,
+        isUnverified: true,
+      });
+    } else {
+      const tier = TRAFFIC_TIERS.find(t => t.tier === tierKey);
+      onPriceSelect({
+        price: spacePrice || 0,
+        visitors: gscMonthlyClicks || parseInt(monthlyTraffic) || tier.min,
+        tier: tierKey,
+        visitorRange: { min: tier.min, max: tier.max === Infinity ? 9999999 : tier.max },
+        ownerEarns: ownerEarns || 0,
+        yepperCut: yepperCut || 0,
+        isUnverified: false,
+      });
+    }
+  }, [tierKey, spacePrice]); // eslint-disable-line
+
+  // ── Render ──
+  return (
+    <div>
+      {/* Tier Badge */}
+      <div
+        style={{
+          border: `2px solid ${resolvedTier.border}`,
+          backgroundColor: resolvedTier.bg,
+          borderRadius: 0,
+          padding: '16px',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '3px 12px',
+                backgroundColor: resolvedTier.color,
+                color: tierKey === 'elite' ? '#fff' : (tierKey === 'unverified' ? '#92400e' : '#fff'),
+                fontSize: '11px',
+                fontWeight: '700',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {resolvedTier.label} Tier
+            </span>
+            {tierKey === 'unverified' && (
+              <span style={{ fontSize: '11px', color: '#b45309', fontWeight: '500' }}>
+                🔒 Connect Google Search Console to upgrade
+              </span>
+            )}
+          </div>
+          {tierKey !== 'unverified' && gscMonthlyClicks !== null && (
+            <span style={{ fontSize: '11px', color: resolvedTier.textColor, fontWeight: '600' }}>
+              ~{gscMonthlyClicks.toLocaleString()} clicks/mo (GSC)
+            </span>
+          )}
+        </div>
+
+        <p style={{ fontSize: '12px', color: resolvedTier.textColor, marginBottom: '12px', margin: '0 0 12px 0' }}>
+          {tierKey === 'unverified'
+            ? (gscData?.connected && gscData?.siteMatched
+                ? `GSC connected — only ${gscMonthlyClicks ?? 0} organic clicks/mo (need 500+ for Starter tier)`
+                : 'GSC not connected — connect Search Console to unlock tier-based pricing')
+            : resolvedTier.description}
+        </p>
+
+        {/* Price block */}
+        {tierKey === 'unverified' ? (
+          <div style={{ borderTop: `1px solid ${resolvedTier.border}`, paddingTop: '12px' }}>
+            {spacePrice !== null ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '8px',
+                  marginBottom: '10px',
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Price Cap
+                  </p>
+                  <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.color, margin: 0 }}>
+                    RWF {spacePrice.toLocaleString()}
+                  </p>
+                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                    per advertiser/mo
+                  </p>
+                </div>
+                <div style={{ textAlign: 'center', borderLeft: `1px solid ${resolvedTier.border}`, borderRight: `1px solid ${resolvedTier.border}` }}>
+                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    You Earn (70%)
+                  </p>
+                  <p style={{ fontSize: '16px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
+                    RWF {ownerEarns.toLocaleString()}
+                  </p>
+                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                    per advertiser/mo
+                  </p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Yepper (30%)
+                  </p>
+                  <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.textColor, margin: 0, opacity: 0.6 }}>
+                    RWF {yepperCut.toLocaleString()}
+                  </p>
+                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                    per advertiser/mo
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <p style={{ fontSize: '12px', color: '#92400e', fontWeight: '600', margin: 0 }}>
+              ⚠️ Unverified pricing: RWF 63,000 total shared across ALL your active ad spaces.
+            </p>
+            <p style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', margin: '4px 0 0 0' }}>
+              {gscData?.connected && gscData?.siteMatched
+                ? `Your organic traffic (${gscMonthlyClicks ?? 0} clicks/mo) is below the 500/mo minimum for Starter tier. Keep growing — prices will unlock automatically once you hit 500.`
+                : 'Connect GSC to unlock tier-based pricing and higher price caps.'}
+            </p>
+          </div>
+        ) : spacePrice !== null ? (
+          <div
+            style={{
+              borderTop: `1px solid ${resolvedTier.border}`,
+              paddingTop: '12px',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: '8px',
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Price Cap
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.color, margin: 0 }}>
+                RWF {spacePrice.toLocaleString()}
+              </p>
+              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                per advertiser/mo
+              </p>
+            </div>
+            <div style={{ textAlign: 'center', borderLeft: `1px solid ${resolvedTier.border}`, borderRight: `1px solid ${resolvedTier.border}` }}>
+              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                You Earn (70%)
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
+                RWF {ownerEarns.toLocaleString()}
+              </p>
+              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                per advertiser/mo
+              </p>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Yepper (30%)
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.textColor, margin: 0, opacity: 0.6 }}>
+                RWF {yepperCut.toLocaleString()}
+              </p>
+              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
+                per advertiser/mo
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: '12px', color: resolvedTier.textColor, margin: 0 }}>
+            Price not available for this space type.
+          </p>
+        )}
+      </div>
+
+      {/* Tier comparison hint */}
+      {tierKey === 'unverified' && (
+        <div style={{ border: '1px solid #e5e7eb', padding: '12px', backgroundColor: '#f9fafb', fontSize: '11px', color: '#6b7280' }}>
+          <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#374151' }}>
+            💡 Connect Google Search Console to see your real tier prices:
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+            {['starter', 'basic', 'standard', 'premium', 'elite'].map(t => {
+              const td = TRAFFIC_TIERS.find(x => x.tier === t);
+              const p = TIER_PRICES[t]?.[priceKey];
+              return (
+                <div key={t} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', backgroundColor: '#fff', border: '1px solid #e5e7eb' }}>
+                  <span style={{ fontWeight: '600', color: td.color, textTransform: 'capitalize' }}>{td.label}</span>
+                  <span style={{ color: '#374151' }}>{p ? `RWF ${p.toLocaleString()}` : '—'}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PricingTiers;

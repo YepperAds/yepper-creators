@@ -1,54 +1,70 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Yepper Creators — Auth Type Definitions
+// Yepper — Unified Auth Types
 // ─────────────────────────────────────────────────────────────────────────────
-// Google-only auth. All interfaces mirror the exact shapes
-// returned by the Node.js backend.
+// Single auth source: backend-adsense (JWT, email/password + Google OAuth).
+// The `yepper_session` cookie stores the JWT issued by the adsense backend.
+// All parts of the app (advertiser panel, adsense, creators) read from here.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Creator user object (from /auth/session response) ─────────────────────────
+// ── Core user object ──────────────────────────────────────────────────────────
+// Shape returned by backend-adsense GET /api/auth/me
 
 export interface User {
-  user_uuid:    string;
-  id:           string;
-  google_id:    string;
-  fullname:     string;
-  email:        string;
+  id:         string;   // UUID from the users table (also aliased as _id)
+  _id?:       string;
+  name:       string;
+  email:      string;
+  avatar?:    string;
+  isVerified: boolean;
+  googleId?:  string;
+  createdAt?: string;
+  updatedAt?: string;
 
-  // Onboarding fields (undefined until onboarding is complete)
+  // Creators-side extended profile (populated after onboarding, may be absent)
   username?:     string;
   what_they_do?: string;
-  website?: {
-    name?: string;
-    url?: string;
-    domain?: string;
-    status?: 'not_connected' | 'pending_verification' | 'site_unreachable' | 'verified';
-    icon?: string;
-    traffic?: Record<string, unknown>;
-    verified_at?: string;
-  };
-
-  avatar?:  string;
-  status:   'verified' | 'unverified';
-  role?:    'creator' | 'admin';
+  role?:         'user' | 'admin';
 }
 
-// ── Response shapes ───────────────────────────────────────────────────────────
+// ── Session response (/auth/session Next.js route) ─────────────────────────────
 
 export interface AuthResponse {
-  success: boolean;
+  success:  boolean;
   message?: string;
   data?: {
     user: User;
   };
 }
 
+// ── API error ─────────────────────────────────────────────────────────────────
+
 export interface ApiError {
   success?: false;
-  message: string;
-  errors?: Record<string, string[]>;
+  message:  string;
+  errors?:  Record<string, string[]>;
+  requiresVerification?: boolean;
+  expired?: boolean;
 }
 
-// ── Username availability response ────────────────────────────────────────────
+// ── Login / register response from backend-adsense ────────────────────────────
+
+export interface LoginResponse {
+  success:             boolean;
+  token?:              string;
+  user?:               User;
+  message?:            string;
+  requiresVerification?: boolean;
+  maskedEmail?:        string;
+}
+
+export interface RegisterResponse {
+  success:             boolean;
+  requiresVerification?: boolean;
+  maskedEmail?:        string;
+  message?:            string;
+}
+
+// ── Username check (creators onboarding) ─────────────────────────────────────
 
 export interface UsernameCheckResponse {
   available: boolean;

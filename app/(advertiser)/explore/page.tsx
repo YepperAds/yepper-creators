@@ -9,6 +9,8 @@ import {
   ShieldCheckIcon,
   ChartBarIcon,
   PlusIcon,
+  ComputerDesktopIcon,
+  RectangleGroupIcon,
 } from '@heroicons/react/24/outline';
 
 const modules = [
@@ -29,6 +31,23 @@ const modules = [
     description: 'Update your profile and onboarding information.',
     href: '/profile',
     icon: UserIcon,
+  },
+];
+
+const adsenseModules = [
+  {
+    title: 'Web Promoter',
+    description: 'Manage your websites, ad spaces, categories, and earnings as a publisher.',
+    href: '/ad-promoter/pages/websites',
+    icon: ComputerDesktopIcon,
+    accent: true,
+  },
+  {
+    title: 'Ad Owner',
+    description: 'Create and manage ad campaigns, select placements, and track performance.',
+    href: '/ad-owner/pages/ads',
+    icon: RectangleGroupIcon,
+    accent: true,
   },
 ];
 
@@ -69,6 +88,36 @@ export default function ExplorePage() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Yepper Adsense */}
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-[color:var(--color-white)]">Yepper Adsense</h2>
+        <p className="mt-1 text-sm text-[color:var(--color-muted)]">
+          Monetize your website or run ad campaigns directly on the Yepper network.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {adsenseModules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <Link
+                key={module.title}
+                href={module.href}
+                className="group relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-1)] p-5 transition-colors hover:bg-[color:var(--color-surface-2)] hover:border-white/20"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] group-hover:border-white/20">
+                    <Icon className="h-5 w-5 text-[color:var(--color-white)]" />
+                  </div>
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-[color:var(--color-muted)]" />
+                </div>
+                <h2 className="mt-4 text-base font-semibold text-[color:var(--color-white)]">{module.title}</h2>
+                <p className="mt-2 text-sm text-[color:var(--color-muted)]">{module.description}</p>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

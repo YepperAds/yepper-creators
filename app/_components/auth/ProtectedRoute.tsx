@@ -1,21 +1,22 @@
 'use client';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ProtectedRoute — Unified auth guard
+// ─────────────────────────────────────────────────────────────────────────────
+// MIGRATION from yepper-creators original:
+//   [CHANGED] Auth source: now checks /auth/session which reads the JWT cookie
+//             from the adsense backend — one source of truth for the whole app.
+//   [REMOVED] Creators-specific onboarding redirect (username / what_they_do)
+//             — the adsense user model doesn't have these fields. Onboarding
+//             can be added back per-section with a section-level check.
+//   [KEPT]    Spinner while checking, retry UI on network error, redirect on
+//             confirmed auth failure — same UX behaviour as before.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { AuthResponse } from '@/app/_types/auth';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ProtectedRoute
-// Wraps authenticated areas of the dashboard.
-//
-// KEY BEHAVIOUR:
-//   • Only redirects to /login on a CONFIRMED auth failure
-//     (i.e., the server explicitly says "not authenticated").
-//   • Network errors / timeouts / CORS issues show a retry UI
-//     instead of silently signing the user out.
-//   • If the creator hasn't completed onboarding, send them to /onboarding.
-// ─────────────────────────────────────────────────────────────────────────────
 
 type State = 'checking' | 'authorized' | 'unauthorized' | 'error';
 
@@ -30,20 +31,14 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
     if (result.ok) {
       if (result.data?.success && result.data.data?.user) {
-        const user = result.data.data.user;
-        // Onboarding incomplete (for Creators: check username and what_they_do)
-        if (!user.username || !user.what_they_do) {
-          router.replace('/onboarding');
-          return;
-        }
         setState('authorized');
       } else {
-        // Server explicitly says not authenticated
+        // Server explicitly says not authenticated — redirect to login
         setState('unauthorized');
         router.replace('/login');
       }
     } else {
-      // Network / server error — show retry, don't log out
+      // Network or server error — don't log out, show retry UI
       setState('error');
     }
   }, [router]);
@@ -52,7 +47,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     setTimeout(() => check(), 0);
   }, [check]);
 
-  // ── Loading spinner ────────────────────────────────────────────
   if (state === 'checking') {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-(--color-background)">
@@ -61,7 +55,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  // ── Network / server error → retry ────────────────────────────
   if (state === 'error') {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-4 bg-(--color-background)">
@@ -76,12 +69,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  // ── Authorized ─────────────────────────────────────────────────
-  if (state === 'authorized') {
-    return <>{children}</>;
-  }
+  if (state === 'authorized') return <>{children}</>;
 
-  // ── Redirecting to login ───────────────────────────────────────
+  // Redirecting state — show spinner while Next.js router navigates
   return (
     <div className="h-screen w-full flex items-center justify-center bg-(--color-background)">
       <div className="w-6 h-6 border-2 border-(--color-border) border-t-(--color-subtle) rounded-full animate-spin" />

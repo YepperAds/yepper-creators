@@ -63,11 +63,11 @@ const PaymentCallback2 = () => {
       } catch (err: unknown) {
         setStatus('error');
 
-        if (error.code === 'ECONNABORTED') {
+        if ((err as any).code === 'ECONNABORTED') {
           setMessage('Verification timed out. Please check your payment status in the dashboard.');
-        } else if ((error as any).response) {
-          const statusCode = (error as any).response.status;
-          const errorData  = (error as any).(response.data as any);
+        } else if ((err as any).response) {
+          const statusCode = (err as any).response.status;
+          const errorData  = (err as any).response?.data;
 
           switch (statusCode) {
             case 401:
@@ -89,7 +89,7 @@ const PaymentCallback2 = () => {
               setMessage(errorData?.message || errorData?.error || `Server error (${statusCode})`);
           }
         } else {
-          setMessage('Network error — unable to reach the payment verification server. Please check your connection.');
+          setMessage((err as any).message || 'Network error — unable to reach the payment verification server. Please check your connection.');
         }
       }
     };

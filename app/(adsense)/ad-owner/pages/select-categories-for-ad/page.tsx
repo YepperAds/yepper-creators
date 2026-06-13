@@ -344,15 +344,15 @@ const SelectCategoriesForExistingAd = () => {
       }
     } catch (err: unknown) {
       let errorMessage = 'Payment failed';
-      
-      if ((error as any).response?.data) {
-        if ((error as any).(response.data as any).code === 'REFUND_NOT_ALLOWED_FOR_REASSIGNMENT') {
+      const errData = (err as any).response?.data;
+      if (errData) {
+        if (errData.code === 'REFUND_NOT_ALLOWED_FOR_REASSIGNMENT') {
           errorMessage = 'Refunds cannot be used for ad reassignment. Only wallet balance and card payments are allowed.';
         } else {
-          errorMessage = (error as any).(response.data as any).error || (error as any).(response.data as any).message || 'Server error occurred';
+          errorMessage = errData.error || errData.message || 'Server error occurred';
         }
-      } else if ((error as any).message) {
-        errorMessage = (error as any).message;
+      } else if ((err as any).message) {
+        errorMessage = (err as any).message;
       }
       
       setError(errorMessage);

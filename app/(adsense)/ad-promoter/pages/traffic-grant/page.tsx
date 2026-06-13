@@ -1,7 +1,7 @@
 'use client';
 // @ts-nocheck
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/app/_lib/adsense-api';
 
@@ -134,7 +134,7 @@ const Spinner = () => (
 
 // ── Main page ──────────────────────────────────────────────────────────────
 
-export default function TrafficGrantPage() {
+function TrafficGrantContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const token        = searchParams.get('token');
@@ -430,5 +430,13 @@ export default function TrafficGrantPage() {
         </form>
       </div>
     </Shell>
+  );
+}
+
+export default function TrafficGrantPage() {
+  return (
+    <Suspense fallback={<Shell><Spinner /></Shell>}>
+      <TrafficGrantContent />
+    </Suspense>
   );
 }

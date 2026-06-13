@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function SuccessPage() {
+function SuccessContent() {
   const search = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +12,6 @@ export default function SuccessPage() {
   useEffect(() => {
     const token = search.get('token');
     if (!token) {
-      // No token — go back to login silently
       router.replace('/login');
       return;
     }
@@ -26,7 +25,6 @@ export default function SuccessPage() {
         });
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.success) {
-          // Silent failure: redirect to login rather than exposing errors
           router.replace('/login');
           return;
         }
@@ -38,8 +36,7 @@ export default function SuccessPage() {
         } else {
           router.replace('/explore');
         }
-      } catch (err) {
-        // Network error — redirect to login
+      } catch {
         router.replace('/login');
       } finally {
         setLoading(false);
@@ -52,4 +49,12 @@ export default function SuccessPage() {
   if (loading) return <div className="p-6">Signing you in…</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
   return null;
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Signing you in…</div>}>
+      <SuccessContent />
+    </Suspense>
+  );
 }

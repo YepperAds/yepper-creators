@@ -2,20 +2,19 @@
 // @ts-nocheck
 
 // PaymentCallback.js — Flutterwave version
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Text, Heading, Container } from '@/app/(adsense)/components/components';
 import { FlaskConical } from 'lucide-react';
 import api from '@/app/_lib/adsense-api';
 
-const PaymentCallback = () => {
+function PaymentCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
   const [sandboxMode, setSandboxMode] = useState(false);
 
-  // Fetch sandbox mode on mount
   useEffect(() => {
     api.get('/api/web-advertise/payment/debug-config')
       .then(res => setSandboxMode(!!(res.data as any).sandboxMode))
@@ -24,7 +23,6 @@ const PaymentCallback = () => {
 
   useEffect(() => {
     const verifyPayment = async () => {
-      // Flutterwave redirects with ?transaction_id=...&tx_ref=...&status=...
       const transaction_id = searchParams.get('transaction_id');
       const tx_ref        = searchParams.get('tx_ref');
       const flwStatus     = searchParams.get('status');
@@ -43,19 +41,12 @@ const PaymentCallback = () => {
         return;
       }
 
-      // Ensure transaction_id is a string if present (Flutterwave returns numeric ID in URL)
       const parsedTransactionId = transaction_id ? String(transaction_id) : null;
-
-      console.log('[PaymentCallback] Sending verify request:', {
-        transaction_id: parsedTransactionId,
-        tx_ref,
-        flwStatus,
-      });
 
       try {
         const transactionIdFromUrl = searchParams.get('transaction_id');
         const response = await api.post('/api/web-advertise/payment/verify', {
-          transaction_id: transactionIdFromUrl,   // always include if present
+          transaction_id: transactionIdFromUrl,
           tx_ref,
         });
 
@@ -69,8 +60,8 @@ const PaymentCallback = () => {
       } catch (err: unknown) {
         setStatus('failed');
         setMessage(
-          (error as any).response?.data?.message ||
-          (error as any).response?.data?.error ||
+          (err as any).response?.data?.message ||
+          (err as any).response?.data?.error ||
           'Payment verification failed. Please contact support.'
         );
       }
@@ -101,8 +92,6 @@ const PaymentCallback = () => {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Container>
         <div className="max-w-md mx-auto text-center">
-
-          {/* Sandbox banner */}
           {sandboxMode && (
             <div className="flex items-center gap-2 justify-center bg-amber-50 border border-amber-400 text-amber-800 rounded px-4 py-2 mb-6 text-sm">
               <FlaskConical size={15} className="shrink-0" />
@@ -142,6 +131,16 @@ const PaymentCallback = () => {
       </Container>
     </div>
   );
-};
+}
 
-export default PaymentCallback;
+export default function PaymentCallback() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center text-muted">Verifying payment…</div>
+      </div>
+    }>
+      <PaymentCallbackContent />
+    </Suspense>
+  );
+}

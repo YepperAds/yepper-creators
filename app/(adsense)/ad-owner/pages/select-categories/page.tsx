@@ -15,21 +15,21 @@ import { Button, Text, Heading, Container, Badge } from '@/app/(adsense)/compone
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 
 // Import ad space images
-import AboveTheFold from '../img/aboveTheFold.png';
-import BeneathTitle from '../img/beneathTitle.png';
-import Bottom from '../img/bottom.png';
-import Floating from '../img/floating.png';
-import HeaderPic from '../img/header.png';
-import InFeed from '../img/inFeed.png';
-import InlineContent from '../img/inlineContent.png';
-import LeftRail from '../img/leftRail.png';
-import MobileInterstial from '../img/mobileInterstitial.png';
-import ModalPic from '../img/modal.png';
-import Overlay from '../img/overlay.png';
-import ProFooter from '../img/proFooter.png';
-import RightRail from '../img/rightRail.png';
-import Sidebar from '../img/sidebar.png';
-import StickySidebar from '../img/stickySidebar.png';
+import AboveTheFold from '../../../ad-promoter/img/aboveTheFold.png';
+import BeneathTitle from '../../../ad-promoter/img/beneathTitle.png';
+import Bottom from '../../../ad-promoter/img/bottom.png';
+import Floating from '../../../ad-promoter/img/floating.png';
+import HeaderPic from '../../../ad-promoter/img/header.png';
+import InFeed from '../../../ad-promoter/img/inFeed.png';
+import InlineContent from '../../../ad-promoter/img/inlineContent.png';
+import LeftRail from '../../../ad-promoter/img/leftRail.png';
+import MobileInterstial from '../../../ad-promoter/img/mobileInterstitial.png';
+import ModalPic from '../../../ad-promoter/img/modal.png';
+import Overlay from '../../../ad-promoter/img/overlay.png';
+import ProFooter from '../../../ad-promoter/img/proFooter.png';
+import RightRail from '../../../ad-promoter/img/rightRail.png';
+import Sidebar from '../../../ad-promoter/img/sidebar.png';
+import StickySidebar from '../../../ad-promoter/img/stickySidebar.png';
 import api from '@/app/_lib/adsense-api';
 
 

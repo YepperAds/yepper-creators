@@ -1,8 +1,6 @@
 const User = require('../models/User');
 const crypto = require('crypto');
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const sendEmailNotification = require('./emailService');
 
 exports.forgotPassword = async (req, res) => {
   try {
@@ -39,35 +37,26 @@ exports.forgotPassword = async (req, res) => {
     console.log('Sending reset email to:', email);
 
     // Send email
-    const { data, error } = await resend.emails.send({
-      from: 'Yepper <noreply@yepper.cc>',
-      to: [email],
-      subject: 'Reset Your Password',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You requested a password reset for your Yepper account.</p>
-          <p>Click the link below to reset your password:</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-            Reset Password
-          </a>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">Yepper Team</p>
-        </div>
-      `
-    });
+    const result = await sendEmailNotification(email, 'Reset Your Password', `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p>You requested a password reset for your Yepper account.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">
+          Reset Password
+        </a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">Yepper Team</p>
+      </div>
+    `);
 
-    if (error) {
-      console.error('Email error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send reset email. Please try again.'
-      });
+    if (result && result.skipped) {
+      console.warn('Email sending skipped (SMTP not configured) for forgotPassword');
+    } else {
+      console.log('Reset email sent successfully to:', email);
     }
-
-    console.log('Reset email sent successfully to:', email);
 
     res.json({
       success: true,
@@ -118,35 +107,26 @@ exports.waitlistForgotPassword = async (req, res) => {
     console.log('Sending reset email to:', email);
 
     // Send email
-    const { data, error } = await resend.emails.send({
-      from: 'Yepper <noreply@yepper.cc>',
-      to: [email],
-      subject: 'Reset Your Password',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You requested a password reset for your Yepper account.</p>
-          <p>Click the link below to reset your password:</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-            Reset Password
-          </a>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">Yepper Team</p>
-        </div>
-      `
-    });
+    const result = await sendEmailNotification(email, 'Reset Your Password', `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p>You requested a password reset for your Yepper account.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">
+          Reset Password
+        </a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">Yepper Team</p>
+      </div>
+    `);
 
-    if (error) {
-      console.error('Email error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send reset email. Please try again.'
-      });
+    if (result && result.skipped) {
+      console.warn('Email sending skipped (SMTP not configured) for waitlistForgotPassword');
+    } else {
+      console.log('Reset email sent successfully to:', email);
     }
-
-    console.log('Reset email sent successfully to:', email);
 
     res.json({
       success: true,

@@ -8,7 +8,7 @@ const Website = {
         is_business_categories_selected, monthly_traffic, traffic_tier, site_script,
         verification_token, verification_status, gsc_access_token, gsc_refresh_token)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [data.ownerId, data.websiteName, data.websiteLink, data.imageUrl||null,
+      [String(data.ownerId), data.websiteName, data.websiteLink, data.imageUrl||null,
        data.businessCategories||[], data.isBusinessCategoriesSelected||false,
        data.monthlyTraffic||0, data.trafficTier||'unverified', data.siteScript||null,
        data.verificationToken||null, data.verificationStatus||'pending',
@@ -21,7 +21,7 @@ const Website = {
     return rows[0] || null;
   },
   async findByOwner(ownerId) {
-    const { rows } = await query(`SELECT * FROM websites WHERE owner_id = $1 ORDER BY created_at DESC`, [ownerId]);
+    const { rows } = await query(`SELECT * FROM websites WHERE owner_id = $1 ORDER BY created_at DESC`, [String(ownerId)]);
     return rows;
   },
   async findByLink(link) {

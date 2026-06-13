@@ -1,13 +1,7 @@
-// config/passport.js (PostgreSQL version)
+// config/passport.js (PostgreSQL - creators)
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const User = require('../models/User');
-
-const SCOPES = [
-  'profile',
-  'email',
-  'https://www.googleapis.com/auth/webmasters.readonly',
-];
+const Creator = require('../creators/models/Creator');
 
 passport.use(new GoogleStrategy({
   clientID:     process.env.GOOGLE_CLIENT_ID,
@@ -16,56 +10,50 @@ passport.use(new GoogleStrategy({
   accessType:   'offline',
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    let user = await User.findByGoogleId(profile.id);
+    let creator = await Creator.findByGoogleId(profile.id);
 
-    if (user) {
-      // Refresh stored tokens
-      user = await User.update(user.id, {
-        gscAccessToken: accessToken,
-        ...(refreshToken && { gscRefreshToken: refreshToken }),
+    if (creator) {
+      // Update basic profile fields (don't assume gsc token columns exist for creators)
+      creator = await Creator.update(creator.id, {
+        fullName: profile.displayName,
+        avatar: profile.photos[0]?.value || creator.avatar,
       });
-      return done(null, user);
+      return done(null, creator);
     }
 
-    // Check if password-based account exists with this email
-    user = await User.findByEmail(profile.emails[0].value);
+    // Check if account exists with this email
+    creator = await Creator.findByEmail(profile.emails[0].value);
 
-    if (user) {
-      user = await User.update(user.id, {
-        googleId:       profile.id,
-        avatar:         profile.photos[0]?.value || user.avatar,
-        isVerified:     true,
-        gscAccessToken: accessToken,
-        ...(refreshToken && { gscRefreshToken: refreshToken }),
+    if (creator) {
+      creator = await Creator.update(creator.id, {
+        googleId: profile.id,
+        fullName: profile.displayName,
+        avatar: profile.photos[0]?.value || creator.avatar,
       });
-      return done(null, user);
+      return done(null, creator);
     }
 
-    // New user
-    user = await User.create({
-      googleId:        profile.id,
-      name:            profile.displayName,
-      email:           profile.emails[0].value,
-      avatar:          profile.photos[0]?.value || '',
-      isVerified:      true,
-      gscAccessToken:  accessToken,
-      gscRefreshToken: refreshToken || null,
+    // New creator
+    creator = await Creator.create({
+      googleId: profile.id,
+      email: profile.emails[0].value,
+      fullName: profile.displayName,
+      avatar: profile.photos[0]?.value || '',
     });
 
-    done(null, user);
+    done(null, creator);
   } catch (error) {
     done(error, null);
   }
 }));
 
-// Use UUID (id) instead of MongoDB _id
 passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findById(id);
+    const user = await Creator.findById(id);
     done(null, user);
   } catch (error) {
     done(error, null);

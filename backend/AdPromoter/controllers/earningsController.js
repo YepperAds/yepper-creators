@@ -7,6 +7,7 @@ const Website    = require('../models/CreateWebsiteModel');
 const PageView   = require('../models/WebsiteAnalyticsModel');
 const jwt        = require('jsonwebtoken');
 const User       = require('../../models/User');
+const Creator    = require('../../creators/models/Creator');
 
 const TRAFFIC_TIERS = [
   { tier: 'starter',  min: 500,    max: 2000,   basePrice: 6000   },
@@ -69,7 +70,9 @@ async function getAuthUser(req) {
   if (!token) return null;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
-    return await User.findById(decoded.userId);
+    const creator = await Creator.findById(decoded.userId).catch(() => null);
+    if (creator) return creator;
+    return await User.findById(decoded.userId).catch(() => null);
   } catch { return null; }
 }
 

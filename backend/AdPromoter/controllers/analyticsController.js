@@ -3,6 +3,7 @@ const { query } = require('../../config/db');
 const PageView = require('../models/WebsiteAnalyticsModel');
 const Website  = require('../models/CreateWebsiteModel');
 const User     = require('../../models/User');
+const Creator  = require('../../creators/models/Creator');
 const jwt      = require('jsonwebtoken');
 
 function detectDevice(ua = '') {
@@ -20,7 +21,10 @@ async function getAuthUser(req) {
   if (!token) return null;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
-    return await User.findById(decoded.userId);
+    // Creators live in a separate table — check it first, fall back to legacy users.
+    const creator = await Creator.findById(decoded.userId).catch(() => null);
+    if (creator) return creator;
+    return await User.findById(decoded.userId).catch(() => null);
   } catch { return null; }
 }
 

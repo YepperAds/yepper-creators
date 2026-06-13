@@ -24,60 +24,14 @@ const GoogleIcon = () => (
 );
 
 export default function RegisterForm() {
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Manual email registration removed — Google-only signup
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState({ name: '', email: '', password: '' });
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState<{ maskedEmail: string } | null>(null);
 
-  function validate() {
-    const e = { name: '', email: '', password: '' };
-    if (!formData.name.trim()) e.name = 'Full name is required';
-    else if (formData.name.trim().length < 2) e.name = 'Name must be at least 2 characters';
-    if (!formData.email.trim()) e.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Enter a valid email';
-    if (!formData.password) e.password = 'Password is required';
-    else if (formData.password.length < 6) e.password = 'Password must be at least 6 characters';
-    setErrors(e);
-    return !e.name && !e.email && !e.password;
-  }
-
-  async function handleSubmit(ev: FormEvent) {
-    ev.preventDefault();
-    if (!validate()) return;
-
-    setLoading(true);
-    setServerError('');
-
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name.trim(), email: formData.email.trim(), password: formData.password }),
-      });
-
-      const data = (await res.json()) as RegisterResponse;
-
-      if (!res.ok || !data.success) {
-        setServerError(data.message ?? 'Registration failed. Please try again.');
-        return;
-      }
-
-      setSuccess({ maskedEmail: data.maskedEmail ?? formData.email });
-    } catch {
-      setServerError('Could not reach the server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function change(field: keyof typeof formData, value: string) {
-    setFormData(p => ({ ...p, [field]: value }));
-    setErrors(p => ({ ...p, [field]: '' }));
-    setServerError('');
+  async function handleSubmit(_ev?: FormEvent) {
+    // No-op; manual registration removed
+    return;
   }
 
   if (success) {
@@ -98,7 +52,7 @@ export default function RegisterForm() {
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          onClick={() => { setGoogleLoading(true); window.location.href = '/api/auth/google'; }}
+          onClick={() => { setGoogleLoading(true); const backend = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADSENSE_API_URL || ''; window.location.href = `${backend.replace(/\/$/, '')}/api/auth/google`; }}
           disabled={googleLoading}
           className="w-full flex items-center justify-center gap-3 rounded-lg border border-zinc-800
             bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium py-2.5 px-4 transition-colors disabled:opacity-60"
@@ -110,88 +64,9 @@ export default function RegisterForm() {
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-zinc-800" />
-        <span className="text-xs text-zinc-600">or</span>
-        <div className="flex-1 h-px bg-zinc-800" />
-      </div>
+      {/* Manual email sign-up removed — only Google signup is supported */}
 
-      {!showEmailForm ? (
-        <button
-          type="button"
-          onClick={() => setShowEmailForm(true)}
-          className="w-full py-2.5 px-4 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium transition-colors"
-        >
-          Sign up with Email
-        </button>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Full Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={e => change('name', e.target.value)}
-              className={`w-full bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors ${errors.name ? 'border-red-500' : 'border-zinc-800'}`}
-              placeholder="Jane Doe"
-              autoFocus
-            />
-            {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={e => change('email', e.target.value)}
-              className={`w-full bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors ${errors.email ? 'border-red-500' : 'border-zinc-800'}`}
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-            {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={e => change('password', e.target.value)}
-                className={`w-full bg-zinc-900 border rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors ${errors.password ? 'border-red-500' : 'border-zinc-800'}`}
-                placeholder="Minimum 6 characters"
-                autoComplete="new-password"
-              />
-              <button type="button" onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs">
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password}</p>}
-          </div>
-
-          {serverError && (
-            <p className="text-xs text-red-400 bg-red-950/40 border border-red-900 rounded-lg px-3 py-2">{serverError}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-semibold hover:bg-zinc-100 transition-colors disabled:opacity-60"
-          >
-            {loading ? <span className="inline-block w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" /> : 'Create Account'}
-          </button>
-        </form>
-      )}
-
-      <p className="text-center text-xs text-zinc-500">
-        Already have an account?{' '}
-        <Link href="/login" className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors">Sign in</Link>
-      </p>
+      <p className="text-center text-xs text-zinc-500">Manual registration is disabled. Use Sign up with Google above.</p>
     </div>
   );
 }

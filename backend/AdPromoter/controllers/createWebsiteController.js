@@ -2,6 +2,8 @@
 const Website = require('../models/CreateWebsiteModel');
 const multer = require('multer');
 const User = require('../../models/User');
+const Creator = require('../../creators/models/Creator');
+const { createNotification } = require('../../creators/utils/notificationUtils');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const cloudinary = require('../../config/storage');
@@ -55,15 +57,31 @@ const uploadToCloudinary = async (file) => {
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+  // Fallback to cookies (yepper_session or readable yepper_token) for browser flows
+  if (!token && req.cookies) {
+    token = req.cookies.yepper_session || req.cookies.yepper_token || null;
+  }
   if (!token) return res.status(401).json({ message: 'Access token is required' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
-    const user = await User.findById(decoded.userId);
+    // Prefer Creator lookup (new users use creators table). Fall back to legacy users.
+    let user = await Creator.findById(decoded.userId).catch(() => null);
+    if (!user) {
+      user = await User.findById(decoded.userId).catch(() => null);
+    }
     if (!user) return res.status(401).json({ message: 'User not found' });
     req.user = user;
     next();
   } catch (error) {
+    try {
+      const masked = token ? `${token.substring(0,8)}...${token.substring(token.length-8)}` : 'no-token';
+      console.warn('authenticateToken failed:', error && error.message ? error.message : error, 'maskedToken:', masked);
+      const decoded = jwt.decode(token, { complete: true });
+      console.warn('authenticateToken decoded (not verified):', decoded ? { header: decoded.header, payload: decoded.payload } : null);
+    } catch (e) {
+      // ignore logging errors
+    }
     return res.status(403).json({ message: 'Invalid token' });
   }
 };
@@ -91,7 +109,8 @@ function buildTxtRecord(token) {
 }
 
 // POST /api/createWebsite/initiate-verification
-exports.initiateVerification = [authenticateToken, async (req, res) => {
+// No auth required: anyone can request a TXT record to prove domain ownership
+exports.initiateVerification = async (req, res) => {
   try {
     const { websiteLink } = req.body;
     if (!websiteLink) return res.status(400).json({ message: 'websiteLink is required' });
@@ -99,9 +118,13 @@ exports.initiateVerification = [authenticateToken, async (req, res) => {
     const domain = normalizeDomain(websiteLink);
     if (!domain) return res.status(400).json({ message: 'Invalid website URL' });
 
-    // Reuse existing token if same owner already started for this domain
     const existing = await Website.findByLink(websiteLink);
-    const token = (existing && existing.owner_id === req.user.id.toString() && existing.verification_status === 'pending')
+    // Reject early if this URL is already registered and verified by anyone
+    if (existing && existing.verification_status === 'verified') {
+      return res.status(409).json({ message: 'This website URL is already registered on Yepper.' });
+    }
+    // Reuse existing token if a pending verification record already exists
+    const token = (existing && existing.verification_status === 'pending')
       ? existing.verification_token
       : crypto.randomBytes(24).toString('hex');
 
@@ -121,10 +144,11 @@ exports.initiateVerification = [authenticateToken, async (req, res) => {
     console.error('initiateVerification error:', error);
     res.status(500).json({ message: 'Failed to initiate domain verification', error: error.message });
   }
-}];
+};
 
 // POST /api/createWebsite/verify-domain
-exports.verifyDomain = [authenticateToken, async (req, res) => {
+// No auth required: allow callers to verify TXT record existence
+exports.verifyDomain = async (req, res) => {
   try {
     const { websiteLink, verificationToken } = req.body;
     if (!websiteLink || !verificationToken) {
@@ -162,7 +186,7 @@ exports.verifyDomain = [authenticateToken, async (req, res) => {
     console.error('verifyDomain error:', error);
     res.status(500).json({ message: 'Failed to verify domain', error: error.message });
   }
-}];
+};
 
 exports.prepareWebsite = [upload.single('file'), authenticateToken, async (req, res) => {
   try {
@@ -218,40 +242,42 @@ exports.uploadWebsiteImage = [authenticateToken, upload.single('file'), async (r
   }
 }];
 
+async function resolveImageUrl(rawUrl) {
+  if (!rawUrl) return '';
+  if (!rawUrl.startsWith('data:')) return rawUrl;
+  const fileName = `website-icon-${Date.now()}`;
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { resource_type: 'image', folder: 'yepper_websites', public_id: fileName },
+      (error, result) => {
+        if (error) return reject(new Error(`Cloudinary: ${error.message}`));
+        resolve(result.secure_url);
+      }
+    );
+    const base64Data = rawUrl.replace(/^data:image\/\w+;base64,/, '');
+    uploadStream.end(Buffer.from(base64Data, 'base64'));
+  });
+}
+
 exports.createWebsiteWithCategories = [authenticateToken, async (req, res) => {
   try {
-    const { websiteName, websiteLink, imageUrl, businessCategories, monthlyTraffic, verificationToken } = req.body;
+    const { websiteName, websiteLink, imageUrl, businessCategories, monthlyTraffic } = req.body;
     const ownerId = req.user.id.toString();
 
     if (!websiteName || !websiteLink || !businessCategories || !Array.isArray(businessCategories)) {
       return res.status(400).json({ message: 'Website name, link, and business categories are required' });
-    }
-    if (!verificationToken) {
-      return res.status(400).json({ message: 'Domain must be verified before creating a website.' });
     }
     if (businessCategories.length === 0) {
       return res.status(400).json({ message: 'At least one business category must be selected' });
     }
 
     const existingWebsite = await Website.findByLink(websiteLink);
-    if (existingWebsite) return res.status(409).json({ message: 'Website URL already exists' });
-
-    // Re-verify TXT record before saving
-    const domain = normalizeDomain(websiteLink);
-    const expectedTxt = buildTxtRecord(verificationToken);
-    let verified = false;
-    try {
-      const records = await dns.resolveTxt(`_yepper-challenge.${domain}`);
-      verified = records.some(rdata => rdata.join('').includes(expectedTxt));
-    } catch {
-      verified = false;
-    }
-
-    if (!verified) {
-      return res.status(400).json({
-        message: 'Domain ownership could not be re-confirmed. Please re-verify your domain and try again.',
-        code: 'DOMAIN_VERIFICATION_FAILED',
-      });
+    if (existingWebsite) {
+      // Return existing website if owned by the same user — no need to recreate
+      if (existingWebsite.owner_id === ownerId) {
+        return res.status(200).json({ success: true, data: existingWebsite, alreadyExists: true });
+      }
+      return res.status(409).json({ message: 'Website URL already exists' });
     }
 
     const allowedCategories = [
@@ -265,20 +291,26 @@ exports.createWebsiteWithCategories = [authenticateToken, async (req, res) => {
       return res.status(400).json({ message: `Invalid business categories: ${invalidCategories.join(', ')}` });
     }
 
+    const resolvedUrl = await resolveImageUrl(imageUrl).catch(() => null);
+
     const savedWebsite = await Website.create({
       ownerId,
       websiteName,
       websiteLink,
-      imageUrl: imageUrl || '',
+      imageUrl: resolvedUrl,
       businessCategories,
       isBusinessCategoriesSelected: true,
       monthlyTraffic: parseInt(monthlyTraffic) || 0,
       trafficTier: computeTrafficTier(monthlyTraffic),
-      verificationToken,
+      verificationToken: '',
       verificationStatus: 'verified',
     });
 
     console.log('Website created successfully with ID:', savedWebsite.id);
+    createNotification(parseInt(ownerId), 'website_connected', 'Website Connected',
+      `"${websiteName}" has been added to your account`,
+      { website_name: websiteName, website_link: websiteLink, icon: '🌐' }
+    ).catch(() => {});
     res.status(201).json({ success: true, data: savedWebsite, message: 'Website created successfully' });
   } catch (error) {
     console.error('Error creating website with categories:', error);
@@ -356,6 +388,20 @@ exports.getWebsitesByOwner = async (req, res) => {
     res.status(200).json(websites.map(toClient));  // ← map
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch websites', error });
+  }
+};
+
+exports.deleteWebsite = async (req, res) => {
+  const { websiteId } = req.params;
+  const userId = req.user?.id?.toString();
+  try {
+    const website = await Website.findById(websiteId);
+    if (!website) return res.status(404).json({ success: false, message: 'Website not found' });
+    if (website.owner_id?.toString() !== userId) return res.status(403).json({ success: false, message: 'Unauthorized' });
+    await Website.delete(websiteId);
+    res.json({ success: true, message: 'Website removed' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to remove website', error: error.message });
   }
 };
 

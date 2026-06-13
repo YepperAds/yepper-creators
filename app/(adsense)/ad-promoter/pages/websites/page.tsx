@@ -1,5 +1,4 @@
 'use client';
-import { getToken } from '@/app/(adsense)/utils/token';
 // @ts-nocheck
 
 import React, { useState, useEffect } from 'react';
@@ -16,7 +15,6 @@ import api from '@/app/_lib/adsense-api';
 
 function Websites() {
   const { user, isAuthenticated, isLoading } = useSession();
-  const token = getToken();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,15 +32,13 @@ function Websites() {
   const { data: websites, isLoading: websitesLoading, error: websitesError, refetch: refetchWebsites } = useQuery({
     queryKey: ['websites', user?._id || user?.id],
     queryFn: async () => {
-      try {
-        const userId = user?._id || user?.id;
-        const response = await api.get(`/api/websites/${userId}`);
-        return (response.data as any);
-      } catch (err: unknown) {
-        throw error;
-      }
+      const userId = user?._id || user?.id;
+      const response = await api.get(`/api/websites/${userId}`);
+      return (response.data as any);
     },
-    enabled: !!(user?._id || user?.id) && !!token,
+    // token check removed — requests go through the Next.js proxy which reads
+    // the httpOnly yepper_session cookie; no readable token is needed here.
+    enabled: !!(user?._id || user?.id),
   });
 
   // const { data: pendingAds = [], isLoading: pendingLoading } = useQuery({

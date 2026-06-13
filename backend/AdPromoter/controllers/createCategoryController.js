@@ -111,11 +111,11 @@ exports.createCategory = async (req, res) => {
       spaceType, placementMode, userCount, instructions, visitorRange, tier
     } = req.body;
 
-    const userId = req.user.userId || req.user.id || req.user._id;
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
     if (!userId) return res.status(401).json({ message: 'User ID not found in auth data' });
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(401).json({ message: 'User not found' });
+    const userEmail = req.user.email;
+    if (!userEmail) return res.status(401).json({ message: 'User email not found in auth data' });
 
     if (!websiteId || !categoryName || !price || !spaceType || !visitorRange || !tier) {
       return res.status(400).json({
@@ -126,7 +126,7 @@ exports.createCategory = async (req, res) => {
     }
 
     const savedCategory = await AdCategory.create({
-      ownerId: user.id.toString(),
+      ownerId: userId,
       websiteId,
       categoryName,
       description,
@@ -135,7 +135,7 @@ exports.createCategory = async (req, res) => {
       placementMode: placementMode || 'auto',
       instructions,
       customAttributes: customAttributes || {},
-      webOwnerEmail: user.email,
+      webOwnerEmail: userEmail,
       visitorRange,
       tier,
     });
@@ -185,12 +185,29 @@ exports.createCategory = async (req, res) => {
 
     try { await generateSiteScript(websiteId); } catch(e) { console.error('Site script regen:', e.message); }
 
-    res.status(201).json({ success: true, message: 'Category created successfully', category: finalCategory });
+    res.status(201).json({ success: true, message: 'Ad space created successfully', category: finalCategory });
 
   } catch (error) {
-    console.error('Error creating category:', error);
+    console.error('Error creating ad space:', error);
+
+    // Unique constraint: same space name already exists for this website
+    if (error.code === '23505') {
+      const name = req.body?.categoryName || 'this type';
+      return res.status(409).json({
+        message: `An ad space named "${name}" already exists for this website. Choose a different space type or delete the existing one first.`,
+      });
+    }
+
+    // FK violation: owner_id or website_id doesn't exist in referenced table
+    if (error.code === '23503') {
+      return res.status(400).json({
+        message: 'Invalid website or owner reference. Please reload the page and try again.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+
     res.status(500).json({
-      message: 'Failed to create category',
+      message: 'Failed to create ad space',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

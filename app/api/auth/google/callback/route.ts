@@ -65,16 +65,22 @@ export async function GET(req: NextRequest) {
       cache: 'no-store',
     });
 
+    let needsProfile = false;
     if (exchangeRes.ok) {
-      const data = (await exchangeRes.json()) as { success: boolean; token?: string };
-      if (data.success && data.token) jwt = data.token;
+      const data = (await exchangeRes.json()) as { success: boolean; token?: string; needsProfile?: boolean };
+      if (data.success && data.token) {
+        jwt = data.token;
+        needsProfile = Boolean(data.needsProfile);
+      }
     }
   } catch { /* handled below */ }
 
   if (!jwt) return NextResponse.redirect(new URL('/login?error=google_exchange_failed', origin));
 
   // 4. Set both session cookies and redirect to role selection
-  const res = NextResponse.redirect(new URL('/choose-role', origin));
+  // If the user requires profile completion, redirect to /complete-profile
+  const redirectPath = needsProfile ? '/complete-profile' : (req.nextUrl.searchParams.get('from') || '/choose-role');
+  const res = NextResponse.redirect(new URL(redirectPath, origin));
 
   const cookieOpts = {
     path:     '/',

@@ -80,6 +80,8 @@ export async function GET(req: NextRequest) {
         user: {
           id:         u.id ?? u._id,
           _id:        u.id ?? u._id,
+          // user_uuid mirrors id — kept for backwards compatibility with social connect flow
+          user_uuid:  (u as any).user_uuid ?? u.id ?? u._id,
           name:       u.name,
           email:      u.email,
           avatar:     u.avatar,
@@ -89,6 +91,13 @@ export async function GET(req: NextRequest) {
           updatedAt:  u.updatedAt,
           // role defaults — can be extended later
           role:       'user',
+          // Creator fields (if present)
+          username:   (u as any).username ?? undefined,
+          whatTheyDo: (u as any).what_they_do ?? (u as any).whatTheyDo ?? undefined,
+          what_they_do: (u as any).what_they_do ?? (u as any).whatTheyDo ?? undefined,
+          // Backwards-compatible fullname variants used across the frontend
+          fullName:   (u as any).full_name ?? (u as any).fullName ?? u.name ?? undefined,
+          fullname:   (u as any).full_name ?? (u as any).fullName ?? u.name ?? undefined,
         },
       },
     });

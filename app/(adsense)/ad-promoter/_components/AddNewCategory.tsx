@@ -304,26 +304,37 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
     setActiveCategory(null);
   };
 
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    try {
-      const categoriesToSubmit = Object.entries(selectedCategories)
-        .filter(([category]) => completedCategories.includes(category))
-        .map(([category]) => ({
-          ownerId: (user as any)?.id || (user as any)?._id,
-          websiteId,
-          categoryName: category.charAt(0).toUpperCase() + category.slice(1),
-          price: categoryData[category]?.price || 0,
-          description: categoryDetails[category]?.description || '',
-          spaceType: categoryDetails[category]?.spaceType,
-          userCount: parseInt(categoryData[category]?.userCount ?? '0') || 0,
-          instructions: categoryData[category]?.instructions || '',
-          customAttributes: {},
-          webOwnerEmail: (user as any)?.email,
-          visitorRange: categoryData[category]?.visitorRange || { min: 0, max: 10000 },
-          tier: categoryData[category]?.tier || 'starter',
-        }));
+    setSubmitError('');
 
+    const categoriesToSubmit = Object.entries(selectedCategories)
+      .filter(([category]) => completedCategories.includes(category))
+      .map(([category]) => ({
+        ownerId: (user as any)?.id || (user as any)?._id,
+        websiteId,
+        categoryName: category.charAt(0).toUpperCase() + category.slice(1),
+        price: categoryData[category]?.price || 0,
+        description: categoryDetails[category]?.description || '',
+        spaceType: categoryDetails[category]?.spaceType,
+        userCount: parseInt(categoryData[category]?.userCount ?? '0') || 0,
+        instructions: categoryData[category]?.instructions || '',
+        customAttributes: {},
+        webOwnerEmail: (user as any)?.email,
+        visitorRange: categoryData[category]?.visitorRange || { min: 0, max: 10000 },
+        tier: categoryData[category]?.tier || 'starter',
+      }));
+
+    if (categoriesToSubmit.length === 0) {
+      setSubmitError('Please configure at least one ad space before submitting.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
       await Promise.all(
         categoriesToSubmit.map((category) =>
           api.post('/api/ad-categories', category, {
@@ -331,13 +342,21 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
           })
         )
       );
-
       onSubmitSuccess?.();
       onSuccess?.();
     } catch (error: unknown) {
       if ((error as any)?.response?.status === 401) {
         router.push('/login');
+      } else {
+        setSubmitError(
+          (error as any)?.response?.data?.message ||
+          (error as any)?.response?.data?.error ||
+          (error as any)?.message ||
+          'Failed to create ad space. Please try again.'
+        );
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -602,10 +621,14 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
 
           {/* Submit */}
           {completedCategories.length > 0 && (
-            <div className="flex justify-center mt-4">
-              <Button type="submit" variant="secondary" size="lg">
-                Create {completedCategories.length} Ad Space
-                {completedCategories.length > 1 ? 's' : ''}
+            <div className="flex flex-col items-center gap-3 mt-4">
+              {submitError && (
+                <div className="w-full max-w-lg px-4 py-3 border border-red-400/40 bg-red-400/10 text-sm text-red-300">
+                  {submitError}
+                </div>
+              )}
+              <Button type="submit" variant="secondary" size="lg" disabled={submitting}>
+                {submitting ? 'Creating…' : `Create ${completedCategories.length} Ad Space${completedCategories.length > 1 ? 's' : ''}`}
               </Button>
             </div>
           )}

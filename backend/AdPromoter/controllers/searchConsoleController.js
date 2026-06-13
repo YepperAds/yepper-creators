@@ -11,6 +11,7 @@
 const { google } = require('googleapis');
 const Website = require('../models/CreateWebsiteModel');
 const User    = require('../../models/User');
+const Creator = require('../../creators/models/Creator');
 const jwt     = require('jsonwebtoken');
 
 const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly'];
@@ -75,17 +76,19 @@ exports.getConnectUrl = async (req, res) => {
 
   const { websiteId } = req.params;
 
+  const creator = await Creator.findById(userId).catch(() => null);
   const [website, user] = await Promise.all([
     Website.findById(websiteId),
-    User.findById(userId),
+    creator ? Promise.resolve(null) : User.findById(userId).catch(() => null),
   ]);
+  const resolvedUser = creator || user;
 
   if (!website || website.owner_id?.toString() !== userId?.toString()) {
     return res.status(404).json({ error: 'Website not found' });
   }
 
   // If the user already has tokens from their Google sign-in, no extra flow needed
-  if (user?.gscAccessToken) {
+  if (resolvedUser?.gscAccessToken) {
     return res.json({ alreadyConnected: true });
   }
 
@@ -165,9 +168,11 @@ exports.getGscData = async (req, res) => {
   const { websiteId } = req.params;
 
   try {
+    // Creator user IDs are integers; the users table uses TEXT/UUID IDs.
+    // Use .catch(() => null) so a type-mismatch error from pg never causes a 500.
     const [website, user] = await Promise.all([
       Website.findById(websiteId),
-      User.findById(userId),
+      User.findById(userId).catch(() => null),
     ]);
 
     if (!website || website.owner_id?.toString() !== userId?.toString()) return res.status(404).json({ error: 'Website not found' });

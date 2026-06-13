@@ -31,5 +31,37 @@ export async function GET(
   // External backend removed — return a harmless local URL so the UI remains unchanged.
   // The client expects `{ success: true, url }` so we provide `#` which keeps the user
   // on the same page while preserving the UI flow.
-  return NextResponse.json({ success: true, url: '#' });
+  const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';
+
+  try {
+    const url = new URL(`${ADSENSE_API}/api/connect/${encodeURIComponent(_provider)}`);
+    if (userUuid) url.searchParams.set('user_uuid', userUuid);
+
+    const upstream = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'manual',
+      headers: {
+        // forward cookies so backend can read session if needed
+        cookie: request.headers.get('cookie') ?? '',
+      },
+      cache: 'no-store',
+    });
+
+    // If backend redirected to OAuth provider, capture Location
+    const location = upstream.headers.get('location');
+    if (location) {
+      return NextResponse.json({ success: true, url: location });
+    }
+
+    // If backend returned JSON or other response, try to forward it
+    const text = await upstream.text();
+    const contentType = upstream.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return NextResponse.json(JSON.parse(text), { status: upstream.status });
+    }
+
+    return NextResponse.json({ success: false, message: text || 'Unexpected response from backend' }, { status: upstream.status });
+  } catch (err) {
+    return NextResponse.json({ success: false, message: 'Network error while initiating connect' }, { status: 500 });
+  }
 }

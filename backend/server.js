@@ -31,13 +31,16 @@ const analyticsRoutes          = require('./AdPromoter/routes/analyticsRoutes');
 const webAdvertiseRoutes = require('./AdOwner/routes/WebAdvertiseRoutes');
 
 // ─── Creators routes ──────────────────────────────────────────────────────────
-const creatorsRouter              = require('./creators/routes/creatorRoutes');
-const { initCreatorsDatabase }    = require('./creators/models/initDb');
+const creatorsRouter                           = require('./creators/routes/creatorRoutes');
+const { initCreatorsDatabase }                 = require('./creators/models/initDb');
+const { refreshAllAdPostStats }                = require('./creators/controllers/creatorController');
+const cron                                     = require('node-cron');
 
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
@@ -190,14 +193,41 @@ async function startServer() {
     console.error('❌ Failed to initialise creators DB schema:', err.message);
   });
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Unified Yepper backend running on port ${PORT}`);
-    console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
-    console.log(`   Auth routes : /api/auth/*`);
-    console.log(`   AdPromoter  : /api/websites, /api/ads, /api/ad-categories, /api/analytics`);
-    console.log(`   AdOwner     : /api/web-advertise/*`);
-    console.log(`   Creators    : /auth/creator/google, /api/social/*, /api/website/*, /api/notifications/*`);
-  });
+  // Drop owner_id FK constraints that block creators from creating websites/ad-spaces
+  try {
+    const { up: dropOwnerFks } = require('./migrations/20260612_drop_owner_fk_constraints');
+    await dropOwnerFks();
+  } catch (err) {
+    console.warn('⚠️  Migration 20260612_drop_owner_fk_constraints skipped:', err.message?.split('\n')[0]);
+  }
+
+  // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
+
+  function bindPort(port) {
+    const server = app.listen(port, () => {
+      console.log(`🚀 Unified Yepper backend running on port ${port}`);
+      console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   Auth routes : /api/auth/*`);
+      console.log(`   AdPromoter  : /api/websites, /api/ads, /api/ad-categories, /api/analytics`);
+      console.log(`   AdOwner     : /api/web-advertise/*`);
+      console.log(`   Creators    : /auth/creator/google, /api/social/*, /api/website/*, /api/notifications/*`);
+      if (port !== PORT) {
+        console.log(`   ⚠  Port ${PORT} was busy — using ${port} instead. Update NEXT_PUBLIC_API_URL in frontend .env`);
+      }
+    });
+
+    server.on('error', (err) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.warn(`⚠  Port ${port} in use, trying ${port + 1}…`);
+        bindPort(port + 1);
+      } else {
+        console.error('Server error:', err);
+        process.exit(1);
+      }
+    });
+  }
+
+  bindPort(PORT);
 }
 
 startServer();

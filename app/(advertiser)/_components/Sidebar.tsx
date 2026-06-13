@@ -6,31 +6,29 @@ import { usePathname } from 'next/navigation';
 
 import {
   GlobeAltIcon as OutlineGlobe,
-  BoltIcon as OutlineBolt,
-  MegaphoneIcon as OutlineMegaphone,
   ChartBarIcon as OutlineChart,
   LinkIcon as OutlineLink,
   BellIcon as OutlineBell,
-  BanknotesIcon as OutlineBanknotes,
   Cog6ToothIcon as OutlineCog,
   QuestionMarkCircleIcon as OutlineQuestion,
   UserIcon as OutlineUser,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
+  WifiIcon as OutlineWifi,
+  BanknotesIcon as OutlineBanknotes,
 } from '@heroicons/react/24/outline';
 
 import {
   GlobeAltIcon as SolidGlobe,
-  BoltIcon as SolidBolt,
-  MegaphoneIcon as SolidMegaphone,
   ChartBarIcon as SolidChart,
   LinkIcon as SolidLink,
   BellIcon as SolidBell,
-  BanknotesIcon as SolidBanknotes,
   Cog6ToothIcon as SolidCog,
   QuestionMarkCircleIcon as SolidQuestion,
   UserIcon as SolidUser,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  WifiIcon as SolidWifi,
+  BanknotesIcon as SolidBanknotes,
 } from '@heroicons/react/24/solid';
 
 import { api, AUTH_ENDPOINTS, BASE_URL } from '@/app/_lib/api';
@@ -66,11 +64,10 @@ export default function Sidebar() {
 
     async function loadInitial() {
       try {
-        const res = await api.get('/api/notifications?limit=1&offset=0');
+        const res = await api.get('/api/proxy/api/notifications?limit=1&offset=0');
         if (res.ok) {
           const payload: any = res.data;
-          const unread = payload?.meta?.unread ?? 0;
-          setUnreadCount(Number(unread || 0));
+          setUnreadCount(Number(payload?.meta?.unread ?? 0));
         }
       } catch (err) {
         console.error('Failed to load initial notifications for badge', err);
@@ -80,13 +77,12 @@ export default function Sidebar() {
     loadInitial();
 
     try {
-      es = new EventSource(`${BASE_URL}/api/notifications/stream`);
-      try { (es as any).withCredentials = true; } catch {}
+      es = new EventSource(`${BASE_URL}/api/notifications/stream`, { withCredentials: true });
 
       es.addEventListener('unread', (ev) => {
         try {
           const payload = JSON.parse((ev as MessageEvent).data);
-          setUnreadCount(Number(payload.count || 0));
+          setUnreadCount(Number(payload.unread ?? 0));
         } catch (err) {
           console.error('Invalid SSE unread payload', err);
         }
@@ -98,10 +94,10 @@ export default function Sidebar() {
         if (pollInterval) return;
         pollInterval = setInterval(async () => {
           try {
-            const res = await api.get('/api/notifications?limit=1&offset=0');
+            const res = await api.get('/api/proxy/api/notifications?limit=1&offset=0');
             if (res.ok) {
               const payload: any = res.data;
-              setUnreadCount(Number(payload?.meta?.unread || 0));
+              setUnreadCount(Number(payload?.meta?.unread ?? 0));
             }
           } catch (err) {
             console.error('Polling notifications failed', err);
@@ -109,23 +105,16 @@ export default function Sidebar() {
         }, 15_000);
       };
 
-      es.onerror = (err) => {
-        console.warn('Notifications SSE error, falling back to polling', err);
-        startPolling();
-      };
-
-      // If connection is closed, start polling
-      es.onclose = () => startPolling();
+      es.onerror = () => startPolling();
 
     } catch (err) {
       console.error('Failed to open notifications SSE', err);
-      // Start polling immediately on error
       const poll = setInterval(async () => {
         try {
-          const res = await api.get('/api/notifications');
+          const res = await api.get('/api/proxy/api/notifications?limit=1&offset=0');
           if (res.ok) {
-            const rows: any[] = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-            setUnreadCount(rows.filter((r) => !r.is_read).length);
+            const payload: any = res.data;
+            setUnreadCount(Number(payload?.meta?.unread ?? 0));
           }
         } catch (err) {
           console.error('Polling notifications failed', err);
@@ -155,30 +144,37 @@ export default function Sidebar() {
   const navGroups = [
     {
       items: [
-        { label: 'Explore', href: '/explore', icon: OutlineGlobe, activeIcon: SolidGlobe },
-        { label: 'Analytics', href: '/analytics', icon: OutlineChart, activeIcon: SolidChart },
-        { label: 'Connect accounts', href: '/connect-accounts', icon: OutlineLink, activeIcon: SolidLink },
-        { label: 'My Profile', href: '/profile', icon: OutlineUser, activeIcon: SolidUser },
+        { label: 'Explore',          href: '/explore',          icon: OutlineGlobe,     activeIcon: SolidGlobe },
+        { label: 'Analytics',        href: '/analytics',        icon: OutlineChart,     activeIcon: SolidChart },
+        { label: 'Connect accounts', href: '/connect-accounts', icon: OutlineLink,      activeIcon: SolidLink },
+        { label: 'My Profile',       href: '/profile',          icon: OutlineUser,      activeIcon: SolidUser },
+      ]
+    },
+    {
+      // Global links — accessible to both Content Creators and Web Developers
+      items: [
+        { label: 'Connect Website', href: '/connect-website', icon: OutlineWifi, activeIcon: SolidWifi },
+        { label: 'Wallet',          href: '/wallet',          icon: OutlineBanknotes, activeIcon: SolidBanknotes },
       ]
     },
     {
       items: [
-        { label: 'Notifications', href: '/notifications', icon: OutlineBell, activeIcon: SolidBell },
-        { 
-          label: 'Settings', 
-          icon: OutlineCog, 
+        { label: 'Notifications', href: '/notifications', icon: OutlineBell,     activeIcon: SolidBell },
+        {
+          label:      'Settings',
+          icon:       OutlineCog,
           activeIcon: SolidCog,
-          action: () => setSettingsOpen(true),
+          action:     () => setSettingsOpen(true),
         },
-        { 
-          label: 'Help & Support', 
-          icon: OutlineQuestion, 
+        {
+          label:      'Help & Support',
+          icon:       OutlineQuestion,
           activeIcon: SolidQuestion,
           dropdown: [
             { type: 'header', label: 'Tutorials' },
-            { type: 'link', label: 'How to connect accounts?' },
-            { type: 'link', label: 'Privacy Policy' },
-            { type: 'link', label: 'Terms' },
+            { type: 'link',   label: 'How to connect accounts?' },
+            { type: 'link',   label: 'Privacy Policy' },
+            { type: 'link',   label: 'Terms' },
           ]
         },
       ]
@@ -289,7 +285,7 @@ export default function Sidebar() {
                         if (subItem.type === 'header') {
                           return (
                             <div key={idx}>
-                              {subItem.divider && <div className="h-px bg-(--color-border) my-2 opacity-50" />}
+                              {(subItem as any).divider && <div className="h-px bg-(--color-border) my-2 opacity-50" />}
                               <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-bold text-(--color-muted) uppercase tracking-wider">
                                 {subItem.label === 'Tutorials' && (
                                   <svg className="w-4 h-4 text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor">

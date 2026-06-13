@@ -24,6 +24,16 @@ const authMiddleware = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtError) {
+      // Helpful debug logging in dev to understand why verification failed
+      try {
+        const masked = token ? `${token.substring(0,8)}...${token.substring(token.length-8)}` : 'no-token';
+        console.warn('[authmiddleware] jwt verification failed:', jwtError && jwtError.message, 'maskedToken:', masked);
+        const decoded = jwt.decode(token, { complete: true });
+        console.warn('[authmiddleware] decoded token (not verified):', decoded ? { header: decoded.header, payload: decoded.payload } : null);
+      } catch (e) {
+        // ignore logging errors
+      }
+
       if (jwtError.name === 'TokenExpiredError') {
         return res.status(401).json({ success: false, message: 'Token expired', expired: true });
       }

@@ -15,7 +15,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         const result = await api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession);
 
         if (result.ok && result.data?.success && result.data.data?.user) {
-          router.replace('/choose-role');
+          const u = result.data.data.user;
+          const needsProfile = !u.username || (!(u as any).what_they_do && !(u as any).whatTheyDo);
+          router.replace(needsProfile ? '/choose-role' : '/explore');
         } else {
           // Covers 401, 503, network errors — just show the login form
           setChecked(true);

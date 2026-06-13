@@ -164,7 +164,7 @@ export default function OnboardingPage() {
     setUsernameStatus('checking');
 
     try {
-      const res = await fetch(`${apiBaseUrl}/auth/check-username?username=${encodeURIComponent(raw)}`);
+      const res = await fetch(`${apiBaseUrl}/auth/creator/check-username?username=${encodeURIComponent(raw)}`);
       const data: UsernameCheckResponse = await res.json();
       setUsernameStatus(data.available ? 'available' : 'taken');
       setUsernameReason(data.reason);

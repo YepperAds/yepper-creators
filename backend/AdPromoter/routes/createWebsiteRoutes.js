@@ -16,6 +16,7 @@ router.post('/upload/:websiteId', websiteController.uploadWebsiteImage);
 router.post('/createWebsiteWithCategories', websiteController.createWebsiteWithCategories);
 
 router.patch('/:websiteId/name', websiteController.updateWebsiteName);
+router.delete('/:websiteId', authMiddleware, websiteController.deleteWebsite);
 router.get('/', websiteController.getAllWebsites);
 router.get('/website/:websiteId', websiteController.getWebsiteById);
 

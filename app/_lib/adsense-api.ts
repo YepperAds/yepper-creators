@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ADSENSE_BASE_URL =
-  process.env.NEXT_PUBLIC_ADSENSE_API_URL ?? 'https://yepper-backend.onrender.com';
+  process.env.NEXT_PUBLIC_ADSENSE_API_URL ?? 'http://localhost:5000';
 
 // ── Generic request helper ─────────────────────────────────────────────────
 
@@ -23,10 +23,15 @@ async function adsenseRequest<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<{ data: T }> {
-  const url = `${ADSENSE_BASE_URL}${path}`;
+  // When running in the browser prefer the same-origin Next proxy so the
+  // httpOnly `yepper_session` cookie can be used by the server to authenticate
+  // requests. Server-side code can call the backend directly.
+  const url = typeof window !== 'undefined' ? `/api/proxy${path}` : `${ADSENSE_BASE_URL}${path}`;
 
-  const token =
-    typeof window !== 'undefined'
+  // Token header is optional — client will usually hit the proxy which uses
+  // httpOnly cookies. Keep the legacy token read for pages that still rely on
+  // a readable cookie/localStorage value.
+  const token = typeof window !== 'undefined'
     ? (document.cookie.match(/(?:^|;\s*)yepper_token=([^;]+)/)?.[1] ?? localStorage.getItem('token'))
     : null;
 
@@ -52,6 +57,7 @@ async function adsenseRequest<T = unknown>(
     const res = await fetch(url, {
       ...options,
       headers,
+      credentials: 'include',
       signal: controller.signal,
       cache: 'no-store',
     });

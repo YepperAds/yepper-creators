@@ -33,10 +33,7 @@ export default function LoginForm() {
   const router = useRouter();
 
   // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  // Email/password removed — Google-only auth
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -57,45 +54,16 @@ export default function LoginForm() {
     return !e.email && !e.password;
   }
 
-  async function handleSubmit(ev: FormEvent) {
-    ev.preventDefault();
-    if (!validate()) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-
-      const data = (await res.json()) as LoginResponse;
-
-      if (!res.ok || !data.success) {
-        if (data.requiresVerification) {
-          setNeedsVerification(true);
-          setMaskedEmail(data.maskedEmail ?? email);
-        } else {
-          setError(data.message ?? 'Invalid email or password.');
-        }
-        return;
-      }
-
-      // Cookie is set by the API route — go to role selection
-      router.replace((data as { redirectTo?: string }).redirectTo ?? '/choose-role');
-    } catch {
-      setError('Could not reach the server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  async function handleSubmit(_ev: FormEvent) {
+    // No-op — email/password login removed
+    return;
   }
 
   function handleGoogleLogin() {
     setGoogleLoading(true);
-    // Initiates the Google OAuth flow via Next.js /api/auth/google
-    window.location.href = '/api/auth/google';
+    // Initiates the Google OAuth flow via backend API (frontend points to backend)
+    const backend = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADSENSE_API_URL || '';
+    window.location.href = `${backend.replace(/\/$/, '')}/api/auth/google`;
   }
 
   // ── Needs email verification ────────────────────────────────────────────────
@@ -137,99 +105,9 @@ export default function LoginForm() {
         </button>
       </div>
 
-      {/* ── Divider ───────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-zinc-800" />
-        <span className="text-xs text-zinc-600">or</span>
-        <div className="flex-1 h-px bg-zinc-800" />
-      </div>
+      {/* Email/password removed — only Google OAuth is available */}
 
-      {/* ── Email/password toggle ─────────────────────────────────── */}
-      {!showEmailForm ? (
-        <button
-          type="button"
-          onClick={() => setShowEmailForm(true)}
-          className="w-full py-2.5 px-4 rounded-lg border border-zinc-800 bg-zinc-900
-            hover:bg-zinc-800 text-white text-sm font-medium transition-colors"
-        >
-          Continue with Email
-        </button>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: '' })); setError(''); }}
-              className={`w-full bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-white
-                placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors
-                ${fieldErrors.email ? 'border-red-500' : 'border-zinc-800'}`}
-              placeholder="you@example.com"
-              autoComplete="email"
-              autoFocus
-            />
-            {fieldErrors.email && <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>}
-          </div>
-
-          {/* Password */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-zinc-400">Password</label>
-              <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-white transition-colors">
-                Forgot password?
-              </Link>
-            </div>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: '' })); setError(''); }}
-                className={`w-full bg-zinc-900 border rounded-lg px-3 py-2 pr-10 text-sm text-white
-                  placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors
-                  ${fieldErrors.password ? 'border-red-500' : 'border-zinc-800'}`}
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            {fieldErrors.password && <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>}
-          </div>
-
-          {/* General error */}
-          {error && (
-            <p className="text-xs text-red-400 bg-red-950/40 border border-red-900 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-semibold
-              hover:bg-zinc-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading
-              ? <span className="inline-block w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" />
-              : 'Sign In'}
-          </button>
-        </form>
-      )}
-
-      {/* ── Register link ─────────────────────────────────────────── */}
-      <p className="text-center text-xs text-zinc-500">
-        Don&apos;t have an account?{' '}
-        <Link href="/register" className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors">
-          Sign up
-        </Link>
-      </p>
+      {/* Manual sign up removed — users sign up via Google on this page */}
 
       <p className="text-center text-xs text-zinc-600">
         By continuing you agree to Yepper&apos;s{' '}

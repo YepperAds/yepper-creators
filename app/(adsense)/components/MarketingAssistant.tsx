@@ -199,7 +199,7 @@ const MarketingAssistant = ({  user, isAuthenticated  }: any) => {
       
       throw new Error('Invalid response from AI service');
     } catch (err: unknown) {
-      console.error('AI API Error:', error);
+      console.error('AI API Error:', err);
       return {
         text: `Here's your marketing strategy breakdown:
 
@@ -237,8 +237,8 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
       const data = await response.json();
       return data.conversation;
     } catch (err: unknown) {
-      console.error('Failed to save conversation:', error);
-      throw error;
+      console.error('Failed to save conversation:', err);
+      throw err;
     }
   };
 
@@ -255,7 +255,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
         body: JSON.stringify({ messages })
       });
     } catch (err: unknown) {
-      console.error('Failed to update conversation:', error);
+      console.error('Failed to update conversation:', err);
     }
   };
 

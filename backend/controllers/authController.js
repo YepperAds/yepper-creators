@@ -1,9 +1,9 @@
-// authController.js (PostgreSQL)
-const User = require('../models/User');
+// authController.js (PostgreSQL) - using creators as main user table
+const Creator = require('../creators/models/Creator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const sendEmailNotification = require('./emailService');
+const { createNotification } = require('../creators/utils/notificationUtils');
 
 // Generate JWT Token — embeds user fields so middleware never needs a DB lookup
 const generateToken = (userOrId) => {
@@ -12,8 +12,9 @@ const generateToken = (userOrId) => {
   const payload = {
     userId:     isObject ? (userOrId.id || userOrId._id) : userOrId,
     email:      isObject ? userOrId.email      : undefined,
-    name:       isObject ? userOrId.name        : undefined,
-    isVerified: isObject ? (userOrId.is_verified ?? userOrId.isVerified) : undefined,
+    name:       isObject ? (userOrId.full_name || userOrId.name) : undefined,
+    username:   isObject ? userOrId.username : undefined,
+    whatTheyDo: isObject ? (userOrId.what_they_do || userOrId.whatTheyDo) : undefined,
   };
   // Remove undefined keys to keep the token clean
   Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -55,62 +56,36 @@ const buildVerificationHtml = (verificationUrl) => `
 `;
 
 const sendVerificationEmail = async (email, token, returnUrl = null) => {
+  let verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+  if (returnUrl) verificationUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+
   try {
-    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
-    let verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
-    if (returnUrl) verificationUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
-
-    console.log('Sending email to:', email);
-    console.log('Using API key:', process.env.RESEND_API_KEY.substring(0, 10) + '...');
-
-    const { data, error } = await resend.emails.send({
-      from: 'Yepper <noreply@yepper.cc>',
-      to: email,
-      subject: 'Verify Your Email Address',
-      html: buildVerificationHtml(verificationUrl),
-    });
-
-    if (error) {
-      console.error('Resend API Error:', error);
-      throw new Error(`Failed to send email: ${error.message || JSON.stringify(error)}`);
+    const result = await sendEmailNotification(email, 'Verify Your Email Address', buildVerificationHtml(verificationUrl));
+    if (result && result.skipped) {
+      console.warn('Email sending skipped (SMTP not configured)');
+      return result;
     }
-
-    console.log(`Email sent successfully to ${email}`);
-    console.log(`Email ID: ${data.id}`);
-    return data;
-  } catch (error) {
-    console.error('Email error:', error);
-    throw error;
+    return result.info || result;
+  } catch (err) {
+    console.error('Email error:', err);
+    throw err;
   }
 };
 
 const sendWaitlistVerificationEmail = async (email, token, returnUrl = null) => {
+  let verificationUrl = `${process.env.WAITLIST_FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+  if (returnUrl) verificationUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+
   try {
-    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
-    let verificationUrl = `${process.env.WAITLIST_FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
-    if (returnUrl) verificationUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
-
-    console.log('Sending email to:', email);
-    console.log('Using API key:', process.env.RESEND_API_KEY.substring(0, 10) + '...');
-
-    const { data, error } = await resend.emails.send({
-      from: 'Yepper <noreply@yepper.cc>',
-      to: email,
-      subject: 'Verify Your Email Address',
-      html: buildVerificationHtml(verificationUrl),
-    });
-
-    if (error) {
-      console.error('Resend API Error:', error);
-      throw new Error(`Failed to send email: ${error.message || JSON.stringify(error)}`);
+    const result = await sendEmailNotification(email, 'Verify Your Email Address', buildVerificationHtml(verificationUrl));
+    if (result && result.skipped) {
+      console.warn('Email sending skipped (SMTP not configured)');
+      return result;
     }
-
-    console.log(`Email sent successfully to ${email}`);
-    console.log(`Email ID: ${data.id}`);
-    return data;
-  } catch (error) {
-    console.error('Email error:', error);
-    throw error;
+    return result.info || result;
+  } catch (err) {
+    console.error('Email error:', err);
+    throw err;
   }
 };
 
@@ -406,19 +381,22 @@ exports.resendWaitlistVerification = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const creator = await Creator.findById(req.user.userId);
+    if (!creator) return res.status(404).json({ message: 'User not found' });
 
     res.json({
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        isVerified: user.is_verified,
-        googleId: user.google_id,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
+        id: creator.id,
+        name: creator.full_name || null,
+        fullName: creator.full_name || null,
+        email: creator.email,
+        avatar: creator.avatar,
+        googleId: creator.google_id,
+        username: creator.username,
+        what_they_do: creator.what_they_do,
+        whatTheyDo: creator.what_they_do,
+        createdAt: creator.created_at,
+        updatedAt: creator.updated_at,
       },
     });
   } catch (error) {
@@ -428,25 +406,27 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.getCurrentUser = async (req, res) => {
-  console.log('[me] req.user:', req.user);
   try {
     if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
 
-    const user = await User.findById(req.user.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const creator = await Creator.findById(req.user.userId);
+    if (!creator) return res.status(404).json({ message: 'User not found' });
 
     res.json({
       success: true,
       user: {
-        id: user.id,
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        isVerified: user.is_verified,
-        googleId: user.google_id,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
+        id: creator.id,
+        _id: creator.id,
+        name: creator.full_name || null,
+        fullName: creator.full_name || null,
+        email: creator.email,
+        avatar: creator.avatar,
+        username: creator.username,
+        what_they_do: creator.what_they_do,
+        whatTheyDo: creator.what_they_do,
+        googleId: creator.google_id,
+        createdAt: creator.created_at,
+        updatedAt: creator.updated_at,
       },
     });
   } catch (error) {
@@ -486,47 +466,114 @@ exports.googleExchange = async (req, res) => {
       return res.status(400).json({ success: false, message: 'googleId and email are required' });
     }
 
-    // Try to find existing user by googleId first, then by email
-    let user = await User.findByGoogleId(googleId);
+    // Try to find existing creator by googleId first, then by email
+    let creator = await Creator.findByGoogleId(googleId);
 
-    if (!user) {
-      user = await User.findByEmail(email);
-      if (user) {
+    if (!creator) {
+      creator = await Creator.findByEmail(email);
+      if (creator) {
         // Link Google account to existing email account
-        user = await User.update(user.id, { googleId, avatar: avatar || user.avatar });
+        creator = await Creator.update(creator.id, { google_id: googleId, avatar: avatar || creator.avatar });
       } else {
-        // Brand new user via Google — create and mark as verified
-        user = await User.create({
-          name: name || email.split('@')[0],
-          email,
-          googleId,
-          avatar: avatar || '',
-          isVerified: true,
-        });
+        // Brand new user via Google — create and return full creator
+        creator = await Creator.create({ googleId, email, fullName: name || email.split('@')[0], avatar: avatar || '' });
       }
     }
 
-    if (!user) {
-      return res.status(500).json({ success: false, message: 'Failed to create or find user' });
-    }
+    if (!creator) return res.status(500).json({ success: false, message: 'Failed to create or find user' });
 
-    const token = generateToken(user);
+    const token = generateToken(creator);
+
+    // Determine whether user needs to complete profile (username/what_they_do)
+    const needsProfile = !creator.username || !creator.what_they_do;
 
     return res.json({
       success: true,
       token,
+      needsProfile: Boolean(needsProfile),
       user: {
-        id:         user.id,
-        _id:        user.id,
-        name:       user.name,
-        email:      user.email,
-        avatar:     user.avatar,
-        isVerified: user.is_verified,
-        googleId:   user.google_id,
+        id:         creator.id,
+        _id:        creator.id,
+        fullName:   creator.full_name || null,
+        email:      creator.email,
+        avatar:     creator.avatar || null,
+        googleId:   creator.google_id || null,
+        username:   creator.username || null,
+        whatTheyDo: creator.what_they_do || null,
       },
     });
   } catch (error) {
     console.error('[YEPPER-MERGE] googleExchange error:', error);
     res.status(500).json({ success: false, message: 'Server error during Google exchange' });
+  }
+};
+
+// Complete profile after Google signup
+exports.completeProfile = async (req, res) => {
+  try {
+    // authMiddleware already verified the token and set req.user
+    const userId = req.user?.userId || req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+    const { username, what_they_do } = req.body;
+    if (!username || !what_they_do) {
+      return res.status(400).json({ success: false, message: 'username and what_they_do are required' });
+    }
+
+    // Check username availability — exclude the current user so unchanged usernames don't self-conflict
+    const available = await Creator.isUsernameAvailable(username, userId);
+    if (!available) return res.status(400).json({ success: false, message: 'Username already taken' });
+
+    // Accept base64 data URIs or https URLs; store directly in the TEXT column
+    const rawAvatar = req.body.avatar;
+    const avatarValue = (rawAvatar && typeof rawAvatar === 'string' &&
+      (rawAvatar.startsWith('data:') || rawAvatar.startsWith('http')))
+      ? rawAvatar : null;
+
+    // Fetch current values so we can report exactly what changed
+    const current = await Creator.findById(userId).catch(() => null);
+
+    const updateFields = { username, what_they_do, ...(avatarValue ? { avatar: avatarValue } : {}) };
+    const updated = await Creator.update(userId, updateFields);
+    if (!updated) return res.status(500).json({ success: false, message: 'Failed to update profile' });
+
+    // Fire a separate notification for each field that actually changed
+    if (current) {
+      if (current.username !== username) {
+        createNotification(userId, 'profile_updated', 'Username Updated',
+          `Your username was changed to @${username}`,
+          { field: 'username', old: current.username, new: username }
+        ).catch(() => {});
+      }
+      if (current.what_they_do !== what_they_do) {
+        createNotification(userId, 'profile_updated', 'Role Updated',
+          `Your role was updated to ${what_they_do}`,
+          { field: 'role', old: current.what_they_do, new: what_they_do }
+        ).catch(() => {});
+      }
+      if (avatarValue && current.avatar !== avatarValue) {
+        createNotification(userId, 'profile_updated', 'Profile Picture Updated',
+          'Your profile picture has been changed.',
+          { field: 'avatar' }
+        ).catch(() => {});
+      }
+      // If nothing specific changed (edge case), send a generic one
+      if (current.username === username && current.what_they_do === what_they_do && !avatarValue) {
+        createNotification(userId, 'profile_updated', 'Profile Updated',
+          'No changes were detected.',
+          {}
+        ).catch(() => {});
+      }
+    } else {
+      createNotification(userId, 'profile_updated', 'Profile Updated',
+        `Your profile has been updated — @${username}`,
+        { username, what_they_do }
+      ).catch(() => {});
+    }
+
+    return res.json({ success: true, data: { user: updated } });
+  } catch (err) {
+    console.error('completeProfile error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

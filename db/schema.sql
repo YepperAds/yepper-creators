@@ -46,28 +46,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_brand_users_email ON brand_users (email);
 -- =============================================================
 CREATE TABLE IF NOT EXISTS creators (
   id SERIAL PRIMARY KEY,
+
+  -- Google Auth Data
   google_id VARCHAR(255) UNIQUE NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   full_name VARCHAR(255),
   avatar TEXT,
-  username VARCHAR(50) UNIQUE,
+
+  -- Onboarding Creator Data
+  username VARCHAR(50) UNIQUE NOT NULL,
   what_they_do VARCHAR(100),
-  website_name VARCHAR(255),
-  website_url TEXT,
-  website_domain VARCHAR(255),
-  website_status VARCHAR(50) DEFAULT 'not_connected',
-  website_icon TEXT,
-  website_verification_token VARCHAR(255),
-  website_verification_method VARCHAR(20),
-  website_verification_host VARCHAR(255),
-  website_verification_value TEXT,
-  website_traffic JSONB DEFAULT '{}',
-  website_tracking_token VARCHAR(255),
-  website_tracking_started_at TIMESTAMPTZ,
-  website_actual_stats_available_at TIMESTAMPTZ,
-  website_verified_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS creators_website_domain_unique

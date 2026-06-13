@@ -1,257 +1,388 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
-import type { AuthResponse } from '@/app/_types/auth';
+import Image from 'next/image';
+import type { UsernameCheckResponse } from '@/app/_types/auth';
 
-// ─── Role definitions ────────────────────────────────────────────────────────
+// ─── Campaign mosaic ──────────────────────────────────────────────────────────
+
+type MediaType = 'image' | 'gif' | 'video';
+
+const BASE: { src: string; alt: string; type: MediaType }[] = [
+  { src: '/campaigns/images/ad-1.png', alt: 'Campaign 1', type: 'image' },
+  { src: '/campaigns/images/ad-2.png', alt: 'Campaign 2', type: 'image' },
+  { src: '/campaigns/images/ad-3.gif', alt: 'Campaign 3', type: 'gif' },
+  { src: '/campaigns/images/ad-4.png', alt: 'Campaign 4', type: 'image' },
+  { src: '/campaigns/images/ad-5.png', alt: 'Campaign 5', type: 'image' },
+  { src: '/campaigns/images/ad-6.png', alt: 'Campaign 6', type: 'image' },
+  { src: '/campaigns/videos/ad-7.mp4', alt: 'Campaign 7', type: 'video' },
+  { src: '/campaigns/videos/ad-8.mp4', alt: 'Campaign 8', type: 'video' },
+];
+const CAMPAIGNS = [
+  ...BASE.map((c, i) => ({ ...c, id: i + 1 })),
+  ...BASE.map((c, i) => ({ ...c, id: i + 9 })),
+];
+
+function CampaignTile({ src, alt, type }: { src: string; alt: string; type: MediaType }) {
+  return (
+    <div className="relative w-full flex-shrink-0 overflow-hidden rounded-[5px] bg-[#111]" style={{ aspectRatio: '4/3' }}>
+      {type === 'video' ? (
+        <video src={src} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+      ) : type === 'gif' ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={alt} className="w-full h-full object-cover" />
+      ) : (
+        <Image src={src} alt={alt} fill sizes="12vw" className="object-cover" />
+      )}
+    </div>
+  );
+}
+
+function ScrollColumn({ items, speed, offsetTop = 0 }: { items: typeof CAMPAIGNS; speed: number; offsetTop?: number }) {
+  const doubled = [...items, ...items];
+  return (
+    <div className="flex-1 overflow-hidden">
+      <div style={{ marginTop: `-${offsetTop}px`, animation: `scroll-up ${speed}s linear infinite` }}>
+        <div className="flex flex-col gap-2">
+          {doubled.map((c, i) => <CampaignTile key={`${c.id}-${i}`} src={c.src} alt={c.alt} type={c.type} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Role options (2 only) ────────────────────────────────────────────────────
 
 const ROLES = [
   {
-    id: 'creator',
+    value: 'Content Creator',
     label: 'Content Creator',
-    tagline: 'Monetise your audience',
-    description: 'Connect your social channels, verify your website, and unlock brand deals that match your content.',
+    description: 'YouTubers, influencers, and social media creators monetizing their audience.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" />
       </svg>
     ),
-    accent: '#E8472B',
-    accentDim: 'rgba(232,71,43,0.12)',
-    border: 'rgba(232,71,43,0.3)',
-    href: '/explore',
   },
   {
-    id: 'promoter',
-    label: 'Ad Promoter',
-    tagline: 'Earn from your website',
-    description: 'Place ads on your site through Yepper\'s network and get paid every time your audience engages.',
+    value: 'Web Developer',
+    label: 'Web Developer',
+    description: 'Website owners and developers who earn revenue by hosting ads on their sites.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
       </svg>
     ),
-    accent: '#1090C8',
-    accentDim: 'rgba(16,144,200,0.12)',
-    border: 'rgba(16,144,200,0.3)',
-    href: '/ad-promoter/pages/websites',
-  },
-  {
-    id: 'advertiser',
-    label: 'Advertiser',
-    tagline: 'Launch targeted campaigns',
-    description: 'Upload your ads, select categories and websites, and reach exactly the audience you want across Africa.',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
-      </svg>
-    ),
-    accent: '#22C55E',
-    accentDim: 'rgba(34,197,94,0.12)',
-    border: 'rgba(34,197,94,0.3)',
-    href: '/ad-owner/pages/ads',
   },
 ] as const;
 
-type RoleId = typeof ROLES[number]['id'];
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function UsernameIndicator({ status, reason }: { status: UsernameStatus; reason: string }) {
+  if (status === 'idle') return null;
+  if (status === 'checking') {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-zinc-400">
+        <span className="w-3 h-3 border border-zinc-500 border-t-white rounded-full animate-spin inline-block" />
+        Checking…
+      </span>
+    );
+  }
+  if (status === 'available') {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        Username is available
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-rose-400">
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+      {reason}
+    </span>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ChooseRolePage() {
   const router = useRouter();
-  const [userName, setUserName] = useState('');
-  const [hovered, setHovered] = useState<RoleId | null>(null);
-  const [selecting, setSelecting] = useState<RoleId | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-  // Verify session and grab name
+  const [loading, setLoading]           = useState(true);
+  const [user, setUser]                 = useState<{ fullname?: string; name?: string; email?: string; avatar?: string } | null>(null);
+  const [username, setUsername]         = useState('');
+  const [role, setRole]                 = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+  const [usernameReason, setUsernameReason] = useState('');
+  const [error, setError]               = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [done, setDone]                 = useState(false);
+
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    async function init() {
-        let result = await api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession);
-            if (!result.ok) {
-                await new Promise(r => setTimeout(r, 1500));
-                result = await api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession);
-            }
-            if (!result.ok || !result.data?.success || !result.data.data?.user) {
-                router.replace('/login');
-                return;
-            }
-        const name = result.data.data.user.name ?? '';
-        setUserName(name.split(' ')[0]);
-        setMounted(true);
+    async function loadSession() {
+      try {
+        const res  = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'include' });
+        const json = await res.json().catch(() => ({}));
+        const u    = json?.data?.user;
+
+        if (!u) { router.replace('/login'); return; }
+
+        // Already fully onboarded → skip to explore
+        if (u.username && (u.what_they_do || u.whatTheyDo)) {
+          router.replace('/explore');
+          return;
+        }
+
+        setUser(u);
+        if (u.username) setUsername(u.username);
+      } catch {
+        router.replace('/login');
+        return;
+      }
+      setLoading(false);
     }
-    init();
+    loadSession();
   }, [router]);
 
-  function handleSelect(role: typeof ROLES[number]) {
-    setSelecting(role.id);
-    // Small delay so the press animation registers
-    setTimeout(() => router.push(role.href), 220);
+  useEffect(() => {
+    if (!loading) setTimeout(() => usernameRef.current?.focus(), 80);
+  }, [loading]);
+
+  const checkUsername = useCallback(async (value: string) => {
+    const raw = value.trim().toLowerCase();
+    if (!raw) { setUsernameStatus('idle'); setUsernameReason(''); return; }
+    setUsernameStatus('checking');
+    try {
+      const res  = await fetch(`${apiBaseUrl}/auth/creator/check-username?username=${encodeURIComponent(raw)}`);
+      const data: UsernameCheckResponse = await res.json();
+      setUsernameStatus(data.available ? 'available' : 'taken');
+      setUsernameReason(data.reason);
+    } catch {
+      setUsernameStatus('idle');
+    }
+  }, [apiBaseUrl]);
+
+  function handleUsernameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value.replace(/[^a-z0-9_.]/gi, '').toLowerCase();
+    setUsername(val);
+    setError('');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => checkUsername(val), 450);
   }
 
-  if (!mounted) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError('');
+
+    if (!username.trim())                                    { setError('Please enter a username.'); return; }
+    if (usernameStatus === 'checking')                       { setError('Please wait while we check your username.'); return; }
+    if (usernameStatus === 'taken' || usernameStatus === 'invalid') { setError(usernameReason || 'Username not available.'); return; }
+    if (!role)                                               { setError('Please select what best describes you.'); return; }
+
+    setSaving(true);
+    try {
+      const res  = await fetch('/api/auth/complete-profile', {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify({ username: username.trim().toLowerCase(), what_they_do: role }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        setError(json.message ?? 'Could not complete setup. Please try again.');
+        setSaving(false);
+        return;
+      }
+      setDone(true);
+      setTimeout(() => router.replace('/explore'), 900);
+    } catch {
+      setError('Network error. Please check your connection.');
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#000' }}>
-        <div className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-300 rounded-full animate-spin" />
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="w-6 h-6 border-2 border-zinc-700 border-t-white rounded-full animate-spin" />
       </div>
     );
   }
 
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-16"
-      style={{ background: '#000' }}
-    >
-      {/* Subtle background grid */}
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
+  const colA = CAMPAIGNS.filter((_, i) => i % 3 === 0);
+  const colB = CAMPAIGNS.filter((_, i) => i % 3 === 1);
+  const colC = CAMPAIGNS.filter((_, i) => i % 3 === 2);
+  const displayName = user?.fullname || user?.name || '';
 
-      {/* Header */}
-      <div
-        className="relative z-10 text-center mb-12"
-        style={{
-          animation: 'fadeUp 0.5s ease both',
-        }}
-      >
-        {/* Logo mark */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: '#E8472B' }}
-          >
-            <svg viewBox="0 0 16 16" className="w-4 h-4" fill="white">
-              <path d="M8 1L1 5.5V14h6v-4h2v4h6V5.5L8 1Z" />
-            </svg>
-          </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Yepper</span>
+  return (
+    <div className="h-screen overflow-hidden flex bg-black dark">
+
+      {/* ── Left: form panel ── */}
+      <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
+
+        <div className="absolute top-8 left-8 xl:left-12 z-10 w-32">
+          <Image src="/logos/yepper-logo.png" alt="Yepper" width={120} height={32} className="h-10 w-auto object-contain" priority />
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-3">
-          {userName ? `Welcome, ${userName}` : 'Welcome'}
-        </h1>
-        <p className="text-zinc-400 text-base max-w-xs mx-auto leading-relaxed">
-          How do you want to use Yepper?
-        </p>
+        <div className="flex flex-1 items-center justify-center px-8 py-24">
+          <div className="w-full max-w-[400px]">
+
+            {done ? (
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Welcome to Yepper{username ? `, @${username}` : ''}!</h2>
+                  <p className="mt-1.5 text-sm text-zinc-400">Setting up your workspace…</p>
+                </div>
+                <div className="w-5 h-5 border-2 border-zinc-700 border-t-white rounded-full animate-spin mt-1" />
+              </div>
+            ) : (
+              <>
+                {user?.avatar ? (
+                  <div className="mb-6 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={user.avatar} alt={displayName} className="w-10 h-10 rounded-full border border-zinc-700 object-cover" />
+                    <div>
+                      <p className="text-sm font-medium text-white leading-tight">{displayName}</p>
+                      <p className="text-xs text-zinc-500 leading-tight">{user.email}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mb-7">
+                  <h1 className="text-2xl font-bold text-white">Set up your profile</h1>
+                  <p className="mt-2 text-sm text-zinc-400">Choose a username and tell us what you do.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+
+                  {/* Username */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                      Username <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm select-none">@</span>
+                      <input
+                        ref={usernameRef}
+                        type="text"
+                        value={username}
+                        onChange={handleUsernameChange}
+                        placeholder="yourhandle"
+                        maxLength={50}
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        className={`w-full rounded-lg border bg-zinc-900 pl-8 pr-4 py-3 text-sm text-white placeholder:text-zinc-600
+                          outline-none focus:ring-2 focus:ring-white/5 transition-all
+                          ${usernameStatus === 'available'
+                            ? 'border-emerald-500/50 focus:border-emerald-500/70'
+                            : usernameStatus === 'taken' || usernameStatus === 'invalid'
+                            ? 'border-rose-500/50 focus:border-rose-500/70'
+                            : 'border-zinc-800 focus:border-zinc-600'
+                          }`}
+                      />
+                    </div>
+                    <UsernameIndicator status={usernameStatus} reason={usernameReason} />
+                  </div>
+
+                  {/* Role cards */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                      What best describes you? <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {ROLES.map((r) => {
+                        const selected = role === r.value;
+                        return (
+                          <button
+                            key={r.value}
+                            type="button"
+                            onClick={() => { setRole(r.value); setError(''); }}
+                            className={`relative flex flex-col items-start gap-3 rounded-xl border p-4 text-left transition-all duration-150 cursor-pointer
+                              ${selected
+                                ? 'border-white bg-white/8 text-white'
+                                : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 hover:bg-zinc-800/60'
+                              }`}
+                          >
+                            <div className={`transition-colors ${selected ? 'text-white' : 'text-zinc-500'}`}>
+                              {r.icon}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-semibold leading-tight ${selected ? 'text-white' : ''}`}>{r.label}</p>
+                              <p className="mt-1 text-[11px] text-zinc-500 leading-relaxed">{r.description}</p>
+                            </div>
+                            {selected && <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-white" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="flex items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-500/8 px-3 py-2.5">
+                      <svg className="w-4 h-4 text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <p className="text-sm text-rose-400">{error}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={saving || usernameStatus === 'checking'}
+                    className="w-full mt-1 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-black
+                      transition-all hover:bg-zinc-100 active:scale-[0.98]
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                      flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      "Continue to Yepper →"
+                    )}
+                  </button>
+
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="absolute bottom-6 left-8 xl:left-12">
+          <p className="text-[11px]" style={{ color: '#333' }}>© {new Date().getFullYear()} Yepper Inc.</p>
+        </div>
       </div>
 
-      {/* Role cards */}
-      <div
-        className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl"
-        style={{ animation: 'fadeUp 0.5s 0.1s ease both', opacity: 0 }}
-      >
-        {ROLES.map((role, i) => {
-          const isHovered   = hovered === role.id;
-          const isSelecting = selecting === role.id;
-
-          return (
-            <button
-              key={role.id}
-              onClick={() => handleSelect(role)}
-              onMouseEnter={() => setHovered(role.id)}
-              onMouseLeave={() => setHovered(null)}
-              disabled={!!selecting}
-              style={{
-                animationDelay: `${0.15 + i * 0.08}s`,
-                animation: 'fadeUp 0.45s ease both',
-                opacity: 0,
-                background: isHovered ? role.accentDim : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${isHovered ? role.border : 'rgba(255,255,255,0.08)'}`,
-                transform: isSelecting ? 'scale(0.97)' : isHovered ? 'translateY(-2px)' : 'none',
-                transition: 'all 0.18s ease',
-                boxShadow: isHovered
-                  ? `0 0 0 1px ${role.border}, 0 8px 32px rgba(0,0,0,0.4)`
-                  : '0 2px 8px rgba(0,0,0,0.3)',
-              }}
-              className="relative flex flex-col items-start text-left rounded-2xl p-6 cursor-pointer focus:outline-none"
-            >
-              {/* Icon */}
-              <div
-                className="mb-5 p-2.5 rounded-xl"
-                style={{
-                  background: isHovered ? role.accentDim : 'rgba(255,255,255,0.05)',
-                  color: isHovered ? role.accent : '#888',
-                  border: `1px solid ${isHovered ? role.border : 'rgba(255,255,255,0.06)'}`,
-                  transition: 'all 0.18s ease',
-                }}
-              >
-                {role.icon}
-              </div>
-
-              {/* Text */}
-              <div className="flex-1">
-                <p
-                  className="text-xs font-semibold uppercase tracking-widest mb-1"
-                  style={{ color: isHovered ? role.accent : '#555', transition: 'color 0.18s ease' }}
-                >
-                  {role.tagline}
-                </p>
-                <h2 className="text-lg font-bold text-white mb-2 leading-tight">
-                  {role.label}
-                </h2>
-                <p className="text-sm text-zinc-500 leading-relaxed">
-                  {role.description}
-                </p>
-              </div>
-
-              {/* Arrow */}
-              <div
-                className="mt-5 flex items-center gap-1.5 text-xs font-medium"
-                style={{
-                  color: isHovered ? role.accent : '#444',
-                  transition: 'all 0.18s ease',
-                }}
-              >
-                {isSelecting ? (
-                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Continue</span>
-                    <svg
-                      viewBox="0 0 16 16"
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      style={{
-                        transform: isHovered ? 'translateX(2px)' : 'none',
-                        transition: 'transform 0.18s ease',
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8h10m-4-4 4 4-4 4" />
-                    </svg>
-                  </>
-                )}
-              </div>
-            </button>
-          );
-        })}
+      {/* ── Right: campaign mosaic ── */}
+      <div className="hidden lg:flex flex-1 relative h-screen overflow-hidden" style={{ background: '#0C0C0C' }} aria-hidden="true">
+        <div className="absolute top-5 inset-x-0 z-20 flex justify-center pointer-events-none">
+          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#333' }}>Campaigns powered by Yepper</span>
+        </div>
+        <div className="flex gap-2 w-full h-full px-3 pt-10">
+          <ScrollColumn items={colA} speed={25} />
+          <ScrollColumn items={colB} speed={32} offsetTop={80} />
+          <ScrollColumn items={colC} speed={28} offsetTop={40} />
+        </div>
       </div>
 
-      {/* Footer note */}
-      <p
-        className="relative z-10 mt-10 text-xs text-zinc-600"
-        style={{ animation: 'fadeUp 0.45s 0.4s ease both', opacity: 0 }}
-      >
-        You can switch roles at any time from your account settings.
-      </p>
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

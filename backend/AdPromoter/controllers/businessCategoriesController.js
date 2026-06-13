@@ -1,6 +1,7 @@
 // businessCategoriesController.js — PostgreSQL version
 const Website = require('../models/CreateWebsiteModel');
 const User    = require('../../models/User');
+const Creator = require('../../creators/models/Creator');
 const jwt     = require('jsonwebtoken');
 
 const authenticateToken = async (req, res, next) => {
@@ -9,7 +10,8 @@ const authenticateToken = async (req, res, next) => {
   if (!token) return res.status(401).json({ message: 'Access token is required' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
-    const user = await User.findById(decoded.userId);
+    const creator = await Creator.findById(decoded.userId).catch(() => null);
+    const user = creator || await User.findById(decoded.userId).catch(() => null);
     if (!user) return res.status(401).json({ message: 'User not found' });
     req.user = user;
     next();

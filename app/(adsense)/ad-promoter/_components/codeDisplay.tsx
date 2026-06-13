@@ -2,30 +2,26 @@
 // @ts-nocheck
 
 import React, { useState } from 'react';
-import { Copy, Check, Plus, Code, Info, Zap, MousePointer, Globe, Trash2, X, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import {
+  Copy, Check, Plus, Code, Info, Zap, MousePointer, Globe,
+  Trash2, X, ChevronDown, ChevronRight, BookOpen,
+  Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked,
+} from 'lucide-react';
 
 const AUTO_RELIABLE = [
   'header','floating','overlay','modalpic',
   'mobile interstitial','bottom','profooter'
 ];
 
-// ── All supported framework formats ──────────────────────────────────────────
+// ── Supported frameworks (icons only — no emojis) ─────────────────────────────
 const FRAMEWORKS = [
-  { id: 'html',       label: 'HTML',            icon: '🌐' },
-  { id: 'react',      label: 'React / CRA',     icon: '⚛️' },
-  { id: 'nextjs',     label: 'Next.js',         icon: '▲' },
-  { id: 'vue',        label: 'Vue.js',          icon: '💚' },
-  { id: 'nuxt',       label: 'Nuxt.js',         icon: '💚' },
-  { id: 'svelte',     label: 'Svelte / SvelteKit', icon: '🔥' },
-  { id: 'angular',    label: 'Angular',         icon: '🔴' },
-  { id: 'gatsby',     label: 'Gatsby',          icon: '💜' },
-  { id: 'remix',      label: 'Remix',           icon: '💿' },
-  { id: 'astro',      label: 'Astro',           icon: '🚀' },
-  { id: 'wordpress',  label: 'WordPress',       icon: '📝' },
-  { id: 'php',        label: 'PHP',             icon: '🐘' },
-  { id: 'django',     label: 'Django',          icon: '🐍' },
-  { id: 'flask',      label: 'Flask',           icon: '🍶' },
-  { id: 'vanillajs',  label: 'Vanilla JS',      icon: '🟨' },
+  { id: 'html',       label: 'HTML',        Icon: Code2 },
+  { id: 'javascript', label: 'JavaScript',  Icon: Braces },
+  { id: 'php',        label: 'PHP',         Icon: Server },
+  { id: 'python',     label: 'Python',      Icon: Terminal },
+  { id: 'nextjs',     label: 'Next.js',     Icon: Layers },
+  { id: 'vue',        label: 'Vue.js',      Icon: Puzzle },
+  { id: 'wordpress',  label: 'WordPress',   Icon: BookMarked },
 ];
 
 const HUMAN_LANGUAGES = [
@@ -37,36 +33,20 @@ const HUMAN_LANGUAGES = [
   { value: 'spanish',     label: 'Spanish (Español)' },
 ];
 
-// ── Build the main site script for each framework ────────────────────────────
+// ── Main site script per framework ────────────────────────────────────────────
 function buildSiteScript(src, framework) {
   switch (framework) {
-    case 'react':
-      return `// In your root component (e.g. App.js or index.js)
-import { useEffect } from 'react';
-
-function YepperScript() {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = '${src}';
-    script.async = true;
-    document.head.appendChild(script);
-    return () => { document.head.removeChild(script); };
-  }, []);
-  return null;
-}
-
-// Then use <YepperScript /> once at the top level of your app:
-// function App() {
-//   return (
-//     <>
-//       <YepperScript />
-//       {/* rest of your app */}
-//     </>
-//   );
-// }`;
+    case 'javascript':
+      return `// Add to any existing JS file, or inline in a <script> tag
+document.addEventListener('DOMContentLoaded', function () {
+  var s = document.createElement('script');
+  s.src = '${src}';
+  s.async = true;
+  document.head.appendChild(s);
+});`;
 
     case 'nextjs':
-      return `// Option A — app/layout.js (App Router, Next.js 13+)
+      return `// app/layout.js — App Router (Next.js 13+)
 import Script from 'next/script';
 
 export default function RootLayout({ children }) {
@@ -80,7 +60,7 @@ export default function RootLayout({ children }) {
   );
 }
 
-// Option B — pages/_document.js (Pages Router)
+// pages/_document.js — Pages Router
 // import { Html, Head, Main, NextScript } from 'next/document';
 // export default function Document() {
 //   return (
@@ -94,14 +74,13 @@ export default function RootLayout({ children }) {
 // }`;
 
     case 'vue':
-      return `// In src/main.js  OR  in your root App.vue <script setup>
-// main.js approach:
+      return `// src/main.js — add before app.mount()
 const script = document.createElement('script');
 script.src = '${src}';
 script.async = true;
 document.head.appendChild(script);
 
-// ─── OR App.vue approach ───────────────────────────────
+// ─── OR in App.vue using onMounted ─────────────────────
 // <script setup>
 // import { onMounted } from 'vue';
 // onMounted(() => {
@@ -112,108 +91,6 @@ document.head.appendChild(script);
 // });
 // </script>`;
 
-    case 'nuxt':
-      return `// nuxt.config.js / nuxt.config.ts
-export default defineNuxtConfig({
-  app: {
-    head: {
-      script: [
-        { src: '${src}', async: true }
-      ]
-    }
-  }
-})
-
-// ─── OR in a page/layout using useHead ────────────────
-// <script setup>
-// useHead({
-//   script: [{ src: '${src}', async: true }]
-// });
-// </script>`;
-
-    case 'svelte':
-      return `<!-- SvelteKit: src/routes/+layout.svelte -->
-<script>
-  import { onMount } from 'svelte';
-  onMount(() => {
-    const s = document.createElement('script');
-    s.src = '${src}';
-    s.async = true;
-    document.head.appendChild(s);
-  });
-</script>
-
-<!-- Svelte (plain): just add to your index.html -->
-<!-- <script src="${src}" async></script> -->`;
-
-    case 'angular':
-      return `// angular.json → projects → architect → build → options → scripts
-// "scripts": ["${src}"]
-
-// ─── OR in index.html ────────────────────────────────
-// <script src="${src}" async></script>
-
-// ─── OR programmatically in AppComponent ─────────────
-// import { Component, OnInit, Renderer2, Inject } from '@angular/core';
-// import { DOCUMENT } from '@angular/common';
-// @Component({ selector: 'app-root', templateUrl: './app.component.html' })
-// export class AppComponent implements OnInit {
-//   constructor(private renderer: Renderer2, @Inject(DOCUMENT) private document: Document) {}
-//   ngOnInit() {
-//     const s = this.renderer.createElement('script');
-//     s.src = '${src}'; s.async = true;
-//     this.renderer.appendChild(this.document.head, s);
-//   }
-// }`;
-
-    case 'gatsby':
-      return `// gatsby-browser.js (create this in your project root if it doesn't exist)
-export const onClientEntry = () => {
-  const script = document.createElement('script');
-  script.src = '${src}';
-  script.async = true;
-  document.head.appendChild(script);
-};
-
-// ─── OR use gatsby-plugin-load-script ─────────────────
-// Install: npm install gatsby-plugin-load-script
-// In gatsby-config.js:
-// plugins: [{ resolve: 'gatsby-plugin-load-script', options: { src: '${src}' } }]`;
-
-    case 'remix':
-      return `// app/root.tsx — add to the <head> via Links or Scripts export
-import { Scripts, ScrollRestoration } from "@remix-run/react";
-
-export default function App() {
-  return (
-    <html>
-      <head>
-        {/* other head elements */}
-      </head>
-      <body>
-        <Outlet />
-        <ScrollRestoration />
-        <script src="${src}" async />
-        <Scripts />
-      </body>
-    </html>
-  );
-}`;
-
-    case 'astro':
-      return `---
-// src/layouts/Layout.astro
----
-<html>
-  <head>
-    <!-- other head elements -->
-    <script src="${src}" async is:inline></script>
-  </head>
-  <body>
-    <slot />
-  </body>
-</html>`;
-
     case 'wordpress':
       return `<?php
 // Add to your theme's functions.php
@@ -223,10 +100,9 @@ function yepper_enqueue_script() {
         'yepper-ads',
         '${src}',
         array(),   // no dependencies
-        null,      // no version (script auto-updates)
+        null,      // no version (auto-updates)
         false      // load in <head>
     );
-    // Make it async
     add_filter('script_loader_tag', function($tag, $handle) {
         if ($handle === 'yepper-ads') {
             return str_replace('<script', '<script async', $tag);
@@ -238,188 +114,106 @@ add_action('wp_enqueue_scripts', 'yepper_enqueue_script');`;
 
     case 'php':
       return `<?php
-// In your main PHP template (header.php, layout.php, etc.)
-$yepper_script = '<script src="${src}" async></script>';
-echo $yepper_script;
+// In your main PHP layout file (header.php, layout.php, etc.)
+echo '<script src="${src}" async></script>';
 ?>
 
 <!-- Or directly in HTML: -->
 <script src="${src}" async></script>`;
 
-    case 'django':
-      return `{# In your base template (base.html or _base.html) #}
+    case 'python':
+      return `{# Django — base.html template #}
 {% block head %}
   <script src="${src}" async></script>
 {% endblock %}
 
-{# ─── OR using django-compressor / static files ─── #}
-{# {% load static %} #}
-{# <script src="{% static 'js/yepper.js' %}" async></script> #}
-{# (download the script and put it in your static folder) #}`;
+{# ─── Flask — base.html Jinja2 template ──────────────── #}
+{# <script src="${src}" async></script>                    #}
 
-    case 'flask':
-      return `{# In your base Jinja2 template (base.html) #}
-<!DOCTYPE html>
-<html>
-<head>
-  <script src="${src}" async></script>
-</head>
-<body>
-  {% block content %}{% endblock %}
-</body>
-</html>`;
-
-    case 'vanillajs':
-      return `// Dynamically load (recommended — load after DOM is ready)
-document.addEventListener('DOMContentLoaded', function() {
-  var s = document.createElement('script');
-  s.src = '${src}';
-  s.async = true;
-  document.head.appendChild(s);
-});`;
+{# FastAPI / other Python frameworks:                      #}
+{# Add the script tag to your base HTML template.          #}`;
 
     default: // html
       return `<script src="${src}" async></script>`;
   }
 }
 
-// ── Build manual placement div for each framework ────────────────────────────
+// ── Manual placement div per framework ───────────────────────────────────────
 function buildManualDiv(spaceId, framework) {
   switch (framework) {
-    case 'react':
     case 'nextjs':
-    case 'gatsby':
-    case 'remix':
       return `{/* Place this div exactly where you want the ad */}
 <div data-yepper-space="${spaceId}"></div>`;
     case 'vue':
-    case 'nuxt':
-    case 'svelte':
-    case 'astro':
       return `<!-- Place this div exactly where you want the ad -->
-<div data-yepper-space="${spaceId}"></div>`;
-    case 'angular':
-      return `<!-- In your Angular template (.component.html) -->
 <div data-yepper-space="${spaceId}"></div>`;
     case 'wordpress':
     case 'php':
       return `<?php echo '<div data-yepper-space="${spaceId}"></div>'; ?>
 <!-- Or directly: -->
 <div data-yepper-space="${spaceId}"></div>`;
-    case 'django':
-      return `{# Django/Jinja2 template #}
+    case 'python':
+      return `{# Django/Flask Jinja2 template #}
 <div data-yepper-space="${spaceId}"></div>`;
-    case 'flask':
-      return `{# Jinja2 template #}
-<div data-yepper-space="${spaceId}"></div>`;
-    case 'vanillajs':
+    case 'javascript':
       return `<!-- HTML -->
 <div data-yepper-space="${spaceId}"></div>
 
-// Or create it with JS:
+// Or create it dynamically:
 const el = document.createElement('div');
 el.dataset.yepperSpace = '${spaceId}';
 document.querySelector('#your-container').appendChild(el);`;
-    default:
+    default: // html
       return `<div data-yepper-space="${spaceId}"></div>`;
   }
 }
 
-// ── Step-by-step instructions per framework ───────────────────────────────────
+// ── Installation steps per framework ─────────────────────────────────────────
 function getInstallSteps(framework, src) {
   const steps = {
     html: [
       'Open your HTML file (e.g. index.html).',
       'Find the <head> section.',
       'Paste the script tag anywhere inside <head> — or just before </body>.',
-      'Save and reload your site. That\'s it!',
+      'Save and reload your site.',
     ],
-    react: [
-      'Create a small YepperScript component (see code above) in your project.',
-      'Import and place <YepperScript /> once in your root App component.',
-      'The script loads once when the app mounts and is cleaned up on unmount.',
-      'For manual ad spaces, place the <div data-yepper-space="..."> in any JSX.',
+    javascript: [
+      'Add the DOMContentLoaded snippet to any JS file that runs on every page.',
+      'Or paste it as a <script> tag in your HTML.',
+      'The listener ensures the Yepper script loads after the page is ready.',
+      'For manual ad spaces, add <div data-yepper-space="..."> in your HTML.',
     ],
     nextjs: [
-      'Use the <Script> component from "next/script" — it\'s built-in, no install needed.',
-      'For App Router: add it to app/layout.js (root layout) with strategy="afterInteractive".',
+      'Use Next.js\'s built-in <Script> component — no install needed.',
+      'For App Router: add it to app/layout.js with strategy="afterInteractive".',
       'For Pages Router: add to pages/_document.js inside <Head>.',
-      'For manual spaces, drop <div data-yepper-space="..."> in any page or component JSX.',
+      'For manual spaces, drop <div data-yepper-space="..."> in any JSX.',
       'The script auto-loads on every page because it\'s in the root layout.',
     ],
     vue: [
       'Open src/main.js (or main.ts).',
       'Add the script creation code before app.mount().',
-      'Or add it inside the onMounted() hook in your root App.vue.',
+      'Or add it inside onMounted() in your root App.vue.',
       'For manual spaces, add <div data-yepper-space="..."> in any .vue template.',
     ],
-    nuxt: [
-      'Open nuxt.config.js (or nuxt.config.ts).',
-      'Add the script to app.head.script array (see code above).',
-      'This automatically adds the script to every page.',
-      'For manual spaces, add <div data-yepper-space="..."> in any page or layout template.',
-    ],
-    svelte: [
-      'Open src/routes/+layout.svelte (SvelteKit) or your root Svelte file.',
-      'Add the onMounted script loader inside a <script> block.',
-      'For plain Svelte, you can add the tag directly to your index.html.',
-      'For manual spaces, add <div data-yepper-space="..."> in any .svelte template.',
-    ],
-    angular: [
-      'Preferred: add it programmatically in AppComponent\'s ngOnInit() using Renderer2.',
-      'Or add the script src directly to the scripts array in angular.json.',
-      'Or add it to src/index.html inside <head>.',
-      'For manual spaces, add <div data-yepper-space="..."> in any component template.',
-    ],
-    gatsby: [
-      'Create gatsby-browser.js in your project root (if it doesn\'t exist).',
-      'Add the onClientEntry export (see code above).',
-      'This ensures the script loads after Gatsby\'s client-side hydration.',
-      'Alternatively, install gatsby-plugin-load-script (npm install).',
-      'For manual spaces, add <div data-yepper-space="..."> in any JSX component.',
-    ],
-    remix: [
-      'Open app/root.tsx (the root layout).',
-      'Add <script src="..." async /> inside the <body>, after <Scripts />.',
-      'This ensures it loads on every route.',
-      'For manual spaces, add <div data-yepper-space="..."> in any route component.',
-    ],
-    astro: [
-      'Open your root layout file (e.g. src/layouts/Layout.astro).',
-      'Add <script src="..." async is:inline></script> inside <head>.',
-      'The is:inline directive prevents Astro from bundling it.',
-      'For manual spaces, add <div data-yepper-space="..."> in any .astro component.',
-    ],
     wordpress: [
-      'Open your active theme\'s functions.php (Appearance → Theme Editor in WP Admin).',
+      'Go to Appearance → Theme Editor in your WordPress Admin.',
+      'Open your active theme\'s functions.php file.',
       'Paste the PHP snippet at the end of functions.php.',
-      'The script will load on every front-end page of your site.',
+      'Save. The script will load on every page of your site.',
       'For manual spaces, add the PHP echo div in your theme templates.',
-      'Or use a widget/shortcode plugin to insert divs in specific locations.',
     ],
     php: [
       'Open your main PHP layout file (header.php, layout.php, base.php, etc.).',
-      'Paste the script tag (echo or raw HTML) inside <head>.',
-      'It will load on every page that includes this layout.',
-      'For manual spaces, echo the div PHP tag in any template where you want an ad.',
+      'Paste the script echo or raw HTML tag inside <head>.',
+      'It will load on every page that includes this layout file.',
+      'For manual spaces, echo the div in any template where you want an ad.',
     ],
-    django: [
-      'Open your base Django template (usually base.html or _base.html).',
-      'Add the script tag inside the {% block head %} block.',
-      'Child templates that extend base.html will automatically get the script.',
+    python: [
+      'Open your base template (base.html for Django or Flask).',
+      'Add the <script> tag inside the head block.',
+      'Templates that extend base.html will automatically include the script.',
       'For manual spaces, add <div data-yepper-space="..."> in any template.',
-    ],
-    flask: [
-      'Open your base Jinja2 template (base.html).',
-      'Add <script src="..." async></script> inside <head>.',
-      'All templates that extend base.html will automatically include it.',
-      'For manual spaces, add <div data-yepper-space="..."> in any template.',
-    ],
-    vanillajs: [
-      'Add the JavaScript snippet to any existing JS file that runs on page load.',
-      'Or add it directly as a <script> tag in your HTML.',
-      'The DOMContentLoaded listener ensures the script loads after the page is ready.',
-      'For manual spaces, add <div data-yepper-space="..."> in your HTML.',
     ],
   };
   return steps[framework] || steps.html;
@@ -462,21 +256,21 @@ const CodeBlock = ({ code }) => (
   </div>
 );
 
-// ── Framework selector pills ──────────────────────────────────────────────────
+// ── Framework selector ────────────────────────────────────────────────────────
 const FrameworkPicker = ({ active, onChange }) => (
   <div className="flex flex-wrap gap-1.5">
-    {FRAMEWORKS.map(f => (
+    {FRAMEWORKS.map(({ id, label, Icon }) => (
       <button
-        key={f.id}
-        onClick={() => onChange(f.id)}
-        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-          active === f.id
+        key={id}
+        onClick={() => onChange(id)}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+          active === id
             ? 'bg-blue-600 border-blue-500 text-white'
             : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
         }`}
       >
-        <span>{f.icon}</span>
-        <span>{f.label}</span>
+        <Icon className="w-3 h-3" />
+        <span>{label}</span>
       </button>
     ))}
   </div>
@@ -513,7 +307,7 @@ const InstallSteps = ({ framework, src }) => {
 };
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onLanguageChange, onDeleteCategory, onEditLanguage, onEditUserCount, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onLanguageChange, onDeleteCategory, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
   const [framework, setFramework] = useState('html');
   const [humanLang, setHumanLang] = useState('english');
@@ -528,7 +322,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
   };
   const rawSrc = extractSrc(website?.site_script) || `${BACKEND}/api/p/site/${website?.id}`;
 
-  const mainCode   = buildSiteScript(rawSrc, framework);
+  const mainCode    = buildSiteScript(rawSrc, framework);
   const currentLabel = HUMAN_LANGUAGES.find(l => l.value === humanLang)?.label || 'English';
 
   const handleSaveLang = () => {
@@ -539,6 +333,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
+
       {/* Header */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -555,7 +350,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
             </p>
           </div>
         </div>
-        <span className={`text-zinc-500 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▼</span>
+        <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
       </button>
 
       {open && (
@@ -574,7 +369,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
             <div className="flex items-center gap-2 text-xs text-zinc-400">
               <Globe className="w-3.5 h-3.5 text-zinc-500" />
               <span className="font-medium text-zinc-300">Ads Language</span>
-              <span className="text-zinc-600">— all spaces will serve ads in:</span>
+              <span className="text-zinc-600">— all spaces serve ads in:</span>
             </div>
             <div className="flex items-center gap-2 ml-auto flex-wrap">
               <select
@@ -594,12 +389,12 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
                     : 'bg-zinc-800 border-zinc-600 text-zinc-200 hover:bg-zinc-700'
                 }`}
               >
-                {langSaved ? <><Check className="w-3 h-3" /> Saved</> : 'Apply to All Spaces'}
+                {langSaved ? <><Check className="w-3 h-3" /> Saved</> : 'Apply to All'}
               </button>
             </div>
           </div>
 
-          {/* Main script section */}
+          {/* Main script */}
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-blue-400" />
@@ -609,130 +404,131 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
             </div>
             <p className="text-xs text-zinc-500 leading-relaxed">
               This single script handles <strong className="text-zinc-300">all</strong> your ad spaces automatically.
-              You only ever need one copy of it across your entire site. Never change it when you add more spaces.
+              You only need one copy across your entire site. Never change it when you add more spaces.
             </p>
-
             <CodeBlock code={mainCode} />
             <InstallSteps framework={framework} src={rawSrc} />
-
-            <div className="bg-blue-950 border border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-300">
-              ⚡ Works for all auto-placed spaces: Header, Footer, Floating, Overlay, Mobile Interstitial, and more.
+            <div className="bg-blue-950 border border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-300 flex items-start gap-2">
+              <Zap className="w-3 h-3 shrink-0 mt-0.5" />
+              <span>Works for all auto-placed spaces: Header, Footer, Floating, Overlay, Mobile Interstitial, and more.</span>
             </div>
-
-            <button
-              onClick={onAddSpace}
-              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-blue-700 text-blue-400 hover:bg-blue-950 hover:border-blue-500 text-xs font-medium transition-all"
-            >
-              <Plus className="w-3 h-3" /> {scriptInstalled ? 'Add Auto Space' : 'Install script first'}
-            </button>
           </div>
 
-          {/* Manual placement divs */}
-          {categories.length > 0 && (
-            <div className="border-t border-zinc-700">
+          {/* Ad spaces list */}
+          {categories.length === 0 ? (
+            <div className="border-t border-zinc-700 px-5 py-8 flex flex-col items-center justify-center text-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                <Plus className="w-5 h-5 text-zinc-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-zinc-300 mb-1">No ad spaces yet</p>
+                <p className="text-xs text-zinc-600">Add your first ad space to start serving ads on your site.</p>
+              </div>
               <button
-                onClick={() => setShowManual(o => !o)}
-                className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-800 transition-colors"
+                onClick={onAddSpace}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-blue-700 text-blue-400 hover:bg-blue-950 hover:border-blue-500 text-xs font-medium transition-all"
               >
-                <div className="flex items-center gap-2">
-                  <MousePointer className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-semibold text-zinc-100">Manual Placement Divs</span>
-                  <span className="text-xs text-zinc-500 ml-1">— paste where you want exact placement</span>
-                </div>
-                {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
+                <Plus className="w-3.5 h-3.5" /> Add Ad Space
               </button>
-
-              {showManual && (
-                <div className="px-5 pb-5 space-y-4">
-                  <p className="text-xs text-zinc-500 leading-relaxed">
-                    For spaces that need <strong className="text-zinc-300">exact placement</strong>, also paste the matching div
-                    at that exact location in your code. The main script above must still be present.
+            </div>
+          ) : (
+            <>
+              {/* Spaces list with delete buttons */}
+              <div className="border-t border-zinc-700">
+                <div className="px-5 py-3 flex items-center justify-between border-b border-zinc-700">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                    {categories.length} Ad Space{categories.length !== 1 ? 's' : ''}
                   </p>
-                  <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
-                    {categories.map((cat: any, idx: any) => {
-                      const code = buildManualDiv(cat._id, framework);
-                      return (
+                  <button
+                    onClick={onAddSpace}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-500 transition-all"
+                  >
+                    <Plus className="w-3 h-3" /> Add Space
+                  </button>
+                </div>
+                <div className="divide-y divide-zinc-800">
+                  {categories.map((cat: any, idx: any) => {
+                    const earning = earningsSummary?.categories?.find(e => e.categoryId?.toString() === cat._id?.toString());
+                    return (
+                      <div key={cat._id} className="px-5 py-3 flex items-center gap-3">
+                        <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
+                            <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
+                            {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && (
+                              <span className="text-xs text-blue-400 bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">auto</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
+                            {earning?.available ? (
+                              <span className="text-green-400">RWF {Number(earning.ownerEarns).toLocaleString()}/mo</span>
+                            ) : (
+                              <span className="italic">earnings pending traffic</span>
+                            )}
+                            <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
+                            <span className="capitalize">{cat.defaultLanguage || currentLabel}</span>
+                          </div>
+                        </div>
+                        {onDeleteCategory && (
+                          <button
+                            onClick={() => onDeleteCategory(cat)}
+                            title="Delete ad space"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Manual placement divs (accordion) */}
+              <div className="border-t border-zinc-700">
+                <button
+                  onClick={() => setShowManual(o => !o)}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-800 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <MousePointer className="w-4 h-4 text-purple-400" />
+                    <span className="text-sm font-semibold text-zinc-100">Manual Placement Divs</span>
+                    <span className="text-xs text-zinc-500 ml-1">— for exact positioning</span>
+                  </div>
+                  {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
+                </button>
+                {showManual && (
+                  <div className="px-5 pb-5 space-y-4">
+                    <p className="text-xs text-zinc-500 leading-relaxed">
+                      For spaces that need <strong className="text-zinc-300">exact placement</strong>, paste the matching div
+                      at that exact location. The main script above must still be present.
+                    </p>
+                    <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
+                      {categories.map((cat: any, idx: any) => (
                         <div key={cat._id} className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-zinc-500 font-mono">{idx + 1}.</span>
                             <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
                             <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
-                            {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && (
-                              <span className="text-xs text-blue-400 bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">auto-ok</span>
-                            )}
-                            {onDeleteCategory && (
-                              <button
-                                onClick={(e: any) => { e.stopPropagation(); onDeleteCategory(cat); }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-950 hover:bg-red-900 text-red-400 hover:text-red-300 transition-all border border-red-900 shrink-0"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
                           </div>
-                          <CodeBlock code={code} />
+                          <CodeBlock code={buildManualDiv(cat._id, framework)} />
                         </div>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={onAddSpace}
-                    className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-purple-700 text-purple-400 hover:bg-purple-950 hover:border-purple-500 text-xs font-medium transition-all"
-                  >
-                    <Plus className="w-3 h-3" /> Add Manual Space
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Spaces summary strip */}
-          {categories.length > 0 && (
-            <div className="border-t border-zinc-700 px-5 py-3 bg-zinc-950">
-              <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">
-                {categories.length} Ad Space{categories.length !== 1 ? 's' : ''} on this site
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {categories.map(cat => {
-                  const earning = earningsSummary?.categories?.find(e => e.categoryId?.toString() === cat._id?.toString());
-                  return (
-                    <div
-                      key={cat._id}
-                      className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs group"
-                    >
-                      <span className="font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
-                      <span className="text-zinc-600">·</span>
-                      {earning?.available ? (
-                        <span className="text-green-400 font-medium">RWF {Number(earning.ownerEarns).toLocaleString()}/mo</span>
-                      ) : (
-                        <span className="text-zinc-500 italic">earnings pending traffic</span>
-                      )}
-                      <span className="text-zinc-600">·</span>
-                      <span className="text-zinc-400">{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
-                      <span className="text-zinc-600">·</span>
-                      <span className="text-zinc-500 capitalize">{cat.defaultLanguage || currentLabel}</span>
-                      {onDeleteCategory && (
-                        <button
-                          onClick={() => onDeleteCategory(cat)}
-                          className="ml-1 opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-red-500 hover:text-red-400 hover:bg-red-950 transition-all"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
 
-          {/* Footer tip */}
+          {/* Footer */}
           <div className="border-t border-zinc-700 px-5 py-3 flex items-start gap-2 bg-zinc-950">
             <Info className="w-3 h-3 text-zinc-500 mt-0.5 shrink-0" />
             <p className="text-xs text-zinc-500">
-              Select your framework above to see the right code for your stack.
-              The main script handles everything automatically. For spaces that need exact placement,
-              expand "Manual Placement Divs" and paste the relevant div. New spaces are picked up
-              automatically — no need to update the main script.
+              Select your framework above to see the right code. The main script handles everything automatically.
+              For exact placement, expand "Manual Placement Divs". New spaces are picked up automatically — no need to update the main script.
             </p>
           </div>
         </div>

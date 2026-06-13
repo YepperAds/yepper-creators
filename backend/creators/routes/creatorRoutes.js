@@ -1,8 +1,20 @@
 'use strict';
 
 const express    = require('express');
+const multer     = require('multer');
+const os         = require('os');
+const path       = require('path');
 const router     = express.Router();
 const controller = require('../controllers/creatorController');
+
+const videoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, os.tmpdir()),
+    filename:    (req, file, cb) => cb(null, `ypr_ad_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
+  }),
+  limits:     { fileSize: 512 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed')),
+});
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 router.get('/auth/creator/google',          controller.googleInitiate);
@@ -12,9 +24,14 @@ router.get('/auth/creator/check-username',  controller.checkUsername);
 router.post('/auth/creator/logout',         controller.logout);
 
 // ─── Social stats ─────────────────────────────────────────────────────────────
-router.get('/api/social/stats',              controller.getSocialStats);
-router.get('/api/social/video-stats',        controller.getSocialVideoStats);
+router.get('/api/social/stats',                 controller.getSocialStats);
+router.get('/api/social/video-stats',           controller.getSocialVideoStats);
 router.post('/api/social/disconnect/:provider', controller.disconnectSocial);
+router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
+
+// ─── Ad posts ─────────────────────────────────────────────────────────────────
+router.post('/api/social/post-ad/:provider',    videoUpload.single('video'), controller.postAdVideo);
+router.get('/api/social/ad-posts',              controller.getAdPosts);
 
 // ─── Social OAuth ─────────────────────────────────────────────────────────────
 router.get('/api/connect/:provider',          controller.socialConnect);
@@ -44,6 +61,10 @@ router.post('/api/website/collect',           (req, res) => res.sendStatus(410))
 router.get('/api/handoff/:token/data',        controller.getHandoffData);
 router.post('/api/adsense/proceed',           controller.adsenseProceed);
 router.get('/api/adsense/handoff/:token',     controller.redeemHandoff);
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+router.get('/api/wallet',                     controller.getWallet);
+router.get('/api/wallet/transactions',        controller.getWalletTransactions);
 
 // ─── Webhooks ─────────────────────────────────────────────────────────────────
 router.get('/api/webhooks/instagram',         controller.instagramWebhook);

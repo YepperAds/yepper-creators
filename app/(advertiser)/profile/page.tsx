@@ -3,20 +3,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { AuthResponse, User, UsernameCheckResponse } from '@/app/_types/auth';
-import { 
-  UserCircleIcon, 
-  AtSymbolIcon, 
-  FingerPrintIcon, 
+import {
+  UserCircleIcon,
+  AtSymbolIcon,
+  FingerPrintIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   ArrowPathIcon,
-  CameraIcon
+  CameraIcon,
+  VideoCameraIcon,
+  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 
-const CREATOR_TYPES: { value: string; label: string; emoji: string }[] = [
-  { value: 'Content Creator', label: 'Content Creator', emoji: 'CC' },
-  { value: 'Web Developer', label: 'Web Developer', emoji: 'WD' },
-  { value: 'Graphic Designer', label: 'Graphic Designer', emoji: 'GD' },
+const CREATOR_TYPES: { value: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'Content Creator', label: 'Content Creator', icon: VideoCameraIcon },
+  { value: 'Web Developer',   label: 'Web Developer',   icon: CodeBracketIcon },
 ];
 
 export default function ProfilePage() {
@@ -80,7 +81,7 @@ export default function ProfilePage() {
 
     setUsernameStatus('checking');
     try {
-      const res = await fetch(`${apiBaseUrl}/auth/check-username?username=${encodeURIComponent(raw)}`);
+      const res = await fetch(`${apiBaseUrl}/auth/creator/check-username?username=${encodeURIComponent(raw)}`);
       const data: UsernameCheckResponse = await res.json();
       setUsernameStatus(data.available ? 'available' : 'taken');
       setUsernameReason(data.reason);
@@ -167,18 +168,24 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(null);
 
-    const result = await api.post<{ success: boolean, message: string }>('/auth/update-profile', {
+    const result = await api.post<{ success: boolean, message: string }>('/api/auth/complete-profile', {
       username: username.trim(),
       what_they_do: whatTheyDo,
-      avatar: avatar // sends the base64 string
+      avatar: avatar // sends the base64 string (backend may accept)
     });
 
     setSaving(false);
     if (result.ok) {
+      // Pull the persisted avatar URL back from the response (Cloudinary URL replaces base64)
+      const savedUser = (result.data as any)?.data?.user;
+      const savedAvatar = savedUser?.avatar ?? avatar;
+      setAvatar(savedAvatar);
+      setUser(prev => prev ? { ...prev, avatar: savedAvatar } : prev);
+      setInitialForm({ username: username.trim(), whatTheyDo, avatar: savedAvatar });
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setUsernameStatus('idle');
-      // Update initial form so it's no longer dirty
-      setInitialForm({ username: username.trim(), whatTheyDo, avatar: avatar });
+      // Notify other components (e.g. Navbar) that the session has changed
+      window.dispatchEvent(new CustomEvent('yepper-session-changed'));
     } else {
       setMessage({ type: 'error', text: result.error?.message || 'Failed to update profile.' });
     }
@@ -230,9 +237,9 @@ export default function ProfilePage() {
               title="Click to change profile picture"
             >
               <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-(--color-border) bg-(--color-surface-2) transition-transform group-hover:scale-[1.02]">
-                {avatar ? (
-                  <img src={avatar} alt={user?.fullname} className="w-full h-full object-cover" />
-                ) : (
+                  {avatar ? (
+                    <img src={avatar} alt={user?.name ?? user?.fullName ?? user?.fullname} className="w-full h-full object-cover" />
+                  ) : (
                   <div className="w-full h-full flex items-center justify-center text-(--color-muted)">
                     <UserCircleIcon className="w-16 h-16" />
                   </div>
@@ -244,7 +251,7 @@ export default function ProfilePage() {
               </div>
             </button>
             
-            <h2 className="text-lg font-bold text-(--color-white)">{user?.fullname}</h2>
+              <h2 className="text-lg font-bold text-(--color-white)">{user?.name ?? user?.fullName ?? user?.fullname}</h2>
             <p className="text-xs text-(--color-muted) tracking-wide">@{username || 'handle'}</p>
             
             <div className="mt-4 pt-4 border-t border-(--color-border) w-full">
@@ -323,22 +330,23 @@ export default function ProfilePage() {
             </div>
             <div className="p-6 space-y-4">
               <label className="text-[11px] font-bold text-(--color-muted) uppercase tracking-wider block mb-2">What best describes you?</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {CREATOR_TYPES.map((type) => {
                   const selected = whatTheyDo === type.value;
+                  const Icon = type.icon;
                   return (
                     <button
                       key={type.value}
                       type="button"
                       onClick={() => setWhatTheyDo(type.value)}
-                      className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-all ${
+                      className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-all ${
                         selected
                           ? 'border-(--color-white) bg-(--color-white)/5 text-(--color-white)'
                           : 'border-(--color-border) bg-(--color-surface-2) text-(--color-muted) hover:border-(--color-subtle) hover:text-(--color-subtle)'
                       }`}
                     >
-                      <span className="text-lg">{type.emoji}</span>
-                      <span className="text-[10px] font-bold leading-tight truncate w-full">{type.label}</span>
+                      <Icon className="w-6 h-6" />
+                      <span className="text-[11px] font-bold leading-tight">{type.label}</span>
                     </button>
                   );
                 })}

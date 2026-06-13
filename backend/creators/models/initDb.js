@@ -74,6 +74,8 @@ async function initCreatorsDatabase() {
        connected_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
        UNIQUE (creator_id, provider)
      )`,
+    `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS total_views BIGINT DEFAULT 0`,
+    `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS total_posts INTEGER DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS social_video_stats (
        id           SERIAL PRIMARY KEY,
        creator_id   INTEGER REFERENCES creators(id) ON DELETE CASCADE,
@@ -86,6 +88,33 @@ async function initCreatorsDatabase() {
        video_url    TEXT,
        fetched_at   TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
+    `DELETE FROM social_video_stats WHERE id NOT IN (SELECT MAX(id) FROM social_video_stats GROUP BY creator_id, provider, COALESCE(video_url, title))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS svs_unique_video ON social_video_stats (creator_id, provider, video_url) WHERE video_url IS NOT NULL`,
+    `CREATE TABLE IF NOT EXISTS ad_tracking_sequences (
+       provider  VARCHAR(50) PRIMARY KEY,
+       last_id   INTEGER DEFAULT 0
+     )`,
+    `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ('youtube',0),('instagram',0),('facebook',0) ON CONFLICT DO NOTHING`,
+    `CREATE TABLE IF NOT EXISTS ad_video_posts (
+       id                 SERIAL PRIMARY KEY,
+       creator_id         INTEGER REFERENCES creators(id) ON DELETE CASCADE,
+       provider           VARCHAR(50) NOT NULL,
+       tracking_code      VARCHAR(50) UNIQUE NOT NULL,
+       tracking_num       INTEGER NOT NULL,
+       platform_video_id  VARCHAR(255),
+       video_url          TEXT,
+       title              TEXT,
+       description        TEXT,
+       thumbnail_url      TEXT,
+       status             VARCHAR(50) DEFAULT 'live',
+       views              BIGINT DEFAULT 0,
+       likes              BIGINT DEFAULT 0,
+       comments           INTEGER DEFAULT 0,
+       posted_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       last_stats_at      TIMESTAMP WITH TIME ZONE,
+       created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )`,
+    `CREATE INDEX IF NOT EXISTS ad_video_posts_creator_idx ON ad_video_posts (creator_id, provider)`,
     `CREATE TABLE IF NOT EXISTS notifications (
        id          BIGSERIAL PRIMARY KEY,
        creator_id  INTEGER REFERENCES creators(id) ON DELETE CASCADE,

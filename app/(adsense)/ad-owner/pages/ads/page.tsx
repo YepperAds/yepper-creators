@@ -50,7 +50,7 @@ const Ads: React.FC = () => {
     const [filteredAds, setFilteredAds] = useState<Ad[]>([]);
 
     useEffect(() => {
-        if (user         if (user && token) {        if (user && token) { isAuthenticated) {
+        if (user && isAuthenticated) {
             fetchUserAds();
         }
     }, [user, isAuthenticated]);
@@ -169,9 +169,7 @@ const Ads: React.FC = () => {
 
     const handleActionButton = (ad: Ad, statusInfo: AdStatusInfo): void => {
         if (statusInfo.status === 'Incomplete') {
-            router.push(`/update-ad-selections?adId=${ad._id}&isUpdate=true`); // {
-                
-            });
+            router.push(`/update-ad-selections?adId=${ad._id}&isUpdate=true`);
         }
     };
 

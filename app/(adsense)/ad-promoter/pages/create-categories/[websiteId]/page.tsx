@@ -24,26 +24,132 @@ import {
     Search
 } from 'lucide-react';
 import { Button, Grid, Input, TextArea, Badge, Container } from '@/app/(adsense)/components/components';
-import PricingTiers from '../../_components/PricingTiers';
-import CategoryInfoModal from '../../_components/CategoryInfoModal';
+import PricingTiers from '../../../_components/PricingTiers';
+import CategoryInfoModal from '../../../_components/CategoryInfoModal';
 
-import AboveTheFold from '../img/aboveTheFold.png';
-import BeneathTitle from '../img/beneathTitle.png';
-import Bottom from '../img/bottom.png';
-import Floating from '../img/floating.png';
-import HeaderPic from '../img/header.png';
-import InFeed from '../img/inFeed.png';
-import InlineContent from '../img/inlineContent.png';
-import LeftRail from '../img/leftRail.png';
-import MobileInterstial from '../img/mobileInterstitial.png';
-import ModalPic from '../img/modal.png';
-import Overlay from '../img/overlay.png';
-import ProFooter from '../img/proFooter.png';
-import RightRail from '../img/rightRail.png';
-import Sidebar from '../img/sidebar.png';
-import StickySidebar from '../img/stickySidebar.png';
+import AboveTheFold from '../../../img/aboveTheFold.png';
+import BeneathTitle from '../../../img/beneathTitle.png';
+import Bottom from '../../../img/bottom.png';
+import Floating from '../../../img/floating.png';
+import HeaderPic from '../../../img/header.png';
+import InFeed from '../../../img/inFeed.png';
+import InlineContent from '../../../img/inlineContent.png';
+import LeftRail from '../../../img/leftRail.png';
+import MobileInterstial from '../../../img/mobileInterstitial.png';
+import ModalPic from '../../../img/modal.png';
+import Overlay from '../../../img/overlay.png';
+import ProFooter from '../../../img/proFooter.png';
+import RightRail from '../../../img/rightRail.png';
+import Sidebar from '../../../img/sidebar.png';
+import StickySidebar from '../../../img/stickySidebar.png';
 import api from '@/app/_lib/adsense-api';
 
+
+function CategoryModal({ activeCategory, details, categoryData, updateCategoryData, monthlyTraffic, grantedTier, onClose, onSave }) {
+  const [showFullImage, setShowFullImage] = useState(false);
+  if (!details) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-surface-1 border border-border max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-black text-white">{details.icon}</div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">{details.name}</h2>
+              <p className="text-sm text-subtle">{details.category} • {details.position}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-3 border border-border">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-6">
+          {showFullImage ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-white">Preview Image</h3>
+                <Button variant="outline" onClick={() => setShowFullImage(false)} size="sm">
+                  Back to Details
+                </Button>
+              </div>
+              <div className="flex justify-center">
+                <img src={details.image} alt={`${details.name} full preview`} className="max-w-full max-h-[70vh] border border-border object-contain" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <PricingTiers
+                  selectedPrice={categoryData[activeCategory] || {}}
+                  onPriceSelect={(price) => updateCategoryData(activeCategory, 'price', price)}
+                  monthlyTraffic={monthlyTraffic}
+                  spaceType={details.spaceType}
+                  grantedTier={grantedTier}
+                />
+                <div className="space-y-6">
+                  <div className="w-full">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-medium text-subtle">Number of ads for this space</span>
+                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Number of ads"
+                      value={categoryData[activeCategory]?.userCount || ''}
+                      onChange={(e) => updateCategoryData(activeCategory, 'userCount', e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="w-full">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-medium text-subtle">Additional Requirements</span>
+                    </div>
+                    <TextArea
+                      placeholder="Enter any additional requirements or notes"
+                      value={categoryData[activeCategory]?.instructions || ''}
+                      onChange={(e) => updateCategoryData(activeCategory, 'instructions', e.target.value)}
+                      rows={4}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-4">Description & Preview</h3>
+                  <div className="space-y-4">
+                    <div className="cursor-pointer group" onClick={() => setShowFullImage(true)}>
+                      <img src={details.image} alt={`${details.name} preview`} className="w-full border border-border group-hover:opacity-80 transition-opacity" />
+                      <p className="text-xs text-muted mt-1 text-center">Click to view full size</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-white mb-2">About this category</h4>
+                      <p className="text-subtle mb-4">{details.description}</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Position: {details.position}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Category: {details.category}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {!showFullImage && (
+            <div className="flex justify-end pt-6 mt-8 border-t border-border">
+              <Button variant="secondary" onClick={onSave} disabled={!categoryData[activeCategory]?.price} size="lg">
+                Save & Continue
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const CategoryCreation = () => {
   const [, setUser] = useState<Record<string,unknown> | null>(null); // NEW: Custom user state
@@ -62,6 +168,8 @@ const CategoryCreation = () => {
   const [activeInfoModal, setActiveInfoModal] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -363,239 +471,60 @@ const CategoryCreation = () => {
       setActiveCategory(null);
   };
 
-  // Fixed handleSubmit method for CategoryCreation.js
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setSubmitError('');
 
-    try {
-      const categoriesToSubmit = Object.entries(selectedCategories)
-        .filter(([category]) => completedCategories.includes(category))
-        .map(([category]) => {
-          const data = categoryData[category] || {};
-          const details = categoryDetails[category] || {};
-          
-          // Ensure proper data structure
-          return {
-            websiteId: websiteId, // Make sure this is a valid ObjectId
-            categoryName: category.charAt(0).toUpperCase() + category.slice(1),
-            description: details.description || '',
-            price: Number(data.price) || 0, // Ensure it's a number
-            spaceType: details.spaceType || 'banner', // Required field
-            userCount: Number(data.userCount) || 0,
-            instructions: data.instructions || '',
-            customAttributes: data.customAttributes || {},
-            // Required fields that were missing or incorrectly structured
-            visitorRange: {
-              min: Number(data.visitorRange?.min) || 0,
-              max: Number(data.visitorRange?.max) || 10000
-            },
-            tier: data.tier || 'bronze' // Must be one of: bronze, silver, gold, platinum
-          };
-        });
-
-
-      const token = getToken();
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const responses = await Promise.all(
-        categoriesToSubmit.map(async (category) => {
-          try {
-            const response = await api.post(
-              '/api/ad-categories', 
-              category, 
-              {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                }
-              }
-            );
-            return { ...(response.data as any), name: category.categoryName };
-          } catch {
-            throw error;
-          }
-        })
-      );
-
-      const categoriesWithId = responses.reduce((acc: any, category: any) => {
-        acc[category.name.toLowerCase()] = { 
-          id: category.category?._id || category._id, // Handle different response structures
-          price: category.category?.price || category.price,
-          apiCodes: category.category?.apiCodes || category.apiCodes
-        };
-        return acc;
-      }, {});
-
-      router.push('/websites', {
-        state: {
+    const categoriesToSubmit = Object.entries(selectedCategories)
+      .filter(([category]) => completedCategories.includes(category))
+      .map(([category]) => {
+        const data = categoryData[category] || {};
+        const details = categoryDetails[category] || {};
+        return {
           websiteId,
-          websiteDetails,
-          selectedCategories: categoriesWithId,
-          categoryData
-        },
+          categoryName: category.charAt(0).toUpperCase() + category.slice(1),
+          description: details.description || '',
+          price: Number(data.price) || 0,
+          spaceType: details.spaceType || 'banner',
+          userCount: Number(data.userCount) || 0,
+          instructions: data.instructions || '',
+          customAttributes: data.customAttributes || {},
+          visitorRange: {
+            min: Number(data.visitorRange?.min) || 0,
+            max: Number(data.visitorRange?.max) || 10000,
+          },
+          tier: data.tier || 'bronze',
+        };
       });
-    } catch {
-      
-      // Handle specific error types
-      if ((error as any).response?.status === 401) {
-        router.push('/login');
-      } else if ((error as any).response?.status === 400) {
-      } else {
-      }
-    }
-  };
 
-  const RenderCategoryModal = () => {
-    const [showFullImage, setShowFullImage] = useState(false);
-    
-    if (!activeCategory) return null;
-    
-    const details = categoryDetails[activeCategory];
-    
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <div className="bg-surface-1 border border-border max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-black text-white">
-                {details.icon}
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-white">{details.name}</h2>
-                <p className="text-sm text-subtle">{details.category} • {details.position}</p>
-              </div>
-            </div>
-            <button 
-              onClick={handleCloseModal}
-              className="p-2 hover:bg-surface-3 border border-border"
-            >
-              <X size={16} />
-            </button>
-          </div>
-  
-          {/* Content */}
-          <div className="p-6">
-            {showFullImage ? (
-              /* Full Image View */
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-white">Preview Image</h3>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowFullImage(false)}
-                    size="sm"
-                  >
-                    Back to Details
-                  </Button>
-                </div>
-                <div className="flex justify-center">
-                  <img 
-                    src={details.image} 
-                    alt={`${details.name} full preview`}
-                    className="max-w-full max-h-[70vh] border border-border object-contain"
-                  />
-                </div>
-              </div>
-            ) : (
-              /* Side by Side Layout */
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Side - Pricing and Inputs */}
-                <div className="space-y-6">
-                  <PricingTiers 
-                    selectedPrice={categoryData[activeCategory] || {}}
-                    onPriceSelect={(price) => updateCategoryData(activeCategory, 'price', price)}
-                    monthlyTraffic={websiteMonthlyTraffic}
-                    spaceType={categoryDetails[activeCategory]?.spaceType}
-                    grantedTier={grantDisplay?.trafficTier || null}
-                  />
-  
-                  <div className="space-y-6">
-                    <div className="w-full">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-medium text-subtle">Number of ads for this space</span>
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="Number of ads"
-                        value={categoryData[activeCategory]?.userCount || ''}
-                        onChange={(e: any) => updateCategoryData(activeCategory, 'userCount', e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-  
-                    <div className="w-full">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-medium text-subtle">Additional Requirements</span>
-                      </div>
-                      <TextArea
-                        placeholder="Enter any additional requirements or notes"
-                        value={categoryData[activeCategory]?.instructions || ''}
-                        onChange={(e: any) => updateCategoryData(activeCategory, 'instructions', e.target.value)}
-                        rows={4}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-  
-                {/* Right Side - Description and Image */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Description & Preview</h3>
-                    
-                    <div className="space-y-4">
-                      <div 
-                        className="cursor-pointer group"
-                        onClick={() => setShowFullImage(true)}
-                      >
-                        <img 
-                          src={details.image} 
-                          alt={`${details.name} preview`}
-                          className="w-full border border-border group-hover:opacity-80 transition-opacity"
-                        />
-                        <p className="text-xs text-muted mt-1 text-center">Click to view full size</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-semibold text-white mb-2">About this category</h4>
-                        <p className="text-subtle mb-4">{details.description}</p>
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">Position: {details.position}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">Category: {details.category}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-  
-            {/* Footer - only show when not in full image mode */}
-            {!showFullImage && (
-              <div className="flex justify-end pt-6 mt-8 border-t border-border">
-                <Button
-                  variant="secondary"
-                  onClick={handleNext}
-                  disabled={!categoryData[activeCategory]?.price}
-                  size="lg"
-                >
-                  Save & Continue
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+    if (categoriesToSubmit.length === 0) {
+      setSubmitError('Please configure at least one ad space before creating.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await Promise.all(
+        categoriesToSubmit.map((category) =>
+          api.post('/api/ad-categories', category)
+        )
+      );
+      router.push(`/ad-promoter/pages/website/${websiteId}`);
+    } catch (err: unknown) {
+      const status = (err as any).response?.status;
+      if (status === 401) {
+        router.push('/login');
+      } else {
+        setSubmitError(
+          (err as any).response?.data?.message ||
+          (err as any).response?.data?.error ||
+          (err as any).message ||
+          'Failed to create ad spaces. Please try again.'
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const categoryFilters = [
@@ -741,15 +670,23 @@ const CategoryCreation = () => {
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Submit */}
           {completedCategories.length > 0 && (
-            <div className="flex justify-center">
-              <Button 
+            <div className="flex flex-col items-center gap-4 mt-8">
+              {submitError && (
+                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-3 w-full text-center">
+                  {submitError}
+                </p>
+              )}
+              <Button
                 type="submit"
                 variant="secondary"
                 size="lg"
+                disabled={submitting}
               >
-                Create {completedCategories.length} Ad Space{completedCategories.length > 1 ? 's' : ''}
+                {submitting
+                  ? 'Creating…'
+                  : `Create ${completedCategories.length} Ad Space${completedCategories.length > 1 ? 's' : ''}`}
               </Button>
             </div>
           )}
@@ -757,7 +694,19 @@ const CategoryCreation = () => {
       </div>
 
       {/* Modals */}
-      {<RenderCategoryModal />}
+      {activeCategory && (
+        <CategoryModal
+          key={activeCategory}
+          activeCategory={activeCategory}
+          details={categoryDetails[activeCategory]}
+          categoryData={categoryData}
+          updateCategoryData={updateCategoryData}
+          monthlyTraffic={websiteMonthlyTraffic}
+          grantedTier={grantDisplay?.trafficTier || null}
+          onClose={handleCloseModal}
+          onSave={handleNext}
+        />
+      )}
       {activeInfoModal && (
         <CategoryInfoModal 
           isOpen={!!activeInfoModal}

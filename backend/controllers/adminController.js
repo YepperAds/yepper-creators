@@ -6,9 +6,7 @@ const Website     = require('../AdPromoter/models/CreateWebsiteModel');
 const TrafficGrant = require('../models/TrafficGrantModel');
 const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
 const ImportAd    = require('../AdOwner/models/WebAdvertiseModel');
-const { Resend }  = require('resend');
-
-const resend       = new Resend(process.env.RESEND_API_KEY);
+const sendEmailNotification = require('./emailService');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://yeffddfdper.vercel.app';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -19,41 +17,42 @@ const sendGrantEmail = async (user, grant, website) => {
   const link        = `${FRONTEND_URL}/traffic-grant?token=${grant.access_token}`;
   const websiteName = website ? website.website_name : 'your website';
   try {
-    await resend.emails.send({
-      from: 'Yepper <noreply@yepper.cc>',
-      to: user.email,
-      subject: `🎁 You've been granted a special analytics boost for ${websiteName}`,
-      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-        <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
-            <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
-              <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
-              <tr><td style="padding:40px;">
-                <p style="color:#333;font-size:17px;margin:0 0 8px 0;">Hi <strong>${user.name}</strong>,</p>
-                <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
-                  Great news! You've been selected to customize your analytics data for
-                  <strong>${websiteName}</strong>. Use the button below to set your traffic and views numbers.
-                </p>
-                <table width="100%" cellpadding="0" cellspacing="0">
-                  <tr><td align="center" style="padding:10px 0 32px 0;">
-                    <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
-                      Set My Analytics Numbers →
-                    </a>
-                  </td></tr>
-                </table>
-                <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
-                  This link is personal to your account and expires in 7 days.
-                </p>
-              </td></tr>
-              <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
-                <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
-                  © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
-                </p>
-              </td></tr>
-            </table>
-          </td></tr></table>
-        </body></html>`,
-    });
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
+            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+            <tr><td style="padding:40px;">
+              <p style="color:#333;font-size:17px;margin:0 0 8px 0;">Hi <strong>${user.name}</strong>,</p>
+              <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+                Great news! You've been selected to customize your analytics data for
+                <strong>${websiteName}</strong>. Use the button below to set your traffic and views numbers.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center" style="padding:10px 0 32px 0;">
+                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
+                    Set My Analytics Numbers →
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
+                This link is personal to your account and expires in 7 days.
+              </p>
+            </td></tr>
+            <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
+              <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
+                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+              </p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body></html>`;
+
+    const result = await sendEmailNotification(user.email, `🎁 You've been granted a special analytics boost for ${websiteName}`, html);
+    if (result && result.skipped) {
+      console.warn('Email sending skipped (SMTP not configured) for grant email');
+      return true; // still return true so flow proceeds
+    }
     return true;
   } catch (err) {
     console.error('Failed to send grant email:', err);

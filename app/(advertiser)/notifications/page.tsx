@@ -23,7 +23,7 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/api/notifications?limit=${limit}&offset=${offset}`);
+      const res = await api.get(`/api/proxy/api/notifications?limit=${limit}&offset=${offset}`);
       if (res.ok) {
         const payload: any = res.data; // { success, data: [...], meta: { unread } }
         const rows: Notification[] = Array.isArray(payload) ? payload : payload.data ?? [];
@@ -48,8 +48,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     let es: EventSource | null = null;
     try {
-      es = new EventSource(`${BASE_URL}/api/notifications/stream`);
-      try { (es as any).withCredentials = true; } catch {}
+      es = new EventSource(`${BASE_URL}/api/notifications/stream`, { withCredentials: true });
       es.addEventListener('unread', () => {
         // Refresh first page whenever unread count changes
         setOffset(0);
@@ -79,7 +78,7 @@ export default function NotificationsPage() {
 
   const markRead = async (id: string) => {
     try {
-      const res = await api.post('/api/notifications/mark-read', { id });
+      const res = await api.post('/api/proxy/api/notifications/mark-read', { id });
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
       } else {
@@ -92,7 +91,7 @@ export default function NotificationsPage() {
 
   const deleteNotification = async (id: string) => {
     try {
-      const res = await api.delete(`/api/notifications/${id}`);
+      const res = await api.delete(`/api/proxy/api/notifications/${id}`);
       if (res.ok) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       } else {

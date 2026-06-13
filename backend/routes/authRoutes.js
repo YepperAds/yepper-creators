@@ -6,12 +6,10 @@ const authMiddleware = require('../middleware/authmiddleware');
 
 const router = express.Router();
 
-// Register
-router.post('/register', authController.register);
-router.post('/register-waitlist', authController.registerWaitlist);
-
-// Login
-router.post('/login', authController.login);
+// Manual register/login disabled — use Google OAuth only
+router.post('/register', (req, res) => res.status(405).json({ success: false, message: 'Registration disabled. Use Google Sign-In.' }));
+router.post('/register-waitlist', (req, res) => res.status(405).json({ success: false, message: 'Registration disabled. Use Google Sign-In.' }));
+router.post('/login', (req, res) => res.status(405).json({ success: false, message: 'Manual login disabled. Use Google Sign-In.' }));
 
 // Verify email
 router.get('/verify-email', authController.verifyEmail);
@@ -50,5 +48,6 @@ router.get('/google/failure', authController.googleFailure);
 // [YEPPER-MERGE] Google profile exchange — called by Next.js /api/auth/google/callback
 // Receives a verified Google profile from Next.js and returns a Yepper JWT.
 router.post('/google-exchange', authController.googleExchange);
+router.post('/complete-profile', authMiddleware, authController.completeProfile);
 
 module.exports = router;

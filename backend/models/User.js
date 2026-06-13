@@ -3,16 +3,16 @@ const { query } = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 const User = {
-  async create({ name, email, password, googleId, avatar = '', isVerified = false, verificationToken = null, verificationTokenExpires = null, gscAccessToken = null, gscRefreshToken = null }) {
+  async create({ name, email, password, googleId, avatar = '', isVerified = false, verificationToken = null, verificationTokenExpires = null, gscAccessToken = null, gscRefreshToken = null, handler = null, occupation = null }) {
     let hashedPassword = null;
     if (password) {
       const salt = await bcrypt.genSalt(10);
       hashedPassword = await bcrypt.hash(password, salt);
     }
     const { rows } = await query(
-      `INSERT INTO users (name, email, password, google_id, avatar, is_verified, verification_token, verification_token_expires, gsc_access_token, gsc_refresh_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [name, email.toLowerCase().trim(), hashedPassword, googleId||null, avatar, isVerified, verificationToken, verificationTokenExpires, gscAccessToken, gscRefreshToken]
+      `INSERT INTO users (name, email, password, google_id, avatar, is_verified, verification_token, verification_token_expires, gsc_access_token, gsc_refresh_token, handler, occupation)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [name, email.toLowerCase().trim(), hashedPassword, googleId||null, avatar, isVerified, verificationToken, verificationTokenExpires, gscAccessToken, gscRefreshToken, handler, occupation]
     );
     return rows[0];
   },

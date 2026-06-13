@@ -10,12 +10,18 @@ import { LogOut, User, Mail, ChevronDown } from 'lucide-react';
 import { Button } from './components';
 
 const Navbar = () => {
-  const { user, isAuthenticated } = useSession();
+  const { user, isAuthenticated, reload } = useSession();
   const router = useRouter();
   const navigate = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
+
+  useEffect(() => {
+    const handler = () => reload();
+    window.addEventListener('yepper-session-changed', handler);
+    return () => window.removeEventListener('yepper-session-changed', handler);
+  }, [reload]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -151,15 +157,7 @@ const Navbar = () => {
                   </Button>
                 </Link>
 
-                {/* Register Button */}
-                <Link href="/register">
-                  <Button 
-                    variant='secondary'
-                    className="h-9 flex items-center space-x-2 focus:outline-none focus:ring-0"
-                  >
-                    <span>Register</span>
-                  </Button>
-                </Link>
+                {/* Register removed — Google-only signup via login page */}
               </div>
             )}
             

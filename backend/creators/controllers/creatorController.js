@@ -3,9 +3,41 @@
 const crypto    = require('crypto');
 const dns       = require('dns/promises');
 const nodemailer = require('nodemailer');
+const jwt       = require('jsonwebtoken');
 
 const { query } = require('../../config/db');
 const Creator   = require('../models/Creator');
+const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
+
+// ─── JWT helpers ──────────────────────────────────────────────────────────────
+
+const JWT_SECRET = () => process.env.JWT_SECRET || 'your-jwt-secret';
+
+function generateCreatorToken(creator) {
+  const payload = {
+    userId:     String(creator.id),
+    email:      creator.email      || undefined,
+    name:       creator.full_name  || undefined,
+    username:   creator.username   || undefined,
+    whatTheyDo: creator.what_they_do || undefined,
+  };
+  Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+  return jwt.sign(payload, JWT_SECRET(), { expiresIn: '7d' });
+}
+
+function getCreatorId(req) {
+  const val = req.cookies?.yepper_session;
+  if (!val) return null;
+  if (val.split('.').length === 3) {
+    try {
+      const decoded = jwt.verify(val, JWT_SECRET());
+      return decoded.userId || decoded.id || null;
+    } catch {
+      return null;
+    }
+  }
+  return val; // legacy: raw integer stored as string
+}
 
 // ─── SMTP (creators-specific mailer) ─────────────────────────────────────────
 
@@ -183,29 +215,7 @@ async function buildWebsiteTrafficSnapshot({ creatorId, domain, websiteStatus, w
 
 // ─── SSE helpers ──────────────────────────────────────────────────────────────
 
-const sseClients = new Map();
-
-function addSseClient(creatorId, res) {
-  if (!sseClients.has(creatorId)) sseClients.set(creatorId, new Set());
-  sseClients.get(creatorId).add(res);
-}
-function removeSseClient(creatorId, res) {
-  sseClients.get(creatorId)?.delete(res);
-}
-async function broadcastUnreadCount(creatorId) {
-  const clients = sseClients.get(creatorId);
-  if (!clients || clients.size === 0) return;
-  try {
-    const { rows } = await query(
-      `SELECT COUNT(*)::int AS unread FROM notifications WHERE creator_id = $1 AND read = false`,
-      [creatorId],
-    );
-    const count = rows[0]?.unread ?? 0;
-    for (const res of clients) {
-      try { res.write(`data: ${JSON.stringify({ unread: count })}\n\n`); } catch {}
-    }
-  } catch {}
-}
+// SSE clients and notification helpers are in ../utils/notificationUtils.js
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -250,14 +260,39 @@ exports.googleCallback = async (req, res) => {
     const userInfo    = await userInfoRes.json().catch(() => null);
     if (!userInfo?.sub) return res.redirect(`${FRONTEND_URL}/login?error=invalid_user_info`);
 
-    const creatorId = await Creator.upsertFromGoogle({
+    const { id: creatorId, isNew } = await Creator.upsertFromGoogle({
       googleId: userInfo.sub,
       email:    userInfo.email    || '',
       fullName: userInfo.name     || '',
       avatar:   userInfo.picture  || '',
     });
 
-    res.cookie('yepper_session', String(creatorId), {
+    const creator = await Creator.findById(creatorId);
+    const token   = generateCreatorToken(creator || { id: creatorId });
+
+    if (isNew) {
+      const displayName = userInfo.name || userInfo.email || 'there';
+      createNotification(creatorId, 'welcome', 'Welcome to Yepper!',
+        `Hey ${displayName.split(' ')[0]}, your creator account is ready. Connect your social accounts and add your website to get started.`,
+        { icon: '🎉' }
+      ).catch(() => {});
+      sendEmail(
+        userInfo.email,
+        'Welcome to Yepper!',
+        `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
+          <h2 style="margin:0 0 8px">Welcome to Yepper, ${displayName.split(' ')[0]}!</h2>
+          <p style="color:#6b7280">Your creator account is ready. Here's how to get started:</p>
+          <ul style="color:#374151;padding-left:20px">
+            <li style="margin-bottom:8px">Connect your social media accounts (YouTube, Instagram, etc.)</li>
+            <li style="margin-bottom:8px">Add your website to start earning from ad placements</li>
+            <li style="margin-bottom:8px">Track your analytics and earnings from the dashboard</li>
+          </ul>
+          <a href="${FRONTEND_URL}/explore" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Go to Dashboard →</a>
+        </div>`
+      ).catch(() => {});
+    }
+
+    res.cookie('yepper_session', token, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -265,9 +300,8 @@ exports.googleCallback = async (req, res) => {
       path:     '/',
     });
 
-    const creator = await Creator.findById(creatorId);
     if (!creator?.username || !creator?.what_they_do) {
-      return res.redirect(`${FRONTEND_URL}/onboarding`);
+      return res.redirect(`${FRONTEND_URL}/choose-role`);
     }
     return res.redirect(`${FRONTEND_URL}/explore`);
   } catch (err) {
@@ -277,8 +311,8 @@ exports.googleCallback = async (req, res) => {
 };
 
 exports.getSession = async (req, res) => {
-  const session = req.cookies?.yepper_session;
-  if (!session) return res.json({ success: false, message: 'No session.' });
+  const creatorId = getCreatorId(req);
+  if (!creatorId) return res.json({ success: false, message: 'No session.' });
 
   const result = await query(
     `SELECT id, google_id, email, full_name, avatar, username, what_they_do,
@@ -286,7 +320,7 @@ exports.getSession = async (req, res) => {
             website_icon, website_traffic, website_tracking_started_at,
             website_actual_stats_available_at, website_verified_at
      FROM creators WHERE id = $1 LIMIT 1;`,
-    [session],
+    [creatorId],
   );
   if (result.rowCount === 0) return res.json({ success: false, message: 'Session not found.' });
 
@@ -345,11 +379,28 @@ exports.getSocialStats = async (req, res) => {
   if (!userUuid) return res.status(400).json({ success: false, message: 'user_uuid required' });
   try {
     const result = await query(
-      `SELECT provider, username, followers_count, profile_url, connected_at
+      `SELECT provider, username, followers_count, profile_url, connected_at,
+              COALESCE(total_views, 0) AS total_views, COALESCE(total_posts, 0) AS total_posts
        FROM social_connections WHERE creator_id = $1 ORDER BY connected_at DESC`,
       [userUuid],
     );
-    return res.json({ success: true, data: result.rows });
+    const data = result.rows.map(r => ({
+      provider:  r.provider,
+      username:  r.username || '',
+      followers: Number(r.followers_count || 0),
+      avatar:    r.profile_url || '',
+      analysis: {
+        total_views:      Number(r.total_views  || 0),
+        total_posts:      Number(r.total_posts  || 0),
+        engagement_score: '0',
+        predicted_reach:  0,
+        predicted_likes:  0,
+        recommendation:   '',
+        ai_review:        '',
+        growth_trend:     'steady',
+      },
+    }));
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[creators] /api/social/stats error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch social stats' });
@@ -361,9 +412,21 @@ exports.getSocialVideoStats = async (req, res) => {
   if (!provider || !user_uuid) return res.status(400).json({ success: false, message: 'provider and user_uuid required' });
   try {
     const result = await query(
-      `SELECT title, views, likes, published_at, thumbnail_url, video_url
-       FROM social_video_stats WHERE creator_id = $1 AND provider = $2
-       ORDER BY published_at DESC LIMIT 5`,
+      `SELECT * FROM (
+         SELECT DISTINCT ON (COALESCE(video_url, title))
+           title,
+           views,
+           likes,
+           0 AS comments,
+           published_at,
+           thumbnail_url AS thumbnail,
+           video_url     AS url
+         FROM social_video_stats
+         WHERE creator_id = $1 AND provider = $2
+         ORDER BY COALESCE(video_url, title), published_at DESC NULLS LAST, id DESC
+       ) deduped
+       ORDER BY published_at DESC NULLS LAST
+       LIMIT 5`,
       [user_uuid, provider],
     );
     return res.json({ success: true, data: result.rows });
@@ -374,7 +437,7 @@ exports.getSocialVideoStats = async (req, res) => {
 };
 
 exports.disconnectSocial = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
   try {
     await query(`DELETE FROM social_connections WHERE creator_id=$1 AND provider=$2`, [session, req.params.provider]);
@@ -385,18 +448,124 @@ exports.disconnectSocial = async (req, res) => {
   }
 };
 
+exports.refreshSocialStats = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+  const { provider } = req.params;
+
+  if (provider !== 'youtube') return res.json({ success: false, message: 'Unsupported provider' });
+
+  try {
+    const conn = await query(
+      `SELECT access_token, refresh_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
+      [session, provider],
+    );
+    if (!conn.rowCount) return res.json({ success: false, message: 'Not connected' });
+
+    let { access_token: token, refresh_token: refreshToken } = conn.rows[0];
+
+    const fetchChannel = async (t) => {
+      try {
+        const r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        if (r.status !== 200) return null;
+        return r.json().catch(() => null);
+      } catch { return null; }
+    };
+
+    let channelData = await fetchChannel(token);
+
+    // Access token expired — try to refresh
+    if (!channelData?.items?.[0] && refreshToken) {
+      const clientId     = process.env.YOUTUBE_CLIENT_ID;
+      const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+      if (clientId && clientSecret) {
+        const refreshRes  = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret }),
+        });
+        const refreshData = await refreshRes.json().catch(() => null);
+        if (refreshData?.access_token) {
+          token = refreshData.access_token;
+          await query(`UPDATE social_connections SET access_token=$1 WHERE creator_id=$2 AND provider=$3`, [token, session, provider]);
+          channelData = await fetchChannel(token);
+        }
+      }
+    }
+
+    const channel = channelData?.items?.[0];
+    if (!channel) return res.json({ success: false, message: 'Could not refresh channel data' });
+
+    await query(
+      `UPDATE social_connections SET followers_count=$1, total_views=$2, total_posts=$3, username=$4 WHERE creator_id=$5 AND provider=$6`,
+      [Number(channel.statistics?.subscriberCount || 0), Number(channel.statistics?.viewCount || 0),
+       Number(channel.statistics?.videoCount || 0), channel.snippet?.title || '', session, provider],
+    );
+
+    // Refresh last 5 videos
+    try {
+      const searchRes  = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&order=date&maxResults=5&type=video`, { headers: { Authorization: `Bearer ${token}` } });
+      const searchData = await searchRes.json().catch(() => null);
+      const videoIds   = (searchData?.items || []).map((it) => it.id?.videoId).filter(Boolean);
+      if (videoIds.length) {
+        const vidsRes  = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}`, { headers: { Authorization: `Bearer ${token}` } });
+        const vidsData = await vidsRes.json().catch(() => null);
+        if (Array.isArray(vidsData?.items)) {
+          for (const v of vidsData.items) {
+            await query(
+              `INSERT INTO social_video_stats (creator_id, provider, title, views, likes, published_at, thumbnail_url, video_url)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+               ON CONFLICT (creator_id, provider, video_url) DO UPDATE SET
+                 title=EXCLUDED.title, views=EXCLUDED.views, likes=EXCLUDED.likes,
+                 published_at=EXCLUDED.published_at, thumbnail_url=EXCLUDED.thumbnail_url, fetched_at=NOW()`,
+              [session, 'youtube', v.snippet?.title || '', Number(v.statistics?.viewCount || 0),
+               Number(v.statistics?.likeCount || 0),
+               v.snippet?.publishedAt ? new Date(v.snippet.publishedAt) : null,
+               v.snippet?.thumbnails?.default?.url || '', `https://youtu.be/${v.id}`],
+            );
+          }
+          // Keep only the 5 most recent videos per creator/provider
+          await query(
+            `DELETE FROM social_video_stats WHERE creator_id=$1 AND provider=$2
+             AND id NOT IN (SELECT id FROM social_video_stats WHERE creator_id=$1 AND provider=$2 ORDER BY published_at DESC NULLS LAST, id DESC LIMIT 5)`,
+            [session, 'youtube'],
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[creators] Video refresh error (non-fatal):', err);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[creators] refreshSocialStats error:', err);
+    return res.status(500).json({ success: false });
+  }
+};
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 exports.getNotifications = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
-    const result = await query(
-      `SELECT id, type, title, body, read, created_at
-       FROM notifications WHERE creator_id = $1 ORDER BY created_at DESC LIMIT 50`,
-      [session],
-    );
-    return res.json({ success: true, data: result.rows });
+    const limit  = Math.min(parseInt(req.query.limit)  || 20, 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0,  0);
+    const [result, countResult] = await Promise.all([
+      query(
+        `SELECT id, type, title, body, meta, is_read, created_at
+         FROM notifications WHERE creator_id = $1
+         ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+        [session, limit, offset],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS unread FROM notifications WHERE creator_id = $1 AND is_read = false`,
+        [session],
+      ),
+    ]);
+    return res.json({ success: true, data: result.rows, meta: { unread: countResult.rows[0]?.unread ?? 0 } });
   } catch (err) {
     console.error('[creators] /api/notifications error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
@@ -404,10 +573,16 @@ exports.getNotifications = async (req, res) => {
 };
 
 exports.markNotificationsRead = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
-    await query(`UPDATE notifications SET read=true WHERE creator_id=$1 AND read=false`, [session]);
+    const { id } = req.body;
+    if (id) {
+      await query(`UPDATE notifications SET is_read=true WHERE id=$1 AND creator_id=$2`, [id, session]);
+    } else {
+      await query(`UPDATE notifications SET is_read=true WHERE creator_id=$1 AND is_read=false`, [session]);
+    }
+    broadcastUnreadCount(session).catch(() => {});
     return res.json({ success: true });
   } catch (err) {
     console.error('[creators] mark-read error:', err);
@@ -416,10 +591,11 @@ exports.markNotificationsRead = async (req, res) => {
 };
 
 exports.deleteNotification = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     await query(`DELETE FROM notifications WHERE id=$1 AND creator_id=$2`, [req.params.id, session]);
+    broadcastUnreadCount(session).catch(() => {});
     return res.json({ success: true });
   } catch (err) {
     console.error('[creators] delete notification error:', err);
@@ -428,7 +604,7 @@ exports.deleteNotification = async (req, res) => {
 };
 
 exports.notificationsStream = (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).end();
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -445,7 +621,7 @@ exports.notificationsStream = (req, res) => {
 // ─── Website ─────────────────────────────────────────────────────────────────
 
 exports.getWebsite = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const data = await Creator.getWebsite(session);
@@ -458,7 +634,7 @@ exports.getWebsite = async (req, res) => {
 };
 
 exports.startWebsite = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
 
   const { websiteUrl, websiteName } = req.body;
@@ -466,9 +642,6 @@ exports.startWebsite = async (req, res) => {
   if (!normalized) return res.status(400).json({ success: false, message: 'Invalid website URL' });
 
   try {
-    const exists = await checkWebsiteExists(normalized.url);
-    if (!exists) return res.status(400).json({ success: false, message: 'Website not reachable' });
-
     const token   = crypto.randomBytes(32).toString('hex');
     const records = websiteVerificationRecords(normalized.domain, token);
 
@@ -490,7 +663,7 @@ exports.startWebsite = async (req, res) => {
 };
 
 exports.verifyWebsite = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const result = await query(
@@ -525,7 +698,7 @@ exports.verifyWebsite = async (req, res) => {
 };
 
 exports.refreshTraffic = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const result = await query(
@@ -553,7 +726,7 @@ exports.refreshTraffic = async (req, res) => {
 };
 
 exports.deleteWebsite = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     await Creator.clearWebsite(session);
@@ -565,7 +738,7 @@ exports.deleteWebsite = async (req, res) => {
 };
 
 exports.connectWebsite = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
 
   const { websiteUrl, websiteName } = req.body;
@@ -606,7 +779,7 @@ exports.getHandoffData = async (req, res) => {
 };
 
 exports.adsenseProceed = async (req, res) => {
-  const session = req.cookies?.yepper_session;
+  const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const creatorResult = await query(`SELECT website_domain FROM creators WHERE id=$1 LIMIT 1`, [session]);
@@ -658,7 +831,7 @@ exports.socialConnect = (req, res) => {
     authUrl.searchParams.set('client_id',     clientId);
     authUrl.searchParams.set('redirect_uri',  redirectUri);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('scope',         'https://www.googleapis.com/auth/youtube.readonly');
+    authUrl.searchParams.set('scope',         'https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.upload');
     authUrl.searchParams.set('access_type',   'offline');
     authUrl.searchParams.set('state',         user_uuid || '');
     return res.redirect(authUrl.toString());
@@ -669,7 +842,9 @@ exports.socialConnect = (req, res) => {
 exports.socialConnectCallback = async (req, res) => {
   const { provider }    = req.params;
   const { code, state } = req.query;
-  const userUuid        = state;
+  // Prefer state (set by the proxy), but fall back to server-side session cookie if present.
+  const userUuidFromState = state;
+  const userUuid = userUuidFromState || getCreatorId(req) || null;
   const backendUrl      = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
 
   if (provider === 'youtube') {
@@ -678,40 +853,383 @@ exports.socialConnectCallback = async (req, res) => {
     const redirectUri  = `${backendUrl}/api/connect/youtube/callback`;
 
     if (!clientId || !clientSecret) {
-      return res.redirect(`${FRONTEND_URL}/connect-accounts?error=config_missing`);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=config_missing`);
     }
+
+    // Validate userUuid is a usable integer ID before any DB work
+    const parsedId = parseInt(userUuid, 10);
+    if (!userUuid || isNaN(parsedId)) {
+      console.error('[creators] YouTube callback: invalid or missing creator ID in state', { userUuid });
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=session_missing`);
+    }
+    const creatorId = String(parsedId);
+
     try {
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }),
       });
-      const tokenData = await tokenRes.json();
-      if (!tokenData.access_token) return res.redirect(`${FRONTEND_URL}/connect-accounts?error=token_error`);
+      const tokenData = await tokenRes.json().catch(() => null);
+      if (!tokenData || !tokenData.access_token) {
+        console.error('[creators] YouTube token exchange failed', { tokenData });
+        return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
+      }
 
       const channelRes  = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-      const channelData = await channelRes.json();
-      const channel     = channelData.items?.[0];
+      const channelData = await channelRes.json().catch(() => null);
+      const channel     = channelData?.items?.[0];
 
-      if (channel) {
-        await query(
-          `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, access_token, refresh_token)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)
-           ON CONFLICT (creator_id, provider) DO UPDATE SET
-             username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
-             access_token=EXCLUDED.access_token, refresh_token=EXCLUDED.refresh_token,
-             connected_at=NOW()`,
-          [userUuid, 'youtube', channel.snippet?.title || '', channel.statistics?.subscriberCount || 0,
-           `https://youtube.com/channel/${channel.id}`, tokenData.access_token, tokenData.refresh_token || null],
-        );
+      if (!channel) {
+        console.error('[creators] YouTube channel fetch failed', { channelData });
+        return res.redirect(`${FRONTEND_URL}/oauth-callback?error=channel_missing`);
       }
-      return res.redirect(`${FRONTEND_URL}/connect-accounts?success=youtube`);
+
+      await query(
+        `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, access_token, refresh_token, total_views, total_posts)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (creator_id, provider) DO UPDATE SET
+           username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
+           access_token=EXCLUDED.access_token, refresh_token=EXCLUDED.refresh_token,
+           total_views=EXCLUDED.total_views, total_posts=EXCLUDED.total_posts,
+           connected_at=NOW()`,
+        [creatorId, 'youtube', channel.snippet?.title || '', Number(channel.statistics?.subscriberCount || 0),
+         `https://youtube.com/channel/${channel.id}`, tokenData.access_token, tokenData.refresh_token || null,
+         Number(channel.statistics?.viewCount || 0), Number(channel.statistics?.videoCount || 0)],
+      );
+
+      const channelName = channel.snippet?.title || 'your channel';
+      const subscribers = Number(channel.statistics?.subscriberCount || 0).toLocaleString();
+      createNotification(creatorId, 'social_connected', 'YouTube Connected',
+        `${channelName} connected successfully — ${subscribers} subscribers`,
+        { provider: 'youtube', channel_id: channel.id, channel_name: channelName }
+      ).catch(() => {});
+
+      // Fetch latest 5 videos and store basic stats so frontend can show estimates immediately
+      try {
+        const searchRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&order=date&maxResults=5&type=video`, {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const searchData = await searchRes.json().catch(() => null);
+        const videoIds = (searchData?.items || []).map((it) => it.id?.videoId).filter(Boolean);
+        if (videoIds.length) {
+          const vidsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}`, {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+          });
+          const vidsData = await vidsRes.json().catch(() => null);
+          if (Array.isArray(vidsData?.items)) {
+            for (const v of vidsData.items) {
+              await query(
+                `INSERT INTO social_video_stats (creator_id, provider, title, views, likes, published_at, thumbnail_url, video_url)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                 ON CONFLICT (creator_id, provider, video_url) DO UPDATE SET
+                   title=EXCLUDED.title, views=EXCLUDED.views, likes=EXCLUDED.likes,
+                   published_at=EXCLUDED.published_at, thumbnail_url=EXCLUDED.thumbnail_url, fetched_at=NOW()`,
+                [creatorId, 'youtube', v.snippet?.title || '', Number(v.statistics?.viewCount || 0),
+                 Number(v.statistics?.likeCount || 0),
+                 v.snippet?.publishedAt ? new Date(v.snippet.publishedAt) : null,
+                 v.snippet?.thumbnails?.default?.url || '', `https://youtu.be/${v.id}`],
+              );
+            }
+            // Keep only the 5 most recent videos per creator/provider
+            await query(
+              `DELETE FROM social_video_stats WHERE creator_id=$1 AND provider=$2
+               AND id NOT IN (SELECT id FROM social_video_stats WHERE creator_id=$1 AND provider=$2 ORDER BY published_at DESC NULLS LAST, id DESC LIMIT 5)`,
+              [creatorId, 'youtube'],
+            );
+          }
+        }
+      } catch (err) {
+        console.error('[creators] Failed to fetch/store youtube videos (non-fatal):', err);
+      }
+
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?success=youtube`);
     } catch (err) {
-      console.error('[creators] YouTube callback error:', err);
-      return res.redirect(`${FRONTEND_URL}/connect-accounts?error=server_error`);
+      console.error('[creators] YouTube callback error:', err && err.stack ? err.stack : err);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=server_error`);
     }
   }
-  return res.redirect(`${FRONTEND_URL}/connect-accounts?error=unsupported_provider`);
+  return res.redirect(`${FRONTEND_URL}/oauth-callback?error=unsupported_provider`);
+};
+
+// ─── Ad Video Posts ───────────────────────────────────────────────────────────
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB' };
+
+function trackingCode(provider, num) {
+  const prefix = TRACKING_PREFIXES[provider] || provider.toUpperCase().slice(0, 2);
+  return `#YPR-${prefix}-${String(num).padStart(3, '0')}`;
+}
+
+exports.postAdVideo = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+
+  const { provider } = req.params;
+  const { title = '', description = '', privacy = 'public' } = req.body;
+
+  if (!req.file) return res.status(400).json({ success: false, message: 'No video file uploaded' });
+
+  const videoPath = req.file.path;
+  const videoMime = req.file.mimetype || 'video/mp4';
+  const videoSize = req.file.size;
+
+  const cleanup = () => { try { fs.unlinkSync(videoPath); } catch {} };
+
+  try {
+    const conn = await query(
+      `SELECT access_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
+      [session, provider],
+    );
+    if (!conn.rowCount) { cleanup(); return res.status(404).json({ success: false, message: `Not connected to ${provider}` }); }
+    const { access_token } = conn.rows[0];
+
+    // Atomically get next tracking number
+    const seqRes = await query(
+      `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ($1, 1)
+       ON CONFLICT (provider) DO UPDATE SET last_id = ad_tracking_sequences.last_id + 1
+       RETURNING last_id`,
+      [provider],
+    );
+    const trackingNum = seqRes.rows[0].last_id;
+    const code = trackingCode(provider, trackingNum);
+
+    const fullDescription = description ? `${description}\n\n${code}` : code;
+
+    if (provider === 'youtube') {
+      // 1. Initiate resumable upload session
+      const initRes = await fetch(
+        'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': videoMime,
+            'X-Upload-Content-Length': String(videoSize),
+          },
+          body: JSON.stringify({
+            snippet: { title: title || 'Ad Video', description: fullDescription, categoryId: '22' },
+            status:  { privacyStatus: privacy },
+          }),
+        },
+      );
+
+      if (!initRes.ok) {
+        cleanup();
+        if (initRes.status === 401 || initRes.status === 403) {
+          return res.status(403).json({ success: false, message: 'YouTube upload not authorized. Please reconnect your YouTube account to grant upload permissions.', code: 'reconnect_required' });
+        }
+        return res.status(500).json({ success: false, message: 'Failed to start YouTube upload' });
+      }
+
+      const uploadUrl = initRes.headers.get('location');
+      if (!uploadUrl) { cleanup(); return res.status(500).json({ success: false, message: 'YouTube did not return upload URL' }); }
+
+      // 2. Read file and upload to YouTube
+      const videoBuffer = await fs.promises.readFile(videoPath);
+      cleanup();
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': videoMime, 'Content-Length': String(videoBuffer.byteLength) },
+        body: videoBuffer,
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => '');
+        console.error('[creators] YouTube video upload failed:', uploadRes.status, errText);
+        return res.status(500).json({ success: false, message: 'Video upload to YouTube failed' });
+      }
+
+      const videoData  = await uploadRes.json().catch(() => null);
+      const videoId    = videoData?.id;
+      const videoUrl   = videoId ? `https://youtube.com/watch?v=${videoId}` : null;
+      const thumbUrl   = videoData?.snippet?.thumbnails?.default?.url || null;
+
+      await query(
+        `INSERT INTO ad_video_posts
+           (creator_id, provider, tracking_code, tracking_num, platform_video_id, video_url, title, description, thumbnail_url, status, posted_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'live',NOW())`,
+        [session, provider, code, trackingNum, videoId, videoUrl, title || 'Ad Video', fullDescription, thumbUrl],
+      );
+
+      return res.json({ success: true, data: { trackingCode: code, videoUrl, platformVideoId: videoId } });
+    }
+
+    // Instagram / Facebook — not yet supported
+    cleanup();
+    const platformLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+    return res.status(400).json({ success: false, message: `${platformLabel} video upload is coming soon` });
+
+  } catch (err) {
+    cleanup();
+    console.error('[creators] postAdVideo error:', err?.stack || err);
+    return res.status(500).json({ success: false, message: 'Upload failed unexpectedly' });
+  }
+};
+
+exports.getAdPosts = async (req, res) => {
+  const userUuid = req.query.user_uuid;
+  const provider = req.query.provider;
+  if (!userUuid) return res.status(400).json({ success: false, message: 'user_uuid required' });
+  try {
+    const result = await query(
+      `SELECT id, provider, tracking_code, tracking_num, platform_video_id, video_url,
+              title, description, thumbnail_url, status, posted_at
+       FROM ad_video_posts
+       WHERE creator_id = $1 ${provider ? 'AND provider = $2' : ''}
+       ORDER BY posted_at DESC LIMIT 30`,
+      provider ? [userUuid, provider] : [userUuid],
+    );
+
+    const posts = result.rows.map(r => ({ ...r, views: 0, likes: 0, comments: 0 }));
+
+    // Fetch live stats directly from YouTube — never read from DB
+    const ytPosts = posts.filter(p => p.provider === 'youtube' && p.platform_video_id);
+    if (ytPosts.length) {
+      const connRes = await query(
+        `SELECT access_token FROM social_connections WHERE creator_id=$1 AND provider='youtube' LIMIT 1`,
+        [userUuid],
+      );
+      if (connRes.rowCount) {
+        const { access_token } = connRes.rows[0];
+        const ids = ytPosts.map(p => p.platform_video_id).join(',');
+        try {
+          const ytRes    = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${ids}`, {
+            headers: { Authorization: `Bearer ${access_token}` },
+          });
+          const ytData   = await ytRes.json().catch(() => null);
+          const statsMap = {};
+          for (const item of ytData?.items ?? []) {
+            statsMap[item.id] = {
+              views:     Number(item.statistics?.viewCount    || 0),
+              likes:     Number(item.statistics?.likeCount    || 0),
+              comments:  Number(item.statistics?.commentCount || 0),
+              thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || null,
+            };
+          }
+
+          // Any YouTube post not returned by the API has been deleted on YouTube — remove it
+          const deletedIds = ytPosts
+            .filter(p => !statsMap[p.platform_video_id])
+            .map(p => p.id);
+
+          if (deletedIds.length) {
+            await query(
+              `DELETE FROM ad_video_posts WHERE id = ANY($1::int[])`,
+              [deletedIds],
+            ).catch(e => console.error('[creators] getAdPosts delete orphan error:', e?.message));
+          }
+
+          for (const post of posts) {
+            const live = statsMap[post.platform_video_id];
+            if (live) {
+              post.views    = live.views;
+              post.likes    = live.likes;
+              post.comments = live.comments;
+              if (live.thumbnail) post.thumbnail_url = live.thumbnail;
+            }
+          }
+
+          // Remove deleted entries from the response
+          posts.splice(0, posts.length, ...posts.filter(p =>
+            p.provider !== 'youtube' || !p.platform_video_id || statsMap[p.platform_video_id]
+          ));
+        } catch (err) {
+          console.error('[creators] getAdPosts live-stats error (non-fatal):', err?.message);
+        }
+      }
+    }
+
+    return res.json({ success: true, data: posts });
+  } catch (err) {
+    console.error('[creators] getAdPosts error:', err);
+    return res.status(500).json({ success: false });
+  }
+};
+
+exports.refreshAllAdPostStats = async () => {
+  try {
+    const posts = await query(
+      `SELECT avp.id, avp.provider, avp.platform_video_id, sc.access_token
+       FROM ad_video_posts avp
+       JOIN social_connections sc ON sc.creator_id = avp.creator_id AND sc.provider = avp.provider
+       WHERE avp.status = 'live' AND avp.platform_video_id IS NOT NULL
+         AND (avp.last_stats_at IS NULL OR avp.last_stats_at < NOW() - INTERVAL '30 minutes')
+       LIMIT 100`,
+    );
+    for (const post of posts.rows) {
+      try {
+        if (post.provider === 'youtube') {
+          const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${post.platform_video_id}`, {
+            headers: { Authorization: `Bearer ${post.access_token}` },
+          });
+          const data = await r.json().catch(() => null);
+          const stats = data?.items?.[0]?.statistics;
+          if (stats) {
+            await query(
+              `UPDATE ad_video_posts SET views=$1, likes=$2, comments=$3, last_stats_at=NOW() WHERE id=$4`,
+              [Number(stats.viewCount || 0), Number(stats.likeCount || 0), Number(stats.commentCount || 0), post.id],
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[cron] Ad post ${post.id} stats refresh error:`, err?.message);
+      }
+    }
+  } catch (err) {
+    console.error('[cron] refreshAllAdPostStats error:', err?.message);
+  }
+};
+
+// ─── Wallet ──────────────────────────────────────────────────────────────────
+
+exports.getWallet = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
+  try {
+    const result = await query(
+      `SELECT id, balance, currency FROM wallets WHERE owner_id = $1 AND owner_type = 'creator' LIMIT 1`,
+      [String(session)],
+    );
+    if (result.rowCount === 0) {
+      // No wallet yet — return zero balance
+      return res.json({ success: true, data: { balance: 0, currency: 'RWF' } });
+    }
+    const w = result.rows[0];
+    return res.json({ success: true, data: { balance: Number(w.balance || 0), currency: w.currency || 'RWF' } });
+  } catch (err) {
+    console.error('[creators] GET /api/wallet error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch wallet' });
+  }
+};
+
+exports.getWalletTransactions = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
+  try {
+    const walletRes = await query(
+      `SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'creator' LIMIT 1`,
+      [String(session)],
+    );
+    if (walletRes.rowCount === 0) return res.json({ success: true, data: [] });
+
+    const walletId = walletRes.rows[0].id;
+    const txRes = await query(
+      `SELECT id, amount, direction, description AS note, created_at
+       FROM wallet_transactions WHERE wallet_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [walletId],
+    );
+    return res.json({ success: true, data: txRes.rows });
+  } catch (err) {
+    console.error('[creators] GET /api/wallet/transactions error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch transactions' });
+  }
 };
 
 // ─── Webhook verification ─────────────────────────────────────────────────────

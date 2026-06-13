@@ -3,7 +3,7 @@
 // Skips pinging entirely on localhost — no need to keep local server alive.
 
 const BACKEND_URL = process.env.BACKEND_URL || 'https://yepper-backend.onrender.com';
-const PING_INTERVAL_MS = 10 * 60 * 1000;
+const PING_INTERVAL_MS = 5 * 60 * 1000;
 
 // Don't run on localhost — pointless and causes the http/https mismatch error
 const isLocal = BACKEND_URL.includes('localhost') || BACKEND_URL.includes('127.0.0.1');
@@ -42,5 +42,5 @@ if (isLocal) {
 
   ping();
   setInterval(ping, PING_INTERVAL_MS);
-  console.log(`[keepAlive] Pinging ${BACKEND_URL}/health every 10 minutes`);
+  console.log(`[keepAlive] Pinging ${BACKEND_URL}/health every 5 minutes`);
 }

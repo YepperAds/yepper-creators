@@ -32,6 +32,9 @@
     "react-hot-toast": "^2.4.1",
     "tailwindcss": "^4"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.11.0",

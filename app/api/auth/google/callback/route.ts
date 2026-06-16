@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
 
   // 3. Exchange Google profile for a Yepper JWT
   let jwt: string | null = null;
+  let needsProfile = false;
   try {
     const exchangeRes = await fetch(`${ADSENSE_API}/api/auth/google-exchange`, {
       method: 'POST',
@@ -65,7 +66,6 @@ export async function GET(req: NextRequest) {
       cache: 'no-store',
     });
 
-    let needsProfile = false;
     if (exchangeRes.ok) {
       const data = (await exchangeRes.json()) as { success: boolean; token?: string; needsProfile?: boolean };
       if (data.success && data.token) {

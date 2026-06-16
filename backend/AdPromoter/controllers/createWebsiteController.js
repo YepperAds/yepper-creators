@@ -118,12 +118,8 @@ exports.initiateVerification = async (req, res) => {
     const domain = normalizeDomain(websiteLink);
     if (!domain) return res.status(400).json({ message: 'Invalid website URL' });
 
+    // Reuse existing token if one already exists for this domain and is pending
     const existing = await Website.findByLink(websiteLink);
-    // Reject early if this URL is already registered and verified by anyone
-    if (existing && existing.verification_status === 'verified') {
-      return res.status(409).json({ message: 'This website URL is already registered on Yepper.' });
-    }
-    // Reuse existing token if a pending verification record already exists
     const token = (existing && existing.verification_status === 'pending')
       ? existing.verification_token
       : crypto.randomBytes(24).toString('hex');

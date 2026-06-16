@@ -200,8 +200,8 @@ exports.serveAdScript = async (req, res) => {
       }
     }
 
-    const BACKEND  = process.env.BACKEND_URL || 'http://localhost:5000';
-    const FRONTEND = process.env.FRONTEND_URL || 'https://yeffddfdper.vercel.app';
+    const BACKEND  = process.env.BACKEND_URL || '';
+    const FRONTEND = process.env.FRONTEND_URL || '';
 
     // Use stealth API paths (/api/p, /api/c) so generated URLs don't match
     // common ad-blocker filter patterns like "/api/ads/" or "/ad-categories/"

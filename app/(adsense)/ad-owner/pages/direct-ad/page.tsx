@@ -376,7 +376,7 @@ function DirectAdvertise() {
       setIsLoading(false);
 
       const flwModal = (window as any).FlutterwaveCheckout({
-        public_key: process.env.REACT_APP_FLW_PUBLIC_KEY,
+        public_key: process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY,
         tx_ref,
         amount: totalAmount,
         currency: 'RWF',

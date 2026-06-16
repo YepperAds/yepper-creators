@@ -86,8 +86,8 @@ exports.serveSiteScript = async (req, res) => {
     }
     // ────────────────────────────────────────────────────────────
 
-    const BACKEND  = process.env.BACKEND_URL  || 'http://localhost:5000';
-    const FRONTEND = process.env.FRONTEND_URL || 'https://yeffddfdper.vercel.app';
+    const BACKEND  = process.env.BACKEND_URL  || '';
+    const FRONTEND = process.env.FRONTEND_URL || '';
 
     // Stealth paths to avoid ad-blocker filter lists
     const API_BASE = `${BACKEND}/api/p`;

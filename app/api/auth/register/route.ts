@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5001';
+const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));

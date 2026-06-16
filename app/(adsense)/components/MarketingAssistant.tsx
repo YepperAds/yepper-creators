@@ -4,7 +4,7 @@ import { getToken } from '@/app/(adsense)/utils/token';
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const MarketingAssistant = ({  user, isAuthenticated  }: any) => {
   const [conversations, setConversations] = useState<Array<{ _id: string; title?: string; messages?: unknown[] }>>([]);

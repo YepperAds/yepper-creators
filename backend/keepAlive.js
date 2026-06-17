@@ -2,7 +2,7 @@
 // Pings /health every 10 minutes to prevent Render cold starts.
 // Skips pinging entirely on localhost — no need to keep local server alive.
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://yepper-creators.onrender.com';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://yepper-creators-api.onrender.com';
 const PING_INTERVAL_MS = 5 * 60 * 1000;
 
 // Don't run on localhost — pointless and causes the http/https mismatch error

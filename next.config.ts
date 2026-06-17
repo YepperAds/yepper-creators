@@ -7,6 +7,7 @@ const nextConfig = {
   experimental: {
     cpus: 1,
   },
+  turbopack: {},
   webpack: (config: { resolve: { alias: Record<string, string> } }) => {
     config.resolve.alias['@'] = path.resolve(process.cwd());
     return config;

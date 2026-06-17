@@ -30,19 +30,23 @@ export default function ConnectWebsitePage() {
   const fetchWebsites = useCallback(async () => {
     setLoading(true);
     setError('');
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10000);
     try {
-      const sessRes  = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
+      const sessRes  = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store', signal: abort.signal });
       const sessJson = await sessRes.json().catch(() => ({}));
       const userId   = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
       if (!userId) { setWebsites([]); return; }
 
-      const res  = await fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store' });
+      const res  = await fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store', signal: abort.signal });
       const json = await res.json().catch(() => ({}));
       const list = Array.isArray(json) ? json : (json?.data ?? json?.websites ?? []);
       setWebsites(list);
-    } catch {
-      setError('Failed to load websites.');
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : '';
+      setError(name === 'AbortError' ? 'Request timed out. Please refresh.' : 'Failed to load websites.');
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }, []);
@@ -71,14 +75,6 @@ export default function ConnectWebsitePage() {
     } finally {
       setDisconnectLoading(false);
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <ArrowPathIcon className="w-6 h-6 text-[color:var(--color-muted)] animate-spin" />
-      </div>
-    );
   }
 
   return (
@@ -159,7 +155,22 @@ export default function ConnectWebsitePage() {
         </div>
       )}
 
-      {websites.length === 0 ? (
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-[color:var(--color-surface-1)] border border-[color:var(--color-border)] rounded-2xl overflow-hidden animate-pulse">
+              <div className="p-5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[color:var(--color-surface-2)]" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-32 rounded bg-[color:var(--color-surface-2)]" />
+                  <div className="h-2 w-48 rounded bg-[color:var(--color-surface-2)]" />
+                </div>
+              </div>
+              <div className="h-10 bg-[color:var(--color-surface-2)]" />
+            </div>
+          ))}
+        </div>
+      ) : websites.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[color:var(--color-border)] rounded-2xl">
           <GlobeAltIcon className="w-12 h-12 text-[color:var(--color-muted)] mb-4" />
           <p className="text-base font-semibold text-[color:var(--color-white)] mb-1">No websites connected yet</p>
@@ -176,7 +187,7 @@ export default function ConnectWebsitePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {websites.map(site => (
+          {websites.map((site) => (
             <div
               key={site.id}
               className="bg-[color:var(--color-surface-1)] border border-[color:var(--color-border)] rounded-2xl overflow-hidden"

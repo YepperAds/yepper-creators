@@ -7,7 +7,7 @@ const TrafficGrant = require('../models/TrafficGrantModel');
 const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
 const ImportAd    = require('../AdOwner/models/WebAdvertiseModel');
 const sendEmailNotification = require('./emailService');
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://yeffddfdper.vercel.app';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

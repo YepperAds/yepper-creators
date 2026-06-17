@@ -107,16 +107,16 @@ exports.getConnectUrl = async (req, res) => {
 
 // ── GET /api/analytics/gsc/callback ─────────────────────────────────────────
 exports.oauthCallback = async (req, res) => {
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.yepper.cc';
+  const FRONTEND_URI = process.env.FRONTEND_URI || 'http://localhost:3000';
   const { code, state, error } = req.query;
 
-  if (error) return res.redirect(`${FRONTEND_URL}/gsc-connect?status=denied`);
+  if (error) return res.redirect(`${FRONTEND_URI}/gsc-connect?status=denied`);
 
   let websiteId, userId;
   try {
     ({ websiteId, userId } = JSON.parse(Buffer.from(state, 'base64').toString()));
   } catch {
-    return res.redirect(`${FRONTEND_URL}/gsc-connect?status=error`);
+    return res.redirect(`${FRONTEND_URI}/gsc-connect?status=error`);
   }
 
   try {
@@ -129,7 +129,7 @@ exports.oauthCallback = async (req, res) => {
     const sites = sitesRes.data.siteEntry || [];
 
     const website = await Website.findById(websiteId);
-    if (!website || website.owner_id?.toString() !== userId?.toString()) return res.redirect(`${FRONTEND_URL}/gsc-connect?status=error&reason=website_not_found`);
+    if (!website || website.owner_id?.toString() !== userId?.toString()) return res.redirect(`${FRONTEND_URI}/gsc-connect?status=error&reason=website_not_found`);
 
     const websiteUrl = website.websiteLink.replace(/\/$/, '');
     const matchedSite = sites.find(s => {
@@ -150,13 +150,13 @@ exports.oauthCallback = async (req, res) => {
     });
 
     if (!matchedSite) {
-      return res.redirect(`${FRONTEND_URL}/websites/${websiteId}?gsc=connected_no_site&tab=analytics`);
+      return res.redirect(`${FRONTEND_URI}/websites/${websiteId}?gsc=connected_no_site&tab=analytics`);
     }
 
-    res.redirect(`${FRONTEND_URL}/websites/${websiteId}?gsc=connected&tab=analytics`);
+    res.redirect(`${FRONTEND_URI}/websites/${websiteId}?gsc=connected&tab=analytics`);
   } catch (err) {
     console.error('GSC OAuth callback error:', err);
-    res.redirect(`${FRONTEND_URL}/gsc-connect?status=error`);
+    res.redirect(`${FRONTEND_URI}/gsc-connect?status=error`);
   }
 };
 

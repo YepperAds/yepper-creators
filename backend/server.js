@@ -54,7 +54,9 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'https://yepper-creators.onrender.com',
-];
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_ORIGIN,
+].filter(Boolean);
 
 const allowNullOriginPaths = [
   '/api/ads/display',

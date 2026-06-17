@@ -111,7 +111,7 @@ export const authAPI = {
   resendVerification: (data: unknown) => adsenseHttp.post('/api/auth/resend-verification', data),
   resendWaitlist:     (data: unknown) => adsenseHttp.post('/api/auth/resend-waitlist-verification', data),
   verifyEmail:        (token: string) => adsenseHttp.get(`/api/auth/verify-email?token=${token}`),
-  googleRedirect:     ()             => `${ADSENSE_BASE_URL}/api/auth/google`,
+  googleRedirect:     ()             => `/api/auth/google`,
 };
 
 // ═══════════════════════════════════════════════════════════════

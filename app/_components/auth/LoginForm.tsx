@@ -62,8 +62,7 @@ export default function LoginForm() {
   function handleGoogleLogin() {
     setGoogleLoading(true);
     // Initiates the Google OAuth flow via backend API (frontend points to backend)
-    const backend = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADSENSE_API_URL || '';
-    window.location.href = `${backend.replace(/\/$/, '')}/api/auth/google`;
+    window.location.href = '/api/auth/google';
   }
 
   // ── Needs email verification ────────────────────────────────────────────────

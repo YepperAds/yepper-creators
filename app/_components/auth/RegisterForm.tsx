@@ -52,7 +52,7 @@ export default function RegisterForm() {
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          onClick={() => { setGoogleLoading(true); const backend = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADSENSE_API_URL || ''; window.location.href = `${backend.replace(/\/$/, '')}/api/auth/google`; }}
+          onClick={() => { setGoogleLoading(true); window.location.href = '/api/auth/google'; }}
           disabled={googleLoading}
           className="w-full flex items-center justify-center gap-3 rounded-lg border border-zinc-800
             bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium py-2.5 px-4 transition-colors disabled:opacity-60"

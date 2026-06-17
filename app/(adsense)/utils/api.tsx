@@ -45,7 +45,7 @@ export const authAPI = {
   resendVerification: (data: unknown) => api.post('/api/auth/resend-verification', data),
   resendWaitlist:     (data: unknown) => api.post('/api/auth/resend-waitlist-verification', data),
   verifyEmail:        (token: string) => api.get(`/api/auth/verify-email?token=${token}`),
-  googleRedirect:     ()              => `${BASE_URL}/api/auth/google`,
+  googleRedirect:     ()              => `/api/auth/google`,
 };
 
 export const passwordAPI = {

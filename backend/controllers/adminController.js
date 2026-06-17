@@ -7,14 +7,14 @@ const TrafficGrant = require('../models/TrafficGrantModel');
 const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
 const ImportAd    = require('../AdOwner/models/WebAdvertiseModel');
 const sendEmailNotification = require('./emailService');
-const FRONTEND_URI = process.env.FRONTEND_URI || 'http://localhost:3000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const generateAccessToken = () => crypto.randomBytes(32).toString('hex');
 
 const sendGrantEmail = async (user, grant, website) => {
-  const link        = `${FRONTEND_URI}/traffic-grant?token=${grant.access_token}`;
+  const link        = `${FRONTEND_URL}/traffic-grant?token=${grant.access_token}`;
   const websiteName = website ? website.website_name : 'your website';
   try {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
@@ -41,7 +41,7 @@ const sendGrantEmail = async (user, grant, website) => {
             </td></tr>
             <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
               <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
-                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URI}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
               </p>
             </td></tr>
           </table>

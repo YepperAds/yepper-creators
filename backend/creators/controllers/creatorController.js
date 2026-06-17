@@ -41,8 +41,8 @@ function getCreatorId(req) {
 
 // ─── SMTP (creators-specific mailer) ─────────────────────────────────────────
 
-const FRONTEND_URI    = process.env.FRONTEND_URI    || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || FRONTEND_URI;
+const FRONTEND_URL    = process.env.FRONTEND_URL    || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || FRONTEND_URL;
 
 const SMTP_HOST  = process.env.SMTP_HOST;
 const SMTP_PORT  = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
@@ -236,11 +236,11 @@ exports.googleInitiate = (req, res) => {
 
 exports.googleCallback = async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.redirect(`${FRONTEND_URI}/login?error=missing_code`);
+  if (!code) return res.redirect(`${FRONTEND_URL}/login?error=missing_code`);
 
   const clientId     = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return res.redirect(`${FRONTEND_URI}/login?error=google_config_missing`);
+  if (!clientId || !clientSecret) return res.redirect(`${FRONTEND_URL}/login?error=google_config_missing`);
 
   const redirectUri = `${req.protocol}://${req.get('host')}/auth/creator/google/callback`;
 
@@ -251,14 +251,14 @@ exports.googleCallback = async (req, res) => {
       body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }),
     });
     const tokenData = await tokenResponse.json().catch(() => null);
-    if (!tokenData) return res.redirect(`${FRONTEND_URI}/login?error=invalid_token_response`);
+    if (!tokenData) return res.redirect(`${FRONTEND_URL}/login?error=invalid_token_response`);
 
     const accessToken = tokenData.access_token;
-    if (!accessToken) return res.redirect(`${FRONTEND_URI}/login?error=missing_access_token`);
+    if (!accessToken) return res.redirect(`${FRONTEND_URL}/login?error=missing_access_token`);
 
     const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(accessToken)}`);
     const userInfo    = await userInfoRes.json().catch(() => null);
-    if (!userInfo?.sub) return res.redirect(`${FRONTEND_URI}/login?error=invalid_user_info`);
+    if (!userInfo?.sub) return res.redirect(`${FRONTEND_URL}/login?error=invalid_user_info`);
 
     const { id: creatorId, isNew } = await Creator.upsertFromGoogle({
       googleId: userInfo.sub,
@@ -287,7 +287,7 @@ exports.googleCallback = async (req, res) => {
             <li style="margin-bottom:8px">Add your website to start earning from ad placements</li>
             <li style="margin-bottom:8px">Track your analytics and earnings from the dashboard</li>
           </ul>
-          <a href="${FRONTEND_URI}/explore" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Go to Dashboard →</a>
+          <a href="${FRONTEND_URL}/explore" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Go to Dashboard →</a>
         </div>`
       ).catch(() => {});
     }
@@ -301,12 +301,12 @@ exports.googleCallback = async (req, res) => {
     });
 
     if (!creator?.username || !creator?.what_they_do) {
-      return res.redirect(`${FRONTEND_URI}/choose-role`);
+      return res.redirect(`${FRONTEND_URL}/choose-role`);
     }
-    return res.redirect(`${FRONTEND_URI}/explore`);
+    return res.redirect(`${FRONTEND_URL}/explore`);
   } catch (err) {
     console.error('[creators] Google OAuth callback error:', err);
-    return res.redirect(`${FRONTEND_URI}/login?error=server_error`);
+    return res.redirect(`${FRONTEND_URL}/login?error=server_error`);
   }
 };
 
@@ -791,7 +791,7 @@ exports.adsenseProceed = async (req, res) => {
       [session, creatorResult.rows[0].website_domain, handoffToken],
     );
 
-    const ADSENSE_FRONTEND = process.env.THIRD_PARTY_WEBSITE_URL || `${FRONTEND_URI}/adsense`;
+    const ADSENSE_FRONTEND = process.env.THIRD_PARTY_WEBSITE_URL || `${FRONTEND_URL}/adsense`;
     return res.json({ success: true, redirect: `${ADSENSE_FRONTEND}?handoff=${handoffToken}` });
   } catch (err) {
     console.error('[creators] adsense proceed error:', err);
@@ -853,14 +853,14 @@ exports.socialConnectCallback = async (req, res) => {
     const redirectUri  = `${backendUrl}/api/connect/youtube/callback`;
 
     if (!clientId || !clientSecret) {
-      return res.redirect(`${FRONTEND_URI}/oauth-callback?error=config_missing`);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=config_missing`);
     }
 
     // Validate userUuid is a usable integer ID before any DB work
     const parsedId = parseInt(userUuid, 10);
     if (!userUuid || isNaN(parsedId)) {
       console.error('[creators] YouTube callback: invalid or missing creator ID in state', { userUuid });
-      return res.redirect(`${FRONTEND_URI}/oauth-callback?error=session_missing`);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=session_missing`);
     }
     const creatorId = String(parsedId);
 
@@ -873,7 +873,7 @@ exports.socialConnectCallback = async (req, res) => {
       const tokenData = await tokenRes.json().catch(() => null);
       if (!tokenData || !tokenData.access_token) {
         console.error('[creators] YouTube token exchange failed', { tokenData });
-        return res.redirect(`${FRONTEND_URI}/oauth-callback?error=token_error`);
+        return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 
       const channelRes  = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
@@ -882,7 +882,7 @@ exports.socialConnectCallback = async (req, res) => {
 
       if (!channel) {
         console.error('[creators] YouTube channel fetch failed', { channelData });
-        return res.redirect(`${FRONTEND_URI}/oauth-callback?error=channel_missing`);
+        return res.redirect(`${FRONTEND_URL}/oauth-callback?error=channel_missing`);
       }
 
       await query(
@@ -943,13 +943,13 @@ exports.socialConnectCallback = async (req, res) => {
         console.error('[creators] Failed to fetch/store youtube videos (non-fatal):', err);
       }
 
-      return res.redirect(`${FRONTEND_URI}/oauth-callback?success=youtube`);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?success=youtube`);
     } catch (err) {
       console.error('[creators] YouTube callback error:', err && err.stack ? err.stack : err);
-      return res.redirect(`${FRONTEND_URI}/oauth-callback?error=server_error`);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=server_error`);
     }
   }
-  return res.redirect(`${FRONTEND_URI}/oauth-callback?error=unsupported_provider`);
+  return res.redirect(`${FRONTEND_URL}/oauth-callback?error=unsupported_provider`);
 };
 
 // ─── Ad Video Posts ───────────────────────────────────────────────────────────

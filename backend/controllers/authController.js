@@ -56,7 +56,7 @@ const buildVerificationHtml = (verificationUrl) => `
 `;
 
 const sendVerificationEmail = async (email, token, returnUrl = null) => {
-  let verificationUrl = `${process.env.FRONTEND_URI || 'http://localhost:3000'}/verify-email?token=${token}`;
+  let verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
   if (returnUrl) verificationUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
 
   try {
@@ -208,12 +208,12 @@ exports.verifyEmail = async (req, res) => {
     const { token, returnUrl } = req.query;
 
     if (!token) {
-      return res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/verify-error?reason=missing_token`);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-error?reason=missing_token`);
     }
 
     const user = await User.findByVerificationToken(token);
     if (!user || new Date(user.verification_token_expires) < new Date()) {
-      return res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/verify-error?reason=invalid_token`);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-error?reason=invalid_token`);
     }
 
     await User.update(user.id, {
@@ -224,13 +224,13 @@ exports.verifyEmail = async (req, res) => {
 
     const authToken = generateToken({ ...user, is_verified: true });
 
-    let redirectUrl = `${process.env.FRONTEND_URI || 'http://localhost:3000'}/verify-success?token=${authToken}&auto_login=true`;
+    let redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-success?token=${authToken}&auto_login=true`;
     if (returnUrl) redirectUrl += '&fromDirectAdvertise=true';
 
     res.redirect(redirectUrl);
   } catch (error) {
     console.error('Email verification error:', error);
-    res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/verify-error?reason=server_error`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-error?reason=server_error`);
   }
 };
 
@@ -438,14 +438,14 @@ exports.getCurrentUser = async (req, res) => {
 exports.googleSuccess = async (req, res) => {
   if (req.user) {
     const token = generateToken(req.user);
-    res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/success?token=${token}`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?token=${token}`);
   } else {
-    res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/login?error=google_auth_failed`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`);
   }
 };
 
 exports.googleFailure = (req, res) => {
-  res.redirect(`${process.env.FRONTEND_URI || 'http://localhost:3000'}/login?error=google_auth_failed`);
+  res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`);
 };
 // ─────────────────────────────────────────────────────────────────────────────
 // [YEPPER-MERGE] Google Token Exchange

@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const AdCategory = require('../AdPromoter/models/CreateCategoryModel');
 
 const BACKEND  = process.env.BACKEND_URL  || 'http://localhost:5000';
-const FRONTEND = process.env.FRONTEND_URI || 'http://localhost:3000';
+const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 async function run() {
   await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mern-auth', {

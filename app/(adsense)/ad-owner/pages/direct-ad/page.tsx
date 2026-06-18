@@ -299,10 +299,7 @@ function DirectAdvertise() {
       formData.append('selectedCategories', JSON.stringify([categoryId]));
 
       const response = await api.post(`/api/web-advertise`, formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${getToken() || ''}`
-        },
+        headers: { 'Authorization': `Bearer ${getToken() || ''}` },
       });
 
       if ((response.data as any).success) {
@@ -319,7 +316,7 @@ function DirectAdvertise() {
       }
       
     } catch (err: unknown) {
-      setAuthError((err as { response?: { data?: { message?: string; error?: string } } }).response?.data?.message || 'Failed to create advertisement');
+      setAuthError((err as { response?: { message?: string; error?: string } }).response?.message || (err as Error)?.message || 'Failed to create advertisement');
     } finally {
       setIsLoading(false);
     }
@@ -388,7 +385,7 @@ function DirectAdvertise() {
                 setError(verifyRes.data.message || 'Payment verification failed.');
               }
             } catch (err: unknown) {
-              setError(err.response?.data?.error || 'Payment verification failed.');
+              setError((err as { response?: { error?: string } }).response?.error || (err as Error)?.message || 'Payment verification failed.');
             } finally {
               setIsLoading(false);
             }
@@ -402,7 +399,7 @@ function DirectAdvertise() {
       });
 
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { message?: string; error?: string } } }).response?.data?.error || (err as Error).message || 'Failed to initiate payment');
+      setError((err as { response?: { message?: string; error?: string } }).response?.error || (err as Error).message || 'Failed to initiate payment');
       setIsLoading(false);
     }
   };

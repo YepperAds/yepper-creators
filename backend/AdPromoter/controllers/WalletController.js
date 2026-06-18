@@ -1,6 +1,6 @@
 // controllers/WalletController.js  (PostgreSQL)
 const { Wallet, WalletTransaction } = require('../models/walletModel');
-const User = require('../../models/User');
+const Creator = require('../../creators/models/Creator');
 
 exports.getWallet = async (req, res) => {
   try {
@@ -11,10 +11,10 @@ exports.getWallet = async (req, res) => {
                || await Wallet.findByOwner(userId, 'advertiser');
 
     if (!wallet) {
-      const user = await User.findById(userId);
+      const user = await Creator.findById(userId);
       if (!user) return res.status(404).json({ error: 'User not found' });
 
-      const ownerType = user.role === 'advertiser' ? 'advertiser' : 'webOwner';
+      const ownerType = user.what_they_do === 'Web Developer' ? 'webOwner' : 'advertiser';
       wallet = await Wallet.create({ ownerId: userId, ownerEmail: user.email, ownerType });
     }
 

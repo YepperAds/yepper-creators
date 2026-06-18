@@ -1442,7 +1442,6 @@ const path = require('path');
 const cloudinary = require('../../config/storage');
 const ImportAd = require('../models/WebAdvertiseModel');
 const AdCategory = require('../../AdPromoter/models/CreateCategoryModel');
-const User = require('../../models/User');
 const Payment = require('../models/PaymentModel');
 const { getClient } = require('../../config/db');
 
@@ -1639,24 +1638,14 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
       }
     }
 
-    // User lookup
+    // Authenticated user — authMiddleware already embeds email/id from the JWT, no DB lookup needed
     const ownerId = req.user?.userId || req.user?.id || req.user?._id;
     if (!ownerId) {
       return res.status(401).json({ error: 'Authentication Required', message: 'User not authenticated' });
     }
 
-    let user;
-    try {
-      user = await User.findById(ownerId);
-      if (!user) {
-        return res.status(404).json({ error: 'User Not Found', message: 'Authenticated user not found in database' });
-      }
-    } catch (userError) {
-      console.error('User fetch error:', userError);
-      return res.status(500).json({ error: 'Database Error', message: 'Failed to fetch user information' });
-    }
-
-    const userId = (user.id || user._id).toString();
+    const userId = ownerId.toString();
+    const userEmail = req.user?.email;
     console.log('Creating ad for user:', userId);
 
     // Create new ad
@@ -1664,7 +1653,7 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
     try {
       savedAd = await ImportAd.create({
         userId,
-        adOwnerEmail: adOwnerEmail || user.email,
+        adOwnerEmail: adOwnerEmail || userEmail,
         imageUrl, videoUrl, pdfUrl,
         businessName, businessLink, businessLocation, adDescription,
         websiteSelections,

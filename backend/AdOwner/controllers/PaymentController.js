@@ -1,7 +1,7 @@
 // PaymentController.js — Flutterwave integration (PostgreSQL)
 const crypto = require('crypto');
 const axios = require('axios');
-const User = require('../../models/User');
+const Creator = require('../../creators/models/Creator');
 const Payment = require('../models/PaymentModel');
 const ImportAd = require('../models/WebAdvertiseModel');
 const AdCategory = require('../../AdPromoter/models/CreateCategoryModel');
@@ -250,7 +250,7 @@ exports.verifyPayment = async (req, res) => {
         const adRow = ad.rows[0];
         const websiteSelections = parseSelections(adRow);
 
-        const advertiser = await User.findById(primaryPayment.advertiser_id);
+        const advertiser = await Creator.findById(primaryPayment.advertiser_id);
         const totalAmount = allPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
 
         await upsertWallet(client, primaryPayment.advertiser_id, 'advertiser', advertiser?.email, 0, 0, totalAmount);
@@ -399,7 +399,7 @@ exports.verifyPaymentNonTransactional = async (req, res) => {
           await ImportAd.update(ad.id, { websiteSelections, confirmed: true });
         }
 
-        const advertiser = await User.findById(payment.advertiser_id);
+        const advertiser = await Creator.findById(payment.advertiser_id);
         if (advertiser) {
           await Wallet.create({ ownerId: payment.advertiser_id, ownerEmail: advertiser.email, ownerType: 'advertiser' });
           const w = await Wallet.findByOwner(payment.advertiser_id, 'advertiser');

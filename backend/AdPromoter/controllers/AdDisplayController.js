@@ -139,14 +139,68 @@ exports.searchAd = async (req, res) => {
   }
 };
 
+// In-memory dedup — sendBeacon/fetch fires once per real pageview/click, so a
+// repeat from the same (ip, adId, kind) inside the window is almost certainly
+// a replay/script hammering the endpoint directly rather than real traffic.
+const recentEvents = new Map(); // `${kind}:${adId}:${ip}` → last-seen ms
+const DEDUP_WINDOW_MS = 5_000;
+
+function isDuplicate(kind, adId, ip) {
+  const key = `${kind}:${adId}:${ip}`;
+  const now = Date.now();
+  const last = recentEvents.get(key);
+  if (last && now - last < DEDUP_WINDOW_MS) return true;
+  recentEvents.set(key, now);
+  if (recentEvents.size > 50_000) { // bound memory — drop oldest-looking half
+    let i = 0;
+    for (const k of recentEvents.keys()) { if (i++ > 25_000) break; recentEvents.delete(k); }
+  }
+  return false;
+}
+
+// An ad can be approved on multiple websites — only count the event if the
+// referer matches one of the domains it's actually approved+active on.
+// A missing referer is let through (some browsers/extensions strip it), but
+// a referer that's present and doesn't match any approved domain is rejected —
+// this is what stops someone curling the adId directly to inflate counters.
+async function refererMatchesApprovedSite(ad, req) {
+  const referer = req.headers.referer || req.headers.origin || '';
+  if (!referer) return true;
+  const incoming = extractDomain(referer);
+  if (!incoming) return true;
+
+  let selections = [];
+  try {
+    selections = Array.isArray(ad.website_selections) ? ad.website_selections : JSON.parse(ad.website_selections || '[]');
+  } catch { selections = []; }
+
+  const approvedWebsiteIds = selections
+    .filter(s => s.status === 'active' && s.approved)
+    .map(s => s.websiteId)
+    .filter(Boolean);
+  if (!approvedWebsiteIds.length) return false;
+
+  const { rows: sites } = await query(`SELECT website_link FROM websites WHERE id = ANY($1::uuid[])`, [approvedWebsiteIds]);
+  return sites.some(s => extractDomain(s.website_link) === incoming);
+}
+
 exports.incrementView = async (req, res) => {
   try {
     const { adId } = req.params;
     if (!adId || adId === 'undefined' || adId === 'null') {
       return res.status(400).json({ success: false, message: 'Invalid adId' });
     }
+
+    const ad = await ImportAd.findById(adId);
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
+    if (!(await refererMatchesApprovedSite(ad, req))) {
+      return res.status(403).json({ success: false, message: 'Referer does not match an approved placement' });
+    }
+
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '';
+    if (isDuplicate('view', adId, ip)) return res.status(200).json({ success: true, deduped: true });
+
     await ImportAd.incrementViews(adId);
-    // Upsert payment tracker via raw query
     await query(
       `INSERT INTO payment_trackers (ad_id, current_views)
        VALUES ($1, 1)
@@ -166,6 +220,16 @@ exports.incrementClick = async (req, res) => {
     if (!adId || adId === 'undefined' || adId === 'null') {
       return res.status(400).json({ success: false, message: 'Invalid adId' });
     }
+
+    const ad = await ImportAd.findById(adId);
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
+    if (!(await refererMatchesApprovedSite(ad, req))) {
+      return res.status(403).json({ success: false, message: 'Referer does not match an approved placement' });
+    }
+
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '';
+    if (isDuplicate('click', adId, ip)) return res.status(200).json({ success: true, deduped: true });
+
     await ImportAd.incrementClicks(adId);
     return res.status(200).json({ success: true });
   } catch (error) {

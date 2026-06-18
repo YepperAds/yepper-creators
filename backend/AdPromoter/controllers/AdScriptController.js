@@ -4,6 +4,7 @@
 // and ad-blocker evasion via neutral class names and randomized identifiers.
 
 const AdCategory = require('../models/CreateCategoryModel');
+const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
 
 function extractDomain(url) {
   try {
@@ -186,8 +187,8 @@ exports.serveAdScript = async (req, res) => {
     );
     adCategory.websiteId = wsRows[0] || null;
 
-    const registeredDomain = adCategory.websiteId?.websiteLink
-      ? extractDomain(adCategory.websiteId?.website_link)
+    const registeredDomain = adCategory.websiteId?.website_link
+      ? extractDomain(adCategory.websiteId.website_link)
       : null;
 
     // Server-side referer check (first layer)
@@ -195,6 +196,7 @@ exports.serveAdScript = async (req, res) => {
       const referer = req.headers.referer || req.headers.origin || '';
       const incoming = referer ? extractDomain(referer) : null;
       if (incoming && incoming !== registeredDomain) {
+        notifyDomainMismatch(adCategory.websiteId.owner_id, adCategory.websiteId.id, registeredDomain, incoming).catch(() => {});
         res.setHeader('Content-Type', 'application/javascript');
         return res.send('/* invalid domain */');
       }

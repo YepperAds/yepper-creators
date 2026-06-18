@@ -18,7 +18,8 @@ const generateToken = (userOrId) => {
   };
   // Remove undefined keys to keep the token clean
   Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
-  return jwt.sign(payload, process.env.JWT_SECRET || 'your-jwt-secret', {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: '7d'
   });
 };

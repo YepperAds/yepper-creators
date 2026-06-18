@@ -105,12 +105,17 @@ app.use((req, res, next) => {
   }
 
   console.error('✗ Origin rejected:', origin);
-  return res.status(403).json({ error: 'CORS Error', message: `CORS policy does not allow access from: ${origin}`, allowedOrigins });
+  return res.status(403).json({ error: 'CORS Error', message: `CORS policy does not allow access from: ${origin}` });
 });
 
 // ─── Session + Passport ───────────────────────────────────────────────────────
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable is not set.');
+  process.exit(1);
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {

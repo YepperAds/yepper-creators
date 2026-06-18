@@ -4,10 +4,11 @@ const router  = express.Router();
 const adminAuth      = require('../middleware/adminAuth');
 const authMiddleware = require('../middleware/authmiddleware');
 const ctrl = require('../controllers/adminController');
+const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────
 // Accepts { ref, token } in body and validates against ADMIN_NAME / ADMIN_SECRET
-router.post('/init', (req, res) => {
+router.post('/init', adminLoginLimiter, (req, res) => {
   const { ref, token } = req.body || {};
 
   const validRef   = process.env.ADMIN_NAME;

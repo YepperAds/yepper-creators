@@ -42,4 +42,24 @@ async function createNotification(creatorId, type, title, body = null, meta = {}
   }
 }
 
-module.exports = { addSseClient, removeSseClient, broadcastUnreadCount, createNotification };
+// Throttle repeat "domain mismatch" alerts — a stray/misused script tag can
+// fire on every pageview, so only notify once per (website, foundDomain) per day.
+const mismatchThrottle = new Map(); // `${websiteId}:${foundDomain}` → last-notified ms
+
+async function notifyDomainMismatch(ownerId, websiteId, verifiedDomain, foundDomain) {
+  const key = `${websiteId}:${foundDomain}`;
+  const last = mismatchThrottle.get(key);
+  const now = Date.now();
+  if (last && now - last < 24 * 60 * 60 * 1000) return;
+  mismatchThrottle.set(key, now);
+
+  await createNotification(
+    ownerId,
+    'domain_mismatch',
+    'Ad script found on an unverified domain',
+    `The website you verified is "${verifiedDomain}" but your ad script was just loaded from "${foundDomain}". The ad was not served there. If this isn't expected, check where you've pasted the embed code.`,
+    { websiteId, verifiedDomain, foundDomain },
+  );
+}
+
+module.exports = { addSseClient, removeSseClient, broadcastUnreadCount, createNotification, notifyDomainMismatch };

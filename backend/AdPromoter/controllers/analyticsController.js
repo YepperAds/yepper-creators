@@ -20,7 +20,7 @@ async function getAuthUser(req) {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return null;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Creators live in a separate table — check it first, fall back to legacy users.
     const creator = await Creator.findById(decoded.userId).catch(() => null);
     if (creator) return creator;

@@ -3,6 +3,7 @@ const express = require('express');
 const passport = require('passport');
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middleware/authmiddleware');
+const { emailLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
 
@@ -16,8 +17,8 @@ router.get('/verify-email', authController.verifyEmail);
 router.get('/verify-waitlist-email', authController.verifyWaitlistEmail);
 
 // Resend verification
-router.post('/resend-verification', authController.resendVerification);
-router.post('/resend-waitlist-verification', authController.resendWaitlistVerification);
+router.post('/resend-verification', emailLimiter, authController.resendVerification);
+router.post('/resend-waitlist-verification', emailLimiter, authController.resendWaitlistVerification);
 
 // Get profile (protected route)
 router.get('/profile', authMiddleware, authController.getProfile);

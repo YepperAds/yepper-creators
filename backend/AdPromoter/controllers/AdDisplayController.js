@@ -3,22 +3,13 @@ const { query } = require('../../config/db');
 const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
+const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
 
 function extractDomain(url) {
   try {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`);
     return u.hostname.replace(/^www\./, '');
   } catch { return null; }
-}
-
-async function isAllowedDomain(categoryId, reqHeaders) {
-  const referer = reqHeaders.referer || reqHeaders.origin || '';
-  if (!referer) return false;
-  const category = await AdCategory.findById(categoryId);
-  const website  = category ? await Website.findById(category.website_id) : null;
-  const registeredLink = website?.website_link;
-  if (!registeredLink) return false;
-  return extractDomain(registeredLink) === extractDomain(referer);
 }
 
 exports.displayAd = async (req, res) => {
@@ -28,6 +19,20 @@ exports.displayAd = async (req, res) => {
 
     const adCategory = await AdCategory.findById(categoryId);
     if (!adCategory) return res.json({ html: '' });
+
+    // Domain check — only block on a definite mismatch (a referer that's present
+    // but points elsewhere). Missing referer is allowed through, since some
+    // browsers/extensions strip it for privacy and shouldn't break legit placements.
+    const website = await Website.findById(adCategory.website_id);
+    const registeredDomain = website?.website_link ? extractDomain(website.website_link) : null;
+    if (registeredDomain) {
+      const referer = req.headers.referer || req.headers.origin || '';
+      const incoming = referer ? extractDomain(referer) : null;
+      if (incoming && incoming !== registeredDomain) {
+        notifyDomainMismatch(website.owner_id, website.id, registeredDomain, incoming).catch(() => {});
+        return res.json({ html: '' });
+      }
+    }
 
     const selectedAds = Array.isArray(adCategory.selected_ads)
       ? adCategory.selected_ads

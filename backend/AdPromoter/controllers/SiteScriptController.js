@@ -4,6 +4,7 @@
 
 const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
+const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
 
 // Neutral wrapper aliases for ad-blocker evasion
 const WRAPPERS = [
@@ -80,6 +81,7 @@ exports.serveSiteScript = async (req, res) => {
       const referer = req.headers.referer || req.headers.origin || '';
       const incoming = referer ? extractDomain(referer) : null;
       if (incoming && incoming !== registeredDomain) {
+        notifyDomainMismatch(website.owner_id, website.id, registeredDomain, incoming).catch(() => {});
         res.setHeader('Content-Type', 'application/javascript');
         return res.send('/* invalid domain */');
       }

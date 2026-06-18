@@ -1447,6 +1447,7 @@ const { getClient } = require('../../config/db');
 
 const upload = multer({
   storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — buffered fully in memory before Cloudinary upload
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|bmp|webp|tiff|svg|mp4|avi|mov|mkv|webm|pdf/;
     const isValid = allowedTypes.test(path.extname(file.originalname).toLowerCase());

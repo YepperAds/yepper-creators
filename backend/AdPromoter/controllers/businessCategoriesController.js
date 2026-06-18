@@ -9,7 +9,7 @@ const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Access token is required' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const creator = await Creator.findById(decoded.userId).catch(() => null);
     const user = creator || await User.findById(decoded.userId).catch(() => null);
     if (!user) return res.status(401).json({ message: 'User not found' });

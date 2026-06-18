@@ -42,8 +42,11 @@ async function forward(req: NextRequest, params: { path: string[] }) {
       duplex: body !== undefined ? 'half' : undefined,
     });
 
+    const stripHeaders = new Set(['content-encoding', 'content-length', 'transfer-encoding']);
     const respHeaders: Record<string, string> = {};
-    res.headers.forEach((v, k) => (respHeaders[k] = v));
+    res.headers.forEach((v, k) => {
+      if (!stripHeaders.has(k.toLowerCase())) respHeaders[k] = v;
+    });
 
     const buffer = await res.arrayBuffer();
 

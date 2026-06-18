@@ -78,8 +78,7 @@ export async function GET(req: NextRequest) {
   if (!jwt) return NextResponse.redirect(new URL('/login?error=google_exchange_failed', origin));
 
   // 4. Set both session cookies and redirect to role selection
-  // If the user requires profile completion, redirect to /complete-profile
-  const redirectPath = needsProfile ? '/complete-profile' : (req.nextUrl.searchParams.get('from') || '/choose-role');
+  const redirectPath = needsProfile ? '/choose-role' : (req.nextUrl.searchParams.get('from') || '/choose-role');
   const res = NextResponse.redirect(new URL(redirectPath, origin));
 
   const cookieOpts = {

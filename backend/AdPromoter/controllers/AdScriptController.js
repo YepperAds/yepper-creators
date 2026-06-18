@@ -400,7 +400,7 @@ exports.serveAdScript = async (req, res) => {
       '<div class="'+_px+'-empty">'+
         '<p class="'+_px+'-empty-title">'+lang.title+'</p>'+
         '<p class="'+_px+'-empty-price">'+lang.price+': $'+_p+'/mo</p>'+
-        '<a class="'+_px+'-empty-cta" href="'+_f+'/direct-ad?websiteId='+_w+'&categoryId='+_i+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
+        '<a class="'+_px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_w+'&categoryId='+_i+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
       '</div>';
   }
 

@@ -5,7 +5,7 @@ import { getToken } from '@/app/(adsense)/utils/token';
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/app/_hooks/useSession';
-import { Eye, EyeOff, ArrowLeft, Globe,Building2, Link as LinkIcon, MapPin, FileText, Upload, X } from 'lucide-react';
+import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload, X } from 'lucide-react';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
@@ -39,23 +39,15 @@ function DirectAdvertise() {
   const [filePreview, setFilePreview] = useState<{ url: string | ArrayBuffer | null; type: string } | null>(null);
   const [step, setStep] = useState(1);
   const [adId, setAdId] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState('login');
-  const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   const [businessData, setBusinessData] = useState({
     businessName: '',
     businessLink: '',
     businessLocation: '',
     adDescription: '',
     businessCategory: ''
-  });
-
-  const [authData, setAuthData] = useState({
-    email: '',
-    password: '',
-    name: ''
   });
 
   const businessCategories = [
@@ -206,12 +198,6 @@ function DirectAdvertise() {
     setError(null);
   };
 
-  const handleAuthInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setAuthData(prev => ({ ...prev, [name]: value }));
-    setAuthError(null);
-  };
-
   const validateForm = () => {
     if (!businessData.businessName) {
       setError('Business name is required');
@@ -284,13 +270,6 @@ function DirectAdvertise() {
     }, 1000);
   };
 
-  const handleAuth = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Redirect to the unified login page; after login the user returns here
-    const returnUrl = encodeURIComponent(window.location.href);
-    router.push(`/login?returnTo=${returnUrl}`);
-  };
-
   const createAdAndProceed = async (overrideEmail) => {
     try {
       setIsLoading(true);
@@ -308,7 +287,7 @@ function DirectAdvertise() {
       
       const formData = new FormData();
       // overrideEmail is passed directly after login() so we don't rely on stale React state
-      formData.append('adOwnerEmail', overrideEmail || user?.email || authData.email);
+      formData.append('adOwnerEmail', overrideEmail || user?.email || '');
       if (fileToUpload) {
         formData.append('file', fileToUpload);
       }
@@ -430,12 +409,7 @@ function DirectAdvertise() {
 
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
-    // Save the return destination so AuthSuccess can redirect back here
-    localStorage.setItem(
-      'googleOAuthReturnTo',
-      `/direct-advertise?websiteId=${websiteId}&categoryId=${categoryId}&googleReturn=true`
-    );
-    // Also persist form data so it survives the redirect
+    // Persist form data so it survives the Google redirect round trip
     try {
       localStorage.setItem('directAdvertise_formData', JSON.stringify({
         businessData,
@@ -447,7 +421,8 @@ function DirectAdvertise() {
         categoryId
       }));
     } catch (_) {}
-    window.location.href = authAPI.googleRedirect();
+    const from = `/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}&googleReturn=true`;
+    window.location.href = `${authAPI.googleRedirect()}?from=${encodeURIComponent(from)}`;
   };
 
   // After Google OAuth returns the user here with googleReturn=true, fire createAdAndProceed
@@ -455,7 +430,7 @@ function DirectAdvertise() {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     if (params.get('googleReturn') === 'true' && isAuthenticated && user?.email && step === 2) {
       // Clean the URL so we don't re-trigger
-      window.history.replaceState({}, '', `/direct-advertise?websiteId=${websiteId}&categoryId=${categoryId}`);
+      window.history.replaceState({}, '', `/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}`);
       createAdAndProceed(user.email);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -829,99 +804,6 @@ function DirectAdvertise() {
                     )}
                     {isGoogleLoading ? 'Redirecting...' : 'Continue with Google'}
                   </button>
-
-                  <div className="relative flex items-center">
-                    <div className="flex-1 border-t border-border" />
-                    <span className="px-3 text-xs text-muted bg-surface-1">or sign in with email</span>
-                    <div className="flex-1 border-t border-border" />
-                  </div>
-
-                  {/* Auth Mode Tabs */}
-                  <div className="flex gap-4 border-b border-border">
-                    <button
-                      onClick={() => setAuthMode('login')}
-                      className={`pb-3 px-1 font-medium transition-colors ${
-                        authMode === 'login' 
-                          ? 'text-white border-b-2 border-border' 
-                          : 'text-muted hover:text-subtle'
-                      }`}
-                    >
-                      Sign In
-                    </button>
-                    <button
-                      onClick={() => setAuthMode('signup')}
-                      className={`pb-3 px-1 font-medium transition-colors ${
-                        authMode === 'signup' 
-                          ? 'text-white border-b-2 border-border' 
-                          : 'text-muted hover:text-subtle'
-                      }`}
-                    >
-                      Sign Up
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleAuth} className="space-y-4">
-                    {authMode === 'signup' && (
-                      <div>
-                        <label className="block text-sm font-medium text-subtle mb-2">
-                          Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={authData.name}
-                          onChange={handleAuthInputChange}
-                          className="w-full px-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
-                          required={authMode === 'signup'}
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-sm font-medium text-subtle mb-2">
-                        Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={authData.email}
-                        onChange={handleAuthInputChange}
-                        className="w-full px-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-subtle mb-2">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          name="password"
-                          value={authData.password}
-                          onChange={handleAuthInputChange}
-                          className="w-full px-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-subtle"
-                        >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Processing...' : (authMode === 'login' ? 'Sign In & Continue' : 'Create Account & Continue')}
-                    </button>
-                  </form>
                 </div>
               ) : (
                 <div className="space-y-6">

@@ -4,8 +4,9 @@ import { getToken } from '@/app/(adsense)/utils/token';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import NextLink from 'next/link';
 import { useSession } from '@/app/_hooks/useSession';
-import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload, X } from 'lucide-react';
+import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload, X, CheckCircle2 } from 'lucide-react';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
@@ -39,6 +40,7 @@ function DirectAdvertise() {
   const [filePreview, setFilePreview] = useState<{ url: string | ArrayBuffer | null; type: string } | null>(null);
   const [step, setStep] = useState(1);
   const [adId, setAdId] = useState<string | null>(null);
+  const [paymentDone, setPaymentDone] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -380,7 +382,7 @@ function DirectAdvertise() {
                 headers: { 'Authorization': `Bearer ${getToken() || ''}` }
               });
               if (verifyRes.data.success) {
-                setSuccess('Payment successful! Your ad is now live.');
+                setPaymentDone(true);
               } else {
                 setError(verifyRes.data.message || 'Payment verification failed.');
               }
@@ -823,39 +825,72 @@ function DirectAdvertise() {
           {/* Step 3: Payment */}
           {step === 3 && (
             <div className="border border-border bg-surface-1 p-8">
-              <h2 className="text-xl font-semibold mb-6">Complete Payment</h2>
-              
-              <div className="space-y-6">
-                <div className="border border-border bg-surface-2 p-6">
-                  <h3 className="font-semibold mb-4">Order Summary</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-subtle">Website:</span>
-                      <span className="font-medium">{websiteInfo?.websiteName}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-subtle">Category:</span>
-                      <span className="font-medium">{categoryInfo?.categoryName}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-subtle">Business:</span>
-                      <span className="font-medium">{businessData.businessName}</span>
-                    </div>
-                    <div className="border-t border-border pt-3 flex justify-between font-semibold text-base">
-                      <span>Total:</span>
-                      <span>${categoryInfo?.price}</span>
-                    </div>
+              {paymentDone ? (
+                <div className="py-4 text-center space-y-6">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-success/10 border-2 border-success flex items-center justify-center">
+                    <CheckCircle2 size={32} className="text-success" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Your ad is live! 🎉</h2>
+                    <p className="text-subtle text-sm mt-2">
+                      Your advertisement is now showing on{' '}
+                      <span className="font-semibold text-white">{websiteInfo?.websiteName}</span>.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <a
+                      href={websiteInfo?.websiteLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-white text-black px-6 py-3 font-semibold hover:bg-gray-100 transition-colors"
+                    >
+                      View your ad live →
+                    </a>
+                    <NextLink
+                      href="/analytics"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-black text-white border border-border px-6 py-3 font-semibold hover:bg-gray-800 transition-colors"
+                    >
+                      Go to dashboard & monitor traffic →
+                    </NextLink>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold mb-6">Complete Payment</h2>
 
-                <button
-                  onClick={handlePayment}
-                  disabled={isLoading}
-                  className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? 'Processing...' : 'Proceed to Payment'}
-                </button>
-              </div>
+                  <div className="space-y-6">
+                    <div className="border border-border bg-surface-2 p-6">
+                      <h3 className="font-semibold mb-4">Order Summary</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-subtle">Website:</span>
+                          <span className="font-medium">{websiteInfo?.websiteName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-subtle">Category:</span>
+                          <span className="font-medium">{categoryInfo?.categoryName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-subtle">Business:</span>
+                          <span className="font-medium">{businessData.businessName}</span>
+                        </div>
+                        <div className="border-t border-border pt-3 flex justify-between font-semibold text-base">
+                          <span>Total:</span>
+                          <span>${categoryInfo?.price}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handlePayment}
+                      disabled={isLoading}
+                      className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? 'Processing...' : 'Proceed to Payment'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

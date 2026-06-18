@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
+import adsenseApi from '@/app/_lib/adsense-api';
 import type { AuthResponse } from '@/app/_types/auth';
 import Link from 'next/link';
 import {
@@ -13,11 +14,30 @@ import {
   ChatBubbleLeftIcon,
   ExclamationCircleIcon,
   FilmIcon,
+  GlobeAltIcon,
+  CursorArrowRaysIcon,
 } from '@heroicons/react/24/outline';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface WebsiteSelection {
+  websiteId: { _id?: string; id?: string; websiteName?: string; websiteLink?: string; imageUrl?: string | null } | string;
+  status: string;
+  isRejected: boolean;
+}
+
+interface WebsiteAd {
+  _id: string;
+  businessName: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  views?: number;
+  clicks?: number;
+  createdAt?: string;
+  websiteSelections?: WebsiteSelection[];
+}
 
 interface AdPost {
   id: number;
@@ -99,6 +119,111 @@ function normaliseArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (raw && typeof raw === 'object') return Object.values(raw) as T[];
   return [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Website ad card (collapsible, views/clicks/CTR for ads placed on publisher sites)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function WebsiteAdCard({ ad, open, onToggle }: { ad: WebsiteAd; open: boolean; onToggle: () => void }) {
+  const activeSelection = ad.websiteSelections?.find(s => s.status === 'active' && !s.isRejected);
+  const site = activeSelection && typeof activeSelection.websiteId === 'object' ? activeSelection.websiteId : null;
+  const views = ad.views ?? 0;
+  const clicks = ad.clicks ?? 0;
+  const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0';
+
+  return (
+    <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-2) overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-(--color-surface-3) transition-colors text-left"
+      >
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-blue-500/15 text-blue-400">
+          <GlobeAltIcon className="w-3.5 h-3.5" />
+        </div>
+
+        {site?.imageUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={site.imageUrl} alt={site.websiteName} className="w-10 h-7 rounded object-cover shrink-0" />
+          : ad.imageUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={ad.imageUrl} alt={ad.businessName} className="w-10 h-7 rounded object-cover shrink-0" />
+          : <div className="w-10 h-7 rounded bg-(--color-surface-3) shrink-0 flex items-center justify-center">
+              <GlobeAltIcon className="w-3.5 h-3.5 text-(--color-muted)" />
+            </div>
+        }
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-(--color-white) truncate">{ad.businessName}</span>
+          </div>
+          <p className="text-[10px] text-(--color-muted) mt-0.5">
+            {site?.websiteName ?? 'Website ad'} {ad.createdAt ? `· ${timeAgo(ad.createdAt)}` : ''}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 text-[11px] text-(--color-muted) shrink-0">
+          <span className="flex items-center gap-1"><EyeIcon className="w-3 h-3" />{fmt(views)}</span>
+          <span className="flex items-center gap-1"><CursorArrowRaysIcon className="w-3 h-3" />{fmt(clicks)}</span>
+        </div>
+
+        {open
+          ? <ChevronUpIcon className="w-4 h-4 text-(--color-muted) ml-1 shrink-0" />
+          : <ChevronDownIcon className="w-4 h-4 text-(--color-muted) ml-1 shrink-0" />
+        }
+      </button>
+
+      {open && (
+        <div className="border-t border-(--color-border) p-5 space-y-4">
+          <div className="flex gap-4">
+            <div className="shrink-0">
+              {site?.imageUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={site.imageUrl} alt={site.websiteName} className="w-32 h-[72px] rounded-xl object-cover" />
+                : <div className="w-32 h-[72px] rounded-xl bg-(--color-surface-3) flex items-center justify-center">
+                    <GlobeAltIcon className="w-6 h-6 text-(--color-muted)" />
+                  </div>
+              }
+            </div>
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="text-sm font-bold text-(--color-white) leading-snug">{ad.businessName}</p>
+              <p className="text-[11px] text-(--color-muted)">
+                Placed on {site?.websiteName ?? 'a connected website'}
+                {ad.createdAt ? ` · ${timeAgo(ad.createdAt)}` : ''}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { icon: <EyeIcon className="w-3.5 h-3.5" />,            label: 'Views',  val: views },
+              { icon: <CursorArrowRaysIcon className="w-3.5 h-3.5" />, label: 'Clicks', val: clicks },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl bg-(--color-surface-3) px-4 py-3">
+                <div className="flex items-center gap-1.5 text-(--color-muted) text-[11px] mb-1">{s.icon}{s.label}</div>
+                <p className="text-lg font-bold text-(--color-white)">{fmt(s.val)}</p>
+              </div>
+            ))}
+            <div className="rounded-xl bg-(--color-surface-3) px-4 py-3">
+              <div className="text-(--color-muted) text-[11px] mb-1">CTR</div>
+              <p className="text-lg font-bold text-(--color-white)">{ctr}%</p>
+            </div>
+          </div>
+
+          {site?.websiteLink && (
+            <a
+              href={site.websiteLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              ● View your ad on {site.websiteName} →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,6 +347,10 @@ export default function AnalyticsPage() {
 
   const [openAds, setOpenAds] = useState<Set<number>>(new Set());
 
+  const [webAds,        setWebAds]        = useState<WebsiteAd[]>([]);
+  const [webAdsLoading, setWebAdsLoading]  = useState(true);
+  const [openWebAds,    setOpenWebAds]     = useState<Set<string>>(new Set());
+
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick every 10 s to keep "synced X ago" label fresh
@@ -285,6 +414,26 @@ export default function AnalyticsPage() {
 
   const toggleAd = (id: number) =>
     setOpenAds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Website ad campaigns — views/clicks for ads placed on publisher sites via direct-ad
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adsenseApi.get<{ success: boolean; ads?: WebsiteAd[] }>('/api/web-advertise/my-ads');
+        const ads = (res.data?.ads ?? []).filter(ad =>
+          ad.websiteSelections?.some(s => s.status === 'active' && !s.isRejected),
+        );
+        setWebAds(ads);
+      } catch {
+        setWebAds([]);
+      } finally {
+        setWebAdsLoading(false);
+      }
+    })();
+  }, []);
+
+  const toggleWebAd = (id: string) =>
+    setOpenWebAds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -352,6 +501,41 @@ export default function AnalyticsPage() {
               post={post}
               open={openAds.has(post.id)}
               onToggle={() => toggleAd(post.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Website ad campaigns — traffic on ads placed directly on publisher sites */}
+      <div className="flex items-center justify-between pt-4">
+        <div>
+          <h2 className="text-sm font-bold text-(--color-white)">Website Ad Campaigns</h2>
+          <p className="text-xs text-(--color-muted) mt-0.5">
+            {webAds.length} campaign{webAds.length !== 1 ? 's' : ''} placed on publisher websites
+          </p>
+        </div>
+      </div>
+
+      {webAdsLoading ? (
+        <div className="space-y-2">
+          {[0, 1].map(i => (
+            <div key={i} className="h-14 rounded-2xl bg-(--color-surface-2) border border-(--color-border) animate-pulse" />
+          ))}
+        </div>
+      ) : webAds.length === 0 ? (
+        <div className="rounded-2xl border border-(--color-border) border-dashed bg-(--color-surface-1) p-14 flex flex-col items-center gap-3 text-center">
+          <GlobeAltIcon className="w-8 h-8 text-(--color-muted) opacity-40" />
+          <p className="text-sm font-semibold text-(--color-white)">No website ads yet</p>
+          <p className="text-xs text-(--color-muted)">Click &quot;Advertise Here&quot; on any Yepper-powered website to place your first ad.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {webAds.map(ad => (
+            <WebsiteAdCard
+              key={ad._id}
+              ad={ad}
+              open={openWebAds.has(ad._id)}
+              onToggle={() => toggleWebAd(ad._id)}
             />
           ))}
         </div>

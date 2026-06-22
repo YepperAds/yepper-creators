@@ -4,6 +4,7 @@ const router  = express.Router();
 const adminAuth      = require('../middleware/adminAuth');
 const authMiddleware = require('../middleware/authmiddleware');
 const ctrl = require('../controllers/adminController');
+const pricing = require('../admin/controllers/pricingController');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────
@@ -46,5 +47,10 @@ router.delete('/users/:userId/ads/:adId',                 adminAuth, ctrl.delete
 
 // ── User-facing endpoint (requires user JWT) ──────────────────────────────────
 router.get('/user-grant-status', authMiddleware, ctrl.getUserGrantStatus);
+
+router.get('/pricing',            adminAuth, pricing.getPricing);
+router.put('/pricing',            adminAuth, pricing.updatePricing);
+router.put('/pricing/margin',     adminAuth, pricing.updateMargin);
+router.post('/pricing/apply',     adminAuth, pricing.applyPricingToExisting);
 
 module.exports = router;

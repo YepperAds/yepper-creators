@@ -8,6 +8,7 @@ const ImportAd = require('../../AdOwner/models/WebAdvertiseModel');
 const Website = require('../models/CreateWebsiteModel');
 const WebOwnerBalance = require('../models/WebOwnerBalanceModel');
 const Payment = require('../../AdOwner/models/PaymentModel');
+const Pricing = require('../../admin/models/PricingModel');
 
 function catToClient(c) {
   if (!c) return null;
@@ -125,12 +126,26 @@ exports.createCategory = async (req, res) => {
       });
     }
 
+    // Price comes from the admin Pricing page (single source of truth),
+    // keyed by the website's tier + canonical space type. Fall back to the
+    // price sent by the client only if no rule exists for this combo.
+    let finalPrice = price;
+    try {
+      const tierPrices = await Pricing.getTierPrices(tier);
+      const canonical  = Pricing.canonicalSpace(spaceType);
+      if (tierPrices && tierPrices[canonical] !== undefined) {
+        finalPrice = tierPrices[canonical];
+      }
+    } catch (e) {
+      console.error('Pricing lookup failed, using submitted price:', e.message);
+    }
+
     const savedCategory = await AdCategory.create({
       ownerId: userId,
       websiteId,
       categoryName,
       description,
-      price,
+      price: finalPrice,
       spaceType,
       placementMode: placementMode || 'auto',
       instructions,

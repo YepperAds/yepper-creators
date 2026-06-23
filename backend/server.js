@@ -54,7 +54,6 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'https://yepper-creators.onrender.com',
-  'https://yep-strator.vercel.app',
   process.env.FRONTEND_URL,
   process.env.FRONTEND_ORIGIN,
 ].filter(Boolean);
@@ -201,6 +200,15 @@ async function startServer() {
     await dropOwnerFks();
   } catch (err) {
     console.warn('⚠️  Migration 20260612_drop_owner_fk_constraints skipped:', err.message?.split('\n')[0]);
+  }
+
+  // Create pricing tables (pricing_rules + pricing_settings) if missing.
+  try {
+    const { up: createPricingTables } = require('./migrations/20260623_pricing_tables');
+    await createPricingTables();
+    console.log('✓ pricing tables ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260623_pricing_tables skipped:', err.message?.split('\n')[0]);
   }
 
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.

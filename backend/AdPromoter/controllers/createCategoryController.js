@@ -8,7 +8,7 @@ const ImportAd = require('../../AdOwner/models/WebAdvertiseModel');
 const Website = require('../models/CreateWebsiteModel');
 const WebOwnerBalance = require('../models/WebOwnerBalanceModel');
 const Payment = require('../../AdOwner/models/PaymentModel');
-const Pricing = require('../../admin/models/PricingModel');
+const Pricing = require('../../models/PricingModel');
 
 function catToClient(c) {
   if (!c) return null;

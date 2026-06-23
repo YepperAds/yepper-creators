@@ -4,7 +4,7 @@ const router  = express.Router();
 const adminAuth      = require('../middleware/adminAuth');
 const authMiddleware = require('../middleware/authmiddleware');
 const ctrl = require('../controllers/adminController');
-const pricing = require('../admin/controllers/pricingController');
+const pricing = require('../controllers/pricingController');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────

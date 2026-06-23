@@ -1,6 +1,6 @@
 // admin/models/PricingModel.js  (PostgreSQL)
 // Single source of truth for ad-space prices + the margin percentage.
-const { query } = require('../../config/db');
+const { query } = require('../config/db');
 
 // Canonical ordered list of spaces (highest → lowest visibility).
 const SPACE_TYPES = [

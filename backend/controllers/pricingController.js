@@ -1,7 +1,7 @@
 // admin/controllers/pricingController.js
 // Endpoints to read & edit ad-space prices and the margin %, plus an
 // "apply to existing" action that re-prices UNPAID spaces in a tier.
-const { query } = require('../../config/db');
+const { query } = require('../config/db');
 const Pricing   = require('../models/PricingModel');
 
 // GET /api/admin/pricing

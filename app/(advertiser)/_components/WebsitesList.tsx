@@ -25,8 +25,10 @@ interface Website {
 // in-panel route (/?panel=add-website) instead of the standalone page.
 export default function WebsitesList({
   addWebsiteHref = '/ad-promoter/pages/add-website',
+  websiteDetailsHref = (id: string | number) => `/ad-promoter/pages/website/${id}`,
 }: {
   addWebsiteHref?: string;
+  websiteDetailsHref?: (id: string | number) => string;
 } = {}) {
   const [websites,           setWebsites]           = useState<Website[]>([]);
   const [loading,            setLoading]            = useState(true);
@@ -222,7 +224,7 @@ export default function WebsitesList({
 
               <div className="flex divide-x divide-[color:var(--color-border)]">
                 <Link
-                  href={`/ad-promoter/pages/website/${site.id}`}
+                  href={websiteDetailsHref(site.id)}
                   className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-[color:var(--color-white)] hover:bg-[color:var(--color-surface-2)] transition-colors"
                 >
                   <ChartBarIcon className="w-4 h-4" /> View Details

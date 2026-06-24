@@ -15,6 +15,7 @@ import WalletPage from '@/app/(advertiser)/wallet/page';
 import ProfilePage from '@/app/(advertiser)/profile/page';
 import NotificationsPage from '@/app/(advertiser)/notifications/page';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
+import WebsiteDetails from '@/app/(adsense)/ad-promoter/pages/website/[websiteId]/page';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 
 function BackToFeed({ onClick }: { onClick: () => void }) {
@@ -49,7 +50,7 @@ export default function CenterPanel({
     content = (
       <AddWebsiteForm
         embedded
-        onCreated={() => router.replace('/?panel=websites', { scroll: false })}
+        onCreated={(websiteId: string) => router.replace(`/?panel=website-details&websiteId=${websiteId}`, { scroll: false })}
         onCancel={backToFeed}
       />
     );
@@ -57,9 +58,16 @@ export default function CenterPanel({
     content = (
       <div>
         <BackToFeed onClick={backToFeed} />
-        <WebsitesList addWebsiteHref="/?panel=add-website" />
+        <WebsitesList
+          addWebsiteHref="/?panel=add-website"
+          websiteDetailsHref={(id) => `/?panel=website-details&websiteId=${id}`}
+        />
       </div>
     );
+  } else if (panel === 'website-details') {
+    const websiteId = searchParams.get('websiteId') ?? '';
+    const backToWebsites = () => router.replace('/?panel=websites', { scroll: false });
+    content = <WebsiteDetails websiteId={websiteId} onBack={backToWebsites} />;
   } else if (panel === 'ad-posts') {
     content = (
       <div>

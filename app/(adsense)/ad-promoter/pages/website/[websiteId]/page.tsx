@@ -55,9 +55,10 @@ const TABS = [
     { id: 'analytics', label: 'Analytics',     icon: Activity },
 ];
 
-const WebsiteDetails = () => {
+const WebsiteDetails = ({ websiteId: websiteIdProp, onBack }: { websiteId?: string; onBack?: () => void } = {}) => {
     const router = useRouter();
-    const { websiteId } = useParams();
+    const params = useParams();
+    const websiteId = websiteIdProp ?? (params?.websiteId as string);
     const { user, isAuthenticated, token } = useSession();
     const [result, setResult] = useState(true);
     const [website, setWebsite] = useState<Record<string,unknown> | null>(null);
@@ -337,7 +338,7 @@ const WebsiteDetails = () => {
                     {/* Top bar */}
                     <div className="h-14 flex items-center gap-3">
                         <button
-                            onClick={() => router.back()}
+                            onClick={() => (onBack ? onBack() : router.back())}
                             className="flex items-center gap-1.5 text-muted hover:text-white transition-colors text-sm shrink-0"
                         >
                             <ArrowLeft size={15} /> Back

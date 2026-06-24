@@ -545,14 +545,14 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
            )
          ), 0) AS current_user_count
        FROM ad_categories ac
-       WHERE ac.website_id = $1
+       WHERE ac.website_id = $1::uuid
        ORDER BY ac.created_at DESC
        LIMIT $2 OFFSET $3`,
       [websiteId, limit, (page - 1) * limit]
     );
 
     const { rows: [{ count }] } = await query(
-      `SELECT COUNT(*) FROM ad_categories WHERE website_id=$1`, [websiteId]
+      `SELECT COUNT(*) FROM ad_categories WHERE website_id=$1::uuid`, [websiteId]
     );
 
     // Add isFullyBooked flag

@@ -23,6 +23,9 @@ router.get('/auth/creator/session',         controller.getSession);
 router.get('/auth/creator/check-username',  controller.checkUsername);
 router.post('/auth/creator/logout',         controller.logout);
 
+// ─── Public ────────────────────────────────────────────────────────────────────
+router.get('/api/creators/public',              controller.getPublicCreators);
+
 // ─── Social stats ─────────────────────────────────────────────────────────────
 router.get('/api/social/stats',                 controller.getSocialStats);
 router.get('/api/social/video-stats',           controller.getSocialVideoStats);

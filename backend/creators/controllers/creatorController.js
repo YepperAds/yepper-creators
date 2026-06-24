@@ -439,6 +439,55 @@ exports.getSocialVideoStats = async (req, res) => {
   }
 };
 
+// GET /api/creators/public — public, no auth. Powers the marketing homepage:
+// every creator with a connected YouTube channel, plus their most recent videos.
+exports.getPublicCreators = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT
+         c.id, c.username, c.full_name, c.avatar, c.what_they_do,
+         sc.username    AS channel_name,
+         sc.profile_url AS channel_url,
+         sc.followers_count AS subscribers,
+         COALESCE(sc.total_views, 0) AS total_views,
+         COALESCE(v.videos, '[]'::json) AS videos
+       FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       LEFT JOIN LATERAL (
+         SELECT json_agg(t) AS videos FROM (
+           SELECT DISTINCT ON (COALESCE(video_url, title))
+             title, views, likes, published_at,
+             thumbnail_url AS thumbnail, video_url AS url
+           FROM social_video_stats
+           WHERE creator_id = c.id AND provider = 'youtube'
+           ORDER BY COALESCE(video_url, title), published_at DESC NULLS LAST, id DESC
+           LIMIT 4
+         ) t
+       ) v ON true
+       ORDER BY sc.followers_count DESC NULLS LAST, c.created_at DESC
+       LIMIT 60`,
+    );
+
+    const data = result.rows.map(r => ({
+      id:          String(r.id),
+      username:    r.username ?? '',
+      name:        r.full_name || r.username || 'Creator',
+      avatar:      r.avatar || null,
+      whatTheyDo:  r.what_they_do || null,
+      channelName: r.channel_name || r.full_name || '',
+      channelUrl:  r.channel_url || null,
+      subscribers: Number(r.subscribers || 0),
+      totalViews:  Number(r.total_views || 0),
+      videos:      r.videos || [],
+    }));
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[creators] /api/creators/public error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch creators' });
+  }
+};
+
 exports.disconnectSocial = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });

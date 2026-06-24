@@ -128,7 +128,7 @@ export default function Sidebar() {
     };
   }, []);
 
-  const isActive = (path?: string) => path ? pathname?.startsWith(path) : false;
+  const isActive = (path?: string) => path ? (path === '/' ? pathname === '/' : pathname?.startsWith(path)) : false;
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -144,22 +144,22 @@ export default function Sidebar() {
   const navGroups = [
     {
       items: [
-        { label: 'Explore',          href: '/explore',          icon: OutlineGlobe,     activeIcon: SolidGlobe },
-        { label: 'Analytics',        href: '/analytics',        icon: OutlineChart,     activeIcon: SolidChart },
-        { label: 'Connect accounts', href: '/connect-accounts', icon: OutlineLink,      activeIcon: SolidLink },
-        { label: 'My Profile',       href: '/profile',          icon: OutlineUser,      activeIcon: SolidUser },
+        { label: 'Explore',          href: '/',                       icon: OutlineGlobe,     activeIcon: SolidGlobe },
+        { label: 'Analytics',        href: '/?panel=analytics',        icon: OutlineChart,     activeIcon: SolidChart },
+        { label: 'Connect accounts', href: '/?panel=connect-accounts', icon: OutlineLink,      activeIcon: SolidLink },
+        { label: 'My Profile',       href: '/?panel=profile',          icon: OutlineUser,      activeIcon: SolidUser },
       ]
     },
     {
       // Global links — accessible to both Content Creators and Web Developers
       items: [
-        { label: 'Connect Website', href: '/connect-website', icon: OutlineWifi, activeIcon: SolidWifi },
-        { label: 'Wallet',          href: '/wallet',          icon: OutlineBanknotes, activeIcon: SolidBanknotes },
+        { label: 'Connect Website', href: '/?panel=websites', icon: OutlineWifi, activeIcon: SolidWifi },
+        { label: 'Wallet',          href: '/?panel=wallet',   icon: OutlineBanknotes, activeIcon: SolidBanknotes },
       ]
     },
     {
       items: [
-        { label: 'Notifications', href: '/notifications', icon: OutlineBell,     activeIcon: SolidBell },
+        { label: 'Notifications', href: '/?panel=notifications', icon: OutlineBell,     activeIcon: SolidBell },
         {
           label:      'Settings',
           icon:       OutlineCog,
@@ -198,7 +198,7 @@ export default function Sidebar() {
       {/* ── Header & Logo ── */}
       <div className={`px-4 mb-8 flex ${collapsed ? 'flex-col gap-6 items-center' : 'items-center justify-between'} relative z-40`}>
         {!collapsed ? (
-          <Link href="/explore" className="flex items-center px-1 shrink-0 min-h-[28px]">
+          <Link href="/" className="flex items-center px-1 shrink-0 min-h-[28px]">
             {/*
             {mounted && resolvedTheme === 'dark' && (
               <Image src="/logos/logo-blacktheme.png" alt="Yepper" width={100} height={28} className="h-7 w-auto shrink-0" priority />
@@ -210,7 +210,7 @@ export default function Sidebar() {
             <Image src="/logos/yepper-logo.png" alt="Yepper" width={100} height={28} className="h-8 w-auto shrink-0 object-contain" priority />
           </Link>
         ) : (
-          <Link href="/explore" className="flex items-center justify-center shrink-0 min-h-[32px]">
+          <Link href="/" className="flex items-center justify-center shrink-0 min-h-[32px]">
             {/*
             {mounted && resolvedTheme === 'dark' && (
               <Image src="/logos/icon-blacktheme.png" alt="Yepper" width={32} height={32} className="w-8 h-8 shrink-0" priority />

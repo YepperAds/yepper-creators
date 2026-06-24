@@ -48,7 +48,7 @@ function CallbackContent() {
       }
 
       // Session cookie is now set via fetch — browser won't block it
-      router.replace('/explore');
+      router.replace('/');
     }
 
     exchangeToken();

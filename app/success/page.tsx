@@ -29,13 +29,7 @@ function SuccessContent() {
           return;
         }
 
-        const user = json.data?.user ?? json.user ?? null;
-        const needsProfile = user && (!user.username || (!user.whatTheyDo && !user.what_they_do));
-        if (needsProfile) {
-          router.replace('/choose-role');
-        } else {
-          router.replace('/explore');
-        }
+        router.replace('/');
       } catch {
         router.replace('/login');
       } finally {

@@ -52,7 +52,6 @@ export async function GET(req: NextRequest) {
 
   // 3. Exchange Google profile for a Yepper JWT
   let jwt: string | null = null;
-  let needsProfile = false;
   try {
     const exchangeRes = await fetch(`${ADSENSE_API}/api/auth/google-exchange`, {
       method: 'POST',
@@ -67,20 +66,20 @@ export async function GET(req: NextRequest) {
     });
 
     if (exchangeRes.ok) {
-      const data = (await exchangeRes.json()) as { success: boolean; token?: string; needsProfile?: boolean };
+      const data = (await exchangeRes.json()) as { success: boolean; token?: string };
       if (data.success && data.token) {
         jwt = data.token;
-        needsProfile = Boolean(data.needsProfile);
       }
     }
   } catch { /* handled below */ }
 
   if (!jwt) return NextResponse.redirect(new URL('/login?error=google_exchange_failed', origin));
 
-  // 4. Set both session cookies and redirect to role selection
+  // 4. Set both session cookies and redirect to the dashboard — no role-selection
+  // step, the dashboard shows both website and YouTube features to everyone.
   const state = req.nextUrl.searchParams.get('state');
   const from  = state && state.startsWith('/') && !state.startsWith('//') ? state : null;
-  const redirectPath = needsProfile ? '/choose-role' : (from || '/choose-role');
+  const redirectPath = from || '/';
   const res = NextResponse.redirect(new URL(redirectPath, origin));
 
   const cookieOpts = {

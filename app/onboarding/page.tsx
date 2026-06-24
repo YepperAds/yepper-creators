@@ -137,7 +137,7 @@ export default function OnboardingPage() {
 
       // Already fully onboarded
       if (currentUser.username && currentUser.what_they_do) {
-        router.replace('/explore');
+        router.replace('/');
         return;
       }
 
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
     }
 
     setDone(true);
-    setTimeout(() => router.replace('/explore'), 1200);
+    setTimeout(() => router.replace('/'), 1200);
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────────

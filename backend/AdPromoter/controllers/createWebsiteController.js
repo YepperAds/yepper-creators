@@ -11,10 +11,13 @@ const dns = require('dns').promises;
 const crypto = require('crypto');
 require('dotenv').config();
 
+// NOTE: deliberately whitelisted — `websites` rows also hold gsc_access_token /
+// gsc_refresh_token / verification_token, and these endpoints are public (no auth).
+// Never spread the raw row here.
 function toClient(w) {
   if (!w) return null;
   return {
-    ...w,
+    id: w.id,
     _id: w.id,
     websiteName: w.website_name,
     websiteLink: w.website_link,
@@ -25,7 +28,8 @@ function toClient(w) {
     ownerId: w.owner_id,
     isBusinessCategoriesSelected: w.is_business_categories_selected,
     verificationStatus: w.verification_status,
-    businessCategories: w.business_categories,   // ← this was missing
+    businessCategories: w.business_categories,
+    createdAt: w.created_at,
   };
 }
 
@@ -370,7 +374,7 @@ exports.updateWebsiteName = async (req, res) => {
 exports.getAllWebsites = async (req, res) => {
   try {
     const websites = await Website.findAll();
-    res.status(200).json(websites.map(w => ({ ...w, businessCategories: w.business_categories || [] })));
+    res.status(200).json(websites.map(toClient));
   } catch (error) {
     console.error('Error fetching websites:', error);
     res.status(500).json({ message: 'Failed to fetch websites', error: error.message });

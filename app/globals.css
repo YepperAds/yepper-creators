@@ -96,8 +96,52 @@ body {
   outline-offset: 2px;
 }
 
-/* ── Auth campaign mosaic — infinite scroll animation ─────────── */
-@keyframes scroll-up {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-50%); }
+/* ── Brand gradient mesh — ambient backdrop for the whole homepage,
+   dashboard, and auth screen. Lovable-style: vivid color blobs that
+   fade into the page background, built from the two brand colors only
+   (coral + blue). The overlap reads as a soft violet, same trick
+   Lovable's blue→pink mesh uses. `fixed` attachment pins it to the
+   viewport so it reads as one continuous backdrop behind every card
+   as the page scrolls, instead of being boxed into a hero section. */
+.yp-mesh {
+  background-image:
+    radial-gradient(at 15% 0%,  rgba(16,144,200,0.85) 0px, transparent 60%),
+    radial-gradient(at 80% 5%,  rgba(16,144,200,0.70) 0px, transparent 55%),
+    radial-gradient(at 60% 35%, rgba(150,90,170,0.55) 0px, transparent 60%),
+    radial-gradient(at 25% 55%, rgba(232,71,43,0.65) 0px, transparent 60%),
+    radial-gradient(at 85% 65%, rgba(232,71,43,0.75) 0px, transparent 55%),
+    radial-gradient(at 50% 95%, rgba(232,71,43,0.85) 0px, transparent 55%);
+  background-attachment: fixed;
+  background-color: var(--color-surface-1);
+}
+.dark .yp-mesh {
+  background-image:
+    radial-gradient(at 15% 0%,  rgba(16,144,200,0.55) 0px, transparent 60%),
+    radial-gradient(at 80% 5%,  rgba(16,144,200,0.45) 0px, transparent 55%),
+    radial-gradient(at 60% 35%, rgba(150,90,170,0.30) 0px, transparent 60%),
+    radial-gradient(at 25% 55%, rgba(232,71,43,0.40) 0px, transparent 60%),
+    radial-gradient(at 85% 65%, rgba(232,71,43,0.48) 0px, transparent 55%),
+    radial-gradient(at 50% 95%, rgba(232,71,43,0.55) 0px, transparent 55%);
+}
+
+/* ── Website-card attention motion — a logo is static, so give the tile
+   its own life: a light sweep across the gradient + a gentle logo float,
+   the non-video equivalent of the YouTube cards' autoplay loop. ── */
+@keyframes yp-shimmer {
+  0%   { transform: translateX(-220%) rotate(8deg); opacity: 0; }
+  15%  { opacity: 1; }
+  50%  { transform: translateX(220%) rotate(8deg); opacity: 1; }
+  65%  { opacity: 0; }
+  100% { transform: translateX(220%) rotate(8deg); opacity: 0; }
+}
+.yp-shimmer {
+  animation: yp-shimmer 3.5s ease-in-out infinite;
+}
+
+@keyframes yp-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.yp-float {
+  animation: yp-float 3s ease-in-out infinite;
 }

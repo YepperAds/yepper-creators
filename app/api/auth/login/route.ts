@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: upstream.status });
   }
 
-  const res = NextResponse.json({ ...data, redirectTo: '/choose-role' });
+  const res = NextResponse.json({ ...data, redirectTo: '/' });
 
   if (data.token) {
     const cookieOpts = {

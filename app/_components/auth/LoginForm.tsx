@@ -1,24 +1,7 @@
 'use client';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Unified Login Form
-// ─────────────────────────────────────────────────────────────────────────────
-// MIGRATION from yepper-creators original (Google-only) and
-// clientZip Login.js (email/password + Google via react-router):
-//
-//   [MERGED]  Email/password form from clientZip/src/pages/Login.js
-//   [MERGED]  Google OAuth button from both originals
-//   [CHANGED] Form submission hits /api/auth/login (Next.js proxy) which
-//             stores the JWT as an HTTP-only cookie — no localStorage
-//   [CHANGED] On success, router.replace('/') — Next.js navigation
-//   [REMOVED] react-router-dom, useAuth context, axios
-//   [ADDED]   Register link to /register page
-// ─────────────────────────────────────────────────────────────────────────────
-
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
-import type { LoginResponse } from '@/app/_types/auth';
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" aria-hidden="true">
@@ -30,89 +13,51 @@ const GoogleIcon = () => (
 );
 
 export default function LoginForm() {
-  const router = useRouter();
-
-  // Form state
-  // Email/password removed — Google-only auth
-
-  // UI state
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
-
-  // Verification state (when user needs to verify email)
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [maskedEmail, setMaskedEmail] = useState('');
-
-  function validate() {
-    const e = { email: '', password: '' };
-    if (!email.trim()) e.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email address';
-    if (!password) e.password = 'Password is required';
-    setFieldErrors(e);
-    return !e.email && !e.password;
-  }
-
-  async function handleSubmit(_ev: FormEvent) {
-    // No-op — email/password login removed
-    return;
-  }
 
   function handleGoogleLogin() {
     setGoogleLoading(true);
-    // Initiates the Google OAuth flow via backend API (frontend points to backend)
     window.location.href = '/api/auth/google';
-  }
-
-  // ── Needs email verification ────────────────────────────────────────────────
-  if (needsVerification) {
-    return (
-      <div className="space-y-4 text-center">
-        <div className="w-12 h-12 mx-auto rounded-full bg-yellow-100 flex items-center justify-center text-2xl">✉️</div>
-        <h3 className="font-semibold text-white">Check your email</h3>
-        <p className="text-sm text-zinc-400">
-          We sent a verification link to <span className="text-white">{maskedEmail}</span>. Click it to verify your account.
-        </p>
-        <button
-          onClick={() => { setNeedsVerification(false); setError(''); }}
-          className="text-xs text-zinc-500 underline"
-        >
-          Back to login
-        </button>
-      </div>
-    );
   }
 
   return (
     <div className="flex flex-col gap-5">
-
-      {/* ── OAuth buttons ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 rounded-lg border border-zinc-800
-            bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700 text-white text-sm font-medium
-            py-2.5 px-4 transition-all duration-200 disabled:opacity-60"
-        >
-          {googleLoading
-            ? <span className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
-            : <GoogleIcon />}
-          Continue with Google
-        </button>
+      <div className="text-center">
+        <h1 className="text-xl font-bold text-white font-(--font-display)">Welcome to Yepper</h1>
+        <p className="mt-1 text-sm text-subtle">Log in to manage your websites and ads.</p>
       </div>
 
-      {/* Email/password removed — only Google OAuth is available */}
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={googleLoading}
+        className="w-full flex items-center justify-center gap-3 rounded-full border border-border
+          bg-background hover:bg-surface-3 text-white text-sm font-medium
+          py-2.5 px-4 transition-colors disabled:opacity-60"
+      >
+        {googleLoading
+          ? <span className="w-4 h-4 border-2 border-border border-t-coral rounded-full animate-spin" />
+          : <GoogleIcon />}
+        Continue with Google
+      </button>
 
-      {/* Manual sign up removed — users sign up via Google on this page */}
+      {/* DEV-ONLY: local testing bypass, delete this block + app/api/auth/dev-login before shipping */}
+      {process.env.NODE_ENV !== 'production' && (
+        <a
+          href="/api/auth/dev-login"
+          className="w-full flex items-center justify-center gap-2 rounded-full border border-dashed border-amber-300
+            bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium
+            py-2.5 px-4 transition-colors"
+        >
+          Continue as Local Dev (testing only)
+        </a>
+      )}
 
-      <p className="text-center text-xs text-zinc-600">
+      <p className="text-center text-xs text-muted">
         By continuing you agree to Yepper&apos;s{' '}
-        <Link href="/terms" className="text-zinc-500 hover:text-white underline underline-offset-2">Terms</Link>
+        <Link href="/terms" className="text-subtle hover:text-white underline underline-offset-2">Terms</Link>
         {' '}and{' '}
-        <Link href="/privacy" className="text-zinc-500 hover:text-white underline underline-offset-2">Privacy Policy</Link>
+        <Link href="/privacy" className="text-subtle hover:text-white underline underline-offset-2">Privacy Policy</Link>
       </p>
     </div>
   );

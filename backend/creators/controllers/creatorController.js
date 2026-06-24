@@ -518,7 +518,7 @@ exports.refreshSocialStats = async (req, res) => {
 
     const fetchChannel = async (t) => {
       try {
-        const r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', {
+        const r = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true', {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (r.status !== 200) return null;
@@ -556,11 +556,15 @@ exports.refreshSocialStats = async (req, res) => {
        Number(channel.statistics?.videoCount || 0), channel.snippet?.title || '', session, provider],
     );
 
-    // Refresh last 5 videos
+    // Refresh last 5 videos — read the channel's uploads playlist directly rather than
+    // search.list, which can lag behind for just-published videos (search indexing delay).
     try {
-      const searchRes  = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&order=date&maxResults=5&type=video`, { headers: { Authorization: `Bearer ${token}` } });
-      const searchData = await searchRes.json().catch(() => null);
-      const videoIds   = (searchData?.items || []).map((it) => it.id?.videoId).filter(Boolean);
+      const uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads;
+      const playlistRes  = uploadsPlaylistId
+        ? await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=5`, { headers: { Authorization: `Bearer ${token}` } })
+        : null;
+      const playlistData = playlistRes ? await playlistRes.json().catch(() => null) : null;
+      const videoIds   = (playlistData?.items || []).map((it) => it.contentDetails?.videoId).filter(Boolean);
       if (videoIds.length) {
         const vidsRes  = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}`, { headers: { Authorization: `Bearer ${token}` } });
         const vidsData = await vidsRes.json().catch(() => null);
@@ -885,6 +889,10 @@ exports.socialConnect = (req, res) => {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('scope',         'https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.upload');
     authUrl.searchParams.set('access_type',   'offline');
+    // Google only issues a refresh_token on a user's first consent for this app+scope —
+    // without forcing the consent screen again, a reconnect can silently come back with
+    // no refresh_token, leaving the connection stuck once the access token expires.
+    authUrl.searchParams.set('prompt',        'consent');
     authUrl.searchParams.set('state',         user_uuid || '');
     return res.redirect(authUrl.toString());
   }
@@ -928,7 +936,7 @@ exports.socialConnectCallback = async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 
-      const channelRes  = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
+      const channelRes  = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true`, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
       const channelData = await channelRes.json().catch(() => null);
       const channel     = channelData?.items?.[0];
 
@@ -957,13 +965,18 @@ exports.socialConnectCallback = async (req, res) => {
         { provider: 'youtube', channel_id: channel.id, channel_name: channelName }
       ).catch(() => {});
 
-      // Fetch latest 5 videos and store basic stats so frontend can show estimates immediately
+      // Fetch latest 5 videos and store basic stats so frontend can show estimates immediately.
+      // Reads the channel's uploads playlist directly rather than search.list, which can lag
+      // behind for just-published videos (search indexing delay) — common right after connect.
       try {
-        const searchRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&order=date&maxResults=5&type=video`, {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        });
-        const searchData = await searchRes.json().catch(() => null);
-        const videoIds = (searchData?.items || []).map((it) => it.id?.videoId).filter(Boolean);
+        const uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads;
+        const playlistRes = uploadsPlaylistId
+          ? await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=5`, {
+              headers: { Authorization: `Bearer ${tokenData.access_token}` },
+            })
+          : null;
+        const playlistData = playlistRes ? await playlistRes.json().catch(() => null) : null;
+        const videoIds = (playlistData?.items || []).map((it) => it.contentDetails?.videoId).filter(Boolean);
         if (videoIds.length) {
           const vidsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}`, {
             headers: { Authorization: `Bearer ${tokenData.access_token}` },

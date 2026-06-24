@@ -1183,6 +1183,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                     </div>
                     <div className="max-w-6xl mx-auto px-6 py-8">
                         <AddNewCategory
+                            websiteId={websiteId}
                             onSubmitSuccess={handleCloseCategoriesForm}
                             monthlyTraffic={analytics?.grantDisplay ? analytics.grantDisplay.grantedTraffic : website?.monthlyTraffic}
                             gscData={analytics?.grantDisplay ? undefined : gscData}

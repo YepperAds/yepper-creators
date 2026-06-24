@@ -119,7 +119,7 @@ export default function OwnContentCTA() {
           {websites.map((w) => (
             <Chip
               key={w.id}
-              href={`/?panel=website-details&websiteId=${w.id}`}
+              href={`/?panel=websites&websiteId=${w.id}`}
               icon={
                 w.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element

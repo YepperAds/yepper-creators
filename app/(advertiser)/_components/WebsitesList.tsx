@@ -11,6 +11,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as SolidCheck } from '@heroicons/react/24/solid';
+import WebsiteDetails from '@/app/(adsense)/ad-promoter/pages/website/[websiteId]/page';
 
 interface Website {
   id:          string | number;
@@ -23,12 +24,14 @@ interface Website {
 // in-place "Your websites" panel can reuse the exact same list + disconnect
 // flow. `addWebsiteHref` lets the dashboard point "Add Website" at the
 // in-panel route (/?panel=add-website) instead of the standalone page.
+// "View Details" expands a website's full details (tabs, ad spaces,
+// analytics) inline in place of its card row, rather than navigating away.
 export default function WebsitesList({
   addWebsiteHref = '/ad-promoter/pages/add-website',
-  websiteDetailsHref = (id: string | number) => `/ad-promoter/pages/website/${id}`,
+  initialExpandedId,
 }: {
   addWebsiteHref?: string;
-  websiteDetailsHref?: (id: string | number) => string;
+  initialExpandedId?: string | number;
 } = {}) {
   const [websites,           setWebsites]           = useState<Website[]>([]);
   const [loading,            setLoading]            = useState(true);
@@ -36,6 +39,9 @@ export default function WebsitesList({
   const [disconnecting,      setDisconnecting]      = useState<Website | null>(null);
   const [confirmText,        setConfirmText]        = useState('');
   const [disconnectLoading,  setDisconnectLoading]  = useState(false);
+  const [expandedId,         setExpandedId]         = useState<string | null>(
+    initialExpandedId != null ? String(initialExpandedId) : null,
+  );
 
   const fetchWebsites = useCallback(async () => {
     setLoading(true);
@@ -197,47 +203,58 @@ export default function WebsitesList({
         </div>
       ) : (
         <div className="space-y-4">
-          {websites.map((site) => (
-            <div
-              key={site.id}
-              className="bg-[color:var(--color-surface-1)] border border-[color:var(--color-border)] rounded-2xl overflow-hidden"
-            >
-              <div className="p-5 flex items-center justify-between gap-4 border-b border-[color:var(--color-border)]">
-                <div className="flex items-center gap-3 min-w-0">
-                  {site.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={site.imageUrl} alt="icon" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] flex items-center justify-center shrink-0">
-                      <GlobeAltIcon className="w-5 h-5 text-[color:var(--color-muted)]" />
+          {websites.map((site) => {
+            const isExpanded = expandedId === String(site.id);
+            return (
+              <div
+                key={site.id}
+                className="bg-[color:var(--color-surface-1)] border border-[color:var(--color-border)] rounded-2xl overflow-hidden"
+              >
+                <div className="p-5 flex items-center justify-between gap-4 border-b border-[color:var(--color-border)]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {site.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={site.imageUrl} alt="icon" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] flex items-center justify-center shrink-0">
+                        <GlobeAltIcon className="w-5 h-5 text-[color:var(--color-muted)]" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-[color:var(--color-white)] truncate">{site.websiteName}</p>
+                      <p className="text-xs text-[color:var(--color-muted)] mt-0.5 truncate">{site.websiteLink}</p>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[color:var(--color-white)] truncate">{site.websiteName}</p>
-                    <p className="text-xs text-[color:var(--color-muted)] mt-0.5 truncate">{site.websiteLink}</p>
                   </div>
+                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 shrink-0">
+                    <SolidCheck className="w-3.5 h-3.5" /> Active
+                  </span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 shrink-0">
-                  <SolidCheck className="w-3.5 h-3.5" /> Active
-                </span>
-              </div>
 
-              <div className="flex divide-x divide-[color:var(--color-border)]">
-                <Link
-                  href={websiteDetailsHref(site.id)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-[color:var(--color-white)] hover:bg-[color:var(--color-surface-2)] transition-colors"
-                >
-                  <ChartBarIcon className="w-4 h-4" /> View Details
-                </Link>
-                <button
-                  onClick={() => { setDisconnecting(site); setConfirmText(''); }}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-red-400 hover:bg-red-500/5 transition-colors"
-                >
-                  <TrashIcon className="w-4 h-4" /> Disconnect
-                </button>
+                {isExpanded ? (
+                  <WebsiteDetails
+                    websiteId={String(site.id)}
+                    embedded
+                    onBack={() => setExpandedId(null)}
+                  />
+                ) : (
+                  <div className="flex divide-x divide-[color:var(--color-border)]">
+                    <button
+                      onClick={() => setExpandedId(String(site.id))}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-[color:var(--color-white)] hover:bg-[color:var(--color-surface-2)] transition-colors"
+                    >
+                      <ChartBarIcon className="w-4 h-4" /> View Details
+                    </button>
+                    <button
+                      onClick={() => { setDisconnecting(site); setConfirmText(''); }}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-red-400 hover:bg-red-500/5 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" /> Disconnect
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

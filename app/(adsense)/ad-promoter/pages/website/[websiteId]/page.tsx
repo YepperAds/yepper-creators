@@ -55,7 +55,7 @@ const TABS = [
     { id: 'analytics', label: 'Analytics',     icon: Activity },
 ];
 
-const WebsiteDetails = ({ websiteId: websiteIdProp, onBack }: { websiteId?: string; onBack?: () => void } = {}) => {
+const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websiteId?: string; onBack?: () => void; embedded?: boolean } = {}) => {
     const router = useRouter();
     const params = useParams();
     const websiteId = websiteIdProp ?? (params?.websiteId as string);
@@ -315,7 +315,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack }: { websiteId?: stri
     if (loading) return <LoadingSpinner />;
 
     if (fetchError) return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className={embedded ? 'bg-background flex items-center justify-center py-16' : 'min-h-screen bg-background flex items-center justify-center'}>
             <div className="text-center max-w-md">
                 <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
                 <Heading level={2} className="mb-2">Failed to Load</Heading>
@@ -329,10 +329,10 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack }: { websiteId?: stri
     const pendingCount = pending.length;
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className={embedded ? 'bg-background' : 'min-h-screen bg-background'}>
 
             {/* ── Sticky Page Header + Tabs ── */}
-            <div className="border-b border-border bg-background sticky top-0 z-20">
+            <div className={embedded ? 'border-b border-border bg-background' : 'border-b border-border bg-background sticky top-0 z-20'}>
                 <div className="max-w-6xl mx-auto px-6">
 
                     {/* Top bar */}

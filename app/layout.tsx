@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/app/ThemeProvider";
 import BackendWarmup from "@/app/_components/BackendWarmup";
+import QueryProviders from "@/app/(adsense)/providers";
 
 export default function RootLayout({
   children,
@@ -36,8 +37,10 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col font-(--font-inter)" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <BackendWarmup />
-          {children}
+          <QueryProviders>
+            <BackendWarmup />
+            {children}
+          </QueryProviders>
         </ThemeProvider>
       </body>
     </html>

@@ -12,6 +12,8 @@ import {
   Cog6ToothIcon,
   BanknotesIcon,
   ArrowLeftEndOnRectangleIcon,
+  PlusCircleIcon,
+  VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import SettingsModal from '@/app/(advertiser)/_components/SettingsModal';
 
@@ -19,6 +21,11 @@ const MAIN_ITEMS = [
   { label: 'Home',      panel: null,         icon: HomeIcon },
   { label: 'Advertise', panel: 'advertise',  icon: MegaphoneIcon },
   { label: 'Wallet',    panel: 'wallet',     icon: BanknotesIcon },
+];
+
+const ADD_ITEMS = [
+  { label: 'Add website',          panel: 'add-website',      icon: PlusCircleIcon },
+  { label: 'Add YouTube channel',  panel: 'connect-accounts', icon: VideoCameraIcon },
 ];
 
 const ACCOUNT_ITEMS = [
@@ -69,6 +76,14 @@ export default function LeftRail() {
         <div className="rounded-2xl border border-border bg-surface-1 p-3 sticky top-4">
           <nav className="flex flex-col gap-1">
             {MAIN_ITEMS.map((item) => (
+              <NavRow key={item.label} label={item.label} Icon={item.icon} active={isActive(item.panel)} href={hrefFor(item.panel)} />
+            ))}
+          </nav>
+
+          <div className="my-3 h-px bg-border" />
+
+          <nav className="flex flex-col gap-1">
+            {ADD_ITEMS.map((item) => (
               <NavRow key={item.label} label={item.label} Icon={item.icon} active={isActive(item.panel)} href={hrefFor(item.panel)} />
             ))}
           </nav>

@@ -139,6 +139,9 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                     .bindPopup(`<strong>${pt.city}, ${pt.country}</strong><br/>${pt.device}<br/>${new Date(pt.timestamp).toLocaleString()}`).addTo(map);
             });
             leafletMapRef.current = map;
+            // Container width can settle a frame late inside the embedded/expanding
+            // card layout, leaving the map showing only its initial top-left tiles.
+            requestAnimationFrame(() => map.invalidateSize());
         };
         if (!(window as any).L) {
             if (!document.getElementById('leaflet-css')) {
@@ -681,7 +684,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                 <p className="text-sm text-muted mt-1">Design how ads appear on your website. Each space can have its own unique styling.</p>
                             </div>
                             {categories.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className={`grid grid-cols-1 ${embedded ? '' : 'sm:grid-cols-2 lg:grid-cols-3'} gap-4`}>
                                     {categories.map((category: any) => (
                                         <div key={category._id} className="border border-border bg-surface-1 flex flex-col">
                                             <div className="p-4 border-b border-border flex items-start justify-between gap-3">
@@ -777,7 +780,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                             ) : (
                                 <>
                                     {/* KPIs */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className={`grid grid-cols-2 ${embedded ? '' : 'md:grid-cols-4'} gap-4`}>
                                         {[
                                             { label: 'Total Views', value: analytics.totalViews?.toLocaleString() || '0', icon: Eye },
                                             { label: 'Unique Visitors', value: analytics.uniqueVisitors?.toLocaleString() || '0', icon: Users },
@@ -817,14 +820,14 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                     )}
 
                                     {/* Map + countries */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                                        <div className="lg:col-span-2 border border-border">
+                                    <div className={`grid grid-cols-1 ${embedded ? '' : 'lg:grid-cols-3'} gap-5`}>
+                                        <div className={`${embedded ? '' : 'lg:col-span-2'} border border-border`}>
                                             <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                                                 <MapPin size={12} className="text-muted" />
                                                 <span className="text-sm font-semibold text-white">Visitor Locations</span>
                                                 <span className="ml-auto text-xs text-muted">{analytics.mapPoints?.length || 0} points</span>
                                             </div>
-                                            <div className="p-2"><div ref={mapRef} style={{ height: '300px', width: '100%' }} /></div>
+                                            <div className="p-2"><div ref={mapRef} style={{ height: embedded ? '220px' : '300px', width: '100%' }} /></div>
                                             <div className="px-4 py-2 border-t border-border flex gap-4 text-xs text-muted">
                                                 {[['#10b981','Desktop'],['#3b82f6','Mobile'],['#8b5cf6','Tablet']].map(([c,l]) => (
                                                     <span key={l} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{background:c}} />{l}</span>
@@ -854,7 +857,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                     </div>
 
                                     {/* Devices + referrers + pages */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className={`grid grid-cols-1 ${embedded ? '' : 'md:grid-cols-3'} gap-5`}>
                                         {[
                                             {
                                                 title: 'Devices',
@@ -931,7 +934,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                                 {hoursLeft > 0 && <span className="text-amber-400 ml-2">· Visible for {hoursLeft}h more</span>}
                                             </p>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                        <div className={`grid grid-cols-1 ${embedded ? '' : 'sm:grid-cols-3'} gap-4 mb-4`}>
                                             {[
                                                 { label: 'Monthly Visitors', value: gd.grantedTraffic?.toLocaleString() ?? '—', sub: 'as stated by you' },
                                                 { label: 'Monthly Views', value: gd.grantedViews?.toLocaleString() ?? '—', sub: 'as stated by you' },
@@ -997,7 +1000,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                     </div>
                                 ) : (
                                     <div className="space-y-5">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className={`grid grid-cols-2 ${embedded ? '' : 'md:grid-cols-4'} gap-4`}>
                                             {[
                                                 { label: 'Total Clicks', value: gscData.summary?.clicks?.toLocaleString() ?? '0', sub: 'from Google Search' },
                                                 { label: 'Impressions', value: gscData.summary?.impressions?.toLocaleString() ?? '0', sub: 'times shown' },
@@ -1031,7 +1034,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className={`grid grid-cols-1 ${embedded ? '' : 'md:grid-cols-2'} gap-5`}>
                                             <div className="border border-border">
                                                 <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Top Search Queries</div>
                                                 <div className="divide-y divide-border max-h-64 overflow-y-auto">

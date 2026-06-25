@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import VideoEmbed from '@/app/_components/home/VideoEmbed';
+import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import WebsiteLogoTile from './WebsiteLogoTile';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 
@@ -61,14 +62,12 @@ function buildCategories(websites: PublicWebsite[], creators: PublicCreator[]): 
   return Array.from(map.values());
 }
 
-function CompactCreatorCard({ creator }: { creator: PublicCreator }) {
+function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator; onCollaborate: (creator: PublicCreator) => void }) {
   const videos = (creator.videos || []).slice(0, 3);
   return (
-    <a
-      href={creator.channelUrl ?? '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-56 shrink-0 rounded-xl bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
+    <button
+      onClick={() => onCollaborate(creator)}
+      className="w-56 shrink-0 text-left rounded-xl bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
     >
       <div className="flex items-center gap-2 mb-2">
         {creator.avatar ? (
@@ -91,7 +90,7 @@ function CompactCreatorCard({ creator }: { creator: PublicCreator }) {
           ))}
         </div>
       )}
-    </a>
+    </button>
   );
 }
 
@@ -112,6 +111,7 @@ export default function AdvertiseBrowser({ websites, creators }: { websites: Pub
   const [adSpaces, setAdSpaces] = useState<AdSpace[]>([]);
   const [loadingSpaces, setLoadingSpaces] = useState(false);
   const [spacesError, setSpacesError] = useState('');
+  const [collaborateWith, setCollaborateWith] = useState<PublicCreator | null>(null);
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
@@ -197,7 +197,7 @@ export default function AdvertiseBrowser({ websites, creators }: { websites: Pub
 
             {cat.creators.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
-                {cat.creators.map((c) => <CompactCreatorCard key={c.id} creator={c} />)}
+                {cat.creators.map((c) => <CompactCreatorCard key={c.id} creator={c} onCollaborate={setCollaborateWith} />)}
               </div>
             )}
 
@@ -209,6 +209,8 @@ export default function AdvertiseBrowser({ websites, creators }: { websites: Pub
           </section>
         ))
       )}
+
+      <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={() => setCollaborateWith(null)} />
     </div>
   );
 }

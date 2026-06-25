@@ -127,6 +127,7 @@ export default function ConnectAccountsPage() {
   // ── Post-Ad modal state ──────────────────────────────────────────────────────
   const [adPostCounts, setAdPostCounts] = useState<Record<string, number>>({});
   const [postAdProvider, setPostAdProvider] = useState<string | null>(null);
+  const [adSpaces, setAdSpaces] = useState<{ slotType: string; label: string; status: string }[]>([]);
 
 
   const popupRef = useRef<Window | null>(null);
@@ -196,6 +197,16 @@ export default function ConnectAccountsPage() {
 
   const openPostAdModal = (provider: string) => setPostAdProvider(provider);
   const closePostAdModal = () => setPostAdProvider(null);
+
+  // Read-only status of this creator's 3 placement slots — advertisers claim
+  // them via "Collaborate with [you]" from the Explore / Advertise feed.
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/social/youtube/ad-spaces/${user.id}`, { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => setAdSpaces(json?.data?.slots ?? []))
+      .catch(() => setAdSpaces([]));
+  }, [user?.id]);
 
   // Fetch video stats for YouTube accounts and compute pricing
   useEffect(() => {
@@ -497,6 +508,26 @@ export default function ConnectAccountsPage() {
               {/* Views calculation + tier pricing */}
               {account.provider === 'youtube' && (
                 <div className="p-5 space-y-3">
+                  {/* Ad spaces — advertisers claim these via "Collaborate with you" on Explore/Advertise */}
+                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
+                    <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Spaces</p>
+                    {adSpaces.length === 0 ? (
+                      <p className="text-xs text-(--color-muted)">Loading…</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {adSpaces.map((slot) => (
+                          <div key={slot.slotType} className="flex items-center justify-between text-xs">
+                            <span className="text-(--color-white)">{slot.label}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${slot.status === 'claimed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-(--color-surface-3) text-(--color-muted)'}`}>
+                              {slot.status === 'claimed' ? 'Claimed' : 'Open'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed — once claimed, their ad is offered automatically next time you hit Post Ad.</p>
+                  </div>
+
                   {/* Views-per-video formula */}
                   <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
                     <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Estimated Views Calculation</p>

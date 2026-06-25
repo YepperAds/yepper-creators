@@ -564,6 +564,92 @@ exports.getUserContent = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/users/:userId/websites/:websiteId/advertiser-check
+// Reports any advertisers with an active/approved placement on this website,
+// so the admin gets a warning before deleting it out from under them.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.checkWebsiteAdvertisers = async (req, res) => {
+  try {
+    const { websiteId } = req.params;
+
+    const { rows: categories } = await query(
+      `SELECT id, category_name FROM ad_categories WHERE website_id = $1::uuid`,
+      [websiteId]
+    );
+    const categoryNameMap = {};
+    for (const c of categories) categoryNameMap[String(c.id)] = c.category_name;
+
+    const { rows: ads } = await query(
+      `SELECT id, business_name, ad_owner_email, website_selections
+       FROM import_ads
+       WHERE EXISTS (
+         SELECT 1 FROM jsonb_array_elements(website_selections) sel
+         WHERE sel->>'websiteId' = $1
+           AND COALESCE((sel->>'isRejected')::boolean, false) = false
+           AND ((sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true OR sel->>'status' = 'active')
+       )`,
+      [websiteId]
+    );
+
+    const advertisers = ads.map(ad => {
+      const selections = Array.isArray(ad.website_selections)
+        ? ad.website_selections
+        : JSON.parse(ad.website_selections || '[]');
+      const spaces = [...new Set(
+        selections
+          .filter(s => s.websiteId === websiteId && !s.isRejected && (s.approved === true || s.confirmed === true || s.status === 'active'))
+          .flatMap(s => Array.isArray(s.categories) ? s.categories : [])
+          .map(catId => categoryNameMap[String(catId)])
+          .filter(Boolean)
+      )];
+      return { adId: ad.id, businessName: ad.business_name, email: ad.ad_owner_email, spaces };
+    });
+
+    res.json({ success: true, hasAdvertisers: advertisers.length > 0, advertisers });
+  } catch (err) {
+    console.error('checkWebsiteAdvertisers error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/users/:userId/ad-spaces/:spaceId/advertiser-check
+// ─────────────────────────────────────────────────────────────────────────────
+exports.checkAdSpaceAdvertisers = async (req, res) => {
+  try {
+    const { spaceId } = req.params;
+
+    const { rows: catRows } = await query(`SELECT category_name FROM ad_categories WHERE id = $1::uuid`, [spaceId]);
+    const spaceName = catRows[0]?.category_name || null;
+
+    const { rows: ads } = await query(
+      `SELECT id, business_name, ad_owner_email
+       FROM import_ads
+       WHERE EXISTS (
+         SELECT 1 FROM jsonb_array_elements(website_selections) sel
+         WHERE COALESCE((sel->>'isRejected')::boolean, false) = false
+           AND ((sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true OR sel->>'status' = 'active')
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
+             WHERE cat_id = $1
+           )
+       )`,
+      [spaceId]
+    );
+
+    const advertisers = ads.map(ad => ({
+      adId: ad.id, businessName: ad.business_name, email: ad.ad_owner_email,
+      spaces: spaceName ? [spaceName] : [],
+    }));
+
+    res.json({ success: true, hasAdvertisers: advertisers.length > 0, advertisers });
+  } catch (err) {
+    console.error('checkAdSpaceAdvertisers error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/admin/users/:userId/websites/:websiteId
 // Deletes ad_categories (CASCADE would handle it but let's be explicit) + website
 // ─────────────────────────────────────────────────────────────────────────────

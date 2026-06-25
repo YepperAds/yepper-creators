@@ -102,6 +102,10 @@ function DirectAdvertise() {
       try {
         const parsed = JSON.parse(savedData);
         setBusinessData(parsed.businessData || {});
+        // Restore the step too — needed so the googleReturn effect below (which
+        // only fires when step === 2) still sees step 2 after the OAuth round
+        // trip remounts this page fresh with step defaulted back to 1.
+        if (parsed.step) setStep(parsed.step);
       } catch (e) {}
     }
   }, []);
@@ -811,7 +815,7 @@ function DirectAdvertise() {
                   </div>
                   
                   <button
-                    onClick={createAdAndProceed}
+                    onClick={() => createAdAndProceed()}
                     disabled={isLoading}
                     className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >

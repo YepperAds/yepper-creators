@@ -14,14 +14,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { AuthResponse } from '@/app/_types/auth';
 
 type State = 'checking' | 'authorized' | 'unauthorized' | 'error';
 
+// Public entry points reachable by an unauthenticated visitor (e.g. clicking a
+// live ad space on a publisher's site). These pages handle their own inline
+// auth prompt and resume themselves after login, so the blanket redirect-to
+// -/login here would otherwise strand the visitor's in-progress ad/payment
+// flow and bounce them to the dashboard instead.
+const PUBLIC_PATHS = ['/ad-owner/pages/direct-ad'];
+
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
   const [state, setState] = useState<State>('checking');
 
   const check = useCallback(async () => {
@@ -44,8 +53,11 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }, [router]);
 
   useEffect(() => {
+    if (isPublicPath) return;
     setTimeout(() => check(), 0);
-  }, [check]);
+  }, [check, isPublicPath]);
+
+  if (isPublicPath) return <>{children}</>;
 
   if (state === 'checking') {
     return (

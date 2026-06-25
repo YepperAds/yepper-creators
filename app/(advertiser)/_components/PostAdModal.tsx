@@ -11,6 +11,11 @@ import {
 
 type Mode = 'auto' | 'manual';
 
+// Video uploads go straight to the Render backend, bypassing the Next.js API
+// route proxy — Vercel Serverless Functions hard-cap request bodies at
+// ~4.5MB regardless of streaming, which any real video file blows past.
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+
 // Under 5 minutes: the video gets exactly one ad, forced to the middle — no
 // choice. 5 minutes or longer: three candidate slots open up (just after the
 // 5-minute mark, the middle, and the 80%-through point), and the creator can
@@ -221,7 +226,7 @@ export default function PostAdModal({
           catch { resolve({ success: false, message: 'Invalid response' }); }
         };
         xhr.onerror = () => resolve({ success: false, message: 'Network error' });
-        xhr.open('POST', `/api/social/post-ad/${provider}`);
+        xhr.open('POST', `${BACKEND_URL}/api/social/post-ad/${provider}`);
         xhr.withCredentials = true;
         xhr.send(formData);
       });

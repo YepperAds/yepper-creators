@@ -573,7 +573,7 @@ exports.refreshSocialStats = async (req, res) => {
             await query(
               `INSERT INTO social_video_stats (creator_id, provider, title, views, likes, published_at, thumbnail_url, video_url)
                VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-               ON CONFLICT (creator_id, provider, video_url) DO UPDATE SET
+               ON CONFLICT (creator_id, provider, video_url) WHERE video_url IS NOT NULL DO UPDATE SET
                  title=EXCLUDED.title, views=EXCLUDED.views, likes=EXCLUDED.likes,
                  published_at=EXCLUDED.published_at, thumbnail_url=EXCLUDED.thumbnail_url, fetched_at=NOW()`,
               [session, 'youtube', v.snippet?.title || '', Number(v.statistics?.viewCount || 0),

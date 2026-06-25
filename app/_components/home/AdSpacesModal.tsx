@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckCircleIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { PublicCreator } from '@/app/_lib/public-home';
 
+// The claim upload includes an image file and can land close to the Next.js
+// API route proxy's ~4.5MB Vercel body cap — go straight to the backend
+// instead, same as the video upload in PostAdModal.tsx.
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+
 interface AdSlot {
   slotType: string;
   label: string;
@@ -95,7 +100,7 @@ export default function AdSpacesModal({
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
 
-      const res = await fetch(`/api/social/youtube/ad-spaces/${creator.id}/claim`, {
+      const res = await fetch(`${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim`, {
         method: 'POST',
         credentials: 'include',
         body: formData,

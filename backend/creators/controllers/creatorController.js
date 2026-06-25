@@ -1022,7 +1022,16 @@ exports.socialConnectCallback = async (req, res) => {
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { applyAdOverlay, estimateOverlaySeconds } = require('../utils/adOverlay');
+const { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration } = require('../utils/adOverlay');
+
+async function downloadToTemp(url, suffix) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to download ad creative (${res.status})`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const tmpPath = path.join(os.tmpdir(), `ypr_claim_${Date.now()}_${Math.random().toString(36).slice(2)}${suffix}`);
+  fs.writeFileSync(tmpPath, buffer);
+  return tmpPath;
+}
 
 const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB' };
 
@@ -1053,25 +1062,48 @@ exports.postAdVideo = async (req, res) => {
   let videoMime = videoFile.mimetype || 'video/mp4';
   let videoSize = videoFile.size;
   let overlayCleanup = null;
+  let claimedSlotTypes = [];
+  const downloadedImagePaths = [];
 
   const cleanup = () => {
     try { fs.unlinkSync(videoFile.path); } catch {}
     if (adImageFile) { try { fs.unlinkSync(adImageFile.path); } catch {} }
+    downloadedImagePaths.forEach((p) => { try { fs.unlinkSync(p); } catch {} });
     if (overlayCleanup) overlayCleanup();
   };
 
   try {
-    let markers = [];
-    if (mode === 'auto' && adImageFile) {
+    // Parsed regardless of mode: even in manual mode (creator downloads the
+    // claimed creative and adds it themselves) the claim still gets marked
+    // used once the post succeeds — see the UPDATE below.
+    try { claimedSlotTypes = JSON.parse(req.body.claimedSlotTypes || '[]'); } catch { claimedSlotTypes = []; }
+
+    let placements = [];
+    if (mode === 'auto' && Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
+      // Real advertiser-claimed slots — recompute placement times server-side
+      // (source of truth) and pull each advertiser's own creative image.
+      const duration = await probeDuration(videoFile.path);
+      const slotTimes = computeSlotTimes(duration);
+      const claimsRes = await query(
+        `SELECT slot_type, image_url FROM youtube_ad_claims WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
+        [session, claimedSlotTypes],
+      );
+      for (const row of claimsRes.rows) {
+        const time = slotTimes[row.slot_type];
+        if (time == null) continue; // e.g. video too short for that slot
+        const imagePath = await downloadToTemp(row.image_url, path.extname(row.image_url) || '.png');
+        downloadedImagePaths.push(imagePath);
+        placements.push({ time, imagePath });
+      }
+    } else if (mode === 'auto' && adImageFile) {
+      // Test/manual creative — same image at every chosen marker.
+      let markers = [];
       try { markers = JSON.parse(req.body.markers || '[]'); } catch { markers = []; }
+      placements = (Array.isArray(markers) ? markers : []).map((time) => ({ time, imagePath: adImageFile.path }));
     }
 
-    if (mode === 'auto' && adImageFile && Array.isArray(markers) && markers.length) {
-      const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({
-        videoPath: videoFile.path,
-        adImagePath: adImageFile.path,
-        markers,
-      });
+    if (placements.length) {
+      const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({ videoPath: videoFile.path, placements });
       videoPath = outputPath;
       videoMime = 'video/mp4';
       videoSize = fs.statSync(outputPath).size;
@@ -1153,6 +1185,13 @@ exports.postAdVideo = async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'live',NOW())`,
         [session, provider, code, trackingNum, videoId, videoUrl, title || 'Ad Video', fullDescription, thumbUrl],
       );
+
+      if (Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
+        await query(
+          `UPDATE youtube_ad_claims SET status='used', used_at=NOW() WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
+          [session, claimedSlotTypes],
+        );
+      }
 
       return res.json({ success: true, data: { trackingCode: code, videoUrl, platformVideoId: videoId } });
     }

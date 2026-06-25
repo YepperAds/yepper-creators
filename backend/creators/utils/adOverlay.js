@@ -27,10 +27,33 @@ function estimateOverlaySeconds(markerCount) {
   return FIXED_OVERHEAD_SECONDS + n * ENCODE_SECONDS_PER_MARKER;
 }
 
+// Mirrors the placement rule shown to creators/advertisers: under 5 minutes
+// gets a single forced mid-roll; 5 minutes+ opens three slots. This is the
+// server-side source of truth — the frontend's copy is for display only.
+const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
+
+function computeSlotTimes(duration) {
+  if (duration < SHORT_VIDEO_THRESHOLD_SEC) {
+    return { middle: duration / 2 };
+  }
+  return {
+    intro:  SHORT_VIDEO_THRESHOLD_SEC,
+    middle: duration / 2,
+    end:    duration * 0.8,
+  };
+}
+
 function probe(filePath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, data) => (err ? reject(err) : resolve(data)));
   });
+}
+
+async function probeDuration(filePath) {
+  const info = await probe(filePath);
+  const duration = parseFloat(info.format.duration);
+  if (!Number.isFinite(duration)) throw new Error('Could not read video duration');
+  return duration;
 }
 
 function parseFrameRate(rate) {
@@ -46,27 +69,27 @@ function runCommand(cmd) {
   });
 }
 
-// Sorts/dedupes marker times, clamps each into a valid [0, duration] overlay
-// window, and merges windows that would otherwise overlap.
-function buildWindows(markers, duration) {
-  const sane = Array.from(new Set(
-    (markers || [])
-      .map(Number)
-      .filter((m) => Number.isFinite(m) && m >= 0 && m < duration),
-  )).sort((a, b) => a - b);
+// Sorts/dedupes placements by time, clamps each into a valid [0, duration]
+// overlay window, and merges windows that would otherwise overlap (keeping
+// the earlier placement's image when two windows collide).
+function buildWindows(placements, duration) {
+  const sane = (placements || [])
+    .map((p) => ({ time: Number(p.time), imagePath: p.imagePath }))
+    .filter((p) => Number.isFinite(p.time) && p.time >= 0 && p.time < duration && p.imagePath)
+    .sort((a, b) => a.time - b.time);
 
   const windows = [];
-  for (const m of sane) {
-    let start = m;
-    let end = Math.min(m + OVERLAY_WINDOW_SEC, duration);
+  for (const p of sane) {
+    let start = p.time;
+    let end = Math.min(p.time + OVERLAY_WINDOW_SEC, duration);
     if (end - start < 1) continue; // too close to the end of the video to be worth it
 
     const prev = windows[windows.length - 1];
     if (prev && start < prev.end) {
-      prev.end = Math.max(prev.end, end); // merge overlapping windows
+      prev.end = Math.max(prev.end, end); // merge overlapping windows, keep prev's image
       continue;
     }
-    windows.push({ start, end });
+    windows.push({ start, end, imagePath: p.imagePath });
   }
   return windows;
 }
@@ -123,28 +146,40 @@ async function concatSegments(segPaths, outputPath, workDir) {
 }
 
 // Slow but always-correct fallback for source codecs that don't allow the
-// fast copy+concat path (no fade, single full re-encode pass).
-async function applyOverlayFullReencode({ videoPath, adImagePath, windows, videoInfo, outputPath }) {
+// fast copy+concat path (no fade; chains one overlay stage per window so
+// each can show its own image, only active during its own time range).
+async function applyOverlayFullReencode({ videoPath, windows, videoInfo, outputPath }) {
   const { width } = videoInfo;
   const adWidth = Math.round(width * AD_WIDTH_RATIO);
   const margin  = Math.round(width * MARGIN_RATIO);
-  const enableExpr = windows.map((w) => `between(t,${w.start},${w.end})`).join('+');
 
-  const cmd = ffmpeg()
-    .input(videoPath)
-    .input(adImagePath).inputOptions(['-loop', '1'])
-    .complexFilter(`[1:v]scale=${adWidth}:-1[ad];[0:v][ad]overlay=W-w-${margin}:H-h-${margin}:enable='${enableExpr}'[outv]`)
+  const cmd = ffmpeg().input(videoPath);
+  windows.forEach((w) => cmd.input(w.imagePath).inputOptions(['-loop', '1']));
+
+  const filterParts = windows.map((w, i) => {
+    const imgIn = `${i + 1}:v`;
+    const vIn = i === 0 ? '0:v' : `tmp${i}`;
+    const vOut = i === windows.length - 1 ? 'outv' : `tmp${i + 1}`;
+    return (
+      `[${imgIn}]scale=${adWidth}:-1[ad${i}];` +
+      `[${vIn}][ad${i}]overlay=W-w-${margin}:H-h-${margin}:enable='between(t,${w.start},${w.end})'[${vOut}]`
+    );
+  });
+
+  const cmdFinal = cmd
+    .complexFilter(filterParts.join(';'))
     .outputOptions(['-map', '[outv]', '-map', '0:a?', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest'])
     .output(outputPath);
-  await runCommand(cmd);
+  await runCommand(cmdFinal);
 }
 
 /**
- * Burns the ad image into the video at the given marker timestamps (seconds).
+ * Burns one or more ad images into the video, each at its own timestamp.
+ * `placements` is an array of { time (seconds), imagePath (local file path) }.
  * Returns { outputPath, cleanup }. Caller is responsible for calling cleanup()
  * once the processed file has been uploaded/consumed.
  */
-async function applyAdOverlay({ videoPath, adImagePath, markers }) {
+async function applyAdOverlay({ videoPath, placements }) {
   const info = await probe(videoPath);
   const duration = parseFloat(info.format.duration);
   const vStream = info.streams.find((s) => s.codec_type === 'video');
@@ -159,7 +194,7 @@ async function applyAdOverlay({ videoPath, adImagePath, markers }) {
     channels: aStream ? aStream.channels : null,
   };
 
-  const windows = buildWindows(markers, duration);
+  const windows = buildWindows(placements, duration);
   if (windows.length === 0) return { outputPath: videoPath, cleanup: () => {} };
 
   const workDir = path.join(os.tmpdir(), `ypr_overlay_${Date.now()}`);
@@ -172,7 +207,7 @@ async function applyAdOverlay({ videoPath, adImagePath, markers }) {
   try {
     if (!fastPathEligible) {
       console.warn(`[adOverlay] Source codec (${vStream.codec_name}/${aStream?.codec_name}) doesn't match the fast-path target (h264/aac) — falling back to a full re-encode.`);
-      await applyOverlayFullReencode({ videoPath, adImagePath, windows, videoInfo, outputPath });
+      await applyOverlayFullReencode({ videoPath, windows, videoInfo, outputPath });
       return { outputPath, cleanup };
     }
 
@@ -187,7 +222,7 @@ async function applyAdOverlay({ videoPath, adImagePath, markers }) {
         segPaths.push(segPath);
       }
       const adSegPath = path.join(workDir, `seg${i++}.mp4`);
-      await buildAdSegment({ videoPath, adImagePath, start: w.start, end: w.end, videoInfo, segPath: adSegPath });
+      await buildAdSegment({ videoPath, adImagePath: w.imagePath, start: w.start, end: w.end, videoInfo, segPath: adSegPath });
       segPaths.push(adSegPath);
       cursor = w.end;
     }
@@ -205,4 +240,4 @@ async function applyAdOverlay({ videoPath, adImagePath, markers }) {
   }
 }
 
-module.exports = { applyAdOverlay, estimateOverlaySeconds, OVERLAY_WINDOW_SEC };
+module.exports = { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, OVERLAY_WINDOW_SEC };

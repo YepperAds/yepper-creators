@@ -115,6 +115,21 @@ async function initCreatorsDatabase() {
        created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
     `CREATE INDEX IF NOT EXISTS ad_video_posts_creator_idx ON ad_video_posts (creator_id, provider)`,
+    // An advertiser "claims" one of a creator's three placement slots by
+    // uploading their creative to it. Only one pending claim per (creator,
+    // slot) at a time — first claim wins until it's used or cancelled.
+    `CREATE TABLE IF NOT EXISTS youtube_ad_claims (
+       id            SERIAL PRIMARY KEY,
+       creator_id    INTEGER REFERENCES creators(id) ON DELETE CASCADE,
+       advertiser_id VARCHAR(255) NOT NULL,
+       slot_type     VARCHAR(20) NOT NULL,
+       image_url     TEXT NOT NULL,
+       status        VARCHAR(20) NOT NULL DEFAULT 'pending',
+       created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       used_at       TIMESTAMP WITH TIME ZONE
+     )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
+    `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
     `CREATE TABLE IF NOT EXISTS notifications (
        id          BIGSERIAL PRIMARY KEY,
        creator_id  INTEGER REFERENCES creators(id) ON DELETE CASCADE,

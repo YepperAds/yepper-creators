@@ -1,0 +1,120 @@
+'use strict';
+
+const jwt    = require('jsonwebtoken');
+const multer = require('multer');
+const { query }  = require('../../config/db');
+const cloudinary  = require('../../config/storage');
+
+const JWT_SECRET = () => {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
+  return process.env.JWT_SECRET;
+};
+
+// Creators and advertisers share the same yepper_session JWT cookie — this
+// just returns whatever userId is in it; callers decide what kind of account
+// that id is expected to belong to.
+function getSessionUserId(req) {
+  const val = req.cookies?.yepper_session;
+  if (!val) return null;
+  try {
+    const decoded = jwt.verify(val, JWT_SECRET());
+    return decoded.userId || decoded.id || null;
+  } catch {
+    return null;
+  }
+}
+
+const SLOT_TYPES  = ['intro', 'middle', 'end'];
+const SLOT_LABELS = { intro: 'After intro (5:00)', middle: 'Middle', end: 'Near the end (80%)' };
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => (file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only image files allowed'))),
+});
+
+function uploadCreativeToCloudinary(file) {
+  const fileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'image', folder: 'yepper_creator_ads', public_id: fileName },
+      (err, result) => (err ? reject(err) : resolve(result.secure_url)),
+    );
+    stream.end(file.buffer);
+  });
+}
+
+exports.imageUpload = imageUpload;
+exports.SLOT_TYPES = SLOT_TYPES;
+
+// GET /api/social/youtube/ad-spaces/:creatorId — public: shows each slot's
+// open/claimed status only. No creative details leak to other advertisers.
+exports.getAdSpaces = async (req, res) => {
+  const { creatorId } = req.params;
+  try {
+    const claimed = await query(
+      `SELECT slot_type FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
+      [creatorId],
+    );
+    const claimedSet = new Set(claimed.rows.map((r) => r.slot_type));
+    const slots = SLOT_TYPES.map((slotType) => ({
+      slotType,
+      label: SLOT_LABELS[slotType],
+      status: claimedSet.has(slotType) ? 'claimed' : 'open',
+    }));
+    return res.json({ success: true, data: { slots } });
+  } catch (err) {
+    console.error('[adSpaces] getAdSpaces error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load ad spaces' });
+  }
+};
+
+// POST /api/social/youtube/ad-spaces/:creatorId/claim — an advertiser claims
+// an open slot by uploading their creative to it.
+exports.claimAdSpace = async (req, res) => {
+  const advertiserId = getSessionUserId(req);
+  if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
+
+  const { creatorId } = req.params;
+  const { slotType } = req.body;
+  if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
+  if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
+
+  try {
+    const creatorRes = await query(`SELECT id FROM creators WHERE id = $1`, [creatorId]);
+    if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+
+    const imageUrl = await uploadCreativeToCloudinary(req.file);
+
+    await query(
+      `INSERT INTO youtube_ad_claims (creator_id, advertiser_id, slot_type, image_url) VALUES ($1, $2, $3, $4)`,
+      [creatorId, String(advertiserId), slotType, imageUrl],
+    );
+
+    return res.json({ success: true, data: { slotType, imageUrl } });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ success: false, message: 'That ad space was just claimed by someone else' });
+    console.error('[adSpaces] claimAdSpace error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to claim ad space' });
+  }
+};
+
+// GET /api/social/ad-claims/pending — the logged-in creator's own pending
+// claims, used by the upload modal to offer real advertiser creatives.
+exports.getPendingClaims = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false });
+  try {
+    const result = await query(
+      `SELECT id, slot_type, image_url, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
+      [creatorId],
+    );
+    return res.json({
+      success: true,
+      data: result.rows.map((r) => ({ id: r.id, slotType: r.slot_type, imageUrl: r.image_url, createdAt: r.created_at })),
+    });
+  } catch (err) {
+    console.error('[adSpaces] getPendingClaims error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load pending claims' });
+  }
+};

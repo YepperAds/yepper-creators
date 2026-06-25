@@ -6,6 +6,7 @@ const os         = require('os');
 const path       = require('path');
 const router     = express.Router();
 const controller = require('../controllers/creatorController');
+const adSpaces   = require('../controllers/adSpaceController');
 
 const videoUpload = multer({
   storage: multer.diskStorage({
@@ -43,6 +44,15 @@ router.post(
 );
 router.get('/api/social/ad-posts',              controller.getAdPosts);
 router.get('/api/social/ad-overlay/estimate',   controller.estimateAdOverlay);
+
+// ─── Ad spaces (advertiser claims a creator's intro/middle/end slot) ─────────
+router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
+router.post(
+  '/api/social/youtube/ad-spaces/:creatorId/claim',
+  adSpaces.imageUpload.single('image'),
+  adSpaces.claimAdSpace,
+);
+router.get('/api/social/ad-claims/pending',                   adSpaces.getPendingClaims);
 
 // ─── Social OAuth ─────────────────────────────────────────────────────────────
 router.get('/api/connect/:provider',          controller.socialConnect);

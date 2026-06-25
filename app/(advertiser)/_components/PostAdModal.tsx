@@ -61,12 +61,15 @@ export default function PostAdModal({
   const [adUploadError, setAdUploadError]       = useState('');
   const [uploadStage, setUploadStage]           = useState<'idle' | 'processing' | 'uploading'>('idle');
 
-  // Ad creative placement — until the real advertiser-matching flow exists,
-  // the creative is attached here directly to test the overlay pipeline.
+  // Ad creative placement. If an advertiser has already claimed one of this
+  // creator's ad spaces (via "Collaborate with [creator]" on the homepage),
+  // their creative is used automatically. Otherwise this falls back to a
+  // manual "test" image upload so the overlay pipeline can still be tried.
   const [adCreative, setAdCreative]             = useState<File | null>(null);
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
   const [selectedSlots, setSelectedSlots]       = useState<string[]>(['middle']);
   const [estimatedSeconds, setEstimatedSeconds] = useState<number | null>(null);
+  const [pendingClaims, setPendingClaims]       = useState<{ slotType: string; imageUrl: string }[]>([]);
 
   const fileRef     = useRef<HTMLInputElement | null>(null);
   const creativeRef  = useRef<HTMLInputElement | null>(null);
@@ -86,14 +89,24 @@ export default function PostAdModal({
       setVideoDuration(null);
       setSelectedSlots(['middle']);
       setEstimatedSeconds(null);
+      setPendingClaims([]);
     }
   }, [open, provider]);
 
-  // Once both the video and a test ad creative are picked, read the video's
-  // duration client-side — that's what decides whether this is a "forced
-  // single mid-roll" video (<5min) or a "pick your slots" video (5min+).
+  // Pull any ad spaces an advertiser has already claimed for this creator.
   useEffect(() => {
-    if (!adFile || !adCreative) { setVideoDuration(null); return; }
+    if (!open) return;
+    fetch('/api/social/ad-claims/pending', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => setPendingClaims(Array.isArray(json?.data) ? json.data : []))
+      .catch(() => setPendingClaims([]));
+  }, [open]);
+
+  // Once the video is picked, read its duration client-side — that's what
+  // decides whether this is a "forced single mid-roll" video (<5min) or a
+  // "pick your slots" video (5min+).
+  useEffect(() => {
+    if (!adFile) { setVideoDuration(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -104,35 +117,60 @@ export default function PostAdModal({
     };
     video.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [adFile, adCreative]);
+  }, [adFile]);
 
-  const isShortVideo = videoDuration != null && videoDuration < SHORT_VIDEO_THRESHOLD_SEC;
-  const adSlots       = videoDuration != null ? getAdSlots(videoDuration) : [];
-  const markers        = isShortVideo
+  const hasAnyPendingClaims = pendingClaims.length > 0;
+  const claimedSlotKeys     = new Set(pendingClaims.map((c) => c.slotType));
+  const isShortVideo        = videoDuration != null && videoDuration < SHORT_VIDEO_THRESHOLD_SEC;
+  const adSlots              = videoDuration != null ? getAdSlots(videoDuration) : [];
+  const relevantClaimedSlots = adSlots.filter((s) => claimedSlotKeys.has(s.key));
+  const hasRealClaims        = relevantClaimedSlots.length > 0;
+
+  // Slot keys (advertiser-claimed) to send to the backend in real mode.
+  const selectedClaimedKeys = isShortVideo
+    ? relevantClaimedSlots.map((s) => s.key)
+    : relevantClaimedSlots.filter((s) => selectedSlots.includes(s.key)).map((s) => s.key);
+
+  // Seconds to burn the local test creative into, in test/simulation mode.
+  const testMarkerSeconds = isShortVideo
     ? adSlots.map((s) => s.time)
     : adSlots.filter((s) => selectedSlots.includes(s.key)).map((s) => s.time);
+
+  const activePlacementCount = hasRealClaims ? selectedClaimedKeys.length : testMarkerSeconds.length;
+  const showPlacementPanel   = !!adFile && videoDuration != null && (hasRealClaims || !!adCreative);
 
   const toggleSlot = (key: string) => {
     setSelectedSlots((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   };
 
-  // Processing time scales with marker count, not video length — only the
+  // Processing time scales with placement count, not video length — only the
   // marker windows get re-encoded, everything else is a fast stream copy.
   useEffect(() => {
-    if (markers.length === 0) { setEstimatedSeconds(null); return; }
+    if (activePlacementCount === 0) { setEstimatedSeconds(null); return; }
     let cancelled = false;
-    fetch(`/api/social/ad-overlay/estimate?markers=${markers.length}`, { credentials: 'include' })
+    fetch(`/api/social/ad-overlay/estimate?markers=${activePlacementCount}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((json) => { if (!cancelled) setEstimatedSeconds(json?.data?.estimatedSeconds ?? null); })
       .catch(() => { if (!cancelled) setEstimatedSeconds(null); });
     return () => { cancelled = true; };
-  }, [markers.length]);
+  }, [activePlacementCount]);
 
   if (!open || !provider) return null;
 
   const close = () => { if (!adUploading) onClose(); };
 
   const downloadCreativeManually = () => {
+    if (hasRealClaims) {
+      // Claimed creatives live on Cloudinary — just open each in a new tab
+      // so the creator can save it themselves.
+      relevantClaimedSlots
+        .filter((s) => selectedClaimedKeys.includes(s.key))
+        .forEach((s) => {
+          const claim = pendingClaims.find((c) => c.slotType === s.key);
+          if (claim) window.open(claim.imageUrl, '_blank');
+        });
+      return;
+    }
     if (!adCreative) return;
     const url = URL.createObjectURL(adCreative);
     const a = document.createElement('a');
@@ -150,7 +188,7 @@ export default function PostAdModal({
     setAdUploadResult(null);
     setUploadStage(mode === 'auto' ? 'processing' : 'uploading');
 
-    if (mode === 'manual' && adCreative) downloadCreativeManually();
+    if (mode === 'manual' && (adCreative || hasRealClaims)) downloadCreativeManually();
 
     try {
       const formData = new FormData();
@@ -159,9 +197,13 @@ export default function PostAdModal({
       formData.append('description', adDescription.trim());
       formData.append('privacy',     adPrivacy);
       formData.append('mode',        mode);
-      if (mode === 'auto' && adCreative) {
+      if (hasRealClaims && selectedClaimedKeys.length) {
+        // Real advertiser-claimed slots — backend re-derives placement times
+        // and pulls each advertiser's own creative; marked "used" either way.
+        formData.append('claimedSlotTypes', JSON.stringify(selectedClaimedKeys));
+      } else if (mode === 'auto' && adCreative) {
         formData.append('adImage', adCreative);
-        formData.append('markers', JSON.stringify(markers));
+        formData.append('markers', JSON.stringify(testMarkerSeconds));
       }
 
       // Use XMLHttpRequest so we can track upload progress
@@ -256,30 +298,35 @@ export default function PostAdModal({
               </button>
             </div>
 
-            {/* Ad creative (test) — stands in for an advertiser-assigned ad until that matching flow exists */}
-            <div>
-              <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Ad Creative (test)</label>
-              <input
-                ref={creativeRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => setAdCreative(e.target.files?.[0] ?? null)}
-              />
-              <button
-                onClick={() => creativeRef.current?.click()}
-                disabled={adUploading}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-(--color-border) bg-(--color-surface-2) hover:bg-(--color-surface-3) transition-colors text-sm text-(--color-muted) disabled:opacity-50"
-              >
-                <PhotoIcon className="w-5 h-5 shrink-0" />
-                <span className="truncate">{adCreative ? adCreative.name : 'Simulate a matched ad image (optional)…'}</span>
-              </button>
-              <p className="text-[10px] text-(--color-muted) mt-1">Placeholder for the advertiser-matching flow — lets you test the auto-insert pipeline now.</p>
-            </div>
+            {/* Ad creative (test) — only shown as a fallback when no advertiser has claimed an ad space on this channel yet */}
+            {!hasAnyPendingClaims && (
+              <div>
+                <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Ad Creative (test)</label>
+                <input
+                  ref={creativeRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setAdCreative(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  onClick={() => creativeRef.current?.click()}
+                  disabled={adUploading}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-(--color-border) bg-(--color-surface-2) hover:bg-(--color-surface-3) transition-colors text-sm text-(--color-muted) disabled:opacity-50"
+                >
+                  <PhotoIcon className="w-5 h-5 shrink-0" />
+                  <span className="truncate">{adCreative ? adCreative.name : 'Simulate a matched ad image (optional)…'}</span>
+                </button>
+                <p className="text-[10px] text-(--color-muted) mt-1">No advertiser has claimed an ad space on your channel yet — this just lets you test the auto-insert pipeline.</p>
+              </div>
+            )}
 
-            {/* Placement choice — only once a creative is attached and duration is known */}
-            {adFile && adCreative && videoDuration != null && (
+            {/* Placement choice — once duration is known and there's either a real claim or a test creative */}
+            {showPlacementPanel && (
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-3 space-y-3">
+                {hasRealClaims && (
+                  <p className="text-[10px] text-emerald-400 font-semibold">Using advertiser-claimed creative(s) for this video.</p>
+                )}
                 {isShortVideo ? (
                   <p className="text-xs text-(--color-white)">
                     This video is under 5 minutes, so the ad plays once, in the middle
@@ -289,18 +336,23 @@ export default function PostAdModal({
                   <>
                     <p className="text-xs font-bold text-(--color-white)">Ad placement — pick one or more</p>
                     <div className="space-y-1.5">
-                      {adSlots.map((slot) => (
-                        <label key={slot.key} className="flex items-center gap-2 text-xs text-(--color-white) cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedSlots.includes(slot.key)}
-                            onChange={() => toggleSlot(slot.key)}
-                            disabled={adUploading}
-                            className="accent-emerald-500"
-                          />
-                          {slot.label}
-                        </label>
-                      ))}
+                      {adSlots.map((slot) => {
+                        const claimed = claimedSlotKeys.has(slot.key);
+                        const disabled = adUploading || (hasRealClaims && !claimed);
+                        return (
+                          <label key={slot.key} className={`flex items-center gap-2 text-xs cursor-pointer ${disabled && hasRealClaims ? 'text-(--color-muted) opacity-50' : 'text-(--color-white)'}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedSlots.includes(slot.key)}
+                              onChange={() => toggleSlot(slot.key)}
+                              disabled={disabled}
+                              className="accent-emerald-500"
+                            />
+                            {slot.label}
+                            {hasRealClaims && (claimed ? ' — claimed' : ' — no advertiser yet')}
+                          </label>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -309,7 +361,7 @@ export default function PostAdModal({
                 <div className="flex flex-col gap-2 pt-1">
                   <button
                     onClick={() => handlePostAd('auto')}
-                    disabled={adUploading || markers.length === 0}
+                    disabled={adUploading || activePlacementCount === 0}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white disabled:opacity-40"
                   >
                     Auto-insert ad{estimatedSeconds != null ? ` (~${estimatedSeconds}s processing)` : ''}
@@ -387,8 +439,8 @@ export default function PostAdModal({
               </div>
             )}
 
-            {/* Actions — plain upload when there's no ad creative attached */}
-            {!adCreative && (
+            {/* Actions — plain upload when the placement panel isn't showing */}
+            {!showPlacementPanel && (
               <div className="flex gap-3 pt-1">
                 <button onClick={close} disabled={adUploading} className="flex-1 py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white) disabled:opacity-40">
                   Cancel

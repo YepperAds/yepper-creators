@@ -72,7 +72,19 @@ function DirectAdvertise() {
 
   const [setFileLoaded] = useState(false);
   
+  // Only resume saved progress when actually returning from the Google OAuth
+  // round trip. A plain click on the ad space (no googleReturn param) should
+  // always start the ad form from scratch, never pick up a stale draft from a
+  // previous, unrelated visit.
+  const isGoogleReturn = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('googleReturn') === 'true';
+
   useEffect(() => {
+    if (!isGoogleReturn) {
+      deleteFileFromIndexedDB(FILE_STORAGE_KEY).catch(() => {});
+      setFileLoaded(true);
+      return;
+    }
     const loadSavedFile = async () => {
       try {
         const savedFile = await getFileFromIndexedDB(FILE_STORAGE_KEY);
@@ -97,6 +109,10 @@ function DirectAdvertise() {
   }, []);
 
   useEffect(() => {
+    if (!isGoogleReturn) {
+      localStorage.removeItem('directAdvertise_formData');
+      return;
+    }
     const savedData = localStorage.getItem('directAdvertise_formData');
     if (savedData) {
       try {

@@ -668,7 +668,8 @@ exports.deleteWebsite = async (req, res) => {
     );
     await client.query(`UPDATE payments SET website_id = NULL WHERE website_id = $1::uuid`, [websiteId]);
     await client.query(`UPDATE traffic_grants SET website_id = NULL WHERE website_id = $1::uuid`, [websiteId]);
-    await client.query(`DELETE FROM website_page_views WHERE website_id = $1::uuid`, [websiteId]);
+    // website_page_views.website_id is TEXT (not uuid, despite other website_id FKs being uuid)
+    await client.query(`DELETE FROM website_page_views WHERE website_id = $1`, [websiteId]);
     await client.query(`DELETE FROM ad_categories WHERE website_id = $1::uuid`, [websiteId]);
     await client.query(`DELETE FROM websites WHERE id = $1::uuid`, [websiteId]);
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CheckBadgeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import VideoEmbed from '@/app/_components/home/VideoEmbed';
+import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import WebsiteLogoTile from './WebsiteLogoTile';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 
@@ -20,7 +21,7 @@ function domainOf(link: string): string {
   }
 }
 
-function YoutuberCard({ creator }: { creator: PublicCreator }) {
+function YoutuberCard({ creator, onCollaborate }: { creator: PublicCreator; onCollaborate: (creator: PublicCreator) => void }) {
   const videos = creator.videos || [];
   const [index, setIndex] = useState(0);
   const video = videos[index];
@@ -31,14 +32,12 @@ function YoutuberCard({ creator }: { creator: PublicCreator }) {
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold text-coral">Youtuber</p>
-          <a
-            href={creator.channelUrl ?? '#'}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => onCollaborate(creator)}
             className="text-[11px] font-semibold text-white underline underline-offset-2 hover:text-coral transition-colors"
           >
             Collaborate with {creator.channelName}
-          </a>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -158,6 +157,7 @@ function buildFeedItems(creators: PublicCreator[], websites: PublicWebsite[], to
 
 export default function DashboardFeed({ websites, creators }: { websites: PublicWebsite[]; creators: PublicCreator[] }) {
   const items = buildFeedItems(creators, websites, 12);
+  const [collaborateWith, setCollaborateWith] = useState<PublicCreator | null>(null);
 
   if (items.length === 0) {
     return (
@@ -168,12 +168,15 @@ export default function DashboardFeed({ websites, creators }: { websites: Public
   }
 
   return (
-    <div className="space-y-4">
-      {items.map((item) =>
-        item.type === 'creator'
-          ? <YoutuberCard key={item.key} creator={item.data} />
-          : <WebsiteCard key={item.key} website={item.data} />
-      )}
-    </div>
+    <>
+      <div className="space-y-4">
+        {items.map((item) =>
+          item.type === 'creator'
+            ? <YoutuberCard key={item.key} creator={item.data} onCollaborate={setCollaborateWith} />
+            : <WebsiteCard key={item.key} website={item.data} />
+        )}
+      </div>
+      <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={() => setCollaborateWith(null)} />
+    </>
   );
 }

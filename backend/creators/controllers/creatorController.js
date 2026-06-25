@@ -295,10 +295,15 @@ exports.googleCallback = async (req, res) => {
       ).catch(() => {});
     }
 
+    // Video/image uploads now go straight from the browser to this backend
+    // (a different site than the Vercel frontend), so the cookie has to be
+    // SameSite=None+Secure to survive that cross-site request — gating this
+    // on NODE_ENV is fragile (depends on Render actually having it set);
+    // req.secure (via `trust proxy`) reflects the real scheme reliably.
     res.cookie('yepper_session', token, {
       httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure:   req.secure,
+      sameSite: req.secure ? 'none' : 'lax',
       maxAge:   7 * 24 * 60 * 60 * 1000,
       path:     '/',
     });

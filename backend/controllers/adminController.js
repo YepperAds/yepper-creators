@@ -1,6 +1,6 @@
 // admin/controllers/adminController.js  — PostgreSQL version
 const crypto    = require('crypto');
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const User        = require('../models/User');
 const Creator     = require('../creators/models/Creator');
 const Website     = require('../AdPromoter/models/CreateWebsiteModel');
@@ -651,16 +651,35 @@ exports.checkAdSpaceAdvertisers = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/admin/users/:userId/websites/:websiteId
-// Deletes ad_categories (CASCADE would handle it but let's be explicit) + website
+// payments/traffic_grants keep historical rows, so their dangling FKs are
+// nulled rather than deleted; website_page_views are just analytics events
+// and get removed along with the website.
 // ─────────────────────────────────────────────────────────────────────────────
 exports.deleteWebsite = async (req, res) => {
+  const client = await getClient();
   try {
-    await query(`DELETE FROM ad_categories WHERE website_id = $1::uuid`, [req.params.websiteId]);
-    await query(`DELETE FROM websites       WHERE id         = $1::uuid`, [req.params.websiteId]);
+    const { websiteId } = req.params;
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE payments SET category_id = NULL
+       WHERE category_id IN (SELECT id FROM ad_categories WHERE website_id = $1::uuid)`,
+      [websiteId]
+    );
+    await client.query(`UPDATE payments SET website_id = NULL WHERE website_id = $1::uuid`, [websiteId]);
+    await client.query(`UPDATE traffic_grants SET website_id = NULL WHERE website_id = $1::uuid`, [websiteId]);
+    await client.query(`DELETE FROM website_page_views WHERE website_id = $1::uuid`, [websiteId]);
+    await client.query(`DELETE FROM ad_categories WHERE website_id = $1::uuid`, [websiteId]);
+    await client.query(`DELETE FROM websites WHERE id = $1::uuid`, [websiteId]);
+
+    await client.query('COMMIT');
     res.json({ success: true, message: 'Website and its ad spaces deleted.' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('deleteWebsite error:', err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 };
 
@@ -668,12 +687,22 @@ exports.deleteWebsite = async (req, res) => {
 // DELETE /api/admin/users/:userId/ad-spaces/:spaceId
 // ─────────────────────────────────────────────────────────────────────────────
 exports.deleteAdSpace = async (req, res) => {
+  const client = await getClient();
   try {
-    await query(`DELETE FROM ad_categories WHERE id = $1::uuid`, [req.params.spaceId]);
+    const { spaceId } = req.params;
+    await client.query('BEGIN');
+
+    await client.query(`UPDATE payments SET category_id = NULL WHERE category_id = $1::uuid`, [spaceId]);
+    await client.query(`DELETE FROM ad_categories WHERE id = $1::uuid`, [spaceId]);
+
+    await client.query('COMMIT');
     res.json({ success: true, message: 'Ad space deleted.' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('deleteAdSpace error:', err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 };
 
@@ -681,11 +710,21 @@ exports.deleteAdSpace = async (req, res) => {
 // DELETE /api/admin/users/:userId/ads/:adId
 // ─────────────────────────────────────────────────────────────────────────────
 exports.deleteAd = async (req, res) => {
+  const client = await getClient();
   try {
-    await query(`DELETE FROM import_ads WHERE id = $1::uuid`, [req.params.adId]);
+    const { adId } = req.params;
+    await client.query('BEGIN');
+
+    await client.query(`UPDATE payments SET ad_id = NULL WHERE ad_id = $1::uuid`, [adId]);
+    await client.query(`DELETE FROM import_ads WHERE id = $1::uuid`, [adId]);
+
+    await client.query('COMMIT');
     res.json({ success: true, message: 'Ad deleted.' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('deleteAd error:', err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 };

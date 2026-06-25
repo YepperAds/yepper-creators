@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircleIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { PublicCreator } from '@/app/_lib/public-home';
+import { getToken } from '@/app/(adsense)/utils/token';
 
 // The claim upload includes an image file and can land close to the Next.js
 // API route proxy's ~4.5MB Vercel body cap — go straight to the backend
@@ -100,9 +101,14 @@ export default function AdSpacesModal({
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
 
+      // The login cookie is SameSite=Lax and scoped to this site, not the
+      // backend's — it won't ride along on this cross-origin request, so
+      // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
+      const token = getToken();
       const res = await fetch(`${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim`, {
         method: 'POST',
         credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
       const json = await res.json().catch(() => ({}));

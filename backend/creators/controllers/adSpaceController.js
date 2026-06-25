@@ -13,9 +13,13 @@ const JWT_SECRET = () => {
 
 // Creators and advertisers share the same yepper_session JWT cookie — this
 // just returns whatever userId is in it; callers decide what kind of account
-// that id is expected to belong to.
+// that id is expected to belong to. Cross-origin requests (e.g. the claim
+// image upload, which bypasses the size-limited Vercel proxy) carry the same
+// JWT as an Authorization: Bearer header instead, since the SameSite=Lax
+// cookie set at login never reaches this backend's own domain.
 function getSessionUserId(req) {
-  const val = req.cookies?.yepper_session;
+  const authHeader = req.headers?.authorization;
+  const val = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null) || req.cookies?.yepper_session;
   if (!val) return null;
   try {
     const decoded = jwt.verify(val, JWT_SECRET());

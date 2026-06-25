@@ -8,6 +8,7 @@ import {
   PhotoIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { getToken } from '@/app/(adsense)/utils/token';
 
 type Mode = 'auto' | 'manual';
 
@@ -228,6 +229,11 @@ export default function PostAdModal({
         xhr.onerror = () => resolve({ success: false, message: 'Network error' });
         xhr.open('POST', `${BACKEND_URL}/api/social/post-ad/${provider}`);
         xhr.withCredentials = true;
+        // The login cookie is SameSite=Lax and scoped to this site, not the
+        // backend's — it won't ride along on this cross-origin request, so
+        // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
+        const token = getToken();
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
       });
 

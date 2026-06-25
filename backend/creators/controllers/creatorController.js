@@ -29,7 +29,14 @@ function generateCreatorToken(creator) {
 }
 
 function getCreatorId(req) {
-  const val = req.cookies?.yepper_session;
+  // The main login (app/api/auth/google/callback/route.ts) sets yepper_session
+  // as SameSite=Lax, scoped to the frontend's own domain — browsers never send
+  // that cross-site to this backend's domain. Direct cross-origin requests
+  // (video/image uploads, which can't go through the size-limited Vercel
+  // proxy) instead carry the same JWT as an Authorization: Bearer header,
+  // sourced from the non-httpOnly yepper_token cookie readable by frontend JS.
+  const authHeader = req.headers?.authorization;
+  const val = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null) || req.cookies?.yepper_session;
   if (!val) return null;
   if (val.split('.').length === 3) {
     try {

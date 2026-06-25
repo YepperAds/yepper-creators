@@ -11,6 +11,31 @@ import {
 
 type Mode = 'auto' | 'manual';
 
+// Under 5 minutes: the video gets exactly one ad, forced to the middle — no
+// choice. 5 minutes or longer: three candidate slots open up (just after the
+// 5-minute mark, the middle, and the 80%-through point), and the creator can
+// pick any one of them or all three.
+const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+interface AdSlot { key: string; label: string; time: number; }
+
+function getAdSlots(duration: number): AdSlot[] {
+  if (duration < SHORT_VIDEO_THRESHOLD_SEC) {
+    return [{ key: 'middle', label: `Middle (${formatTime(duration / 2)})`, time: duration / 2 }];
+  }
+  return [
+    { key: 'intro',  label: `After intro (${formatTime(SHORT_VIDEO_THRESHOLD_SEC)})`, time: SHORT_VIDEO_THRESHOLD_SEC },
+    { key: 'middle', label: `Middle (${formatTime(duration / 2)})`,                   time: duration / 2 },
+    { key: 'end',    label: `Near the end (${formatTime(duration * 0.8)})`,           time: duration * 0.8 },
+  ];
+}
+
 // Extracted from connect-accounts/page.tsx's inline "Post Ad" modal so the
 // dashboard's right-rail "Add ad" action can reuse the exact same upload
 // flow (POST /api/social/post-ad/:provider, cookie auth, no other inputs
@@ -40,7 +65,7 @@ export default function PostAdModal({
   // the creative is attached here directly to test the overlay pipeline.
   const [adCreative, setAdCreative]             = useState<File | null>(null);
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
-  const [markers, setMarkers]                   = useState<number[]>([]);
+  const [selectedSlots, setSelectedSlots]       = useState<string[]>(['middle']);
   const [estimatedSeconds, setEstimatedSeconds] = useState<number | null>(null);
 
   const fileRef     = useRef<HTMLInputElement | null>(null);
@@ -59,28 +84,37 @@ export default function PostAdModal({
       setUploadStage('idle');
       setAdCreative(null);
       setVideoDuration(null);
-      setMarkers([]);
+      setSelectedSlots(['middle']);
       setEstimatedSeconds(null);
     }
   }, [open, provider]);
 
   // Once both the video and a test ad creative are picked, read the video's
-  // duration client-side and default 3 markers (intro / middle / outro).
+  // duration client-side — that's what decides whether this is a "forced
+  // single mid-roll" video (<5min) or a "pick your slots" video (5min+).
   useEffect(() => {
-    if (!adFile || !adCreative) { setVideoDuration(null); setMarkers([]); return; }
+    if (!adFile || !adCreative) { setVideoDuration(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
-      const duration = video.duration;
-      setVideoDuration(duration);
-      const outro = Math.max(duration - 8, duration * 0.5);
-      setMarkers([2, Math.round(duration / 2), Math.round(outro)].map((s) => Math.max(0, Math.min(s, Math.max(duration - 1, 0)))));
+      setVideoDuration(video.duration);
+      setSelectedSlots(['middle']);
       URL.revokeObjectURL(url);
     };
     video.src = url;
     return () => URL.revokeObjectURL(url);
   }, [adFile, adCreative]);
+
+  const isShortVideo = videoDuration != null && videoDuration < SHORT_VIDEO_THRESHOLD_SEC;
+  const adSlots       = videoDuration != null ? getAdSlots(videoDuration) : [];
+  const markers        = isShortVideo
+    ? adSlots.map((s) => s.time)
+    : adSlots.filter((s) => selectedSlots.includes(s.key)).map((s) => s.time);
+
+  const toggleSlot = (key: string) => {
+    setSelectedSlots((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  };
 
   // Processing time scales with marker count, not video length — only the
   // marker windows get re-encoded, everything else is a fast stream copy.
@@ -97,10 +131,6 @@ export default function PostAdModal({
   if (!open || !provider) return null;
 
   const close = () => { if (!adUploading) onClose(); };
-
-  const updateMarker = (i: number, value: number) => {
-    setMarkers((prev) => prev.map((m, idx) => (idx === i ? value : m)));
-  };
 
   const downloadCreativeManually = () => {
     if (!adCreative) return;
@@ -171,8 +201,6 @@ export default function PostAdModal({
       setUploadStage('idle');
     }
   };
-
-  const readyForChoice = adFile && adCreative && markers.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -249,31 +277,39 @@ export default function PostAdModal({
               <p className="text-[10px] text-(--color-muted) mt-1">Placeholder for the advertiser-matching flow — lets you test the auto-insert pipeline now.</p>
             </div>
 
-            {/* Marker picker + choice — only once a creative is attached */}
-            {readyForChoice && (
+            {/* Placement choice — only once a creative is attached and duration is known */}
+            {adFile && adCreative && videoDuration != null && (
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-3 space-y-3">
-                <p className="text-xs font-bold text-(--color-white)">Ad placement (seconds into video)</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Intro', 'Middle', 'Outro'].map((label, i) => (
-                    <div key={label}>
-                      <label className="block text-[10px] text-(--color-muted) mb-1">{label}</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={videoDuration ? Math.floor(videoDuration) : undefined}
-                        value={markers[i] ?? 0}
-                        onChange={(e) => updateMarker(i, Math.max(0, Number(e.target.value)))}
-                        disabled={adUploading}
-                        className="w-full bg-(--color-surface-1) border border-(--color-border) rounded-lg px-2 py-1.5 text-xs text-(--color-white) outline-none focus:border-white/30 disabled:opacity-50"
-                      />
+                {isShortVideo ? (
+                  <p className="text-xs text-(--color-white)">
+                    This video is under 5 minutes, so the ad plays once, in the middle
+                    (<span className="font-mono">{formatTime(adSlots[0].time)}</span>). No placement choice for short videos.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-(--color-white)">Ad placement — pick one or more</p>
+                    <div className="space-y-1.5">
+                      {adSlots.map((slot) => (
+                        <label key={slot.key} className="flex items-center gap-2 text-xs text-(--color-white) cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedSlots.includes(slot.key)}
+                            onChange={() => toggleSlot(slot.key)}
+                            disabled={adUploading}
+                            className="accent-emerald-500"
+                          />
+                          {slot.label}
+                        </label>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
+                <p className="text-[10px] text-(--color-muted)">Each placement plays the ad for ~12 seconds (fading in/out).</p>
 
                 <div className="flex flex-col gap-2 pt-1">
                   <button
                     onClick={() => handlePostAd('auto')}
-                    disabled={adUploading}
+                    disabled={adUploading || markers.length === 0}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white disabled:opacity-40"
                   >
                     Auto-insert ad{estimatedSeconds != null ? ` (~${estimatedSeconds}s processing)` : ''}

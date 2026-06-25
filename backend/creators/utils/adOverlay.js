@@ -11,7 +11,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
 // The ad is visible for this long per marker (with a fade in/out at the edges).
-const OVERLAY_WINDOW_SEC = 6;
+const OVERLAY_WINDOW_SEC = 12; // within the requested 10-15s range
 const FADE_SEC           = 1;
 const AD_WIDTH_RATIO     = 0.22; // ad badge width relative to video width
 const MARGIN_RATIO       = 0.03;
@@ -19,7 +19,7 @@ const MARGIN_RATIO       = 0.03;
 // Only the marker windows get re-encoded — everything else is a stream copy — so
 // processing time scales with marker count, not with the host video's length.
 const FIXED_OVERHEAD_SECONDS   = 8;  // probing + splitting + concatenation + ffmpeg startup
-const ENCODE_SECONDS_PER_MARKER = 12; // observed throughput for a ~6s 1080p overlay window
+const ENCODE_SECONDS_PER_MARKER = 18; // observed throughput for a ~12s 1080p overlay window
 
 function estimateOverlaySeconds(markerCount) {
   const n = Math.max(0, Math.min(Number(markerCount) || 0, 12));

@@ -154,9 +154,10 @@ exports.getUserDetail = async (req, res) => {
     // websites.owner_id is TEXT, holding the creator's id
     const websites = await Website.findByOwner(String(userId));
 
-    // traffic_grants.user_id references the legacy `users` table, not creators,
-    // so this will simply come back empty until that table is migrated.
-    const grants = await TrafficGrant.findByUser(userId);
+    // traffic_grants.user_id is a uuid column tied to the legacy `users` table.
+    // Creator ids are plain integers, so they'd never match — querying it would
+    // throw "invalid input syntax for type uuid". Skip until that table is migrated.
+    const grants = [];
 
     const websiteMap = {};
     for (const w of websites) websiteMap[String(w.id)] = w;

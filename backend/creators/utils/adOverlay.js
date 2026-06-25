@@ -13,8 +13,40 @@ ffmpeg.setFfprobePath(ffprobePath);
 // The ad is visible for this long per marker (with a fade in/out at the edges).
 const OVERLAY_WINDOW_SEC = 12; // within the requested 10-15s range
 const FADE_SEC           = 1;
-const AD_WIDTH_RATIO     = 0.22; // ad badge width relative to video width
 const MARGIN_RATIO       = 0.03;
+
+// Visual ad formats an advertiser picks when claiming a slot. Sizes are
+// expressed as ratios of the video's own width/height so they scale to any
+// resolution. Exported so the frontend can render the same labels/descriptions
+// without duplicating them.
+const AD_FORMATS = {
+  corner: {
+    label: 'Corner Badge',
+    description: 'A small badge that pops up in a corner of the video and fades in/out without covering the content.',
+    sizes: {
+      small:  { ratio: 0.15 },
+      medium: { ratio: 0.22 },
+      large:  { ratio: 0.30 },
+    },
+  },
+  lbar: {
+    label: 'L-Bar',
+    description: 'An L-shaped banner — a strip down the left edge plus a strip along the bottom — more visible than a corner badge, like on-screen TV branding.',
+    sizes: {
+      small:  { vRatio: 0.06, hRatio: 0.10 },
+      medium: { vRatio: 0.08, hRatio: 0.14 },
+      large:  { vRatio: 0.11, hRatio: 0.18 },
+    },
+  },
+};
+const AD_TYPES = Object.keys(AD_FORMATS);
+const AD_SIZES = ['small', 'medium', 'large'];
+
+function getFormatConfig(adType, adSize) {
+  const type = AD_FORMATS[adType] ? adType : 'corner';
+  const size = AD_FORMATS[type].sizes[adSize] ? adSize : 'medium';
+  return { type, size, ...AD_FORMATS[type].sizes[size] };
+}
 
 // Only the marker windows get re-encoded — everything else is a stream copy — so
 // processing time scales with marker count, not with the host video's length.
@@ -74,7 +106,7 @@ function runCommand(cmd) {
 // the earlier placement's image when two windows collide).
 function buildWindows(placements, duration) {
   const sane = (placements || [])
-    .map((p) => ({ time: Number(p.time), imagePath: p.imagePath }))
+    .map((p) => ({ time: Number(p.time), imagePath: p.imagePath, adType: p.adType || 'corner', adSize: p.adSize || 'medium' }))
     .filter((p) => Number.isFinite(p.time) && p.time >= 0 && p.time < duration && p.imagePath)
     .sort((a, b) => a.time - b.time);
 
@@ -86,26 +118,60 @@ function buildWindows(placements, duration) {
 
     const prev = windows[windows.length - 1];
     if (prev && start < prev.end) {
-      prev.end = Math.max(prev.end, end); // merge overlapping windows, keep prev's image
+      prev.end = Math.max(prev.end, end); // merge overlapping windows, keep prev's image/format
       continue;
     }
-    windows.push({ start, end, imagePath: p.imagePath });
+    windows.push({ start, end, imagePath: p.imagePath, adType: p.adType, adSize: p.adSize });
   }
   return windows;
 }
 
-async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, segPath }) {
-  const { width, fps, hasAudio, sampleRate, channels } = videoInfo;
+// Builds the filter-graph fragment for a single ad placement: one branch for
+// a corner badge, two (vertical + horizontal bar) for an L-bar, both ending
+// in a named output pad so the caller can chain them.
+function buildLayerFilters({ imageInputIndex, videoInPad, videoOutPad, adType, adSize, width, height, fadeOutStart, margin, enable, padPrefix }) {
+  const enableSuffix = enable ? `:enable='${enable}'` : '';
+
+  if (adType === 'lbar') {
+    const { vRatio, hRatio } = getFormatConfig('lbar', adSize);
+    const vBarW = Math.round(width * vRatio);
+    const hBarH = Math.round(height * hRatio);
+    const vPad = `${padPrefix}v`;
+    const hPad = `${padPrefix}h`;
+    const midPad = `${padPrefix}mid`;
+    const fade = fadeOutStart != null
+      ? `,format=yuva420p,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1`
+      : '';
+    return (
+      `[${imageInputIndex}:v]scale=${vBarW}:${height}:force_original_aspect_ratio=increase,crop=${vBarW}:${height}${fade}[${vPad}];` +
+      `[${imageInputIndex}:v]scale=${width}:${hBarH}:force_original_aspect_ratio=increase,crop=${width}:${hBarH}${fade}[${hPad}];` +
+      `[${videoInPad}][${vPad}]overlay=0:0${enableSuffix}[${midPad}];` +
+      `[${midPad}][${hPad}]overlay=0:H-h${enableSuffix}[${videoOutPad}]`
+    );
+  }
+
+  const { ratio } = getFormatConfig('corner', adSize);
+  const adWidth = Math.round(width * ratio);
+  const adPad = `${padPrefix}ad`;
+  const fade = fadeOutStart != null
+    ? `,format=yuva420p,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1`
+    : '';
+  return (
+    `[${imageInputIndex}:v]scale=${adWidth}:-1${fade}[${adPad}];` +
+    `[${videoInPad}][${adPad}]overlay=W-w-${margin}:H-h-${margin}${enableSuffix}[${videoOutPad}]`
+  );
+}
+
+async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, segPath, adType, adSize }) {
+  const { width, height, fps, hasAudio, sampleRate, channels } = videoInfo;
   const segDuration = end - start;
-  const adWidth      = Math.round(width * AD_WIDTH_RATIO);
   const margin       = Math.round(width * MARGIN_RATIO);
   const fadeOutStart = Math.max(0, segDuration - FADE_SEC);
 
-  const filter =
-    `[1:v]scale=${adWidth}:-1,format=yuva420p,` +
-    `fade=t=in:st=0:d=${FADE_SEC}:alpha=1,` +
-    `fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1[ad];` +
-    `[0:v][ad]overlay=W-w-${margin}:H-h-${margin}[outv]`;
+  const filter = buildLayerFilters({
+    imageInputIndex: 1, videoInPad: '0:v', videoOutPad: 'outv',
+    adType, adSize, width, height, fadeOutStart, margin, enable: null, padPrefix: 'l0',
+  });
 
   const cmd = ffmpeg()
     .input(videoPath).inputOptions(['-ss', String(start), '-to', String(end)])
@@ -146,25 +212,24 @@ async function concatSegments(segPaths, outputPath, workDir) {
 }
 
 // Slow but always-correct fallback for source codecs that don't allow the
-// fast copy+concat path (no fade; chains one overlay stage per window so
-// each can show its own image, only active during its own time range).
+// fast copy+concat path (no fade; chains one overlay stage per window —
+// two for L-bar — so each can show its own image/format, time-gated).
 async function applyOverlayFullReencode({ videoPath, windows, videoInfo, outputPath }) {
-  const { width } = videoInfo;
-  const adWidth = Math.round(width * AD_WIDTH_RATIO);
-  const margin  = Math.round(width * MARGIN_RATIO);
+  const { width, height } = videoInfo;
+  const margin = Math.round(width * MARGIN_RATIO);
 
   const cmd = ffmpeg().input(videoPath);
   windows.forEach((w) => cmd.input(w.imagePath).inputOptions(['-loop', '1']));
 
-  const filterParts = windows.map((w, i) => {
-    const imgIn = `${i + 1}:v`;
-    const vIn = i === 0 ? '0:v' : `tmp${i}`;
-    const vOut = i === windows.length - 1 ? 'outv' : `tmp${i + 1}`;
-    return (
-      `[${imgIn}]scale=${adWidth}:-1[ad${i}];` +
-      `[${vIn}][ad${i}]overlay=W-w-${margin}:H-h-${margin}:enable='between(t,${w.start},${w.end})'[${vOut}]`
-    );
-  });
+  const filterParts = windows.map((w, i) => buildLayerFilters({
+    imageInputIndex: i + 1,
+    videoInPad:  i === 0 ? '0:v' : `tmp${i}`,
+    videoOutPad: i === windows.length - 1 ? 'outv' : `tmp${i + 1}`,
+    adType: w.adType, adSize: w.adSize, width, height, margin,
+    fadeOutStart: null, // no fade in this fallback — hard cut on/off
+    enable: `between(t,${w.start},${w.end})`,
+    padPrefix: `l${i}`,
+  }));
 
   const cmdFinal = cmd
     .complexFilter(filterParts.join(';'))
@@ -188,6 +253,7 @@ async function applyAdOverlay({ videoPath, placements }) {
 
   const videoInfo = {
     width: vStream.width,
+    height: vStream.height,
     fps: parseFrameRate(vStream.avg_frame_rate && vStream.avg_frame_rate !== '0/0' ? vStream.avg_frame_rate : vStream.r_frame_rate),
     hasAudio: !!aStream,
     sampleRate: aStream ? aStream.sample_rate : null,
@@ -222,7 +288,7 @@ async function applyAdOverlay({ videoPath, placements }) {
         segPaths.push(segPath);
       }
       const adSegPath = path.join(workDir, `seg${i++}.mp4`);
-      await buildAdSegment({ videoPath, adImagePath: w.imagePath, start: w.start, end: w.end, videoInfo, segPath: adSegPath });
+      await buildAdSegment({ videoPath, adImagePath: w.imagePath, start: w.start, end: w.end, videoInfo, segPath: adSegPath, adType: w.adType, adSize: w.adSize });
       segPaths.push(adSegPath);
       cursor = w.end;
     }
@@ -240,4 +306,4 @@ async function applyAdOverlay({ videoPath, placements }) {
   }
 }
 
-module.exports = { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, OVERLAY_WINDOW_SEC };
+module.exports = { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, OVERLAY_WINDOW_SEC, AD_FORMATS, AD_TYPES, AD_SIZES };

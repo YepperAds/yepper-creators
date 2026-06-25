@@ -1085,7 +1085,7 @@ exports.postAdVideo = async (req, res) => {
       const duration = await probeDuration(videoFile.path);
       const slotTimes = computeSlotTimes(duration);
       const claimsRes = await query(
-        `SELECT slot_type, image_url FROM youtube_ad_claims WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
+        `SELECT slot_type, image_url, ad_type, ad_size FROM youtube_ad_claims WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
         [session, claimedSlotTypes],
       );
       for (const row of claimsRes.rows) {
@@ -1093,7 +1093,7 @@ exports.postAdVideo = async (req, res) => {
         if (time == null) continue; // e.g. video too short for that slot
         const imagePath = await downloadToTemp(row.image_url, path.extname(row.image_url) || '.png');
         downloadedImagePaths.push(imagePath);
-        placements.push({ time, imagePath });
+        placements.push({ time, imagePath, adType: row.ad_type, adSize: row.ad_size });
       }
     } else if (mode === 'auto' && adImageFile) {
       // Test/manual creative — same image at every chosen marker.

@@ -4,6 +4,7 @@ const jwt    = require('jsonwebtoken');
 const multer = require('multer');
 const { query }  = require('../../config/db');
 const cloudinary  = require('../../config/storage');
+const { AD_FORMATS, AD_TYPES, AD_SIZES } = require('../utils/adOverlay');
 
 const JWT_SECRET = () => {
   if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
@@ -47,6 +48,18 @@ function uploadCreativeToCloudinary(file) {
 exports.imageUpload = imageUpload;
 exports.SLOT_TYPES = SLOT_TYPES;
 
+// GET /api/social/youtube/ad-formats — format/size catalog, with descriptions,
+// so the claim UI doesn't have to hardcode any of this.
+exports.getAdFormats = (req, res) => {
+  const types = AD_TYPES.map((type) => ({
+    type,
+    label: AD_FORMATS[type].label,
+    description: AD_FORMATS[type].description,
+    sizes: AD_SIZES.filter((size) => AD_FORMATS[type].sizes[size]),
+  }));
+  return res.json({ success: true, data: { types } });
+};
+
 // GET /api/social/youtube/ad-spaces/:creatorId — public: shows each slot's
 // open/claimed status only. No creative details leak to other advertisers.
 exports.getAdSpaces = async (req, res) => {
@@ -77,6 +90,8 @@ exports.claimAdSpace = async (req, res) => {
 
   const { creatorId } = req.params;
   const { slotType } = req.body;
+  const adType = AD_TYPES.includes(req.body.adType) ? req.body.adType : 'corner';
+  const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
 
@@ -87,11 +102,11 @@ exports.claimAdSpace = async (req, res) => {
     const imageUrl = await uploadCreativeToCloudinary(req.file);
 
     await query(
-      `INSERT INTO youtube_ad_claims (creator_id, advertiser_id, slot_type, image_url) VALUES ($1, $2, $3, $4)`,
-      [creatorId, String(advertiserId), slotType, imageUrl],
+      `INSERT INTO youtube_ad_claims (creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [creatorId, String(advertiserId), slotType, imageUrl, adType, adSize],
     );
 
-    return res.json({ success: true, data: { slotType, imageUrl } });
+    return res.json({ success: true, data: { slotType, imageUrl, adType, adSize } });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ success: false, message: 'That ad space was just claimed by someone else' });
     console.error('[adSpaces] claimAdSpace error:', err);
@@ -106,12 +121,15 @@ exports.getPendingClaims = async (req, res) => {
   if (!creatorId) return res.status(401).json({ success: false });
   try {
     const result = await query(
-      `SELECT id, slot_type, image_url, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
+      `SELECT id, slot_type, image_url, ad_type, ad_size, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
       [creatorId],
     );
     return res.json({
       success: true,
-      data: result.rows.map((r) => ({ id: r.id, slotType: r.slot_type, imageUrl: r.image_url, createdAt: r.created_at })),
+      data: result.rows.map((r) => ({
+        id: r.id, slotType: r.slot_type, imageUrl: r.image_url,
+        adType: r.ad_type, adSize: r.ad_size, createdAt: r.created_at,
+      })),
     });
   } catch (err) {
     console.error('[adSpaces] getPendingClaims error:', err);

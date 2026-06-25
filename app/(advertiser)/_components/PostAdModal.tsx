@@ -69,7 +69,7 @@ export default function PostAdModal({
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
   const [selectedSlots, setSelectedSlots]       = useState<string[]>(['middle']);
   const [estimatedSeconds, setEstimatedSeconds] = useState<number | null>(null);
-  const [pendingClaims, setPendingClaims]       = useState<{ slotType: string; imageUrl: string }[]>([]);
+  const [pendingClaims, setPendingClaims]       = useState<{ slotType: string; imageUrl: string; adType: string; adSize: string }[]>([]);
 
   const fileRef     = useRef<HTMLInputElement | null>(null);
   const creativeRef  = useRef<HTMLInputElement | null>(null);
@@ -338,6 +338,7 @@ export default function PostAdModal({
                     <div className="space-y-1.5">
                       {adSlots.map((slot) => {
                         const claimed = claimedSlotKeys.has(slot.key);
+                        const claim = pendingClaims.find((c) => c.slotType === slot.key);
                         const disabled = adUploading || (hasRealClaims && !claimed);
                         return (
                           <label key={slot.key} className={`flex items-center gap-2 text-xs cursor-pointer ${disabled && hasRealClaims ? 'text-(--color-muted) opacity-50' : 'text-(--color-white)'}`}>
@@ -349,7 +350,7 @@ export default function PostAdModal({
                               className="accent-emerald-500"
                             />
                             {slot.label}
-                            {hasRealClaims && (claimed ? ' — claimed' : ' — no advertiser yet')}
+                            {hasRealClaims && (claimed && claim ? ` — claimed (${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize})` : ' — no advertiser yet')}
                           </label>
                         );
                       })}

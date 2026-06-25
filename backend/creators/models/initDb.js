@@ -128,6 +128,9 @@ async function initCreatorsDatabase() {
        created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
        used_at       TIMESTAMP WITH TIME ZONE
      )`,
+    // Visual format the advertiser picked for their creative (corner badge vs L-bar) and its size (small/medium/large).
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_type VARCHAR(20) NOT NULL DEFAULT 'corner'`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_size VARCHAR(20) NOT NULL DEFAULT 'medium'`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
     `CREATE TABLE IF NOT EXISTS notifications (

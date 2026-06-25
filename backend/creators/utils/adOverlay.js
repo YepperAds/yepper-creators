@@ -95,6 +95,7 @@ async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, s
       '-pix_fmt', 'yuv420p',
       '-r', String(fps),
       ...(hasAudio ? ['-c:a', 'aac', '-ar', String(sampleRate), '-ac', String(channels)] : ['-an']),
+      '-shortest', // the ad image is looped indefinitely — stop once the (finite) video segment ends
     ])
     .output(segPath);
 
@@ -133,7 +134,7 @@ async function applyOverlayFullReencode({ videoPath, adImagePath, windows, video
     .input(videoPath)
     .input(adImagePath).inputOptions(['-loop', '1'])
     .complexFilter(`[1:v]scale=${adWidth}:-1[ad];[0:v][ad]overlay=W-w-${margin}:H-h-${margin}:enable='${enableExpr}'[outv]`)
-    .outputOptions(['-map', '[outv]', '-map', '0:a?', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac'])
+    .outputOptions(['-map', '[outv]', '-map', '0:a?', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest'])
     .output(outputPath);
   await runCommand(cmd);
 }

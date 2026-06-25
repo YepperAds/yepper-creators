@@ -128,6 +128,8 @@ export default function ConnectAccountsPage() {
   const [adPostCounts, setAdPostCounts] = useState<Record<string, number>>({});
   const [postAdProvider, setPostAdProvider] = useState<string | null>(null);
   const [adSpaces, setAdSpaces] = useState<{ slotType: string; label: string; status: string }[]>([]);
+  const [adSpacesLoading, setAdSpacesLoading] = useState(true);
+  const [adSpacesError, setAdSpacesError] = useState('');
 
 
   const popupRef = useRef<Window | null>(null);
@@ -202,10 +204,16 @@ export default function ConnectAccountsPage() {
   // them via "Collaborate with [you]" from the Explore / Advertise feed.
   useEffect(() => {
     if (!user?.id) return;
+    setAdSpacesLoading(true);
+    setAdSpacesError('');
     fetch(`/api/social/youtube/ad-spaces/${user.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((json) => setAdSpaces(json?.data?.slots ?? []))
-      .catch(() => setAdSpaces([]));
+      .then((json) => {
+        if (json?.success) setAdSpaces(json.data?.slots ?? []);
+        else setAdSpacesError(json?.message || 'Failed to load ad spaces.');
+      })
+      .catch(() => setAdSpacesError('Failed to load ad spaces.'))
+      .finally(() => setAdSpacesLoading(false));
   }, [user?.id]);
 
   // Fetch video stats for YouTube accounts and compute pricing
@@ -511,8 +519,10 @@ export default function ConnectAccountsPage() {
                   {/* Ad spaces — advertisers claim these via "Collaborate with you" on Explore/Advertise */}
                   <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
                     <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Spaces</p>
-                    {adSpaces.length === 0 ? (
+                    {adSpacesLoading ? (
                       <p className="text-xs text-(--color-muted)">Loading…</p>
+                    ) : adSpacesError ? (
+                      <p className="text-xs text-red-400">{adSpacesError}</p>
                     ) : (
                       <div className="space-y-1.5">
                         {adSpaces.map((slot) => (

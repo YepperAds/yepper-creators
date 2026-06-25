@@ -1022,6 +1022,7 @@ exports.socialConnectCallback = async (req, res) => {
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { applyAdOverlay, estimateOverlaySeconds } = require('../utils/adOverlay');
 
 const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB' };
 
@@ -1030,22 +1031,52 @@ function trackingCode(provider, num) {
   return `#YPR-${prefix}-${String(num).padStart(3, '0')}`;
 }
 
+// Pure function of marker count — exposed so the upload modal can show a
+// time estimate before committing to the auto-overlay path.
+exports.estimateAdOverlay = (req, res) => {
+  const markerCount = parseInt(req.query.markers, 10) || 0;
+  return res.json({ success: true, data: { estimatedSeconds: estimateOverlaySeconds(markerCount) } });
+};
+
 exports.postAdVideo = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
 
   const { provider } = req.params;
-  const { title = '', description = '', privacy = 'public' } = req.body;
+  const { title = '', description = '', privacy = 'public', mode = 'manual' } = req.body;
 
-  if (!req.file) return res.status(400).json({ success: false, message: 'No video file uploaded' });
+  const videoFile = req.files?.video?.[0];
+  const adImageFile = req.files?.adImage?.[0];
+  if (!videoFile) return res.status(400).json({ success: false, message: 'No video file uploaded' });
 
-  const videoPath = req.file.path;
-  const videoMime = req.file.mimetype || 'video/mp4';
-  const videoSize = req.file.size;
+  let videoPath = videoFile.path;
+  let videoMime = videoFile.mimetype || 'video/mp4';
+  let videoSize = videoFile.size;
+  let overlayCleanup = null;
 
-  const cleanup = () => { try { fs.unlinkSync(videoPath); } catch {} };
+  const cleanup = () => {
+    try { fs.unlinkSync(videoFile.path); } catch {}
+    if (adImageFile) { try { fs.unlinkSync(adImageFile.path); } catch {} }
+    if (overlayCleanup) overlayCleanup();
+  };
 
   try {
+    let markers = [];
+    if (mode === 'auto' && adImageFile) {
+      try { markers = JSON.parse(req.body.markers || '[]'); } catch { markers = []; }
+    }
+
+    if (mode === 'auto' && adImageFile && Array.isArray(markers) && markers.length) {
+      const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({
+        videoPath: videoFile.path,
+        adImagePath: adImageFile.path,
+        markers,
+      });
+      videoPath = outputPath;
+      videoMime = 'video/mp4';
+      videoSize = fs.statSync(outputPath).size;
+      overlayCleanup = cleanupOverlay;
+    }
     const conn = await query(
       `SELECT access_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
       [session, provider],

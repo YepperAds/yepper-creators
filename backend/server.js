@@ -53,7 +53,7 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
-  'https://yep-strator.vercel.app',
+  'https://yepper-creators-admin.vercel.app',
   'https://yepper-creators.onrender.com',
   'https://yepper-creators.vercel.app',
   'https://yepper-creators-api.onrender.com',

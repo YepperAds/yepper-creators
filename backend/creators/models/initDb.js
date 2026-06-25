@@ -33,6 +33,9 @@ async function initCreatorsDatabase() {
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_tracking_started_at TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_actual_stats_available_at TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_verified_at TIMESTAMP WITH TIME ZONE`,
+    // The creator picks ONE ad format for their channel (corner badge or L-bar) —
+    // advertisers claiming a slot just see and use whichever the creator has set.
+    `ALTER TABLE creators ADD COLUMN IF NOT EXISTS ad_type_preference VARCHAR(20) NOT NULL DEFAULT 'corner'`,
     `CREATE UNIQUE INDEX IF NOT EXISTS creators_website_domain_unique ON creators (LOWER(website_domain)) WHERE website_domain IS NOT NULL`,
     `CREATE TABLE IF NOT EXISTS website_traffic_events (
        id               BIGSERIAL PRIMARY KEY,

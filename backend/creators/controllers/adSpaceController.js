@@ -61,10 +61,16 @@ exports.getAdFormats = (req, res) => {
 };
 
 // GET /api/social/youtube/ad-spaces/:creatorId — public: shows each slot's
-// open/claimed status only. No creative details leak to other advertisers.
+// open/claimed status, plus the creator's fixed ad format (chosen on their
+// own dashboard — advertisers don't get to pick it). No other creative
+// details leak to advertisers who didn't make the claim.
 exports.getAdSpaces = async (req, res) => {
   const { creatorId } = req.params;
   try {
+    const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
+    if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+    const adType = creatorRes.rows[0].ad_type_preference || 'corner';
+
     const claimed = await query(
       `SELECT slot_type FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
       [creatorId],
@@ -75,29 +81,70 @@ exports.getAdSpaces = async (req, res) => {
       label: SLOT_LABELS[slotType],
       status: claimedSet.has(slotType) ? 'claimed' : 'open',
     }));
-    return res.json({ success: true, data: { slots } });
+    return res.json({
+      success: true,
+      data: {
+        adType,
+        adTypeLabel: AD_FORMATS[adType]?.label,
+        adTypeDescription: AD_FORMATS[adType]?.description,
+        slots,
+      },
+    });
   } catch (err) {
     console.error('[adSpaces] getAdSpaces error:', err);
     return res.status(500).json({ success: false, message: 'Failed to load ad spaces' });
   }
 };
 
+// GET /api/social/youtube/ad-type-preference — the logged-in creator's own
+// current ad format choice.
+exports.getAdTypePreference = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false });
+  try {
+    const result = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
+    if (!result.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+    return res.json({ success: true, data: { adType: result.rows[0].ad_type_preference || 'corner' } });
+  } catch (err) {
+    console.error('[adSpaces] getAdTypePreference error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load ad type preference' });
+  }
+};
+
+// POST /api/social/youtube/ad-type-preference — the creator sets ONE ad
+// format for their whole channel; every future claim uses it.
+exports.setAdTypePreference = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false });
+  const { adType } = req.body;
+  if (!AD_TYPES.includes(adType)) return res.status(400).json({ success: false, message: 'Invalid ad type' });
+  try {
+    await query(`UPDATE creators SET ad_type_preference = $1 WHERE id = $2`, [adType, creatorId]);
+    return res.json({ success: true, data: { adType } });
+  } catch (err) {
+    console.error('[adSpaces] setAdTypePreference error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save ad type preference' });
+  }
+};
+
 // POST /api/social/youtube/ad-spaces/:creatorId/claim — an advertiser claims
-// an open slot by uploading their creative to it.
+// an open slot by uploading their creative to it. The visual format (corner
+// badge vs L-bar) is whatever the creator already set — advertisers only
+// choose a size and upload the image.
 exports.claimAdSpace = async (req, res) => {
   const advertiserId = getSessionUserId(req);
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
 
   const { creatorId } = req.params;
   const { slotType } = req.body;
-  const adType = AD_TYPES.includes(req.body.adType) ? req.body.adType : 'corner';
   const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
 
   try {
-    const creatorRes = await query(`SELECT id FROM creators WHERE id = $1`, [creatorId]);
+    const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
     if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+    const adType = creatorRes.rows[0].ad_type_preference || 'corner';
 
     const imageUrl = await uploadCreativeToCloudinary(req.file);
 

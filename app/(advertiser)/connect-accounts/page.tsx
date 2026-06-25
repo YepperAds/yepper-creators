@@ -130,6 +130,9 @@ export default function ConnectAccountsPage() {
   const [adSpaces, setAdSpaces] = useState<{ slotType: string; label: string; status: string }[]>([]);
   const [adSpacesLoading, setAdSpacesLoading] = useState(true);
   const [adSpacesError, setAdSpacesError] = useState('');
+  const [adType, setAdType] = useState('corner');
+  const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
+  const [adTypeSaving, setAdTypeSaving] = useState(false);
 
 
   const popupRef = useRef<Window | null>(null);
@@ -202,6 +205,8 @@ export default function ConnectAccountsPage() {
 
   // Read-only status of this creator's 3 placement slots — advertisers claim
   // them via "Collaborate with [you]" from the Explore / Advertise feed.
+  // The ad TYPE (corner badge vs L-bar) is the creator's own choice below —
+  // advertisers only pick a size and upload their creative into it.
   useEffect(() => {
     if (!user?.id) return;
     setAdSpacesLoading(true);
@@ -209,12 +214,38 @@ export default function ConnectAccountsPage() {
     fetch(`/api/social/youtube/ad-spaces/${user.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
-        if (json?.success) setAdSpaces(json.data?.slots ?? []);
-        else setAdSpacesError(json?.message || 'Failed to load ad spaces.');
+        if (json?.success) {
+          setAdSpaces(json.data?.slots ?? []);
+          setAdType(json.data?.adType ?? 'corner');
+        } else {
+          setAdSpacesError(json?.message || 'Failed to load ad spaces.');
+        }
       })
       .catch(() => setAdSpacesError('Failed to load ad spaces.'))
       .finally(() => setAdSpacesLoading(false));
+
+    fetch('/api/social/youtube/ad-formats', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => setAdFormatCatalog(json?.data?.types ?? []))
+      .catch(() => {});
   }, [user?.id]);
+
+  const handleAdTypeChange = async (nextType: string) => {
+    if (nextType === adType) return;
+    setAdTypeSaving(true);
+    try {
+      const res = await fetch('/api/social/youtube/ad-type-preference', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adType: nextType }),
+      });
+      const json = await res.json();
+      if (json.success) setAdType(nextType);
+    } finally {
+      setAdTypeSaving(false);
+    }
+  };
 
   // Fetch video stats for YouTube accounts and compute pricing
   useEffect(() => {
@@ -518,6 +549,27 @@ export default function ConnectAccountsPage() {
                 <div className="p-5 space-y-3">
                   {/* Ad spaces — advertisers claim these via "Collaborate with you" on Explore/Advertise */}
                   <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
+                    <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Type</p>
+                    <p className="text-[10px] text-(--color-muted) mb-2">Pick one format for your channel — advertisers can only choose a size, not the type.</p>
+                    <div className="space-y-1.5 mb-4">
+                      {adFormatCatalog.map((t) => (
+                        <label key={t.type} className="flex items-start gap-2 text-xs text-(--color-white) cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-1) p-2 hover:bg-(--color-surface-3)">
+                          <input
+                            type="radio"
+                            name="creatorAdType"
+                            checked={adType === t.type}
+                            onChange={() => handleAdTypeChange(t.type)}
+                            disabled={adTypeSaving}
+                            className="accent-emerald-500 mt-0.5"
+                          />
+                          <span>
+                            <span className="font-semibold">{t.label}</span>
+                            <span className="block text-[10px] text-(--color-muted) mt-0.5">{t.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
                     <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Spaces</p>
                     {adSpacesLoading ? (
                       <p className="text-xs text-(--color-muted)">Loading…</p>

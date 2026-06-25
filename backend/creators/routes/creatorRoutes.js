@@ -47,6 +47,8 @@ router.get('/api/social/ad-overlay/estimate',   controller.estimateAdOverlay);
 
 // ─── Ad spaces (advertiser claims a creator's intro/middle/end slot) ─────────
 router.get('/api/social/youtube/ad-formats',                   adSpaces.getAdFormats);
+router.get('/api/social/youtube/ad-type-preference',          adSpaces.getAdTypePreference);
+router.post('/api/social/youtube/ad-type-preference',         adSpaces.setAdTypePreference);
 router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
 router.post(
   '/api/social/youtube/ad-spaces/:creatorId/claim',

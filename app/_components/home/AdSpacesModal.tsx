@@ -18,10 +18,11 @@ interface AdFormatType {
 }
 
 // Lets an advertiser claim one of a creator's three video-placement slots
-// (intro / middle / end) by uploading their creative straight to it, after
-// picking a visual format (corner badge vs L-bar) and size. Once claimed,
-// the slot is automatically offered to the creator next time they post a
-// video through Yepper (see PostAdModal.tsx).
+// (intro / middle / end) by uploading their creative straight to it, at a
+// size of their choosing. The visual format (corner badge vs L-bar) is the
+// creator's own fixed choice (set on their dashboard) — not the advertiser's.
+// Once claimed, the slot is automatically offered to the creator next time
+// they post a video through Yepper (see PostAdModal.tsx).
 export default function AdSpacesModal({
   creator,
   open,
@@ -32,7 +33,10 @@ export default function AdSpacesModal({
   onClose: () => void;
 }) {
   const [slots, setSlots]       = useState<AdSlot[]>([]);
-  const [formatTypes, setFormatTypes] = useState<AdFormatType[]>([]);
+  const [adType, setAdType]     = useState('corner');
+  const [adTypeLabel, setAdTypeLabel] = useState('');
+  const [adTypeDescription, setAdTypeDescription] = useState('');
+  const [sizes, setSizes]       = useState<string[]>(['small', 'medium', 'large']);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [claimingSlot, setClaimingSlot] = useState<string | null>(null);
@@ -40,7 +44,6 @@ export default function AdSpacesModal({
   const [claimedJustNow, setClaimedJustNow] = useState<string | null>(null);
 
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
-  const [adType, setAdType] = useState('corner');
   const [adSize, setAdSize] = useState('medium');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
@@ -59,7 +62,12 @@ export default function AdSpacesModal({
     ])
       .then(([spacesJson, formatsJson]) => {
         setSlots(spacesJson?.data?.slots ?? []);
-        setFormatTypes(formatsJson?.data?.types ?? []);
+        const type = spacesJson?.data?.adType ?? 'corner';
+        setAdType(type);
+        setAdTypeLabel(spacesJson?.data?.adTypeLabel ?? '');
+        setAdTypeDescription(spacesJson?.data?.adTypeDescription ?? '');
+        const types: AdFormatType[] = formatsJson?.data?.types ?? [];
+        setSizes(types.find((t) => t.type === type)?.sizes ?? ['small', 'medium', 'large']);
       })
       .catch(() => setError('Failed to load ad spaces.'))
       .finally(() => setLoading(false));
@@ -69,13 +77,10 @@ export default function AdSpacesModal({
 
   const startExpand = (slotType: string) => {
     setExpandedSlot(slotType);
-    setAdType('corner');
     setAdSize('medium');
     setPendingFile(null);
     setError('');
   };
-
-  const sizesFor = (type: string) => formatTypes.find((t) => t.type === type)?.sizes ?? ['small', 'medium', 'large'];
 
   const submitClaim = async () => {
     if (!expandedSlot || !pendingFile) return;
@@ -88,7 +93,6 @@ export default function AdSpacesModal({
       const formData = new FormData();
       formData.append('image', pendingFile);
       formData.append('slotType', slotType);
-      formData.append('adType', adType);
       formData.append('adSize', adSize);
 
       const res = await fetch(`/api/social/youtube/ad-spaces/${creator.id}/claim`, {
@@ -138,6 +142,14 @@ export default function AdSpacesModal({
           </button>
         </div>
 
+        {!loading && adTypeLabel && (
+          <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) px-3 py-2">
+            <p className="text-[10px] font-bold text-(--color-muted) uppercase">This channel's ad format</p>
+            <p className="text-xs font-semibold text-(--color-white)">{adTypeLabel}</p>
+            <p className="text-[10px] text-(--color-muted) mt-0.5">{adTypeDescription}</p>
+          </div>
+        )}
+
         {needsLogin && (
           <p className="mb-3 text-xs text-amber-400 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
             Log in to claim an ad space — <a href="/login" className="underline font-semibold">go to login</a>.
@@ -181,27 +193,11 @@ export default function AdSpacesModal({
 
                 {expandedSlot === slot.slotType && (
                   <div className="mt-3 pt-3 border-t border-(--color-border) space-y-3">
-                    {/* Ad type */}
-                    <div>
-                      <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Ad Type</p>
-                      <div className="space-y-1.5">
-                        {formatTypes.map((t) => (
-                          <label key={t.type} className="flex items-start gap-2 text-xs text-(--color-white) cursor-pointer rounded-lg border border-(--color-border) p-2 hover:bg-(--color-surface-3)">
-                            <input type="radio" name="adType" checked={adType === t.type} onChange={() => { setAdType(t.type); setAdSize('medium'); }} className="accent-emerald-500 mt-0.5" />
-                            <span>
-                              <span className="font-semibold">{t.label}</span>
-                              <span className="block text-[10px] text-(--color-muted) mt-0.5">{t.description}</span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Size */}
                     <div>
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Size</p>
                       <div className="flex gap-2">
-                        {sizesFor(adType).map((size) => (
+                        {sizes.map((size) => (
                           <button
                             key={size}
                             onClick={() => setAdSize(size)}

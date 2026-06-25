@@ -70,7 +70,7 @@ function DirectAdvertise() {
     { value: 'general-retail', label: 'General Retail' }
   ];
 
-  const [setFileLoaded] = useState(false);
+  const [, setFileLoaded] = useState(false);
   
   // Only resume saved progress when actually returning from the Google OAuth
   // round trip. A plain click on the ad space (no googleReturn param) should

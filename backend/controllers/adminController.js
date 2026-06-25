@@ -2,6 +2,7 @@
 const crypto    = require('crypto');
 const { query } = require('../config/db');
 const User        = require('../models/User');
+const Creator     = require('../creators/models/Creator');
 const Website     = require('../AdPromoter/models/CreateWebsiteModel');
 const TrafficGrant = require('../models/TrafficGrantModel');
 const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
@@ -60,19 +61,25 @@ const sendGrantEmail = async (user, grant, website) => {
   }
 };
 
-// Normalise a user row for the frontend (adds _id alias, camelCase booleans)
+// Normalise a creator row for the frontend (adds _id alias, camelCase fields)
 function safeUser(u) {
   if (!u) return null;
-  const out = { ...u, _id: u.id, isVerified: u.is_verified, googleId: u.google_id };
+  const out = {
+    ...u, _id: u.id,
+    name: u.full_name || u.username,
+    isVerified: true, // creators are Google-authenticated, no separate verification flow
+    googleId: u.google_id,
+    createdAt: u.created_at,
+    updatedAt: u.updated_at,
+  };
   delete out.password; delete out.gsc_access_token; delete out.gsc_refresh_token;
   return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/users
-// users.id          → UUID
-// websites.owner_id → TEXT  (stored as the user UUID string)
-// traffic_grants.user_id → UUID
+// creators.id        → SERIAL integer
+// websites.owner_id  → TEXT (stored as the creator id string)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getUsers = async (req, res) => {
   try {
@@ -85,16 +92,16 @@ exports.getUsers = async (req, res) => {
     let where    = '';
     if (search) {
       params.push(`%${search}%`);
-      where = `WHERE name ILIKE $1 OR email ILIKE $1`;
+      where = `WHERE full_name ILIKE $1 OR email ILIKE $1 OR username ILIKE $1`;
     }
 
-    const countRes = await query(`SELECT COUNT(*) FROM users ${where}`, params);
+    const countRes = await query(`SELECT COUNT(*) FROM creators ${where}`, params);
     const total    = parseInt(countRes.rows[0].count, 10);
 
-    // Paginated users (no password / tokens)
+    // Paginated creators (real signed-up users — production auth writes here, not `users`)
     const usersRes = await query(
-      `SELECT id, name, email, avatar, is_verified, google_id, created_at, updated_at
-       FROM users ${where}
+      `SELECT id, full_name, username, email, avatar, google_id, created_at, updated_at
+       FROM creators ${where}
        ORDER BY created_at DESC
        OFFSET $${params.length + 1} LIMIT $${params.length + 2}`,
       [...params, offset, lim]
@@ -105,11 +112,9 @@ exports.getUsers = async (req, res) => {
       return res.json({ success: true, users: [], total, page: parseInt(page), limit: lim });
     }
 
-    // UUID array for grant join; TEXT array for website join (owner_id is TEXT)
-    const uuidIds = users.map(u => u.id);            // UUID[]
-    const textIds = users.map(u => String(u.id));    // TEXT[]
+    // websites.owner_id is TEXT, holding the creator's id
+    const textIds = users.map(u => String(u.id));
 
-    // Website counts — owner_id is TEXT so cast our UUIDs to text for the ANY()
     const wcRes = await query(
       `SELECT owner_id, COUNT(*) AS cnt
        FROM websites
@@ -120,21 +125,13 @@ exports.getUsers = async (req, res) => {
     const countMap = {};
     for (const r of wcRes.rows) countMap[r.owner_id] = parseInt(r.cnt, 10);
 
-    // Latest grant status per user — user_id is UUID
-    const grantRes = await query(
-      `SELECT DISTINCT ON (user_id) user_id, status
-       FROM traffic_grants
-       WHERE user_id = ANY($1::uuid[]) AND status IN ('pending','completed')
-       ORDER BY user_id, created_at DESC`,
-      [uuidIds]
-    );
-    const grantMap = {};
-    for (const r of grantRes.rows) grantMap[String(r.user_id)] = r.status;
-
+    // NOTE: traffic_grants.user_id is a FK into the legacy `users` table, so it
+    // can't be matched against creators.id here. Grant status is unavailable
+    // for creators until that table is migrated.
     const enriched = users.map(u => ({
       ...safeUser(u),
       websiteCount: countMap[String(u.id)] || 0,
-      grantStatus:  grantMap[String(u.id)] || null,
+      grantStatus:  null,
     }));
 
     res.json({ success: true, users: enriched, total, page: parseInt(page), limit: lim });
@@ -151,13 +148,14 @@ exports.getUserDetail = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId);
+    const user = await Creator.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // websites.owner_id is TEXT
+    // websites.owner_id is TEXT, holding the creator's id
     const websites = await Website.findByOwner(String(userId));
 
-    // traffic_grants.user_id is UUID
+    // traffic_grants.user_id references the legacy `users` table, not creators,
+    // so this will simply come back empty until that table is migrated.
     const grants = await TrafficGrant.findByUser(userId);
 
     const websiteMap = {};
@@ -330,11 +328,11 @@ exports.getStats = async (req, res) => {
   try {
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const [a, b, c, d, e] = await Promise.all([
-      query(`SELECT COUNT(*) FROM users`),
+      query(`SELECT COUNT(*) FROM creators`),
       query(`SELECT COUNT(*) FROM websites`),
       query(`SELECT COUNT(*) FROM traffic_grants WHERE status = 'pending'`),
       query(`SELECT COUNT(*) FROM traffic_grants WHERE status = 'completed'`),
-      query(`SELECT COUNT(*) FROM users WHERE created_at >= $1`, [since7d]),
+      query(`SELECT COUNT(*) FROM creators WHERE created_at >= $1`, [since7d]),
     ]);
     res.json({ success: true, stats: {
       totalUsers:      parseInt(a.rows[0].count, 10),

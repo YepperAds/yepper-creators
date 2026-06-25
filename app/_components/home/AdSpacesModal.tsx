@@ -132,12 +132,12 @@ export default function AdSpacesModal({
         }}
       />
       <div className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="min-w-0">
             <h3 className="text-lg font-bold text-(--color-white)">Collaborate with {creator.channelName || creator.name}</h3>
             <p className="text-xs text-(--color-muted) mt-0.5">Claim a placement slot — your ad gets inserted automatically the next time they post a video.</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-(--color-surface-2)">
+          <button onClick={onClose} className="shrink-0 p-1 rounded-full hover:bg-(--color-surface-2)">
             <XMarkIcon className="w-5 h-5 text-(--color-muted)" />
           </button>
         </div>
@@ -167,29 +167,31 @@ export default function AdSpacesModal({
           <div className="space-y-2">
             {slots.map((slot) => (
               <div key={slot.slotType} className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-(--color-white)">{slot.label}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-(--color-white) truncate">{slot.label}</p>
                     <p className="text-[10px] text-(--color-muted)">~12s ad placement</p>
                   </div>
-                  {slot.status === 'claimed' ? (
+                  {slot.status === 'claimed' && (
                     claimedJustNow === slot.slotType ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-emerald-400"><CheckCircleIcon className="w-4 h-4" /> Claimed!</span>
+                      <span className="shrink-0 flex items-center gap-1 text-xs font-bold text-emerald-400"><CheckCircleIcon className="w-4 h-4" /> Claimed!</span>
                     ) : (
-                      <span className="text-xs font-bold text-(--color-muted)">Claimed</span>
+                      <span className="shrink-0 text-xs font-bold text-(--color-muted)">Claimed</span>
                     )
-                  ) : expandedSlot === slot.slotType ? (
-                    <button onClick={() => setExpandedSlot(null)} className="text-xs font-medium text-(--color-muted)">Cancel</button>
-                  ) : (
-                    <button
-                      onClick={() => startExpand(slot.slotType)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white"
-                    >
-                      <PhotoIcon className="w-3.5 h-3.5" />
-                      Claim this slot
-                    </button>
+                  )}
+                  {slot.status === 'open' && expandedSlot === slot.slotType && (
+                    <button onClick={() => setExpandedSlot(null)} className="shrink-0 text-xs font-medium text-(--color-muted)">Cancel</button>
                   )}
                 </div>
+                {slot.status === 'open' && expandedSlot !== slot.slotType && (
+                  <button
+                    onClick={() => startExpand(slot.slotType)}
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-xs font-bold text-white"
+                  >
+                    <PhotoIcon className="w-3.5 h-3.5" />
+                    Claim this slot
+                  </button>
+                )}
 
                 {expandedSlot === slot.slotType && (
                   <div className="mt-3 pt-3 border-t border-(--color-border) space-y-3">

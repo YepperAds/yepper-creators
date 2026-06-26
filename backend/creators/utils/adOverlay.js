@@ -10,6 +10,13 @@ const path        = require('path');
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
+// Lowest OS scheduling priority (max niceness; no-op on Windows). Encoding
+// now runs in the same process as the web server, so this is what keeps
+// ffmpeg from starving the event loop of CPU on a constrained Render
+// instance — without it, even a cheap GET (job-status polling) can stall
+// long enough that Render's proxy 502s it.
+const FFMPEG_NICENESS = 19;
+
 // The ad is visible for this long per marker (with a fade in/out at the edges).
 const OVERLAY_WINDOW_SEC = 12; // within the requested 10-15s range
 const FADE_SEC           = 1;
@@ -174,6 +181,7 @@ async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, s
   });
 
   const cmd = ffmpeg()
+    .renice(FFMPEG_NICENESS)
     .input(videoPath).inputOptions(['-ss', String(start), '-to', String(end)])
     .input(adImagePath).inputOptions(['-loop', '1'])
     .complexFilter(filter)
@@ -195,6 +203,7 @@ async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, s
 
 async function buildCopySegment({ videoPath, start, end, segPath }) {
   const cmd = ffmpeg()
+    .renice(FFMPEG_NICENESS)
     .input(videoPath).inputOptions(['-ss', String(start), '-to', String(end)])
     .outputOptions(['-c', 'copy', '-avoid_negative_ts', 'make_zero'])
     .output(segPath);
@@ -207,6 +216,7 @@ async function concatSegments(segPaths, outputPath, workDir) {
   fs.writeFileSync(listPath, listBody);
 
   const cmd = ffmpeg()
+    .renice(FFMPEG_NICENESS)
     .input(listPath).inputOptions(['-f', 'concat', '-safe', '0'])
     .outputOptions(['-c', 'copy'])
     .output(outputPath);
@@ -220,7 +230,7 @@ async function applyOverlayFullReencode({ videoPath, windows, videoInfo, outputP
   const { width, height } = videoInfo;
   const margin = Math.round(width * MARGIN_RATIO);
 
-  const cmd = ffmpeg().input(videoPath);
+  const cmd = ffmpeg().renice(FFMPEG_NICENESS).input(videoPath);
   windows.forEach((w) => cmd.input(w.imagePath).inputOptions(['-loop', '1']));
 
   const filterParts = windows.map((w, i) => buildLayerFilters({

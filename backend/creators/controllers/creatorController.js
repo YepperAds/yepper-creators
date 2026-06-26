@@ -1060,6 +1060,18 @@ exports.estimateAdOverlay = (req, res) => {
   return res.json({ success: true, data: { estimatedSeconds: estimateOverlaySeconds(markerCount) } });
 };
 
+// Serializes the heavy part of every ad-video job (ffmpeg + platform upload)
+// onto a single chain so two uploads landing at once never compete for the
+// same memory-limited Render instance's CPU/RAM at the same time — that
+// contention was starving the web server enough to make even cheap polling
+// requests 502. Jobs sit at status='queued' until their turn comes up.
+let adVideoJobQueueTail = Promise.resolve();
+function enqueueAdVideoJob(jobId, params) {
+  adVideoJobQueueTail = adVideoJobQueueTail
+    .then(() => runAdVideoJob(jobId, params))
+    .catch((err) => console.error(`[creators] adVideoJob#${jobId} crashed:`, err?.stack || err));
+}
+
 async function updateAdVideoJob(jobId, fields) {
   const cols = Object.keys(fields);
   const sets = cols.map((c, i) => `${c} = $${i + 1}`);
@@ -1104,8 +1116,7 @@ exports.postAdVideo = async (req, res) => {
   // reverse-proxy timeout to kill.
   res.json({ success: true, data: { jobId } });
 
-  runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers })
-    .catch((err) => console.error(`[creators] adVideoJob#${jobId} crashed:`, err?.stack || err));
+  enqueueAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers });
 };
 
 async function runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers }) {

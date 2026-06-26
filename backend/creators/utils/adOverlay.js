@@ -253,12 +253,22 @@ async function applyOverlayFullReencode({ videoPath, windows, videoInfo, outputP
  * Returns { outputPath, cleanup }. Caller is responsible for calling cleanup()
  * once the processed file has been uploaded/consumed.
  */
+// Logs RSS so we can see exactly where memory climbs on Render instead of
+// guessing — remove once the real OOM source is confirmed and fixed.
+function memLog(label) {
+  const mb = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
+  console.log(`[memlog] ${label}: RSS=${mb}MB`);
+}
+
 async function applyAdOverlay({ videoPath, placements }) {
+  memLog('applyAdOverlay:start');
   const info = await probe(videoPath);
+  memLog('applyAdOverlay:after-probe');
   const duration = parseFloat(info.format.duration);
   const vStream = info.streams.find((s) => s.codec_type === 'video');
   const aStream = info.streams.find((s) => s.codec_type === 'audio');
   if (!vStream || !Number.isFinite(duration)) throw new Error('Could not read video metadata');
+  console.log(`[adOverlay] video: ${vStream.width}x${vStream.height} ${vStream.codec_name}, audio: ${aStream?.codec_name ?? 'none'}, duration: ${duration.toFixed(1)}s`);
 
   const videoInfo = {
     width: vStream.width,
@@ -279,10 +289,14 @@ async function applyAdOverlay({ videoPath, placements }) {
 
   const fastPathEligible = vStream.codec_name === 'h264' && (!aStream || aStream.codec_name === 'aac');
 
+  console.log(`[adOverlay] path: ${fastPathEligible ? 'FAST (segment copy+concat)' : 'SLOW (full re-encode)'}, windows: ${windows.length}`);
+  memLog('applyAdOverlay:before-encode');
+
   try {
     if (!fastPathEligible) {
       console.warn(`[adOverlay] Source codec (${vStream.codec_name}/${aStream?.codec_name}) doesn't match the fast-path target (h264/aac) — falling back to a full re-encode.`);
       await applyOverlayFullReencode({ videoPath, windows, videoInfo, outputPath });
+      memLog('applyAdOverlay:after-full-reencode');
       return { outputPath, cleanup };
     }
 
@@ -294,10 +308,12 @@ async function applyAdOverlay({ videoPath, placements }) {
       if (w.start > cursor) {
         const segPath = path.join(workDir, `seg${i++}.mp4`);
         await buildCopySegment({ videoPath, start: cursor, end: w.start, segPath });
+        memLog(`applyAdOverlay:after-copy-segment-${i}`);
         segPaths.push(segPath);
       }
       const adSegPath = path.join(workDir, `seg${i++}.mp4`);
       await buildAdSegment({ videoPath, adImagePath: w.imagePath, start: w.start, end: w.end, videoInfo, segPath: adSegPath, adType: w.adType, adSize: w.adSize });
+      memLog(`applyAdOverlay:after-ad-segment-${i}`);
       segPaths.push(adSegPath);
       cursor = w.end;
     }
@@ -307,7 +323,9 @@ async function applyAdOverlay({ videoPath, placements }) {
       segPaths.push(segPath);
     }
 
+    memLog('applyAdOverlay:before-concat');
     await concatSegments(segPaths, outputPath, workDir);
+    memLog('applyAdOverlay:after-concat');
     return { outputPath, cleanup };
   } catch (err) {
     cleanup();
@@ -315,4 +333,4 @@ async function applyAdOverlay({ videoPath, placements }) {
   }
 }
 
-module.exports = { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, OVERLAY_WINDOW_SEC, AD_FORMATS, AD_TYPES, AD_SIZES };
+module.exports = { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, OVERLAY_WINDOW_SEC, AD_FORMATS, AD_TYPES, AD_SIZES, memLog };

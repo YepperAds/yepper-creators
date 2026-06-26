@@ -1035,7 +1035,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
-const { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration } = require('../utils/adOverlay');
+const { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, memLog } = require('../utils/adOverlay');
 
 async function downloadToTemp(url, suffix) {
   const res = await fetch(url);
@@ -1070,6 +1070,20 @@ exports.postAdVideo = async (req, res) => {
   const videoFile = req.files?.video?.[0];
   const adImageFile = req.files?.adImage?.[0];
   if (!videoFile) return res.status(400).json({ success: false, message: 'No video file uploaded' });
+
+  memLog(`postAdVideo:after-multer-upload (${(videoFile.size / 1024 / 1024).toFixed(1)}MB)`);
+
+  // Continuous sampler — before/after checkpoints only catch the net change
+  // between steps, not a peak that happens mid-ffmpeg-call. Logs every tick
+  // (not just a final summary) because if this gets OOM-killed, the process
+  // dies instantly with no chance to run cleanup/finally code — the live log
+  // stream up to the last tick is the only record we'll have of the climb.
+  let peakRss = process.memoryUsage().rss;
+  const memSampler = setInterval(() => {
+    const rss = process.memoryUsage().rss;
+    if (rss > peakRss) peakRss = rss;
+    console.log(`[memlog] postAdVideo:tick RSS=${(rss / 1024 / 1024).toFixed(1)}MB`);
+  }, 1000);
 
   let videoPath = videoFile.path;
   let videoMime = videoFile.mimetype || 'video/mp4';
@@ -1116,7 +1130,9 @@ exports.postAdVideo = async (req, res) => {
     }
 
     if (placements.length) {
+      memLog('postAdVideo:before-applyAdOverlay');
       const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({ videoPath: videoFile.path, placements });
+      memLog('postAdVideo:after-applyAdOverlay');
       videoPath = outputPath;
       videoMime = 'video/mp4';
       videoSize = fs.statSync(outputPath).size;
@@ -1178,6 +1194,7 @@ exports.postAdVideo = async (req, res) => {
       // the outside but still OOMs a memory-limited instance. pipe() over
       // a plain http.ClientRequest has well-defined backpressure and never
       // holds more than a small chunk of the file in memory at once.
+      memLog(`postAdVideo:before-youtube-upload (${(videoSize / 1024 / 1024).toFixed(1)}MB)`);
       let uploadResult;
       try {
         uploadResult = await new Promise((resolve, reject) => {
@@ -1200,6 +1217,7 @@ exports.postAdVideo = async (req, res) => {
       } finally {
         cleanup();
       }
+      memLog('postAdVideo:after-youtube-upload');
 
       if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
         console.error('[creators] YouTube video upload failed:', uploadResult.statusCode, uploadResult.body);
@@ -1237,6 +1255,9 @@ exports.postAdVideo = async (req, res) => {
     cleanup();
     console.error('[creators] postAdVideo error:', err?.stack || err);
     return res.status(500).json({ success: false, message: 'Upload failed unexpectedly' });
+  } finally {
+    clearInterval(memSampler);
+    console.log(`[memlog] postAdVideo:PEAK RSS for this request = ${(peakRss / 1024 / 1024).toFixed(1)}MB`);
   }
 };
 

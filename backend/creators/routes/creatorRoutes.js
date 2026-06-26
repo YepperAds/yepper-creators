@@ -42,6 +42,7 @@ router.post(
   videoUpload.fields([{ name: 'video', maxCount: 1 }, { name: 'adImage', maxCount: 1 }]),
   controller.postAdVideo,
 );
+router.get('/api/social/post-ad/jobs/:id',      controller.getAdVideoJobStatus);
 router.get('/api/social/ad-posts',              controller.getAdPosts);
 router.get('/api/social/ad-overlay/estimate',   controller.estimateAdOverlay);
 

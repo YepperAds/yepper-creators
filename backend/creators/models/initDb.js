@@ -136,6 +136,24 @@ async function initCreatorsDatabase() {
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_size VARCHAR(20) NOT NULL DEFAULT 'medium'`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
+    // Tracks the burn-in + platform-upload pipeline in the background so the
+    // HTTP request that kicks it off can return immediately — see postAdVideo
+    // in creatorController.js. Without this, the whole pipeline ran inside one
+    // held-open request and Render's reverse-proxy timeout 502'd it on any
+    // video big/slow enough that upload+encode+re-upload exceeded ~100s.
+    `CREATE TABLE IF NOT EXISTS ad_video_jobs (
+       id            SERIAL PRIMARY KEY,
+       creator_id    INTEGER REFERENCES creators(id) ON DELETE CASCADE,
+       provider      VARCHAR(50) NOT NULL,
+       status        VARCHAR(20) NOT NULL DEFAULT 'queued',
+       stage_message TEXT,
+       result        JSONB,
+       error_message TEXT,
+       error_code    VARCHAR(50),
+       created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       updated_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )`,
+    `CREATE INDEX IF NOT EXISTS ad_video_jobs_creator_idx ON ad_video_jobs (creator_id)`,
     `CREATE TABLE IF NOT EXISTS notifications (
        id          BIGSERIAL PRIMARY KEY,
        creator_id  INTEGER REFERENCES creators(id) ON DELETE CASCADE,

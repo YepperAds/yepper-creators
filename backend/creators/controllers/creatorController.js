@@ -1060,6 +1060,16 @@ exports.estimateAdOverlay = (req, res) => {
   return res.json({ success: true, data: { estimatedSeconds: estimateOverlaySeconds(markerCount) } });
 };
 
+async function updateAdVideoJob(jobId, fields) {
+  const cols = Object.keys(fields);
+  const sets = cols.map((c, i) => `${c} = $${i + 1}`);
+  const values = cols.map((c) => fields[c]);
+  await query(
+    `UPDATE ad_video_jobs SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${cols.length + 1}`,
+    [...values, jobId],
+  );
+}
+
 exports.postAdVideo = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
@@ -1073,6 +1083,32 @@ exports.postAdVideo = async (req, res) => {
 
   memLog(`postAdVideo:after-multer-upload (${(videoFile.size / 1024 / 1024).toFixed(1)}MB)`);
 
+  // Parsed regardless of mode: even in manual mode (creator downloads the
+  // claimed creative and adds it themselves) the claim still gets marked
+  // used once the post succeeds — see the UPDATE in runAdVideoJob.
+  let claimedSlotTypes = [];
+  try { claimedSlotTypes = JSON.parse(req.body.claimedSlotTypes || '[]'); } catch { claimedSlotTypes = []; }
+  let markers = [];
+  try { markers = JSON.parse(req.body.markers || '[]'); } catch { markers = []; }
+
+  const jobRes = await query(
+    `INSERT INTO ad_video_jobs (creator_id, provider, status, stage_message) VALUES ($1,$2,'queued','Queued') RETURNING id`,
+    [session, provider],
+  );
+  const jobId = jobRes.rows[0].id;
+
+  // Respond now — the ffmpeg burn-in + platform upload run in the background.
+  // The video is already fully received at this point (multer wrote it to
+  // disk before this handler even ran), so this response is fast regardless
+  // of video length, and never sits in a held-open request for Render's
+  // reverse-proxy timeout to kill.
+  res.json({ success: true, data: { jobId } });
+
+  runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers })
+    .catch((err) => console.error(`[creators] adVideoJob#${jobId} crashed:`, err?.stack || err));
+};
+
+async function runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers }) {
   // Continuous sampler — before/after checkpoints only catch the net change
   // between steps, not a peak that happens mid-ffmpeg-call. Logs every tick
   // (not just a final summary) because if this gets OOM-killed, the process
@@ -1082,14 +1118,13 @@ exports.postAdVideo = async (req, res) => {
   const memSampler = setInterval(() => {
     const rss = process.memoryUsage().rss;
     if (rss > peakRss) peakRss = rss;
-    console.log(`[memlog] postAdVideo:tick RSS=${(rss / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`[memlog] adVideoJob#${jobId}:tick RSS=${(rss / 1024 / 1024).toFixed(1)}MB`);
   }, 1000);
 
   let videoPath = videoFile.path;
   let videoMime = videoFile.mimetype || 'video/mp4';
   let videoSize = videoFile.size;
   let overlayCleanup = null;
-  let claimedSlotTypes = [];
   const downloadedImagePaths = [];
 
   const cleanup = () => {
@@ -1100,10 +1135,7 @@ exports.postAdVideo = async (req, res) => {
   };
 
   try {
-    // Parsed regardless of mode: even in manual mode (creator downloads the
-    // claimed creative and adds it themselves) the claim still gets marked
-    // used once the post succeeds — see the UPDATE below.
-    try { claimedSlotTypes = JSON.parse(req.body.claimedSlotTypes || '[]'); } catch { claimedSlotTypes = []; }
+    await updateAdVideoJob(jobId, { status: 'processing', stage_message: 'Preparing video…' });
 
     let placements = [];
     if (mode === 'auto' && Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
@@ -1124,15 +1156,14 @@ exports.postAdVideo = async (req, res) => {
       }
     } else if (mode === 'auto' && adImageFile) {
       // Test/manual creative — same image at every chosen marker.
-      let markers = [];
-      try { markers = JSON.parse(req.body.markers || '[]'); } catch { markers = []; }
       placements = (Array.isArray(markers) ? markers : []).map((time) => ({ time, imagePath: adImageFile.path }));
     }
 
     if (placements.length) {
-      memLog('postAdVideo:before-applyAdOverlay');
+      await updateAdVideoJob(jobId, { stage_message: 'Burning in ad…' });
+      memLog(`adVideoJob#${jobId}:before-applyAdOverlay`);
       const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({ videoPath: videoFile.path, placements });
-      memLog('postAdVideo:after-applyAdOverlay');
+      memLog(`adVideoJob#${jobId}:after-applyAdOverlay`);
       videoPath = outputPath;
       videoMime = 'video/mp4';
       videoSize = fs.statSync(outputPath).size;
@@ -1142,7 +1173,11 @@ exports.postAdVideo = async (req, res) => {
       `SELECT access_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
       [session, provider],
     );
-    if (!conn.rowCount) { cleanup(); return res.status(404).json({ success: false, message: `Not connected to ${provider}` }); }
+    if (!conn.rowCount) {
+      cleanup();
+      await updateAdVideoJob(jobId, { status: 'error', error_message: `Not connected to ${provider}` });
+      return;
+    }
     const { access_token } = conn.rows[0];
 
     // Atomically get next tracking number
@@ -1158,6 +1193,8 @@ exports.postAdVideo = async (req, res) => {
     const fullDescription = description ? `${description}\n\n${code}` : code;
 
     if (provider === 'youtube') {
+      await updateAdVideoJob(jobId, { status: 'uploading', stage_message: 'Uploading to YouTube…' });
+
       // 1. Initiate resumable upload session
       const initRes = await fetch(
         'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
@@ -1179,13 +1216,19 @@ exports.postAdVideo = async (req, res) => {
       if (!initRes.ok) {
         cleanup();
         if (initRes.status === 401 || initRes.status === 403) {
-          return res.status(403).json({ success: false, message: 'YouTube upload not authorized. Please reconnect your YouTube account to grant upload permissions.', code: 'reconnect_required' });
+          await updateAdVideoJob(jobId, { status: 'error', error_code: 'reconnect_required', error_message: 'YouTube upload not authorized. Please reconnect your YouTube account to grant upload permissions.' });
+        } else {
+          await updateAdVideoJob(jobId, { status: 'error', error_message: 'Failed to start YouTube upload' });
         }
-        return res.status(500).json({ success: false, message: 'Failed to start YouTube upload' });
+        return;
       }
 
       const uploadUrl = initRes.headers.get('location');
-      if (!uploadUrl) { cleanup(); return res.status(500).json({ success: false, message: 'YouTube did not return upload URL' }); }
+      if (!uploadUrl) {
+        cleanup();
+        await updateAdVideoJob(jobId, { status: 'error', error_message: 'YouTube did not return upload URL' });
+        return;
+      }
 
       // 2. Stream the file to YouTube via a raw https.request + pipe() —
       // fetch()/undici's handling of a Node Readable body as a streaming
@@ -1194,7 +1237,7 @@ exports.postAdVideo = async (req, res) => {
       // the outside but still OOMs a memory-limited instance. pipe() over
       // a plain http.ClientRequest has well-defined backpressure and never
       // holds more than a small chunk of the file in memory at once.
-      memLog(`postAdVideo:before-youtube-upload (${(videoSize / 1024 / 1024).toFixed(1)}MB)`);
+      memLog(`adVideoJob#${jobId}:before-youtube-upload (${(videoSize / 1024 / 1024).toFixed(1)}MB)`);
       let uploadResult;
       try {
         uploadResult = await new Promise((resolve, reject) => {
@@ -1217,11 +1260,12 @@ exports.postAdVideo = async (req, res) => {
       } finally {
         cleanup();
       }
-      memLog('postAdVideo:after-youtube-upload');
+      memLog(`adVideoJob#${jobId}:after-youtube-upload`);
 
       if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
         console.error('[creators] YouTube video upload failed:', uploadResult.statusCode, uploadResult.body);
-        return res.status(500).json({ success: false, message: 'Video upload to YouTube failed' });
+        await updateAdVideoJob(jobId, { status: 'error', error_message: 'Video upload to YouTube failed' });
+        return;
       }
 
       const videoData  = JSON.parse(uploadResult.body || 'null');
@@ -1243,22 +1287,40 @@ exports.postAdVideo = async (req, res) => {
         );
       }
 
-      return res.json({ success: true, data: { trackingCode: code, videoUrl, platformVideoId: videoId } });
+      await updateAdVideoJob(jobId, {
+        status: 'done',
+        stage_message: 'Done',
+        result: JSON.stringify({ trackingCode: code, videoUrl, platformVideoId: videoId }),
+      });
+      createNotification(session, 'ad_video_posted', 'Ad video posted', `Your video is live on YouTube with tracking code ${code}.`, { videoUrl }).catch(() => {});
+      return;
     }
 
     // Instagram / Facebook — not yet supported
     cleanup();
     const platformLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
-    return res.status(400).json({ success: false, message: `${platformLabel} video upload is coming soon` });
+    await updateAdVideoJob(jobId, { status: 'error', error_message: `${platformLabel} video upload is coming soon` });
 
   } catch (err) {
     cleanup();
-    console.error('[creators] postAdVideo error:', err?.stack || err);
-    return res.status(500).json({ success: false, message: 'Upload failed unexpectedly' });
+    console.error(`[creators] adVideoJob#${jobId} error:`, err?.stack || err);
+    await updateAdVideoJob(jobId, { status: 'error', error_message: 'Upload failed unexpectedly' }).catch(() => {});
   } finally {
     clearInterval(memSampler);
-    console.log(`[memlog] postAdVideo:PEAK RSS for this request = ${(peakRss / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`[memlog] adVideoJob#${jobId}:PEAK RSS = ${(peakRss / 1024 / 1024).toFixed(1)}MB`);
   }
+}
+
+exports.getAdVideoJobStatus = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+
+  const jobRes = await query(
+    `SELECT id, status, stage_message, result, error_message, error_code FROM ad_video_jobs WHERE id=$1 AND creator_id=$2`,
+    [req.params.id, session],
+  );
+  if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
+  return res.json({ success: true, data: jobRes.rows[0] });
 };
 
 exports.getAdPosts = async (req, res) => {

@@ -65,7 +65,9 @@ export default function PostAdModal({
   const [adUploadProgress, setAdUploadProgress] = useState(0);
   const [adUploadResult, setAdUploadResult]     = useState<{ trackingCode: string; videoUrl: string | null } | null>(null);
   const [adUploadError, setAdUploadError]       = useState('');
-  const [uploadStage, setUploadStage]           = useState<'idle' | 'processing' | 'uploading'>('idle');
+  const [uploadStage, setUploadStage]           = useState<'idle' | 'transferring' | 'queued' | 'processing' | 'uploading'>('idle');
+  const [stageMessage, setStageMessage]         = useState('');
+  const pollCancelRef = useRef(false);
 
   // Ad creative placement. If an advertiser has already claimed one of this
   // creator's ad spaces (via "Collaborate with [creator]" on the homepage),
@@ -82,6 +84,7 @@ export default function PostAdModal({
 
   useEffect(() => {
     if (open) {
+      pollCancelRef.current = true; // cancel any poll loop left over from a previous open
       setAdFile(null);
       setAdTitle('');
       setAdDescription('');
@@ -91,11 +94,14 @@ export default function PostAdModal({
       setAdUploadResult(null);
       setAdUploadError('');
       setUploadStage('idle');
+      setStageMessage('');
       setAdCreative(null);
       setVideoDuration(null);
       setSelectedSlots(['middle']);
       setEstimatedSeconds(null);
       setPendingClaims([]);
+    } else {
+      pollCancelRef.current = true;
     }
   }, [open, provider]);
 
@@ -186,13 +192,69 @@ export default function PostAdModal({
     URL.revokeObjectURL(url);
   };
 
+  // Polls the backend job created by handlePostAd. The burn-in + YouTube
+  // upload run in the background on the server — without this, the original
+  // code waited on a single held-open request for that whole pipeline, which
+  // Render's reverse-proxy idle timeout would kill (502) on anything but a
+  // short, fast video.
+  const pollJobStatus = (jobId: string) => new Promise<void>((resolve) => {
+    const authHeaders: Record<string, string> = {};
+    const token = getToken();
+    if (token) authHeaders.Authorization = `Bearer ${token}`;
+
+    const tick = async () => {
+      if (pollCancelRef.current) { resolve(); return; }
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`, {
+          credentials: 'include',
+          headers: authHeaders,
+        });
+        const json = await res.json();
+        const job = json?.data;
+        if (!json?.success || !job) {
+          setAdUploadError('Lost track of the upload — please check back in a minute or try again');
+          setAdUploading(false);
+          setUploadStage('idle');
+          resolve();
+          return;
+        }
+
+        if (job.status === 'queued' || job.status === 'processing' || job.status === 'uploading') {
+          setUploadStage(job.status);
+          setStageMessage(job.stage_message || '');
+          setAdUploadProgress(job.status === 'queued' ? 15 : job.status === 'processing' ? 50 : 85);
+          setTimeout(tick, 2000);
+          return;
+        }
+
+        if (job.status === 'done') {
+          setAdUploadProgress(100);
+          setAdUploadResult({ trackingCode: job.result?.trackingCode, videoUrl: job.result?.videoUrl ?? null });
+          onPosted?.();
+        } else if (job.error_code === 'reconnect_required') {
+          setAdUploadError('YouTube upload not authorized. Please disconnect and reconnect your YouTube account to grant upload permissions.');
+        } else {
+          setAdUploadError(job.error_message || 'Upload failed');
+        }
+        setAdUploading(false);
+        setUploadStage('idle');
+        resolve();
+      } catch {
+        setTimeout(tick, 3000); // transient blip while polling — retry rather than failing the whole job
+      }
+    };
+    tick();
+  });
+
   const handlePostAd = async (mode: Mode) => {
     if (!adFile || !provider || adUploading) return;
+    pollCancelRef.current = false;
     setAdUploading(true);
     setAdUploadProgress(0);
     setAdUploadError('');
     setAdUploadResult(null);
-    setUploadStage(mode === 'auto' ? 'processing' : 'uploading');
+    setUploadStage('transferring');
+    setStageMessage('Uploading video…');
 
     if (mode === 'manual' && (adCreative || hasRealClaims)) downloadCreativeManually();
 
@@ -212,15 +274,13 @@ export default function PostAdModal({
         formData.append('markers', JSON.stringify(testMarkerSeconds));
       }
 
-      // Use XMLHttpRequest so we can track upload progress
+      // Use XMLHttpRequest so we can track upload progress. This request now
+      // only covers the file transfer — it returns a jobId as soon as the
+      // video lands on the backend, well before any ffmpeg/YouTube work starts.
       const result = await new Promise<{ success: boolean; data?: any; message?: string; code?: string }>((resolve) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100);
-            setAdUploadProgress(pct);
-            if (mode === 'auto' && pct >= 100) setUploadStage('processing');
-          }
+          if (e.lengthComputable) setAdUploadProgress(Math.round((e.loaded / e.total) * 100));
         };
         xhr.onload = () => {
           try { resolve(JSON.parse(xhr.responseText)); }
@@ -237,19 +297,22 @@ export default function PostAdModal({
         xhr.send(formData);
       });
 
-      if (!result.success) {
+      if (!result.success || !result.data?.jobId) {
         if (result.code === 'reconnect_required') {
           setAdUploadError('YouTube upload not authorized. Please disconnect and reconnect your YouTube account to grant upload permissions.');
         } else {
           setAdUploadError(result.message || 'Upload failed');
         }
-      } else {
-        setAdUploadResult({ trackingCode: result.data?.trackingCode, videoUrl: result.data?.videoUrl });
-        onPosted?.();
+        setAdUploading(false);
+        setUploadStage('idle');
+        return;
       }
+
+      setUploadStage('queued');
+      setStageMessage('Queued');
+      await pollJobStatus(String(result.data.jobId));
     } catch {
       setAdUploadError('Upload failed unexpectedly');
-    } finally {
       setAdUploading(false);
       setUploadStage('idle');
     }
@@ -442,7 +505,7 @@ export default function PostAdModal({
             {adUploading && (
               <div>
                 <div className="flex justify-between text-xs text-(--color-muted) mb-1">
-                  <span>{uploadStage === 'processing' ? 'Burning in ad…' : 'Uploading to YouTube…'}</span>
+                  <span>{stageMessage || (uploadStage === 'transferring' ? 'Uploading video…' : 'Working…')}</span>
                   <span>{adUploadProgress}%</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-(--color-surface-2) overflow-hidden">

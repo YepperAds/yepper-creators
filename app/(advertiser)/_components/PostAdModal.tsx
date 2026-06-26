@@ -289,8 +289,10 @@ export default function PostAdModal({
           fileToUpload = new File([blob], adFile.name.replace(/\.[^.]+$/, '') + '_ad.mp4', { type: 'video/mp4' });
         }
       }
-    } catch {
-      setAdUploadError('Could not process the video in this browser — try a smaller file or a different browser');
+    } catch (err) {
+      console.error('[PostAdModal] client-side ad overlay failed:', err);
+      const detail = err instanceof Error ? err.message : String(err);
+      setAdUploadError(`Could not process the video in this browser (${detail}) — try a smaller file or a different browser`);
       setAdUploading(false);
       setUploadStage('idle');
       return;

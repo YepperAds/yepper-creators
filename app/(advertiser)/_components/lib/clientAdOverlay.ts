@@ -155,7 +155,11 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
 
   const ffmpeg = await getFFmpeg();
   const margin = Math.round(width * MARGIN_RATIO);
-  await ffmpeg.writeFile('input.mp4', videoBytes);
+  // .slice() because FFmpeg's writeFile() transfers the Uint8Array's buffer
+  // to the worker, detaching it here — videoBytes must stay usable in case
+  // the fast path below fails and the full-reencode fallback needs to
+  // re-write it.
+  await ffmpeg.writeFile('input.mp4', videoBytes.slice());
 
   const totalSteps = windows.length * 2 + 1; // ~copy+ad per window, plus the final concat
   let stepsDone = 0;
@@ -176,7 +180,9 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
 
   const runAdSegment = async (start: number, end: number, imageBytes: Uint8Array, adType: string, adSize: string) => {
     const imgName = `adimg${segIdx}.png`;
-    await ffmpeg.writeFile(imgName, imageBytes);
+    // .slice() — same detached-buffer concern as input.mp4 above; the
+    // fallback path re-writes windows[i].imageBytes if the fast path fails.
+    await ffmpeg.writeFile(imgName, imageBytes.slice());
     const name = `seg${segIdx++}.mp4`;
     const segDuration = end - start;
     const fadeOutStart = Math.max(0, segDuration - FADE_SEC);

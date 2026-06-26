@@ -106,6 +106,26 @@ async function getFFmpeg(): Promise<FFmpeg> {
   return ffmpeg;
 }
 
+// ffmpeg.exec() never rejects on its own if a command runs away (e.g. a
+// looped image input with no duration bound encoding far more frames than
+// intended) — it just keeps grinding in the worker forever. This wrapper
+// guarantees every call eventually settles, killing and discarding the
+// worker on timeout so a hung command can't freeze the UI indefinitely.
+async function execWithTimeout(ffmpeg: FFmpeg, args: string[], timeoutMs: number): Promise<number> {
+  let timedOut = false;
+  const timeout = new Promise<number>((_, reject) => {
+    setTimeout(() => { timedOut = true; reject(new Error('ffmpeg-timeout')); }, timeoutMs);
+  });
+  try {
+    return await Promise.race([ffmpeg.exec(args), timeout]);
+  } finally {
+    if (timedOut) {
+      try { ffmpeg.terminate(); } catch { /* best effort */ }
+      ffmpegSingleton = null; // force a fresh worker next time
+    }
+  }
+}
+
 export interface OverlayInput {
   videoBytes: Uint8Array;
   width: number;
@@ -134,7 +154,7 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
 
   const runCopySegment = async (start: number, end: number) => {
     const name = `seg${segIdx++}.mp4`;
-    const code = await ffmpeg.exec(['-ss', String(start), '-to', String(end), '-i', 'input.mp4', '-c', 'copy', '-avoid_negative_ts', 'make_zero', name]);
+    const code = await execWithTimeout(ffmpeg, ['-ss', String(start), '-to', String(end), '-i', 'input.mp4', '-c', 'copy', '-avoid_negative_ts', 'make_zero', name], 60_000);
     if (code !== 0) throw new Error('copy-segment-failed');
     segNames.push(name);
     reportStep();
@@ -144,17 +164,22 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
     const imgName = `adimg${segIdx}.png`;
     await ffmpeg.writeFile(imgName, imageBytes);
     const name = `seg${segIdx++}.mp4`;
-    const fadeOutStart = Math.max(0, end - start - FADE_SEC);
+    const segDuration = end - start;
+    const fadeOutStart = Math.max(0, segDuration - FADE_SEC);
     const filter = buildLayerFilter({ imageInputIndex: 1, videoInPad: '0:v', videoOutPad: 'outv', adType, adSize, width, height, fadeOutStart, margin });
-    const code = await ffmpeg.exec([
+    const code = await execWithTimeout(ffmpeg, [
       '-ss', String(start), '-to', String(end), '-i', 'input.mp4',
-      '-loop', '1', '-i', imgName,
+      // -t here is the fix for a real hang: without an explicit duration on
+      // the looped image input, this can run away encoding far more frames
+      // than the ~12s window instead of stopping at -shortest, depending on
+      // how the filter graph negotiates frame rate for a `loop`'d image.
+      '-loop', '1', '-t', String(segDuration), '-i', imgName,
       '-filter_complex', filter,
       '-map', '[outv]', '-map', '0:a?',
       '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-shortest',
       name,
-    ]);
+    ], 180_000);
     if (code !== 0) throw new Error('ad-segment-failed');
     segNames.push(name);
     reportStep();
@@ -177,14 +202,19 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
     // re-encode pass with hard on/off cuts instead of fades, same as the
     // server's old applyOverlayFullReencode fallback.
     for (const name of segNames) { try { await ffmpeg.deleteFile(name); } catch { /* best effort */ } }
-    const blob = await fullReencodeFallback(ffmpeg, { width, height, windows, margin });
+    // If the failure was a watchdog timeout, execWithTimeout already killed
+    // that worker and reset the singleton — getFFmpeg() here may hand back
+    // a brand new one, whose MEMFS won't have input.mp4 yet.
+    const liveFfmpeg = await getFFmpeg();
+    if (liveFfmpeg !== ffmpeg) await liveFfmpeg.writeFile('input.mp4', videoBytes);
+    const blob = await fullReencodeFallback(liveFfmpeg, { width, height, windows, margin });
     onProgress?.(100);
     return blob;
   }
 
   const listBody = segNames.map((n) => `file '${n}'`).join('\n');
   await ffmpeg.writeFile('concat_list.txt', new TextEncoder().encode(listBody));
-  const concatCode = await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', '-c', 'copy', 'output.mp4']);
+  const concatCode = await execWithTimeout(ffmpeg, ['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', '-c', 'copy', 'output.mp4'], 60_000);
   reportStep();
   if (concatCode !== 0) throw new Error('Failed to stitch the processed video together');
 
@@ -228,14 +258,14 @@ async function fullReencodeFallback(ffmpeg: FFmpeg, { width, height, windows, ma
     );
   });
 
-  const code = await ffmpeg.exec([
+  const code = await execWithTimeout(ffmpeg, [
     ...args,
     '-filter_complex', filterParts.join(';'),
     '-map', '[outv]', '-map', '0:a?',
     '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-shortest',
     'output.mp4',
-  ]);
+  ], 600_000); // whole-video re-encode fallback — generous but bounded
   if (code !== 0) throw new Error('Video processing failed — try a different video file');
 
   const data = await ffmpeg.readFile('output.mp4');

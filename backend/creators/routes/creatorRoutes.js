@@ -9,15 +9,28 @@ const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
 
 const videoUpload = multer({
-  // Ad creatives are now burned into the video client-side (see
-  // clientAdOverlay.ts) before it's ever uploaded here, so this only
-  // ever receives the finished 'video' field.
+  // 'video' is the raw footage; 'creative' is the optional local test-ad
+  // image (advertiser-claimed creatives never come through here — those
+  // already live on Cloudinary and are referenced by URL). The ad burn-in
+  // itself now happens server-side as part of the background job below
+  // (see ../utils/serverAdOverlay.js) — native ffmpeg instead of the
+  // browser's ffmpeg.wasm, which couldn't keep up with hour+ videos.
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
-    filename:    (req, file, cb) => cb(null, `ypr_ad_video_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
+    filename:    (req, file, cb) => cb(null, file.fieldname === 'creative'
+      ? `ypr_ad_creative_${Date.now()}${path.extname(file.originalname) || '.png'}`
+      : `ypr_ad_video_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
   }),
-  limits:     { fileSize: 512 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => (file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed'))),
+  // 2GB — multer's diskStorage streams straight to disk rather than
+  // buffering in memory, so this is just a ceiling on source footage size,
+  // not a RAM concern. Needed for multi-hour creator uploads.
+  limits:     { fileSize: 2 * 1024 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'creative') {
+      return file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only image files allowed'));
+    }
+    return file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed'));
+  },
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -39,7 +52,7 @@ router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
 // ─── Ad posts ─────────────────────────────────────────────────────────────────
 router.post(
   '/api/social/post-ad/:provider',
-  videoUpload.fields([{ name: 'video', maxCount: 1 }]),
+  videoUpload.fields([{ name: 'video', maxCount: 1 }, { name: 'creative', maxCount: 1 }]),
   controller.postAdVideo,
 );
 router.get('/api/social/post-ad/jobs/:id',      controller.getAdVideoJobStatus);

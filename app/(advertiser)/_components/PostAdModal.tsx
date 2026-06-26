@@ -9,7 +9,6 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
-import { applyAdOverlayInBrowser, type Placement } from './lib/clientAdOverlay';
 
 type Mode = 'auto' | 'manual';
 
@@ -76,7 +75,6 @@ export default function PostAdModal({
   // manual "test" image upload so the overlay pipeline can still be tried.
   const [adCreative, setAdCreative]             = useState<File | null>(null);
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
-  const [videoDims, setVideoDims]               = useState<{ width: number; height: number } | null>(null);
   const [selectedSlots, setSelectedSlots]       = useState<string[]>(['middle']);
   const [pendingClaims, setPendingClaims]       = useState<{ slotType: string; imageUrl: string; adType: string; adSize: string }[]>([]);
 
@@ -98,7 +96,6 @@ export default function PostAdModal({
       setStageMessage('');
       setAdCreative(null);
       setVideoDuration(null);
-      setVideoDims(null);
       setSelectedSlots(['middle']);
       setPendingClaims([]);
     } else {
@@ -119,13 +116,12 @@ export default function PostAdModal({
   // decides whether this is a "forced single mid-roll" video (<5min) or a
   // "pick your slots" video (5min+).
   useEffect(() => {
-    if (!adFile) { setVideoDuration(null); setVideoDims(null); return; }
+    if (!adFile) { setVideoDuration(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
-      setVideoDims({ width: video.videoWidth, height: video.videoHeight });
       setSelectedSlots(['middle']);
       URL.revokeObjectURL(url);
     };
@@ -212,7 +208,11 @@ export default function PostAdModal({
         if (job.status === 'queued' || job.status === 'processing' || job.status === 'uploading') {
           setUploadStage(job.status);
           setStageMessage(job.stage_message || '');
-          setAdUploadProgress(job.status === 'queued' ? 15 : job.status === 'processing' ? 50 : 85);
+          setAdUploadProgress(
+            job.status === 'queued' ? 15
+            : job.status === 'processing' ? Math.max(15, Number(job.progress) || 0)
+            : 85
+          );
           setTimeout(tick, 2000);
           return;
         }
@@ -236,12 +236,6 @@ export default function PostAdModal({
     tick();
   });
 
-  const fetchImageBytes = async (url: string): Promise<Uint8Array> => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to download ad creative');
-    return new Uint8Array(await res.arrayBuffer());
-  };
-
   const handlePostAd = async (mode: Mode) => {
     if (!adFile || !provider || adUploading) return;
     pollCancelRef.current = false;
@@ -252,50 +246,22 @@ export default function PostAdModal({
 
     if (mode === 'manual' && (adCreative || hasRealClaims)) downloadCreativeManually();
 
-    let fileToUpload: File = adFile;
-
-    try {
-      // Burn the ad creative(s) into the video right here in the browser —
-      // no bytes go to Render or Vercel for this. Only the few seconds
-      // around each marker get re-encoded (everything else is a fast stream
-      // copy inside ffmpeg.wasm), so this scales with marker count, not
-      // video length, same as the old server-side pipeline did.
-      if (mode === 'auto' && videoDims) {
-        setUploadStage('processing');
-        setStageMessage('Burning in ad… (keep this tab open)');
-
-        const placements: Placement[] = [];
-        if (hasRealClaims && selectedClaimedKeys.length) {
-          for (const key of selectedClaimedKeys) {
-            const slot = relevantClaimedSlots.find((s) => s.key === key);
-            const claim = pendingClaims.find((c) => c.slotType === key);
-            if (!slot || !claim) continue;
-            placements.push({ time: slot.time, imageBytes: await fetchImageBytes(claim.imageUrl), adType: claim.adType, adSize: claim.adSize });
-          }
-        } else if (adCreative) {
-          const bytes = await adCreative.arrayBuffer().then((b) => new Uint8Array(b));
-          for (const time of testMarkerSeconds) placements.push({ time, imageBytes: bytes });
+    // Ad burn-in now happens server-side with native ffmpeg, as part of the
+    // background job we poll below — only placement metadata (and, for the
+    // local test-creative path, the creative image itself) travels with the
+    // upload; the video goes up raw and comes back burned-in.
+    const placements: { time: number; imageUrl?: string; adType?: string; adSize?: string }[] = [];
+    if (mode === 'auto') {
+      if (hasRealClaims && selectedClaimedKeys.length) {
+        for (const key of selectedClaimedKeys) {
+          const slot = relevantClaimedSlots.find((s) => s.key === key);
+          const claim = pendingClaims.find((c) => c.slotType === key);
+          if (!slot || !claim) continue;
+          placements.push({ time: slot.time, imageUrl: claim.imageUrl, adType: claim.adType, adSize: claim.adSize });
         }
-
-        if (placements.length) {
-          const blob = await applyAdOverlayInBrowser({
-            videoBytes: await adFile.arrayBuffer().then((b) => new Uint8Array(b)),
-            width: videoDims.width,
-            height: videoDims.height,
-            duration: videoDuration || 0,
-            placements,
-            onProgress: (pct) => setAdUploadProgress(pct),
-          });
-          fileToUpload = new File([blob], adFile.name.replace(/\.[^.]+$/, '') + '_ad.mp4', { type: 'video/mp4' });
-        }
+      } else if (adCreative) {
+        for (const time of testMarkerSeconds) placements.push({ time });
       }
-    } catch (err) {
-      console.error('[PostAdModal] client-side ad overlay failed:', err);
-      const detail = err instanceof Error ? err.message : String(err);
-      setAdUploadError(`Could not process the video in this browser (${detail}) — try a smaller file or a different browser`);
-      setAdUploading(false);
-      setUploadStage('idle');
-      return;
     }
 
     setUploadStage('transferring');
@@ -304,14 +270,16 @@ export default function PostAdModal({
 
     try {
       const formData = new FormData();
-      formData.append('video',       fileToUpload);
+      formData.append('video',       adFile);
       formData.append('title',       adTitle.trim() || adFile.name.replace(/\.[^.]+$/, ''));
       formData.append('description', adDescription.trim());
       formData.append('privacy',     adPrivacy);
       formData.append('mode',        mode);
+      if (placements.length) formData.append('placements', JSON.stringify(placements));
+      if (mode === 'auto' && !hasRealClaims && adCreative) formData.append('creative', adCreative);
       if (hasRealClaims && selectedClaimedKeys.length) {
-        // Real advertiser-claimed slots — already burned in client-side above;
-        // this just tells the backend which claims to mark "used".
+        // Real advertiser-claimed slots — tells the backend which claims to
+        // mark "used" once the post succeeds.
         formData.append('claimedSlotTypes', JSON.stringify(selectedClaimedKeys));
       }
 
@@ -489,7 +457,7 @@ export default function PostAdModal({
                   >
                     Skip — download ad image &amp; add it manually
                   </button>
-                  <p className="text-[10px] text-(--color-muted)">Burned in right here in your browser — only the few seconds around each marker get re-processed, and nothing is uploaded until processing finishes. Keep this tab open while it runs.</p>
+                  <p className="text-[10px] text-(--color-muted)">Burned in server-side — only the few seconds around each marker get re-processed. Keep this tab open until the upload finishes; processing then continues in the background.</p>
                 </div>
               </div>
             )}

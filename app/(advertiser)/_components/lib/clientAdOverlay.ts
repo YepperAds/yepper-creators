@@ -125,14 +125,22 @@ async function getFFmpeg(): Promise<FFmpeg> {
 // intended) — it just keeps grinding in the worker forever. This wrapper
 // guarantees every call eventually settles, killing and discarding the
 // worker on timeout so a hung command can't freeze the UI indefinitely.
-async function execWithTimeout(ffmpeg: FFmpeg, args: string[], timeoutMs: number): Promise<number> {
+async function execWithTimeout(
+  ffmpeg: FFmpeg,
+  args: string[],
+  timeoutMs: number,
+  onFrac?: (frac: number) => void,
+): Promise<number> {
   let timedOut = false;
+  const onFfmpegProgress = onFrac ? (e: { progress: number }) => onFrac(Math.min(1, Math.max(0, e.progress))) : undefined;
+  if (onFfmpegProgress) ffmpeg.on('progress', onFfmpegProgress);
   const timeout = new Promise<number>((_, reject) => {
     setTimeout(() => { timedOut = true; reject(new Error('ffmpeg-timeout')); }, timeoutMs);
   });
   try {
     return await Promise.race([ffmpeg.exec(args), timeout]);
   } finally {
+    if (onFfmpegProgress) ffmpeg.off('progress', onFfmpegProgress);
     if (timedOut) {
       try { ffmpeg.terminate(); } catch { /* best effort */ }
       ffmpegSingleton = null; // force a fresh worker next time
@@ -228,7 +236,16 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
     // a brand new one, whose MEMFS won't have input.mp4 yet.
     const liveFfmpeg = await getFFmpeg();
     if (liveFfmpeg !== ffmpeg) await liveFfmpeg.writeFile('input.mp4', videoBytes);
-    const blob = await fullReencodeFallback(liveFfmpeg, { width, height, windows, margin });
+    // Hold the floor at wherever the fast path got to instead of resetting to
+    // 0 — this is the slow path (one full-video re-encode), and it has no
+    // step boundaries of its own, so map ffmpeg's own progress event into the
+    // remaining headroom up to 99 instead of leaving the bar frozen for
+    // however many minutes this pass takes.
+    const floorPct = Math.min(90, Math.round((stepsDone / totalSteps) * 100));
+    const blob = await fullReencodeFallback(liveFfmpeg, {
+      width, height, windows, margin,
+      onFrac: (frac) => onProgress?.(Math.min(99, floorPct + Math.round(frac * (99 - floorPct)))),
+    });
     onProgress?.(100);
     return blob;
   }
@@ -244,13 +261,13 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
   return new Blob([data as Uint8Array], { type: 'video/mp4' });
 }
 
-async function fullReencodeFallback(ffmpeg: FFmpeg, { width, height, windows, margin }: {
-  width: number; height: number; windows: Window[]; margin: number;
+async function fullReencodeFallback(ffmpeg: FFmpeg, { width, height, windows, margin, onFrac }: {
+  width: number; height: number; windows: Window[]; margin: number; onFrac?: (frac: number) => void;
 }): Promise<Blob> {
   const args = ['-i', 'input.mp4'];
   for (let i = 0; i < windows.length; i++) {
     const imgName = `fimg${i}.png`;
-    await ffmpeg.writeFile(imgName, windows[i].imageBytes);
+    await ffmpeg.writeFile(imgName, windows[i].imageBytes.slice());
     args.push('-loop', '1', '-i', imgName);
   }
 
@@ -286,7 +303,7 @@ async function fullReencodeFallback(ffmpeg: FFmpeg, { width, height, windows, ma
     '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-shortest',
     'output.mp4',
-  ], 600_000); // whole-video re-encode fallback — generous but bounded
+  ], 600_000, onFrac); // whole-video re-encode fallback — generous but bounded
   if (code !== 0) throw new Error(`full-reencode-failed: ${recentLogTail()}`);
 
   const data = await ffmpeg.readFile('output.mp4');

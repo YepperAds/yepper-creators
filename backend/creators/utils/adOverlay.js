@@ -181,6 +181,8 @@ async function buildAdSegment({ videoPath, adImagePath, start, end, videoInfo, s
       '-map', '[outv]',
       ...(hasAudio ? ['-map', '0:a'] : []),
       '-c:v', 'libx264',
+      '-preset', 'veryfast', // caps x264's lookahead/rate-control buffers — matters on a memory-limited instance
+      '-threads', '2',
       '-pix_fmt', 'yuv420p',
       '-r', String(fps),
       ...(hasAudio ? ['-c:a', 'aac', '-ar', String(sampleRate), '-ac', String(channels)] : ['-an']),
@@ -233,7 +235,14 @@ async function applyOverlayFullReencode({ videoPath, windows, videoInfo, outputP
 
   const cmdFinal = cmd
     .complexFilter(filterParts.join(';'))
-    .outputOptions(['-map', '[outv]', '-map', '0:a?', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest'])
+    .outputOptions([
+      '-map', '[outv]', '-map', '0:a?',
+      '-c:v', 'libx264',
+      '-preset', 'veryfast', // this path re-encodes the WHOLE video — default preset's lookahead buffers are what was OOM-killing a 512MB instance
+      '-threads', '2',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-shortest',
+    ])
     .output(outputPath);
   await runCommand(cmdFinal);
 }

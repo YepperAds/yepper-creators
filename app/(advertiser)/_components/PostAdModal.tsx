@@ -9,6 +9,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
+import { applyAdOverlayInBrowser, type Placement } from './lib/clientAdOverlay';
 
 type Mode = 'auto' | 'manual';
 
@@ -75,8 +76,8 @@ export default function PostAdModal({
   // manual "test" image upload so the overlay pipeline can still be tried.
   const [adCreative, setAdCreative]             = useState<File | null>(null);
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
+  const [videoDims, setVideoDims]               = useState<{ width: number; height: number } | null>(null);
   const [selectedSlots, setSelectedSlots]       = useState<string[]>(['middle']);
-  const [estimatedSeconds, setEstimatedSeconds] = useState<number | null>(null);
   const [pendingClaims, setPendingClaims]       = useState<{ slotType: string; imageUrl: string; adType: string; adSize: string }[]>([]);
 
   const fileRef     = useRef<HTMLInputElement | null>(null);
@@ -97,8 +98,8 @@ export default function PostAdModal({
       setStageMessage('');
       setAdCreative(null);
       setVideoDuration(null);
+      setVideoDims(null);
       setSelectedSlots(['middle']);
-      setEstimatedSeconds(null);
       setPendingClaims([]);
     } else {
       pollCancelRef.current = true;
@@ -118,12 +119,13 @@ export default function PostAdModal({
   // decides whether this is a "forced single mid-roll" video (<5min) or a
   // "pick your slots" video (5min+).
   useEffect(() => {
-    if (!adFile) { setVideoDuration(null); return; }
+    if (!adFile) { setVideoDuration(null); setVideoDims(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
+      setVideoDims({ width: video.videoWidth, height: video.videoHeight });
       setSelectedSlots(['middle']);
       URL.revokeObjectURL(url);
     };
@@ -154,18 +156,6 @@ export default function PostAdModal({
   const toggleSlot = (key: string) => {
     setSelectedSlots((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   };
-
-  // Processing time scales with placement count, not video length — only the
-  // marker windows get re-encoded, everything else is a fast stream copy.
-  useEffect(() => {
-    if (activePlacementCount === 0) { setEstimatedSeconds(null); return; }
-    let cancelled = false;
-    fetch(`/api/social/ad-overlay/estimate?markers=${activePlacementCount}`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((json) => { if (!cancelled) setEstimatedSeconds(json?.data?.estimatedSeconds ?? null); })
-      .catch(() => { if (!cancelled) setEstimatedSeconds(null); });
-    return () => { cancelled = true; };
-  }, [activePlacementCount]);
 
   if (!open || !provider) return null;
 
@@ -246,6 +236,12 @@ export default function PostAdModal({
     tick();
   });
 
+  const fetchImageBytes = async (url: string): Promise<Uint8Array> => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to download ad creative');
+    return new Uint8Array(await res.arrayBuffer());
+  };
+
   const handlePostAd = async (mode: Mode) => {
     if (!adFile || !provider || adUploading) return;
     pollCancelRef.current = false;
@@ -253,30 +249,73 @@ export default function PostAdModal({
     setAdUploadProgress(0);
     setAdUploadError('');
     setAdUploadResult(null);
-    setUploadStage('transferring');
-    setStageMessage('Uploading video…');
 
     if (mode === 'manual' && (adCreative || hasRealClaims)) downloadCreativeManually();
 
+    let fileToUpload: File = adFile;
+
+    try {
+      // Burn the ad creative(s) into the video right here in the browser —
+      // no bytes go to Render or Vercel for this. Only the few seconds
+      // around each marker get re-encoded (everything else is a fast stream
+      // copy inside ffmpeg.wasm), so this scales with marker count, not
+      // video length, same as the old server-side pipeline did.
+      if (mode === 'auto' && videoDims) {
+        setUploadStage('processing');
+        setStageMessage('Burning in ad… (keep this tab open)');
+
+        const placements: Placement[] = [];
+        if (hasRealClaims && selectedClaimedKeys.length) {
+          for (const key of selectedClaimedKeys) {
+            const slot = relevantClaimedSlots.find((s) => s.key === key);
+            const claim = pendingClaims.find((c) => c.slotType === key);
+            if (!slot || !claim) continue;
+            placements.push({ time: slot.time, imageBytes: await fetchImageBytes(claim.imageUrl), adType: claim.adType, adSize: claim.adSize });
+          }
+        } else if (adCreative) {
+          const bytes = await adCreative.arrayBuffer().then((b) => new Uint8Array(b));
+          for (const time of testMarkerSeconds) placements.push({ time, imageBytes: bytes });
+        }
+
+        if (placements.length) {
+          const blob = await applyAdOverlayInBrowser({
+            videoBytes: await adFile.arrayBuffer().then((b) => new Uint8Array(b)),
+            width: videoDims.width,
+            height: videoDims.height,
+            duration: videoDuration || 0,
+            placements,
+            onProgress: (pct) => setAdUploadProgress(pct),
+          });
+          fileToUpload = new File([blob], adFile.name.replace(/\.[^.]+$/, '') + '_ad.mp4', { type: 'video/mp4' });
+        }
+      }
+    } catch {
+      setAdUploadError('Could not process the video in this browser — try a smaller file or a different browser');
+      setAdUploading(false);
+      setUploadStage('idle');
+      return;
+    }
+
+    setUploadStage('transferring');
+    setStageMessage('Uploading video…');
+    setAdUploadProgress(0);
+
     try {
       const formData = new FormData();
-      formData.append('video',       adFile);
+      formData.append('video',       fileToUpload);
       formData.append('title',       adTitle.trim() || adFile.name.replace(/\.[^.]+$/, ''));
       formData.append('description', adDescription.trim());
       formData.append('privacy',     adPrivacy);
       formData.append('mode',        mode);
       if (hasRealClaims && selectedClaimedKeys.length) {
-        // Real advertiser-claimed slots — backend re-derives placement times
-        // and pulls each advertiser's own creative; marked "used" either way.
+        // Real advertiser-claimed slots — already burned in client-side above;
+        // this just tells the backend which claims to mark "used".
         formData.append('claimedSlotTypes', JSON.stringify(selectedClaimedKeys));
-      } else if (mode === 'auto' && adCreative) {
-        formData.append('adImage', adCreative);
-        formData.append('markers', JSON.stringify(testMarkerSeconds));
       }
 
       // Use XMLHttpRequest so we can track upload progress. This request now
       // only covers the file transfer — it returns a jobId as soon as the
-      // video lands on the backend, well before any ffmpeg/YouTube work starts.
+      // video lands on the backend, well before any YouTube relay work starts.
       const result = await new Promise<{ success: boolean; data?: any; message?: string; code?: string }>((resolve) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => {
@@ -439,7 +478,7 @@ export default function PostAdModal({
                     disabled={adUploading || activePlacementCount === 0}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white disabled:opacity-40"
                   >
-                    Auto-insert ad{estimatedSeconds != null ? ` (~${estimatedSeconds}s processing)` : ''}
+                    Auto-insert ad
                   </button>
                   <button
                     onClick={() => handlePostAd('manual')}
@@ -448,7 +487,7 @@ export default function PostAdModal({
                   >
                     Skip — download ad image &amp; add it manually
                   </button>
-                  <p className="text-[10px] text-(--color-muted)">Auto-insert only re-encodes the few seconds around each marker — the wait depends on marker count, not how long the video is.</p>
+                  <p className="text-[10px] text-(--color-muted)">Burned in right here in your browser — only the few seconds around each marker get re-processed, and nothing is uploaded until processing finishes. Keep this tab open while it runs.</p>
                 </div>
               </div>
             )}

@@ -11,9 +11,13 @@
     "backend:start": "cd backend && npm run start",
     "backend-adsense:dev": "cd backend-adsense && node server.js",
     "backend-adsense:start": "cd backend-adsense && node server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run backend:dev\" \"npm run backend-adsense:dev\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run backend:dev\" \"npm run backend-adsense:dev\"",
+    "postinstall": "node scripts/copy-ffmpeg-core.js"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/postcss": "^4",
     "@tanstack/react-query": "^5.83.0",

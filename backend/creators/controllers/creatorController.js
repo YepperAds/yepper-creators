@@ -1032,19 +1032,8 @@ exports.socialConnectCallback = async (req, res) => {
 // ─── Ad Video Posts ───────────────────────────────────────────────────────────
 
 const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const https = require('https');
-const { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration, memLog } = require('../utils/adOverlay');
-
-async function downloadToTemp(url, suffix) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to download ad creative (${res.status})`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const tmpPath = path.join(os.tmpdir(), `ypr_claim_${Date.now()}_${Math.random().toString(36).slice(2)}${suffix}`);
-  fs.writeFileSync(tmpPath, buffer);
-  return tmpPath;
-}
+const { memLog } = require('../utils/adOverlay');
 
 const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB' };
 
@@ -1053,18 +1042,9 @@ function trackingCode(provider, num) {
   return `#YPR-${prefix}-${String(num).padStart(3, '0')}`;
 }
 
-// Pure function of marker count — exposed so the upload modal can show a
-// time estimate before committing to the auto-overlay path.
-exports.estimateAdOverlay = (req, res) => {
-  const markerCount = parseInt(req.query.markers, 10) || 0;
-  return res.json({ success: true, data: { estimatedSeconds: estimateOverlaySeconds(markerCount) } });
-};
-
-// Serializes the heavy part of every ad-video job (ffmpeg + platform upload)
-// onto a single chain so two uploads landing at once never compete for the
-// same memory-limited Render instance's CPU/RAM at the same time — that
-// contention was starving the web server enough to make even cheap polling
-// requests 502. Jobs sit at status='queued' until their turn comes up.
+// Serializes every ad-video job's platform upload onto a single chain so
+// uploads landing at once never compete for the same Render instance's
+// CPU/RAM at the same time. Jobs sit at status='queued' until their turn.
 let adVideoJobQueueTail = Promise.resolve();
 function enqueueAdVideoJob(jobId, params) {
   adVideoJobQueueTail = adVideoJobQueueTail
@@ -1087,21 +1067,18 @@ exports.postAdVideo = async (req, res) => {
   if (!session) return res.status(401).json({ success: false });
 
   const { provider } = req.params;
-  const { title = '', description = '', privacy = 'public', mode = 'manual' } = req.body;
+  const { title = '', description = '', privacy = 'public' } = req.body;
 
   const videoFile = req.files?.video?.[0];
-  const adImageFile = req.files?.adImage?.[0];
   if (!videoFile) return res.status(400).json({ success: false, message: 'No video file uploaded' });
 
   memLog(`postAdVideo:after-multer-upload (${(videoFile.size / 1024 / 1024).toFixed(1)}MB)`);
 
-  // Parsed regardless of mode: even in manual mode (creator downloads the
-  // claimed creative and adds it themselves) the claim still gets marked
-  // used once the post succeeds — see the UPDATE in runAdVideoJob.
+  // The ad creative is already burned into this file client-side (see
+  // clientAdOverlay.ts) — claimedSlotTypes is only used here to mark the
+  // advertiser's claim "used" once the post succeeds.
   let claimedSlotTypes = [];
   try { claimedSlotTypes = JSON.parse(req.body.claimedSlotTypes || '[]'); } catch { claimedSlotTypes = []; }
-  let markers = [];
-  try { markers = JSON.parse(req.body.markers || '[]'); } catch { markers = []; }
 
   const jobRes = await query(
     `INSERT INTO ad_video_jobs (creator_id, provider, status, stage_message) VALUES ($1,$2,'queued','Queued') RETURNING id`,
@@ -1109,22 +1086,22 @@ exports.postAdVideo = async (req, res) => {
   );
   const jobId = jobRes.rows[0].id;
 
-  // Respond now — the ffmpeg burn-in + platform upload run in the background.
-  // The video is already fully received at this point (multer wrote it to
-  // disk before this handler even ran), so this response is fast regardless
-  // of video length, and never sits in a held-open request for Render's
-  // reverse-proxy timeout to kill.
+  // Respond now — the platform upload runs in the background. The video is
+  // already fully received at this point (multer wrote it to disk before
+  // this handler even ran), so this response is fast regardless of video
+  // length, and never sits in a held-open request for Render's reverse-proxy
+  // timeout to kill.
   res.json({ success: true, data: { jobId } });
 
-  enqueueAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers });
+  enqueueAdVideoJob(jobId, { session, provider, title, description, privacy, videoFile, claimedSlotTypes });
 };
 
-async function runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, videoFile, adImageFile, claimedSlotTypes, markers }) {
+async function runAdVideoJob(jobId, { session, provider, title, description, privacy, videoFile, claimedSlotTypes }) {
   // Continuous sampler — before/after checkpoints only catch the net change
-  // between steps, not a peak that happens mid-ffmpeg-call. Logs every tick
-  // (not just a final summary) because if this gets OOM-killed, the process
-  // dies instantly with no chance to run cleanup/finally code — the live log
-  // stream up to the last tick is the only record we'll have of the climb.
+  // between steps, not a peak that happens mid-call. The ad creative is now
+  // burned into the video client-side (see clientAdOverlay.ts) before it
+  // ever reaches this server, so this job is just a thin relay of bytes
+  // already on disk into YouTube's resumable upload — no ffmpeg here.
   let peakRss = process.memoryUsage().rss;
   const memSampler = setInterval(() => {
     const rss = process.memoryUsage().rss;
@@ -1132,54 +1109,17 @@ async function runAdVideoJob(jobId, { session, provider, title, description, pri
     console.log(`[memlog] adVideoJob#${jobId}:tick RSS=${(rss / 1024 / 1024).toFixed(1)}MB`);
   }, 1000);
 
-  let videoPath = videoFile.path;
-  let videoMime = videoFile.mimetype || 'video/mp4';
-  let videoSize = videoFile.size;
-  let overlayCleanup = null;
-  const downloadedImagePaths = [];
+  const videoPath = videoFile.path;
+  const videoMime = videoFile.mimetype || 'video/mp4';
+  const videoSize = videoFile.size;
 
   const cleanup = () => {
     try { fs.unlinkSync(videoFile.path); } catch {}
-    if (adImageFile) { try { fs.unlinkSync(adImageFile.path); } catch {} }
-    downloadedImagePaths.forEach((p) => { try { fs.unlinkSync(p); } catch {} });
-    if (overlayCleanup) overlayCleanup();
   };
 
   try {
-    await updateAdVideoJob(jobId, { status: 'processing', stage_message: 'Preparing video…' });
+    await updateAdVideoJob(jobId, { status: 'uploading', stage_message: 'Uploading to YouTube…' });
 
-    let placements = [];
-    if (mode === 'auto' && Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
-      // Real advertiser-claimed slots — recompute placement times server-side
-      // (source of truth) and pull each advertiser's own creative image.
-      const duration = await probeDuration(videoFile.path);
-      const slotTimes = computeSlotTimes(duration);
-      const claimsRes = await query(
-        `SELECT slot_type, image_url, ad_type, ad_size FROM youtube_ad_claims WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
-        [session, claimedSlotTypes],
-      );
-      for (const row of claimsRes.rows) {
-        const time = slotTimes[row.slot_type];
-        if (time == null) continue; // e.g. video too short for that slot
-        const imagePath = await downloadToTemp(row.image_url, path.extname(row.image_url) || '.png');
-        downloadedImagePaths.push(imagePath);
-        placements.push({ time, imagePath, adType: row.ad_type, adSize: row.ad_size });
-      }
-    } else if (mode === 'auto' && adImageFile) {
-      // Test/manual creative — same image at every chosen marker.
-      placements = (Array.isArray(markers) ? markers : []).map((time) => ({ time, imagePath: adImageFile.path }));
-    }
-
-    if (placements.length) {
-      await updateAdVideoJob(jobId, { stage_message: 'Burning in ad…' });
-      memLog(`adVideoJob#${jobId}:before-applyAdOverlay`);
-      const { outputPath, cleanup: cleanupOverlay } = await applyAdOverlay({ videoPath: videoFile.path, placements });
-      memLog(`adVideoJob#${jobId}:after-applyAdOverlay`);
-      videoPath = outputPath;
-      videoMime = 'video/mp4';
-      videoSize = fs.statSync(outputPath).size;
-      overlayCleanup = cleanupOverlay;
-    }
     const conn = await query(
       `SELECT access_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
       [session, provider],
@@ -1204,8 +1144,6 @@ async function runAdVideoJob(jobId, { session, provider, title, description, pri
     const fullDescription = description ? `${description}\n\n${code}` : code;
 
     if (provider === 'youtube') {
-      await updateAdVideoJob(jobId, { status: 'uploading', stage_message: 'Uploading to YouTube…' });
-
       // 1. Initiate resumable upload session
       const initRes = await fetch(
         'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',

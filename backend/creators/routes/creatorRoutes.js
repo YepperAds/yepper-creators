@@ -9,15 +9,15 @@ const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
 
 const videoUpload = multer({
+  // Ad creatives are now burned into the video client-side (see
+  // clientAdOverlay.ts) before it's ever uploaded here, so this only
+  // ever receives the finished 'video' field.
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
-    filename:    (req, file, cb) => cb(null, `ypr_ad_${file.fieldname}_${Date.now()}${path.extname(file.originalname) || (file.fieldname === 'adImage' ? '.png' : '.mp4')}`),
+    filename:    (req, file, cb) => cb(null, `ypr_ad_video_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
   }),
   limits:     { fileSize: 512 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === 'adImage') return file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Ad creative must be an image'));
-    return file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed'));
-  },
+  fileFilter: (req, file, cb) => (file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed'))),
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -39,12 +39,11 @@ router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
 // ─── Ad posts ─────────────────────────────────────────────────────────────────
 router.post(
   '/api/social/post-ad/:provider',
-  videoUpload.fields([{ name: 'video', maxCount: 1 }, { name: 'adImage', maxCount: 1 }]),
+  videoUpload.fields([{ name: 'video', maxCount: 1 }]),
   controller.postAdVideo,
 );
 router.get('/api/social/post-ad/jobs/:id',      controller.getAdVideoJobStatus);
 router.get('/api/social/ad-posts',              controller.getAdPosts);
-router.get('/api/social/ad-overlay/estimate',   controller.estimateAdOverlay);
 
 // ─── Ad spaces (advertiser claims a creator's intro/middle/end slot) ─────────
 router.get('/api/social/youtube/ad-formats',                   adSpaces.getAdFormats);

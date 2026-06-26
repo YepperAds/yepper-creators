@@ -31,6 +31,7 @@ router.get('/users',                           adminAuth, ctrl.getUsers);
 router.get('/users/:userId',                   adminAuth, ctrl.getUserDetail);
 router.get('/grants',                          adminAuth, ctrl.getGrants);
 router.get('/stats',                           adminAuth, ctrl.getStats);
+router.post('/reset-database',                 adminAuth, ctrl.resetDatabase);
 router.post('/grants',                         adminAuth, ctrl.createGrant);
 router.delete('/grants/:grantId',              adminAuth, ctrl.revokeGrant);
 router.post('/grants/:grantId/resend-email',   adminAuth, ctrl.resendGrantEmail);

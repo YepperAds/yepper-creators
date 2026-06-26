@@ -348,6 +348,34 @@ exports.getStats = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/reset-database — wipes every row in every table in the
+// public schema (TRUNCATE ... RESTART IDENTITY CASCADE), then re-runs the
+// creators schema init so the app is immediately usable again. Destructive
+// and irreversible — requires the exact confirmation phrase in the body on
+// top of normal adminAuth, specifically so a stray click/replayed request
+// can't trigger it.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.resetDatabase = async (req, res) => {
+  if (req.body?.confirm !== 'RESET EVERYTHING') {
+    return res.status(400).json({ success: false, message: 'Send { "confirm": "RESET EVERYTHING" } to proceed.' });
+  }
+  try {
+    const tables = await query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
+    const names = tables.rows.map((r) => r.tablename);
+    if (names.length) {
+      const ident = names.map((n) => `"${n.replace(/"/g, '""')}"`).join(', ');
+      await query(`TRUNCATE TABLE ${ident} RESTART IDENTITY CASCADE`);
+    }
+    const { initCreatorsDatabase } = require('../creators/models/initDb');
+    await initCreatorsDatabase();
+    return res.json({ success: true, message: `Wiped ${names.length} tables and reinitialised schema.` });
+  } catch (err) {
+    console.error('[admin] resetDatabase error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC: GET /api/admin/grant-check?token=XXX
 // ─────────────────────────────────────────────────────────────────────────────
 exports.checkGrantToken = async (req, res) => {

@@ -1170,15 +1170,21 @@ exports.postAdVideo = async (req, res) => {
       const uploadUrl = initRes.headers.get('location');
       if (!uploadUrl) { cleanup(); return res.status(500).json({ success: false, message: 'YouTube did not return upload URL' }); }
 
-      // 2. Read file and upload to YouTube
-      const videoBuffer = await fs.promises.readFile(videoPath);
-      cleanup();
-
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': videoMime, 'Content-Length': String(videoBuffer.byteLength) },
-        body: videoBuffer,
-      });
+      // 2. Stream the file to YouTube instead of buffering it whole in memory —
+      // a full readFile() of a real-sized video can exceed the instance's
+      // memory and get OOM-killed mid-request, which the browser sees as a
+      // CORS-less 502 (the process dies before Express can respond at all).
+      let uploadRes;
+      try {
+        uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': videoMime, 'Content-Length': String(videoSize) },
+          body: fs.createReadStream(videoPath),
+          duplex: 'half',
+        });
+      } finally {
+        cleanup();
+      }
 
       if (!uploadRes.ok) {
         const errText = await uploadRes.text().catch(() => '');

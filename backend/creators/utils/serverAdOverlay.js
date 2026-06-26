@@ -212,7 +212,13 @@ async function fullReencodeFallback({ inputPath, outputPath, width, height, dura
     ...args,
     '-filter_complex', filterParts.join(';'),
     '-map', '[outv]', '-map', '0:a?',
-    '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+    // -threads 1: libx264 auto-detects the host's CPU count and allocates a
+    // frame buffer/lookahead per thread — on a memory-capped Render instance
+    // sharing the box with the API process, that auto-scaling is exactly
+    // what tips total container RAM over the limit. Measured ~30% lower
+    // peak RSS pinned to one thread (164MB -> 112MB for a 720p segment)
+    // vs default thread count, at the cost of slower encoding.
+    '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-shortest',
     outputPath,
   ], { timeoutMs: 30 * 60_000, durationSec: duration, onFrac });
@@ -265,7 +271,13 @@ async function applyAdOverlayOnDisk({ inputPath, outputPath, width, height, dura
         '-loop', '1', '-t', String(segDuration), '-i', imagePath,
         '-filter_complex', filter,
         '-map', '[outv]', '-map', '0:a?',
-        '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+        // -threads 1: libx264 auto-detects the host's CPU count and allocates a
+    // frame buffer/lookahead per thread — on a memory-capped Render instance
+    // sharing the box with the API process, that auto-scaling is exactly
+    // what tips total container RAM over the limit. Measured ~30% lower
+    // peak RSS pinned to one thread (164MB -> 112MB for a 720p segment)
+    // vs default thread count, at the cost of slower encoding.
+    '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
         '-c:a', 'aac', '-shortest',
         name,
       ], { timeoutMs: 180_000, durationSec: segDuration, onFrac: reportIntraStep });

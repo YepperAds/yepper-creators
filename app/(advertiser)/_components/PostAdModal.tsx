@@ -17,6 +17,13 @@ type Mode = 'auto' | 'manual';
 // ~4.5MB regardless of streaming, which any real video file blows past.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
+// The actual upload+burn-in job runs on a separate, leaner Render service
+// from the main API — running native ffmpeg alongside the full backend
+// monolith (session store, passport, every other route module) OOM-killed
+// the shared instance. Job status is still readable from BACKEND_URL below
+// since both services share the same ad_video_jobs table.
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL ?? 'http://localhost:5050';
+
 // Under 5 minutes: the video gets exactly one ad, forced to the middle — no
 // choice. 5 minutes or longer: three candidate slots open up (just after the
 // 5-minute mark, the middle, and the 80%-through point), and the creator can
@@ -296,7 +303,7 @@ export default function PostAdModal({
           catch { resolve({ success: false, message: 'Invalid response' }); }
         };
         xhr.onerror = () => resolve({ success: false, message: 'Network error' });
-        xhr.open('POST', `${BACKEND_URL}/api/social/post-ad/${provider}`);
+        xhr.open('POST', `${WORKER_URL}/api/social/post-ad/${provider}`);
         xhr.withCredentials = true;
         // The login cookie is SameSite=Lax and scoped to this site, not the
         // backend's — it won't ride along on this cross-origin request, so

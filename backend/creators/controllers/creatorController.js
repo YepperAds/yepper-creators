@@ -1034,6 +1034,7 @@ exports.socialConnectCallback = async (req, res) => {
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const https = require('https');
 const { applyAdOverlay, estimateOverlaySeconds, computeSlotTimes, probeDuration } = require('../utils/adOverlay');
 
 async function downloadToTemp(url, suffix) {
@@ -1170,29 +1171,42 @@ exports.postAdVideo = async (req, res) => {
       const uploadUrl = initRes.headers.get('location');
       if (!uploadUrl) { cleanup(); return res.status(500).json({ success: false, message: 'YouTube did not return upload URL' }); }
 
-      // 2. Stream the file to YouTube instead of buffering it whole in memory —
-      // a full readFile() of a real-sized video can exceed the instance's
-      // memory and get OOM-killed mid-request, which the browser sees as a
-      // CORS-less 502 (the process dies before Express can respond at all).
-      let uploadRes;
+      // 2. Stream the file to YouTube via a raw https.request + pipe() —
+      // fetch()/undici's handling of a Node Readable body as a streaming
+      // request is version-dependent and can silently buffer the whole file
+      // internally despite duplex:'half', which is indistinguishable from
+      // the outside but still OOMs a memory-limited instance. pipe() over
+      // a plain http.ClientRequest has well-defined backpressure and never
+      // holds more than a small chunk of the file in memory at once.
+      let uploadResult;
       try {
-        uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': videoMime, 'Content-Length': String(videoSize) },
-          body: fs.createReadStream(videoPath),
-          duplex: 'half',
+        uploadResult = await new Promise((resolve, reject) => {
+          const target = new URL(uploadUrl);
+          const putReq = https.request({
+            hostname: target.hostname,
+            path: target.pathname + (target.search || ''),
+            method: 'PUT',
+            headers: { 'Content-Type': videoMime, 'Content-Length': String(videoSize) },
+          }, (putRes) => {
+            const chunks = [];
+            putRes.on('data', (c) => chunks.push(c));
+            putRes.on('end', () => resolve({ statusCode: putRes.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
+          });
+          putReq.on('error', reject);
+          const fileStream = fs.createReadStream(videoPath);
+          fileStream.on('error', reject);
+          fileStream.pipe(putReq);
         });
       } finally {
         cleanup();
       }
 
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text().catch(() => '');
-        console.error('[creators] YouTube video upload failed:', uploadRes.status, errText);
+      if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+        console.error('[creators] YouTube video upload failed:', uploadResult.statusCode, uploadResult.body);
         return res.status(500).json({ success: false, message: 'Video upload to YouTube failed' });
       }
 
-      const videoData  = await uploadRes.json().catch(() => null);
+      const videoData  = JSON.parse(uploadResult.body || 'null');
       const videoId    = videoData?.id;
       const videoUrl   = videoId ? `https://youtube.com/watch?v=${videoId}` : null;
       const thumbUrl   = videoData?.snippet?.thumbnails?.default?.url || null;

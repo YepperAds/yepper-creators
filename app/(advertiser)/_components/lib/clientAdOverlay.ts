@@ -90,9 +90,23 @@ function buildLayerFilter({ imageInputIndex, videoInPad, videoOutPad, adType, ad
 
 let ffmpegSingleton: FFmpeg | null = null;
 
+// ffmpeg's own stderr-style diagnostics (e.g. "Decoder (codec hevc) not
+// found", "Invalid data found...") never reach our thrown Errors by default —
+// without this, a real ffmpeg failure just looks like a generic non-zero
+// exit code. Keep a rolling tail so we can attach it to whatever we throw.
+const logTail: string[] = [];
+function recordLog(message: string) {
+  logTail.push(message);
+  if (logTail.length > 25) logTail.shift();
+}
+function recentLogTail(): string {
+  return logTail.slice(-6).join(' | ');
+}
+
 async function getFFmpeg(): Promise<FFmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
   const ffmpeg = new FFmpeg();
+  ffmpeg.on('log', ({ message }) => recordLog(message));
   await ffmpeg.load({
     // Self-hosted (see scripts/copy-ffmpeg-core.js) — single-threaded build,
     // deliberately not the multi-threaded core: that needs
@@ -155,7 +169,7 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
   const runCopySegment = async (start: number, end: number) => {
     const name = `seg${segIdx++}.mp4`;
     const code = await execWithTimeout(ffmpeg, ['-ss', String(start), '-to', String(end), '-i', 'input.mp4', '-c', 'copy', '-avoid_negative_ts', 'make_zero', name], 60_000);
-    if (code !== 0) throw new Error('copy-segment-failed');
+    if (code !== 0) throw new Error(`copy-segment-failed: ${recentLogTail()}`);
     segNames.push(name);
     reportStep();
   };
@@ -180,7 +194,7 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
       '-c:a', 'aac', '-shortest',
       name,
     ], 180_000);
-    if (code !== 0) throw new Error('ad-segment-failed');
+    if (code !== 0) throw new Error(`ad-segment-failed: ${recentLogTail()}`);
     segNames.push(name);
     reportStep();
   };
@@ -192,7 +206,8 @@ export async function applyAdOverlayInBrowser({ videoBytes, width, height, durat
       cursor = w.end;
     }
     if (cursor < duration) await runCopySegment(cursor, duration);
-  } catch {
+  } catch (err) {
+    console.warn('[clientAdOverlay] fast path failed, falling back to full re-encode:', err);
     fastPathOk = false;
   }
 
@@ -266,7 +281,7 @@ async function fullReencodeFallback(ffmpeg: FFmpeg, { width, height, windows, ma
     '-c:a', 'aac', '-shortest',
     'output.mp4',
   ], 600_000); // whole-video re-encode fallback — generous but bounded
-  if (code !== 0) throw new Error('Video processing failed — try a different video file');
+  if (code !== 0) throw new Error(`full-reencode-failed: ${recentLogTail()}`);
 
   const data = await ffmpeg.readFile('output.mp4');
   return new Blob([data as Uint8Array], { type: 'video/mp4' });

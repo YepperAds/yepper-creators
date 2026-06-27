@@ -1,14 +1,12 @@
 'use strict';
 
-// Standalone entrypoint for ad-video burn-in, deployed as its own Render
-// service — see C:\Users\ndoba\.claude\plans\floofy-yawning-sketch.md for why.
-// server.js (the main API) loads express-session, passport, and a dozen
-// unrelated route modules at boot; none of that is needed for postAdVideo /
-// runAdVideoJob / getAdVideoJobStatus, which only ever use JWT-based auth
-// (getCreatorId) and the shared Postgres ad_video_jobs table. Keeping this
-// process lean leaves real headroom for the native ffmpeg child process
-// before hitting Render's per-instance memory ceiling — running ffmpeg
-// alongside the full monolith is what OOM-killed the combined instance.
+// Standalone entrypoint for the ad-video relay (upload to YouTube), deployed
+// as its own Render service. server.js (the main API) loads express-session,
+// passport, and a dozen unrelated route modules at boot; none of that is
+// needed for postAdVideo / runAdVideoJob / getAdVideoJobStatus, which only
+// ever use JWT-based auth (getCreatorId) and the shared Postgres
+// ad_video_jobs table. Keeping this process lean leaves headroom for
+// streaming large video uploads without competing with the main monolith.
 
 const express      = require('express');
 const cookieParser = require('cookie-parser');

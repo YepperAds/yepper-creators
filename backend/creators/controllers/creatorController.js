@@ -8,7 +8,6 @@ const jwt       = require('jsonwebtoken');
 const { query } = require('../../config/db');
 const Creator   = require('../models/Creator');
 const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
-const { applyAdOverlayOnDisk, probeVideo } = require('../utils/serverAdOverlay');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
 
@@ -1068,29 +1067,19 @@ exports.postAdVideo = async (req, res) => {
   if (!session) return res.status(401).json({ success: false });
 
   const { provider } = req.params;
-  const { title = '', description = '', privacy = 'public', mode = 'manual' } = req.body;
+  const { title = '', description = '', privacy = 'public' } = req.body;
 
   const videoFile = req.files?.video?.[0];
   if (!videoFile) return res.status(400).json({ success: false, message: 'No video file uploaded' });
 
   memLog(`postAdVideo:after-multer-upload (${(videoFile.size / 1024 / 1024).toFixed(1)}MB)`);
 
-  // claimedSlotTypes marks the advertiser's claim "used" once the post
-  // succeeds. placements (time/imageUrl-or-local-creative/adType/adSize)
-  // drive the server-side burn-in job below (see ../utils/serverAdOverlay.js)
-  // — replaces the old client-side ffmpeg.wasm pipeline, which couldn't
-  // finish hour+ videos in a browser tab.
+  // The creator has already edited the ad creative into this video file
+  // themselves (downloaded from their pending claims, see getPendingClaims) —
+  // this just relays the finished file to YouTube. claimedSlotTypes marks
+  // which advertiser claims that covers, so they get marked "used".
   let claimedSlotTypes = [];
   try { claimedSlotTypes = JSON.parse(req.body.claimedSlotTypes || '[]'); } catch { claimedSlotTypes = []; }
-  let placements = [];
-  try { placements = JSON.parse(req.body.placements || '[]'); } catch { placements = []; }
-
-  const creativeFile = req.files?.creative?.[0];
-  if (creativeFile) {
-    // The one local (non-Cloudinary) creative in this request — every
-    // placement that doesn't already carry its own imageUrl uses it.
-    placements = placements.map((p) => (p.imageUrl ? p : { ...p, imagePath: creativeFile.path }));
-  }
 
   const jobRes = await query(
     `INSERT INTO ad_video_jobs (creator_id, provider, status, stage_message) VALUES ($1,$2,'queued','Queued') RETURNING id`,
@@ -1098,17 +1087,17 @@ exports.postAdVideo = async (req, res) => {
   );
   const jobId = jobRes.rows[0].id;
 
-  // Respond now — burn-in + platform upload both run in the background. The
-  // video is already fully received at this point (multer wrote it to disk
-  // before this handler even ran), so this response is fast regardless of
-  // video length, and never sits in a held-open request for Render's
-  // reverse-proxy timeout to kill.
+  // Respond now — the platform upload runs in the background. The video is
+  // already fully received at this point (multer wrote it to disk before
+  // this handler even ran), so this response is fast regardless of video
+  // length, and never sits in a held-open request for Render's reverse-proxy
+  // timeout to kill.
   res.json({ success: true, data: { jobId } });
 
-  enqueueAdVideoJob(jobId, { session, provider, title, description, privacy, mode, placements, videoFile, creativeFile, claimedSlotTypes });
+  enqueueAdVideoJob(jobId, { session, provider, title, description, privacy, videoFile, claimedSlotTypes });
 };
 
-async function runAdVideoJob(jobId, { session, provider, title, description, privacy, mode, placements, videoFile, creativeFile, claimedSlotTypes }) {
+async function runAdVideoJob(jobId, { session, provider, title, description, privacy, videoFile, claimedSlotTypes }) {
   // Continuous sampler — before/after checkpoints only catch the net change
   // between steps, not a peak that happens mid-call.
   let peakRss = process.memoryUsage().rss;
@@ -1118,50 +1107,17 @@ async function runAdVideoJob(jobId, { session, provider, title, description, pri
     console.log(`[memlog] adVideoJob#${jobId}:tick RSS=${(rss / 1024 / 1024).toFixed(1)}MB`);
   }, 1000);
 
-  let videoPath = videoFile.path;
-  let videoMime = videoFile.mimetype || 'video/mp4';
-  let videoSize = videoFile.size;
-  let burnedPath = null; // set once burn-in produces the ad-burned file
+  const videoPath = videoFile.path;
+  const videoMime = videoFile.mimetype || 'video/mp4';
+  const videoSize = videoFile.size;
 
   const cleanup = () => {
     try { fs.unlinkSync(videoFile.path); } catch {}
-    if (creativeFile) { try { fs.unlinkSync(creativeFile.path); } catch {} }
-    if (burnedPath) { try { fs.unlinkSync(burnedPath); } catch {} }
   };
 
   try {
-    // Burn the ad creative(s) into the video here, server-side, with native
-    // ffmpeg (see ../utils/serverAdOverlay.js) — this used to run in the
-    // browser via ffmpeg.wasm, but a single-threaded WASM build inside a
-    // browser tab can't keep up with hour+ creator videos. Runs before the
-    // YouTube relay below so the rest of that logic just sees a finished file.
-    if (mode === 'auto' && Array.isArray(placements) && placements.length) {
-      await updateAdVideoJob(jobId, { status: 'processing', stage_message: 'Burning in ad…', progress: 0 });
-      try {
-        const probe = await probeVideo(videoPath);
-        burnedPath = videoPath.replace(/(\.[^.]+)$/, '_ad$1');
-        await applyAdOverlayOnDisk({
-          inputPath: videoPath,
-          outputPath: burnedPath,
-          width: probe.width,
-          height: probe.height,
-          duration: probe.duration,
-          placements,
-          onProgress: (pct) => { updateAdVideoJob(jobId, { progress: pct }).catch(() => {}); },
-        });
-        fs.unlinkSync(videoPath); // raw source no longer needed once burn-in succeeds
-        videoPath = burnedPath;
-        videoMime = 'video/mp4'; // burn-in always outputs mp4 regardless of source container
-        videoSize = fs.statSync(burnedPath).size;
-        memLog(`adVideoJob#${jobId}:after-burn-in (${(videoSize / 1024 / 1024).toFixed(1)}MB)`);
-      } catch (err) {
-        console.error(`[creators] adVideoJob#${jobId} burn-in failed:`, err?.stack || err);
-        cleanup();
-        await updateAdVideoJob(jobId, { status: 'error', error_message: 'Could not burn the ad into this video — try a smaller/shorter file' });
-        return;
-      }
-    }
-
+    // The creator has already burned the ad creative into this video file
+    // themselves before uploading — this just relays it to YouTube.
     await updateAdVideoJob(jobId, { status: 'uploading', stage_message: 'Uploading to YouTube…' });
 
     const conn = await query(

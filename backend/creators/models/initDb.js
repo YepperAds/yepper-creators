@@ -154,8 +154,6 @@ async function initCreatorsDatabase() {
        updated_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
     `CREATE INDEX IF NOT EXISTS ad_video_jobs_creator_idx ON ad_video_jobs (creator_id)`,
-    // Real ffmpeg progress (0-100) during the 'processing' stage, once burn-in
-    // moved server-side — see runAdVideoJob in creatorController.js.
     `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS notifications (
        id          BIGSERIAL PRIMARY KEY,

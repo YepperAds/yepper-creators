@@ -559,8 +559,11 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
     // created ad spaces, but 0 means "not configured" everywhere else in this
     // file (see maxSlots fallbacks above), not "zero slots". Fall back to the
     // same default of 10 so a fresh ad space isn't shown as fully booked.
+    // catToClient() maps the raw snake_case row (id, category_name, ...) to
+    // the camelCase shape (_id, categoryName, ...) the advertiser UI expects —
+    // without it, space._id/categoryName came back undefined.
     const enriched = categories.map(c => ({
-      ...c,
+      ...catToClient(c),
       isFullyBooked: c.current_user_count >= (c.user_count || 10)
     }));
 

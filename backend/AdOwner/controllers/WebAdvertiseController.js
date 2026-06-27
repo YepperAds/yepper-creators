@@ -1549,6 +1549,8 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
       adDescription,
       selectedWebsites,
       selectedCategories,
+      businessCategories,
+      businessCategoryOther,
     } = req.body;
 
     // Only businessName is required
@@ -1557,6 +1559,27 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
         error: 'Missing Required Fields',
         message: 'businessName is required',
       });
+    }
+
+    // businessCategories arrives as a JSON-stringified array (advertisers can
+    // pick more than one, plus a free-text "Other" category)
+    let businessCategoriesArray = [];
+    if (businessCategories) {
+      try {
+        businessCategoriesArray = typeof businessCategories === 'string'
+          ? JSON.parse(businessCategories) : businessCategories;
+      } catch (parseError) {
+        return res.status(400).json({
+          error: 'Invalid Data Format',
+          message: 'businessCategories must be a valid JSON array',
+        });
+      }
+      if (!Array.isArray(businessCategoriesArray)) {
+        return res.status(400).json({
+          error: 'Invalid Data Type',
+          message: 'businessCategories must be an array',
+        });
+      }
     }
 
     // Handle optional website/category selections
@@ -1658,6 +1681,8 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
         imageUrl, videoUrl, pdfUrl,
         businessName, businessLink, businessLocation, adDescription,
         websiteSelections,
+        businessCategories: businessCategoriesArray,
+        businessCategoryOther: businessCategoryOther || null,
         confirmed: true,
         clicks: 0, views: 0,
       });

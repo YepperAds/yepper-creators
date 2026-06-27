@@ -153,6 +153,14 @@ async function startServer() {
     console.warn('⚠️  Migration 20260623_pricing_tables skipped:', err.message?.split('\n')[0]);
   }
 
+  // Add business_categories/business_category_other to import_ads if missing.
+  try {
+    const { up: addBusinessCategories } = require('./migrations/20260627_add_business_categories_to_import_ads');
+    await addBusinessCategories();
+  } catch (err) {
+    console.warn('⚠️  Migration 20260627_add_business_categories_to_import_ads skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

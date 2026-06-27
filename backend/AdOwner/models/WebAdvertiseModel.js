@@ -6,12 +6,13 @@ const ImportAd = {
     const { rows } = await query(
       `INSERT INTO import_ads (user_id, ad_owner_email, image_url, pdf_url, video_url, business_name,
         business_link, business_location, ad_description, website_selections, confirmed, clicks, views,
-        available_for_reassignment)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        available_for_reassignment, business_categories, business_category_other)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [data.userId, data.adOwnerEmail, data.imageUrl||null, data.pdfUrl||null, data.videoUrl||null,
        data.businessName, data.businessLink||null, data.businessLocation||null, data.adDescription||null,
        JSON.stringify(data.websiteSelections||[]), data.confirmed||true,
-       data.clicks||0, data.views||0, data.availableForReassignment||false]
+       data.clicks||0, data.views||0, data.availableForReassignment||false,
+       JSON.stringify(data.businessCategories||[]), data.businessCategoryOther||null]
     );
     return rows[0];
   },
@@ -135,6 +136,9 @@ function rowToAd(row) {
     adDescription:            row.ad_description,
     websiteSelections:        Array.isArray(sel) ? sel
                                 : (typeof sel === 'string' ? JSON.parse(sel) : []),
+    businessCategories:       Array.isArray(row.business_categories) ? row.business_categories
+                                : (typeof row.business_categories === 'string' ? JSON.parse(row.business_categories) : []),
+    businessCategoryOther:    row.business_category_other,
     confirmed:                row.confirmed,
     clicks:                   row.clicks,
     views:                    row.views,

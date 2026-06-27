@@ -148,6 +148,8 @@ async function createTables() {
       business_location           TEXT NOT NULL,
       ad_description              TEXT NOT NULL,
       website_selections          JSONB DEFAULT '[]',
+      business_categories         JSONB DEFAULT '[]',
+      business_category_other     TEXT,
       available_for_reassignment  BOOLEAN DEFAULT FALSE,
       confirmed                   BOOLEAN DEFAULT FALSE,
       clicks                      INTEGER DEFAULT 0,

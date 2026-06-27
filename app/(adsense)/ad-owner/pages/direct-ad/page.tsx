@@ -49,7 +49,8 @@ function DirectAdvertise() {
     businessLink: '',
     businessLocation: '',
     adDescription: '',
-    businessCategory: ''
+    businessCategories: [],
+    businessCategoryOther: ''
   });
 
   const businessCategories = [
@@ -67,7 +68,8 @@ function DirectAdvertise() {
     { value: 'photography', label: 'Photography' },
     { value: 'gifts-events', label: 'Gifts & Events' },
     { value: 'government-public', label: 'Government & Public' },
-    { value: 'general-retail', label: 'General Retail' }
+    { value: 'general-retail', label: 'General Retail' },
+    { value: 'other', label: 'Others' }
   ];
 
   const [, setFileLoaded] = useState(false);
@@ -220,6 +222,17 @@ function DirectAdvertise() {
     setError(null);
   };
 
+  const toggleCategory = (value: string) => {
+    setBusinessData(prev => {
+      const has = prev.businessCategories.includes(value);
+      const next = has
+        ? prev.businessCategories.filter((c: string) => c !== value)
+        : [...prev.businessCategories, value];
+      return { ...prev, businessCategories: next };
+    });
+    setError(null);
+  };
+
   const validateForm = () => {
     if (!businessData.businessName) {
       setError('Business name is required');
@@ -237,8 +250,12 @@ function DirectAdvertise() {
       setError('Advertisement description is required');
       return false;
     }
-    if (!businessData.businessCategory) {
-      setError('Business category is required');
+    if (!businessData.businessCategories.length) {
+      setError('Select at least one business category');
+      return false;
+    }
+    if (businessData.businessCategories.includes('other') && !businessData.businessCategoryOther.trim()) {
+      setError('Please describe your "Others" business category');
       return false;
     }
     if (!file) {
@@ -249,15 +266,18 @@ function DirectAdvertise() {
   };
 
   const checkCategoryMatch = () => {
-    if (!businessData.businessCategory) {
+    if (!businessData.businessCategories.length) {
       setError('Please select your business category');
       return false;
     }
 
     const allowedCategories = websiteInfo?.businessCategories || [];
-    
-    if (!allowedCategories.includes('any') && !allowedCategories.includes(businessData.businessCategory)) {
-      setError(`Sorry, this website only accepts ads from: ${allowedCategories.map(cat => 
+
+    const hasMatch = allowedCategories.includes('any')
+      || businessData.businessCategories.some((cat: string) => allowedCategories.includes(cat));
+
+    if (!hasMatch) {
+      setError(`Sorry, this website only accepts ads from: ${allowedCategories.map(cat =>
         businessCategories.find(bc => bc.value === cat)?.label || cat
       ).join(', ')}`);
       return false;
@@ -317,6 +337,8 @@ function DirectAdvertise() {
       formData.append('businessLink', businessData.businessLink);
       formData.append('businessLocation', businessData.businessLocation);
       formData.append('adDescription', businessData.adDescription);
+      formData.append('businessCategories', JSON.stringify(businessData.businessCategories));
+      formData.append('businessCategoryOther', businessData.businessCategoryOther || '');
       formData.append('selectedWebsites', JSON.stringify([websiteId]));
       formData.append('selectedCategories', JSON.stringify([categoryId]));
 
@@ -700,22 +722,35 @@ function DirectAdvertise() {
                 <div>
                   <label className="block text-sm font-medium text-subtle mb-2">
                     Business Category <span className="text-red-500">*</span>
+                    <span className="text-muted font-normal"> (select one or more)</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      name="businessCategory"
-                      value={businessData.businessCategory}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-surface-1 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {businessCategories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                    <FileText size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                  <div className="border border-border bg-surface-1 p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {businessCategories.map(cat => (
+                      <label key={cat.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={businessData.businessCategories.includes(cat.value)}
+                          onChange={() => toggleCategory(cat.value)}
+                          className="accent-white"
+                        />
+                        {cat.label}
+                      </label>
+                    ))}
                   </div>
+                  {businessData.businessCategories.includes('other') && (
+                    <div className="relative mt-3">
+                      <input
+                        type="text"
+                        name="businessCategoryOther"
+                        placeholder="Describe your business category"
+                        value={businessData.businessCategoryOther}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                        required
+                      />
+                      <FileText size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Business Link */}

@@ -16,7 +16,8 @@ export interface Ad {
   adDescription?: string;
   businessLocation?: string;
   businessLink?: string;
-  businessCategory?: string;
+  businessCategories?: string[];
+  businessCategoryOther?: string;
   videoUrl?: string;
   imageUrl?: string;
   views?: number;

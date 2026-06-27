@@ -42,7 +42,8 @@ function BusinessForm() {
     businessLink: initialData.businessLink || '',
     businessLocation: initialData.businessLocation || '',
     adDescription: initialData.adDescription || '',
-    businessCategory: initialData.businessCategory || ''
+    businessCategories: initialData.businessCategories || [],
+    businessCategoryOther: initialData.businessCategoryOther || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -104,7 +105,8 @@ function BusinessForm() {
     { value: 'photography', label: 'Photography', icon: 'Camera', description: 'Photo services, studios' },
     { value: 'gifts-events', label: 'Gifts & Events', icon: 'Gift', description: 'Party planning, gift shops' },
     { value: 'government-public', label: 'Government & Public', icon: 'Users', description: 'Public services, non-profit' },
-    { value: 'general-retail', label: 'General Retail', icon: 'ShoppingBag', description: 'Stores, e-commerce, shopping' }
+    { value: 'general-retail', label: 'General Retail', icon: 'ShoppingBag', description: 'Stores, e-commerce, shopping' },
+    { value: 'other', label: 'Others', icon: 'Tag', description: "Can't find your category? Describe it yourself" }
   ];
 
   const handleInputChange = (e) => {
@@ -123,34 +125,46 @@ function BusinessForm() {
   };
 
   const handleCategorySelect = (categoryValue) => {
-    setBusinessData(prev => ({
-      ...prev,
-      businessCategory: categoryValue
-    }));
-    
-    if (errors.businessCategory) {
+    setBusinessData(prev => {
+      const has = prev.businessCategories.includes(categoryValue);
+      const businessCategoriesNext = has
+        ? prev.businessCategories.filter((c: string) => c !== categoryValue)
+        : [...prev.businessCategories, categoryValue];
+      return { ...prev, businessCategories: businessCategoriesNext };
+    });
+
+    if (errors.businessCategories) {
       setErrors(prev => ({
         ...prev,
-        businessCategory: undefined
+        businessCategories: undefined
       }));
     }
-    
-    setShowCategoryModal(false);
   };
 
-  const getSelectedCategory = () => {
-    return businessCategories.find(cat => cat.value === businessData.businessCategory);
+  const getSelectedCategoryLabels = () => {
+    return businessData.businessCategories
+      .map((value: string) => businessCategories.find(cat => cat.value === value)?.label)
+      .filter(Boolean)
+      .join(', ');
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    Object.entries(businessData).forEach(([key, value]) => {
+    const newErrors: Record<string, string> = {};
+    const { businessCategories: selectedCategories, businessCategoryOther, ...textFields } = businessData;
+
+    Object.entries(textFields).forEach(([key, value]: [string, any]) => {
       if (!value.trim()) {
         newErrors[key] = 'This field is required';
       }
     });
 
-    if (businessData.businessLink && 
+    if (!selectedCategories.length) {
+      newErrors.businessCategories = 'Select at least one business category';
+    } else if (selectedCategories.includes('other') && !businessCategoryOther.trim()) {
+      newErrors.businessCategoryOther = 'Please describe your "Others" business category';
+    }
+
+    if (businessData.businessLink &&
         !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(businessData.businessLink)) {
       newErrors.businessLink = 'Please enter a valid URL';
     }
@@ -160,9 +174,12 @@ function BusinessForm() {
   };
 
   const isFormValid = () => {
+    const { businessCategories: selectedCategories, businessCategoryOther, ...textFields } = businessData;
     return (
-      Object.values(businessData).every((value: any) => value.trim()) &&
-      (!businessData.businessLink || 
+      Object.values(textFields).every((value: any) => value.trim()) &&
+      selectedCategories.length > 0 &&
+      (!selectedCategories.includes('other') || businessCategoryOther.trim()) &&
+      (!businessData.businessLink ||
        /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(businessData.businessLink))
     );
   };
@@ -179,6 +196,8 @@ function BusinessForm() {
       formData.append('businessLink', businessData.businessLink);
       formData.append('businessLocation', businessData.businessLocation);
       formData.append('adDescription', businessData.adDescription);
+      formData.append('businessCategories', JSON.stringify(businessData.businessCategories));
+      formData.append('businessCategoryOther', businessData.businessCategoryOther || '');
 
       const token = getAuthToken();
       const response = await api.post('/api/web-advertise', formData, {
@@ -285,26 +304,42 @@ function BusinessForm() {
             <div className="relative">
               <label className="block text-sm font-medium text-subtle mb-2">
                 Business Category <span className="text-red-500">*</span>
+                <span className="text-muted font-normal"> (select one or more)</span>
               </label>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(true)}
                   className={`w-full pl-10 pr-4 py-3 border border-border bg-surface-1 text-left focus:outline-none focus:ring-2 focus:ring-white focus:border-white transition-colors ${
-                    errors.businessCategory ? 'border-red-500' : ''
+                    errors.businessCategories ? 'border-red-500' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={businessData.businessCategory ? 'text-white' : 'text-muted'}>
-                      {getSelectedCategory()?.label || 'Select your business category'}
+                    <span className={businessData.businessCategories.length ? 'text-white' : 'text-muted'}>
+                      {getSelectedCategoryLabels() || 'Select your business category'}
                     </span>
                   </div>
                 </button>
                 <Tag size={16} className="absolute left-3 top-4 text-muted" />
-                {errors.businessCategory && (
-                  <p className="mt-1 text-sm text-error">{errors.businessCategory}</p>
+                {errors.businessCategories && (
+                  <p className="mt-1 text-sm text-error">{errors.businessCategories}</p>
                 )}
               </div>
+              {businessData.businessCategories.includes('other') && (
+                <div className="relative mt-3">
+                  <Input
+                    label='Describe your "Others" category'
+                    name="businessCategoryOther"
+                    placeholder="e.g. Pet grooming services"
+                    value={businessData.businessCategoryOther}
+                    onChange={handleInputChange}
+                    error={errors.businessCategoryOther}
+                    required
+                    className="pl-10"
+                  />
+                  <Tag size={16} className="absolute left-3 top-9 text-muted" />
+                </div>
+              )}
             </div>
 
             {/* Business Location */}
@@ -383,7 +418,7 @@ function BusinessForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {businessCategories.map((category: any) => {
                   const IconComponent = category.icon;
-                  const isSelected = businessData.businessCategory === category.value;
+                  const isSelected = businessData.businessCategories.includes(category.value);
                   
                   return (
                     <button
@@ -431,6 +466,13 @@ function BusinessForm() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-border p-6 flex justify-end">
+              <Button onClick={() => setShowCategoryModal(false)} variant="secondary">
+                Done
+              </Button>
             </div>
           </div>
         </div>

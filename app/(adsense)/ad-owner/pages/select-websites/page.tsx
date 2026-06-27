@@ -27,14 +27,15 @@ function WebsiteSelection() {
   };
 
   const initialData = getInitialData();
-  const { 
-    file, 
-    userId, 
-    businessName, 
-    businessLink, 
-    businessLocation, 
-    adDescription, 
-    businessCategory 
+  const {
+    file,
+    userId,
+    businessName,
+    businessLink,
+    businessLocation,
+    adDescription,
+    businessCategories: selectedBusinessCategories = [],
+    businessCategoryOther
   } = initialData;
 
   const [websites, setWebsites] = useState<Record<string,unknown>[]>([]);
@@ -99,14 +100,14 @@ function WebsiteSelection() {
           if (categories.includes('any')) {
             return true;
           }
-          
-          if (businessCategory && categories.includes(businessCategory)) {
+
+          if (selectedBusinessCategories.length && selectedBusinessCategories.some((cat: string) => categories.includes(cat))) {
             return true;
           }
-          
+
           return false;
         });
-        
+
         setWebsites(relevantWebsites);
         setFilteredWebsites(relevantWebsites);
         setLoading(false);
@@ -117,7 +118,8 @@ function WebsiteSelection() {
     };
 
     fetchWebsites();
-  }, [businessCategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBusinessCategories.join(',')]);
 
   useEffect(() => {
     let result = websites;
@@ -150,7 +152,8 @@ function WebsiteSelection() {
       businessLink,
       businessLocation,
       adDescription,
-      businessCategory,
+      businessCategories: selectedBusinessCategories,
+      businessCategoryOther,
       selectedWebsites,
     };
 
@@ -183,7 +186,8 @@ function WebsiteSelection() {
       'photography': 'Photography',
       'gifts-events': 'Gifts & Events',
       'government-public': 'Government & Public',
-      'general-retail': 'General Retail'
+      'general-retail': 'General Retail',
+      'other': 'Others'
     };
     
     return categories.map(cat => categoryLabels[cat] || cat).join(', ');
@@ -284,9 +288,9 @@ function WebsiteSelection() {
                     {formatCategoryForDisplay(website.businessCategories)}
                   </Badge>
                   
-                  {website.businessCategories && 
+                  {website.businessCategories &&
                    Array.isArray(website.businessCategories) &&
-                   website.businessCategories.includes(businessCategory) && 
+                   selectedBusinessCategories.some((cat: string) => website.businessCategories.includes(cat)) &&
                    !website.businessCategories.includes('any') && (
                     <Badge variant="primary" className="text-xs">
                       Perfect Match

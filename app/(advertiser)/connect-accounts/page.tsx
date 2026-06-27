@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, AUTH_ENDPOINTS, SOCIAL_ENDPOINTS } from '@/app/_lib/api';
-import { calculateYouTubePrice, YouTubePricingResult } from '@/app/_lib/pricing/youtubePricing';
+import type { YouTubePricingResult } from '@/app/_lib/pricing/youtubePricing';
 import type { AuthResponse, User } from '@/app/_types/auth';
 import {
   ArrowPathIcon,
@@ -71,6 +71,7 @@ interface WebsiteHandoffResponse {
 }
 
 const TIER_BADGE: Record<string, string> = {
+  'Test Tier': 'bg-zinc-700/60 text-zinc-300',
   Nano:  'bg-zinc-700/60 text-zinc-300',
   Micro: 'bg-blue-500/20 text-blue-300',
   Mid:   'bg-emerald-500/20 text-emerald-300',
@@ -121,7 +122,7 @@ export default function ConnectAccountsPage() {
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [socialUnlocked, setSocialUnlocked] = useState(false);
-  const [youtubePricing, setYoutubePricing] = useState<Record<string, YouTubePricingResult>>({});
+  const [youtubePricing, setYoutubePricing] = useState<YouTubePricingResult | null>(null);
   const [youtubeVideos, setYoutubeVideos] = useState<Record<string, any[]>>({});
 
   // ── Post-Ad modal state ──────────────────────────────────────────────────────
@@ -217,6 +218,11 @@ export default function ConnectAccountsPage() {
         if (json?.success) {
           setAdSpaces(json.data?.slots ?? []);
           setAdType(json.data?.adType ?? 'corner');
+          setYoutubePricing(
+            json.data?.tier && json.data?.pricingRows
+              ? { tier: json.data.tier, rows: json.data.pricingRows }
+              : null,
+          );
         } else {
           setAdSpacesError(json?.message || 'Failed to load ad spaces.');
         }
@@ -247,7 +253,8 @@ export default function ConnectAccountsPage() {
     }
   };
 
-  // Fetch video stats for YouTube accounts and compute pricing
+  // Fetch video stats for YouTube accounts (informational "Est. Views/Post" stat only —
+  // pricing itself comes from the ad-spaces fetch above, keyed off subscriber count).
   useEffect(() => {
     const run = async () => {
       if (!user) return;
@@ -262,17 +269,8 @@ export default function ConnectAccountsPage() {
           if (!res.ok) continue;
           const videos = Array.isArray(res.data?.data) ? res.data.data : [];
           setYoutubeVideos(prev => ({ ...prev, [acc.username]: videos }));
-          const viewsArr = videos.map((v: any) => Number(v.views || 0));
-          const TV = Number(acc.analysis?.total_views ?? 0);
-          const P  = Number((acc.analysis as any)?.total_posts ?? 0);
-          const MV = viewsArr.length
-            ? viewsArr.reduce((s: number, x: number) => s + x, 0) / viewsArr.length
-            : (TV && P ? TV / Math.max(1, P) : 0);
-          const S = Number(acc.followers || 0);
-          const pricing = calculateYouTubePrice(S, TV, MV, viewsArr);
-          setYoutubePricing(prev => ({ ...prev, [acc.username]: pricing }));
         } catch (err) {
-          console.error('Failed to compute YouTube pricing for', acc.username, err);
+          console.error('Failed to fetch YouTube video stats for', acc.username, err);
         }
       }
     };
@@ -491,7 +489,7 @@ export default function ConnectAccountsPage() {
           {accounts.map((account) => {
             const platform = PLATFORMS.find((item) => item.id === account.provider);
             if (!platform) return null;
-            const ytPricing = account.provider === 'youtube' ? (youtubePricing[account.username] ?? null) : null;
+            const ytPricing = account.provider === 'youtube' ? youtubePricing : null;
 
             return (
               <div key={account.provider} id={`acc-${account.provider}`} className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl overflow-hidden">
@@ -590,77 +588,46 @@ export default function ConnectAccountsPage() {
                     <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed — once claimed, their ad is offered automatically next time you hit Post Ad.</p>
                   </div>
 
-                  {/* Views-per-video formula */}
-                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
-                    <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Estimated Views Calculation</p>
-                    <div className="text-xs text-(--color-muted) space-y-1 font-mono">
-                      <div>Total Views (TV) = <span className="text-(--color-white) font-bold">{formatCount(account.analysis?.total_views)}</span></div>
-                      <div>Total Posts (P)  = <span className="text-(--color-white) font-bold">{formatCount((account.analysis as any)?.total_posts ?? 0)}</span></div>
-                      <div className="pt-1 border-t border-(--color-border) text-[11px]">
-                        Est. Views/Video = TV ÷ P = <span className="text-emerald-400 font-bold">{formatCount(estimateViewsPerPost(account))}</span>
-                        {!(account.analysis?.total_views) || !((account.analysis as any)?.total_posts)
-                          ? <span className="text-amber-400 ml-1">(fallback: subscribers × 5%)</span>
-                          : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tier pricing table */}
+                  {/* Tier pricing table — tier is based purely on subscriber count */}
                   {ytPricing && (
                     <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-3 border-b border-(--color-border)">
                         <div>
                           <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide">Ad Pricing</p>
                           <p className="text-[11px] text-(--color-muted) mt-0.5">
-                            ~{formatCount(ytPricing.estimatedViewsPerVideo)} est. views/video
+                            Based on {formatCount(account.followers)} subscribers
                           </p>
                         </div>
-                        {ytPricing.tier ? (
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${TIER_BADGE[ytPricing.tier]}`}>
-                            {ytPricing.tier}
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-(--color-surface-3) text-(--color-muted)">
-                            {ytPricing.eligible ? 'Below 1K views/video' : 'Need ≥1K subscribers'}
-                          </span>
-                        )}
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${TIER_BADGE[ytPricing.tier] ?? 'bg-zinc-700/60 text-zinc-300'}`}>
+                          {ytPricing.tier}
+                        </span>
                       </div>
 
-                      {ytPricing.rows.length > 0 ? (
-                        <>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="border-b border-(--color-border)">
-                                  <th className="px-4 py-2 text-left text-[10px] font-bold text-(--color-muted) uppercase">Duration</th>
-                                  <th className="px-4 py-2 text-right text-[10px] font-bold text-red-400 uppercase">Video Ad</th>
-                                  <th className="px-4 py-2 text-right text-[10px] font-bold text-sky-400 uppercase">Audio Ad</th>
-                                  <th className="px-4 py-2 text-right text-[10px] font-bold text-emerald-400 uppercase">Mention</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {ytPricing.rows.map(row => (
-                                  <tr key={row.duration} className="border-b border-(--color-border) last:border-0">
-                                    <td className="px-4 py-2.5 font-mono text-[11px] text-(--color-muted)">{row.duration}</td>
-                                    <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.video_ad.toLocaleString()}</td>
-                                    <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.audio_ad.toLocaleString()}</td>
-                                    <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.mention.toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <p className="px-4 py-2 text-[10px] text-(--color-muted) border-t border-(--color-border)">
-                            Creator earns 70% · Yepper takes 30% · All prices in RWF
-                          </p>
-                        </>
-                      ) : (
-                        <p className="px-4 py-4 text-[11px] text-(--color-muted) text-center">
-                          {ytPricing.eligible
-                            ? 'Estimated views per video below 1,000 — grow your audience to unlock pricing.'
-                            : 'Channel needs ≥1,000 subscribers to unlock ad pricing.'}
-                        </p>
-                      )}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-(--color-border)">
+                              <th className="px-4 py-2 text-left text-[10px] font-bold text-(--color-muted) uppercase">Duration</th>
+                              <th className="px-4 py-2 text-right text-[10px] font-bold text-red-400 uppercase">Video Ad</th>
+                              <th className="px-4 py-2 text-right text-[10px] font-bold text-sky-400 uppercase">Audio Ad</th>
+                              <th className="px-4 py-2 text-right text-[10px] font-bold text-emerald-400 uppercase">Mention</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ytPricing.rows.map(row => (
+                              <tr key={row.duration} className="border-b border-(--color-border) last:border-0">
+                                <td className="px-4 py-2.5 font-mono text-[11px] text-(--color-muted)">{row.duration}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.video_ad.toLocaleString()}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.audio_ad.toLocaleString()}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.mention.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="px-4 py-2 text-[10px] text-(--color-muted) border-t border-(--color-border)">
+                        Creator earns 70% · Yepper takes 30% · All prices in RWF
+                      </p>
                     </div>
                   )}
                 </div>

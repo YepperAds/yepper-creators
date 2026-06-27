@@ -59,6 +59,7 @@ const verifyFlutterwaveTransaction = async (identifier) => {
   }
   return { status: 'error', data: null };
 };
+exports.verifyFlutterwaveTransaction = verifyFlutterwaveTransaction;
 
 const generateUniqueTransactionRef = (prefix, userId, additionalData = '') => {
   const timestamp = Date.now();
@@ -70,12 +71,14 @@ const generateUniqueTransactionRef = (prefix, userId, additionalData = '') => {
     .digest('hex').substring(0, 12);
   return `${prefix}_${userId}_${hash}_${timestamp}_${counter}`;
 };
+exports.generateUniqueTransactionRef = generateUniqueTransactionRef;
 
 // Helper: get available refund total for a user
 const getAllAvailableRefunds = async (userId) => {
   const refunds = await Payment.findAvailableRefunds(userId);
   return refunds.reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
 };
+exports.getAllAvailableRefunds = getAllAvailableRefunds;
 
 // Helper: upsert wallet balance
 const upsertWallet = async (client, ownerId, ownerType, ownerEmail, incBalance, incEarned, incSpent) => {
@@ -91,6 +94,7 @@ const upsertWallet = async (client, ownerId, ownerType, ownerEmail, incBalance, 
     [ownerId, ownerType, ownerEmail || '', incBalance || 0, incEarned || 0, incSpent || 0]
   );
 };
+exports.upsertWallet = upsertWallet;
 
 // Helper: parse website_selections from postgres row
 const parseSelections = (ad) => {
@@ -449,7 +453,7 @@ exports.generateFlutterwavePaymentUrl = async (paymentData) => {
       tx_ref: paymentData.tx_ref,
       amount: paymentData.amount,
       currency: 'RWF',
-      redirect_url: `${frontendUrl}/payment-callback2`,
+      redirect_url: `${frontendUrl}${paymentData.redirectPath || '/payment-callback2'}`,
       customer: paymentData.customer,
       description: paymentData.customizations?.description || 'Ad payment',
     });
@@ -767,6 +771,16 @@ exports.handleWebhook = async (req, res) => {
 
     if (event === 'charge.completed' || event === 'CARD_TRANSACTION') {
       if (data?.status === 'successful') {
+        // YouTube ad-slot claims are verified through their own dedicated
+        // endpoint (youtubeClaimPaymentController.verifyClaimPayment), which
+        // the advertiser's browser hits on redirect back from checkout —
+        // verifyPayment below doesn't know about youtube_ad_claims, so skip it
+        // here rather than have it error out on a payment shaped differently
+        // from the website-ad flow it expects.
+        const existing = data.tx_ref ? await Payment.findByTxRef(data.tx_ref) : null;
+        if (existing?.metadata?.kind === 'youtube_claim') {
+          return res.status(200).json({ status: 'acknowledged', event, kind: 'youtube_claim' });
+        }
         const fakeReq = { body: { transaction_id: String(data.id), tx_ref: data.tx_ref } };
         const fakeRes = { status: (code) => ({ json: (d) => console.log(`Webhook verify result ${code}:`, d) }) };
         await exports.verifyPayment(fakeReq, fakeRes);

@@ -5,6 +5,7 @@ const multer = require('multer');
 const { query }  = require('../../config/db');
 const cloudinary  = require('../../config/storage');
 const { AD_FORMATS, AD_TYPES, AD_SIZES } = require('../utils/adOverlay');
+const { getYoutubeTierPricing } = require('../utils/youtubeTierPricing');
 
 const JWT_SECRET = () => {
   if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
@@ -28,6 +29,7 @@ function getSessionUserId(req) {
     return null;
   }
 }
+exports.getSessionUserId = getSessionUserId;
 
 const SLOT_TYPES  = ['intro', 'middle', 'end'];
 const SLOT_LABELS = { intro: 'After intro (5:00)', middle: 'Middle', end: 'Near the end (80%)' };
@@ -50,7 +52,9 @@ function uploadCreativeToCloudinary(file) {
 }
 
 exports.imageUpload = imageUpload;
+exports.uploadCreativeToCloudinary = uploadCreativeToCloudinary;
 exports.SLOT_TYPES = SLOT_TYPES;
+exports.SLOT_LABELS = SLOT_LABELS;
 
 // GET /api/social/youtube/ad-formats — format/size catalog, with descriptions,
 // so the claim UI doesn't have to hardcode any of this.
@@ -85,6 +89,14 @@ exports.getAdSpaces = async (req, res) => {
       label: SLOT_LABELS[slotType],
       status: claimedSet.has(slotType) ? 'claimed' : 'open',
     }));
+
+    const subsRes = await query(
+      `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
+      [creatorId],
+    );
+    const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
+    const { tier, rows: pricingRows } = getYoutubeTierPricing(subscribers);
+
     return res.json({
       success: true,
       data: {
@@ -92,6 +104,8 @@ exports.getAdSpaces = async (req, res) => {
         adTypeLabel: AD_FORMATS[adType]?.label,
         adTypeDescription: AD_FORMATS[adType]?.description,
         slots,
+        tier,
+        pricingRows,
       },
     });
   } catch (err) {
@@ -131,48 +145,20 @@ exports.setAdTypePreference = async (req, res) => {
   }
 };
 
-// POST /api/social/youtube/ad-spaces/:creatorId/claim — an advertiser claims
-// an open slot by uploading their creative to it. The visual format (corner
-// badge vs L-bar) is whatever the creator already set — advertisers only
-// choose a size and upload the image.
-exports.claimAdSpace = async (req, res) => {
-  const advertiserId = getSessionUserId(req);
-  if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
+// Claiming a slot now requires payment — see
+// youtubeClaimPaymentController.initiateClaimPayment (POST .../claim/initiate),
+// which prices the claim from the creator's subscriber tier, charges the
+// advertiser, and only then inserts the youtube_ad_claims row.
 
-  const { creatorId } = req.params;
-  const { slotType } = req.body;
-  const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
-  if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
-  if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
-
-  try {
-    const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
-    if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
-    const adType = creatorRes.rows[0].ad_type_preference || 'corner';
-
-    const imageUrl = await uploadCreativeToCloudinary(req.file);
-
-    await query(
-      `INSERT INTO youtube_ad_claims (creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [creatorId, String(advertiserId), slotType, imageUrl, adType, adSize],
-    );
-
-    return res.json({ success: true, data: { slotType, imageUrl, adType, adSize } });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ success: false, message: 'That ad space was just claimed by someone else' });
-    console.error('[adSpaces] claimAdSpace error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to claim ad space' });
-  }
-};
-
-// GET /api/social/ad-claims/pending — the logged-in creator's own pending
-// claims, used by the upload modal to offer real advertiser creatives.
+// GET /api/social/ad-claims/pending — the logged-in creator's own pending,
+// PAID claims, used by the upload modal to offer real advertiser creatives.
+// Unpaid claims (still mid-checkout) aren't offered yet.
 exports.getPendingClaims = async (req, res) => {
   const creatorId = getSessionUserId(req);
   if (!creatorId) return res.status(401).json({ success: false });
   try {
     const result = await query(
-      `SELECT id, slot_type, image_url, ad_type, ad_size, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending'`,
+      `SELECT id, slot_type, image_url, ad_type, ad_size, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending' AND payment_status = 'paid'`,
       [creatorId],
     );
     return res.json({

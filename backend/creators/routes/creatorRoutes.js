@@ -7,6 +7,7 @@ const path       = require('path');
 const router     = express.Router();
 const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
+const claimPayment = require('../controllers/youtubeClaimPaymentController');
 
 const videoUpload = multer({
   // The creator edits the advertiser's creative into their video themselves
@@ -53,11 +54,15 @@ router.get('/api/social/youtube/ad-formats',                   adSpaces.getAdFor
 router.get('/api/social/youtube/ad-type-preference',          adSpaces.getAdTypePreference);
 router.post('/api/social/youtube/ad-type-preference',         adSpaces.setAdTypePreference);
 router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
+// Claiming a slot is paid — price is derived server-side from the creator's
+// subscriber tier (see youtubeTierPricing.js) and settled via wallet/refund
+// credits or a Flutterwave redirect for the remainder.
 router.post(
-  '/api/social/youtube/ad-spaces/:creatorId/claim',
+  '/api/social/youtube/ad-spaces/:creatorId/claim/initiate',
   adSpaces.imageUpload.single('image'),
-  adSpaces.claimAdSpace,
+  claimPayment.initiateClaimPayment,
 );
+router.post('/api/social/youtube/ad-spaces/claim/verify',     claimPayment.verifyClaimPayment);
 router.get('/api/social/ad-claims/pending',                   adSpaces.getPendingClaims);
 
 // ─── Social OAuth ─────────────────────────────────────────────────────────────

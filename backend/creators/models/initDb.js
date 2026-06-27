@@ -134,6 +134,20 @@ async function initCreatorsDatabase() {
     // Visual format the advertiser picked for their creative (corner badge vs L-bar) and its size (small/medium/large).
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_type VARCHAR(20) NOT NULL DEFAULT 'corner'`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_size VARCHAR(20) NOT NULL DEFAULT 'medium'`,
+    // Pricing: which (duration, ad kind) the advertiser is paying for, the tier
+    // it was priced at, and the resulting RWF split — separate from the
+    // ad_type/ad_size columns above, which only describe the overlay creative.
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS duration_band VARCHAR(10)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_kind VARCHAR(10)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS tier VARCHAR(20)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS amount NUMERIC(12,2)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS creator_earnings NUMERIC(12,2)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS yepper_cut NUMERIC(12,2)`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS currency VARCHAR(8) DEFAULT 'RWF'`,
+    // payment_status tracks the money side (pending/paid/cancelled) — distinct
+    // from `status`, which tracks slot occupancy (pending/used/cancelled).
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'pending'`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS tx_ref VARCHAR(255)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
     // Tracks the burn-in + platform-upload pipeline in the background so the

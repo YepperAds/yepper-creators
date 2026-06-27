@@ -28,6 +28,7 @@ router.post('/init', adminLoginLimiter, (req, res) => {
 
 // ── Protected admin routes (require x-node-ref + x-node-key headers) ─────────
 router.get('/users',                           adminAuth, ctrl.getUsers);
+router.get('/youtubers',                       adminAuth, ctrl.getYoutubers);
 router.get('/users/:userId',                   adminAuth, ctrl.getUserDetail);
 router.get('/grants',                          adminAuth, ctrl.getGrants);
 router.get('/stats',                           adminAuth, ctrl.getStats);

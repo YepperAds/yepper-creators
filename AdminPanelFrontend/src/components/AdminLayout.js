@@ -5,8 +5,9 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 
 const NAV = [
   { to: '/',        label: 'Dashboard', icon: '▦',  exact: true },
-  { to: '/users',  label: 'Users',     icon: '👤' },
-  { to: '/grants', label: 'Grants',    icon: '🎁' },
+  { to: '/users',     label: 'Users',     icon: '👤' },
+  { to: '/youtubers', label: 'Youtubers', icon: '▶️' },
+  { to: '/grants',    label: 'Grants',    icon: '🎁' },
   { to: '/pricing',label: 'Pricing',   icon: '💲' },
 ];
 

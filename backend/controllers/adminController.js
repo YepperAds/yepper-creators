@@ -142,6 +142,62 @@ exports.getUsers = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/youtubers
+// Creators who have a connected YouTube channel (social_connections.provider
+// = 'youtube'). Mirrors getUsers, but joins on the channel connection instead
+// of websites.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getYoutubers = async (req, res) => {
+  try {
+    const { search = '', page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const lim    = parseInt(limit);
+
+    const params = [];
+    let where    = '';
+    if (search) {
+      params.push(`%${search}%`);
+      where = `WHERE c.full_name ILIKE $1 OR c.email ILIKE $1 OR c.username ILIKE $1 OR sc.username ILIKE $1`;
+    }
+
+    const countRes = await query(
+      `SELECT COUNT(*) FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       ${where}`,
+      params
+    );
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    const ytRes = await query(
+      `SELECT c.id, c.full_name, c.username, c.email, c.avatar, c.google_id, c.created_at, c.updated_at,
+              sc.username AS channel_name, sc.profile_url AS channel_url,
+              sc.followers_count AS subscribers, sc.total_views, sc.total_posts, sc.connected_at
+       FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       ${where}
+       ORDER BY sc.connected_at DESC
+       OFFSET $${params.length + 1} LIMIT $${params.length + 2}`,
+      [...params, offset, lim]
+    );
+
+    const youtubers = ytRes.rows.map(row => ({
+      ...safeUser(row),
+      channelName: row.channel_name,
+      channelUrl:  row.channel_url,
+      subscribers: row.subscribers,
+      totalViews:  row.total_views,
+      totalPosts:  row.total_posts,
+      connectedAt: row.connected_at,
+    }));
+
+    res.json({ success: true, youtubers, total, page: parseInt(page), limit: lim });
+  } catch (err) {
+    console.error('getYoutubers error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/users/:userId
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getUserDetail = async (req, res) => {

@@ -555,10 +555,13 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
       `SELECT COUNT(*) FROM ad_categories WHERE website_id=$1::uuid`, [websiteId]
     );
 
-    // Add isFullyBooked flag
+    // Add isFullyBooked flag — user_count defaults to 0 in the DB for newly
+    // created ad spaces, but 0 means "not configured" everywhere else in this
+    // file (see maxSlots fallbacks above), not "zero slots". Fall back to the
+    // same default of 10 so a fresh ad space isn't shown as fully booked.
     const enriched = categories.map(c => ({
       ...c,
-      isFullyBooked: c.current_user_count >= (c.user_count || 0)
+      isFullyBooked: c.current_user_count >= (c.user_count || 10)
     }));
 
     res.status(200).json({ categories: enriched, totalPages: Math.ceil(parseInt(count) / limit), currentPage: page });

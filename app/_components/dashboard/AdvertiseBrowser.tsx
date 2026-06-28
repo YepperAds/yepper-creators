@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import VideoEmbed from '@/app/_components/home/VideoEmbed';
@@ -106,6 +106,7 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
 
 export default function AdvertiseBrowser({ websites, creators, hotDeals }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const categories = buildCategories(websites, creators);
 
   const [activeWebsite, setActiveWebsite] = useState<PublicWebsite | null>(null);
@@ -129,6 +130,25 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals }: { web
       setLoadingSpaces(false);
     }
   };
+
+  // Coming from a "Collaborate"/"Advertise on" click on the logged-out home
+  // page: the login redirect carries the target's id back here so the user
+  // lands directly in the same place they clicked from, instead of the bare
+  // browse list.
+  useEffect(() => {
+    const creatorId = searchParams.get('creatorId');
+    const websiteId = searchParams.get('websiteId');
+    if (creatorId) {
+      const creator = creators.find((c) => String(c.id) === creatorId);
+      if (creator) setCollaborateWith(creator);
+    } else if (websiteId) {
+      const website = websites.find((w) => String(w.id) === websiteId);
+      if (website) openWebsite(website);
+    }
+    if (creatorId || websiteId) router.replace('/?panel=advertise', { scroll: false });
+    // Only resolve the deep-link target once, right after the redirect lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const chooseAdSpace = (categoryId: string) => {
     if (!activeWebsite) return;

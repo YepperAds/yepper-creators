@@ -17,7 +17,10 @@ export default function LoginForm() {
 
   function handleGoogleLogin() {
     setGoogleLoading(true);
-    window.location.href = '/api/auth/google';
+    const from = new URLSearchParams(window.location.search).get('from');
+    window.location.href = from
+      ? `/api/auth/google?from=${encodeURIComponent(from)}`
+      : '/api/auth/google';
   }
 
   return (

@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import VideoEmbed from './VideoEmbed';
-import AdSpacesModal from './AdSpacesModal';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+
+// Logged-out visitors can't collaborate yet — send them to log in, then land
+// straight back on the dashboard's advertise panel with this exact
+// website/creator already open, instead of dropping them on a blank feed.
+function startCollaborate(param: 'creatorId' | 'websiteId', id: string) {
+  const from = `/?panel=advertise&${param}=${encodeURIComponent(id)}`;
+  window.location.href = `/login?from=${encodeURIComponent(from)}`;
+}
 
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -20,13 +26,13 @@ function domainOf(link: string): string {
   }
 }
 
-function YoutuberCard({ creator, onCollaborate }: { creator: PublicCreator; onCollaborate: (creator: PublicCreator) => void }) {
+function YoutuberCard({ creator }: { creator: PublicCreator }) {
   return (
     <div className="rounded-2xl bg-coral/8 border border-coral/15 p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-coral">Youtuber</p>
         <button
-          onClick={() => onCollaborate(creator)}
+          onClick={() => startCollaborate('creatorId', creator.id)}
           className="text-xs font-semibold text-white underline underline-offset-2 hover:text-coral transition-colors"
         >
           Collaborate with {creator.channelName}
@@ -69,14 +75,12 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
     <div className="rounded-2xl bg-[#0b0b0c] dark:bg-white p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-[#fff] dark:text-[#0b0b0c]">Website</p>
-        <a
-          href={website.websiteLink}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => startCollaborate('websiteId', website.id)}
           className="text-xs font-semibold text-[#fff] dark:text-[#0b0b0c] underline underline-offset-2 hover:text-coral transition-colors"
         >
           Advertise on {website.websiteName}
-        </a>
+        </button>
       </div>
 
       <div className="flex gap-4">
@@ -135,7 +139,6 @@ function buildFeedItems(creators: PublicCreator[], websites: PublicWebsite[], to
 
 export default function HomeFeed({ websites, creators }: { websites: PublicWebsite[]; creators: PublicCreator[] }) {
   const items = buildFeedItems(creators, websites, 12);
-  const [collaborateWith, setCollaborateWith] = useState<PublicCreator | null>(null);
 
   if (items.length === 0) {
     return (
@@ -146,15 +149,12 @@ export default function HomeFeed({ websites, creators }: { websites: PublicWebsi
   }
 
   return (
-    <>
-      <div className="space-y-4">
-        {items.map((item) =>
-          item.type === 'creator'
-            ? <YoutuberCard key={item.key} creator={item.data} onCollaborate={setCollaborateWith} />
-            : <WebsiteCard key={item.key} website={item.data} />
-        )}
-      </div>
-      <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={() => setCollaborateWith(null)} />
-    </>
+    <div className="space-y-4">
+      {items.map((item) =>
+        item.type === 'creator'
+          ? <YoutuberCard key={item.key} creator={item.data} />
+          : <WebsiteCard key={item.key} website={item.data} />
+      )}
+    </div>
   );
 }

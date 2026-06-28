@@ -24,13 +24,13 @@ const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./
 const CREATOR_SHARE = 0.70; // creator keeps 70%, Yepper takes the rest
 
 // POST /api/social/youtube/ad-spaces/:creatorId/claim/initiate
-// multipart form: image, slotType, adSize, durationBand, adKind
+// multipart form: image, slotType, adSize, durationBand
 exports.initiateClaimPayment = async (req, res) => {
   const advertiserId = getSessionUserId(req);
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
 
   const { creatorId } = req.params;
-  const { slotType, durationBand, adKind } = req.body;
+  const { slotType, durationBand } = req.body;
   const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
@@ -45,8 +45,10 @@ exports.initiateClaimPayment = async (req, res) => {
       [creatorId],
     );
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
-    const priced = priceFor(subscribers, durationBand, adKind);
-    if (!priced) return res.status(400).json({ success: false, message: 'Invalid duration or ad kind' });
+    // Price follows the creator's own fixed ad_type (corner/lbar) — the
+    // advertiser doesn't get a separate "ad kind" choice.
+    const priced = priceFor(subscribers, durationBand, adType);
+    if (!priced) return res.status(400).json({ success: false, message: 'Invalid duration' });
     const { tier, amount: totalCost } = priced;
 
     const advertiser = await Creator.findById(advertiserId);
@@ -62,10 +64,10 @@ exports.initiateClaimPayment = async (req, res) => {
     const imageUrl = await uploadCreativeToCloudinary(req.file);
 
     const claimColumns = `creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size,
-       duration_band, ad_kind, tier, amount, creator_earnings, yepper_cut, currency, tx_ref`;
+       duration_band, tier, amount, creator_earnings, yepper_cut, currency, tx_ref`;
     const claimValues = [
       creatorId, String(advertiserId), slotType, imageUrl, adType, adSize,
-      durationBand, adKind, tier, totalCost, creatorEarnings, yepperCut, 'RWF',
+      durationBand, tier, totalCost, creatorEarnings, yepperCut, 'RWF',
     ];
 
     if (remainingAmount <= 0.01) {
@@ -78,7 +80,7 @@ exports.initiateClaimPayment = async (req, res) => {
 
         const claimRes = await client.query(
           `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'paid') RETURNING id`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'paid') RETURNING id`,
           [...claimValues, tx_ref],
         );
         claimId = claimRes.rows[0].id;
@@ -106,7 +108,7 @@ exports.initiateClaimPayment = async (req, res) => {
         amount: totalCost, currency: 'RWF', status: 'successful',
         walletApplied: walletToUse, amountPaid: 0,
         paymentMethod: 'wallet_only',
-        metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adKind, tier, creatorEarnings, yepperCut },
+        metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adType, tier, creatorEarnings, yepperCut },
         paidAt: new Date(),
       });
 
@@ -125,7 +127,7 @@ exports.initiateClaimPayment = async (req, res) => {
     try {
       const claimRes = await query(
         `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending') RETURNING id`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending') RETURNING id`,
         [...claimValues, tx_ref],
       );
       claimId = claimRes.rows[0].id;
@@ -138,7 +140,7 @@ exports.initiateClaimPayment = async (req, res) => {
       tx_ref, amount: remainingAmount,
       redirectPath: '/youtube-payment-callback',
       customer: { email: advertiser?.email, name: advertiser?.full_name || 'Advertiser' },
-      customizations: { description: `YouTube ad slot — ${slotType} (${durationBand}, ${adKind.replace('_', ' ')})` },
+      customizations: { description: `YouTube ad slot — ${slotType} (${durationBand}, ${adType})` },
     });
 
     await Payment.create({
@@ -147,7 +149,7 @@ exports.initiateClaimPayment = async (req, res) => {
       flutterwaveData: { paymentUrl }, walletApplied: walletToUse,
       amountPaid: remainingAmount,
       paymentMethod: walletToUse > 0 ? 'wallet_hybrid' : 'flutterwave',
-      metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adKind, tier, creatorEarnings, yepperCut },
+      metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adType, tier, creatorEarnings, yepperCut },
     });
 
     return res.status(200).json({

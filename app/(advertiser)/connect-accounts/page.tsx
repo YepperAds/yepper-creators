@@ -71,7 +71,7 @@ interface WebsiteHandoffResponse {
 }
 
 const TIER_BADGE: Record<string, string> = {
-  'Test Tier': 'bg-zinc-700/60 text-zinc-300',
+  Test:  'bg-zinc-700/60 text-zinc-300',
   Nano:  'bg-zinc-700/60 text-zinc-300',
   Micro: 'bg-blue-500/20 text-blue-300',
   Mid:   'bg-emerald-500/20 text-emerald-300',
@@ -608,25 +608,27 @@ export default function ConnectAccountsPage() {
                           <thead>
                             <tr className="border-b border-(--color-border)">
                               <th className="px-4 py-2 text-left text-[10px] font-bold text-(--color-muted) uppercase">Duration</th>
-                              <th className="px-4 py-2 text-right text-[10px] font-bold text-red-400 uppercase">Video Ad</th>
-                              <th className="px-4 py-2 text-right text-[10px] font-bold text-sky-400 uppercase">Audio Ad</th>
-                              <th className="px-4 py-2 text-right text-[10px] font-bold text-emerald-400 uppercase">Mention</th>
+                              <th className={`px-4 py-2 text-right text-[10px] font-bold uppercase ${adType === 'corner' ? 'text-emerald-400' : 'text-(--color-muted)'}`}>
+                                Corner Badge{adType === 'corner' ? ' (yours)' : ''}
+                              </th>
+                              <th className={`px-4 py-2 text-right text-[10px] font-bold uppercase ${adType === 'lbar' ? 'text-emerald-400' : 'text-(--color-muted)'}`}>
+                                L-Bar{adType === 'lbar' ? ' (yours)' : ''}
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
                             {ytPricing.rows.map(row => (
                               <tr key={row.duration} className="border-b border-(--color-border) last:border-0">
                                 <td className="px-4 py-2.5 font-mono text-[11px] text-(--color-muted)">{row.duration}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.video_ad.toLocaleString()}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.audio_ad.toLocaleString()}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.mention.toLocaleString()}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.corner.toLocaleString()}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-(--color-white)">{row.lbar.toLocaleString()}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                       <p className="px-4 py-2 text-[10px] text-(--color-muted) border-t border-(--color-border)">
-                        Creator earns 70% · Yepper takes 30% · All prices in RWF
+                        Creator earns 70% · Yepper takes 30% · All prices in RWF · Advertisers pay whichever column matches your chosen ad format
                       </p>
                     </div>
                   )}

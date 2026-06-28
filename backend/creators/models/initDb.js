@@ -138,7 +138,6 @@ async function initCreatorsDatabase() {
     // it was priced at, and the resulting RWF split — separate from the
     // ad_type/ad_size columns above, which only describe the overlay creative.
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS duration_band VARCHAR(10)`,
-    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS ad_kind VARCHAR(10)`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS tier VARCHAR(20)`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS amount NUMERIC(12,2)`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS creator_earnings NUMERIC(12,2)`,

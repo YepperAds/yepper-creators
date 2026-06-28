@@ -19,6 +19,7 @@ const passwordRoutes     = require('./routes/passwordRoutes');
 const adminRoutes        = require('./routes/adminRoutes');
 const campaignRoutes     = require('./routes/campaignRoutes');
 const webhookRoutes      = require('./routes/webhookRoutes');
+const hotDealsRoutes     = require('./routes/hotDealsRoutes');
 
 // ─── AdPromoter routes ────────────────────────────────────────────────────────
 const createWebsiteRoutes      = require('./AdPromoter/routes/createWebsiteRoutes');
@@ -76,6 +77,7 @@ app.use('/api/password',      passwordRoutes);
 app.use('/api/admin',         adminRoutes);
 app.use('/api/campaigns',     campaignRoutes);
 app.use('/api/webhooks',      webhookRoutes);
+app.use('/api/hot-deals',     hotDealsRoutes);
 
 // ─── AdPromoter routes ────────────────────────────────────────────────────────
 app.use('/api/websites',            createWebsiteRoutes);
@@ -159,6 +161,15 @@ async function startServer() {
     await addBusinessCategories();
   } catch (err) {
     console.warn('⚠️  Migration 20260627_add_business_categories_to_import_ads skipped:', err.message?.split('\n')[0]);
+  }
+
+  // Create hot_deals/hot_deal_items tables if missing.
+  try {
+    const { up: createHotDeals } = require('./migrations/20260628_hot_deals');
+    await createHotDeals();
+    console.log('✓ hot deals tables ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260628_hot_deals skipped:', err.message?.split('\n')[0]);
   }
 
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.

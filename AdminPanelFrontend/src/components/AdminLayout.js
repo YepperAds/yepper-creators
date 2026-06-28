@@ -9,6 +9,7 @@ const NAV = [
   { to: '/youtubers', label: 'Youtubers', icon: '▶️' },
   { to: '/grants',    label: 'Grants',    icon: '🎁' },
   { to: '/pricing',label: 'Pricing',   icon: '💲' },
+  { to: '/hot-deals', label: 'Hot Deals', icon: '🔥' },
 ];
 
 export default function AdminLayout() {

@@ -1,8 +1,9 @@
 import HomeHeader from './HomeHeader';
 import HomeFeed from './HomeFeed';
+import HotDealsSection from './HotDealsSection';
 import SystemInfoPanel from './SystemInfoPanel';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 // Social links aren't wired yet — no real Yepper account URLs to point to.
 // Swap these `href="#"` once the actual accounts exist.
@@ -11,9 +12,11 @@ const SOCIALS = ['Facebook', 'YouTube', 'Instagram', 'TikTok', 'Pinterest', 'X',
 export default function HomePage({
   websites,
   creators,
+  hotDeals,
 }: {
   websites: PublicWebsite[];
   creators: PublicCreator[];
+  hotDeals: HotDeal[];
 }) {
   // Placeholder content while the network is thin — see app/_lib/mock-home-data.ts
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
@@ -33,6 +36,8 @@ export default function HomePage({
             no agencies in between.
           </p>
         </div>
+
+        <HotDealsSection deals={hotDeals} />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           <HomeFeed websites={displayWebsites} creators={displayCreators} />

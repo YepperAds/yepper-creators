@@ -15,7 +15,8 @@ import WalletPage from '@/app/(advertiser)/wallet/page';
 import ProfilePage from '@/app/(advertiser)/profile/page';
 import NotificationsPage from '@/app/(advertiser)/notifications/page';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
-import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+import HotDealsSection from '@/app/_components/home/HotDealsSection';
+import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 function BackToFeed({ onClick }: { onClick: () => void }) {
   return (
@@ -34,9 +35,11 @@ function BackToFeed({ onClick }: { onClick: () => void }) {
 export default function CenterPanel({
   websites,
   creators,
+  hotDeals,
 }: {
   websites: PublicWebsite[];
   creators: PublicCreator[];
+  hotDeals: HotDeal[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,6 +93,7 @@ export default function CenterPanel({
   } else {
     content = (
       <div>
+        <HotDealsSection deals={hotDeals} />
         <OwnContentCTA />
         <div className="rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>

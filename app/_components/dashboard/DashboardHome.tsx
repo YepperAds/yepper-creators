@@ -3,7 +3,7 @@ import Header from './Header';
 import LeftRail from './LeftRail';
 import RightRail from './RightRail';
 import CenterPanel from './CenterPanel';
-import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 function CenterPanelSkeleton() {
   return (
@@ -18,9 +18,11 @@ function CenterPanelSkeleton() {
 export default function DashboardHome({
   websites,
   creators,
+  hotDeals,
 }: {
   websites: PublicWebsite[];
   creators: PublicCreator[];
+  hotDeals: HotDeal[];
 }) {
   return (
     <div className="yp-mesh min-h-screen font-(--font-inter)">
@@ -31,7 +33,7 @@ export default function DashboardHome({
         </Suspense>
         <main className="flex-1 min-w-0 p-4">
           <Suspense fallback={<CenterPanelSkeleton />}>
-            <CenterPanel websites={websites} creators={creators} />
+            <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
           </Suspense>
         </main>
         <RightRail />

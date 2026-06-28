@@ -58,3 +58,38 @@ export async function getPublicCreators(): Promise<PublicCreator[]> {
     return [];
   }
 }
+
+export interface HotDealItem {
+  id: string;
+  itemType: 'youtube' | 'website';
+  creatorId: number | null;
+  slotType: string | null;
+  durationBand: string | null;
+  adType: string | null;
+  websiteId: string | null;
+  categoryId: string | null;
+  systemPrice: number;
+  dealPrice: number;
+}
+
+export interface HotDeal {
+  id: string;
+  title: string;
+  description: string | null;
+  businessCategory: string;
+  coverImageUrl: string | null;
+  status: string;
+  items: HotDealItem[];
+  totalPrice: number;
+}
+
+export async function getPublicHotDeals(): Promise<HotDeal[]> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/hot-deals`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json?.success && Array.isArray(json.data) ? json.data : [];
+  } catch {
+    return [];
+  }
+}

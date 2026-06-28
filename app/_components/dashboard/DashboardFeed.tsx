@@ -28,7 +28,7 @@ function YoutuberCard({ creator, onCollaborate }: { creator: PublicCreator; onCo
   const go = (delta: number) => setIndex((i) => (i + delta + videos.length) % videos.length);
 
   return (
-    <div className="relative max-w-[340px] mx-auto rounded-2xl bg-coral/8 border border-coral/15 overflow-hidden">
+    <div className="relative max-w-[340px] mx-auto rounded-2xl bg-surface-1 dark:bg-coral/8 border border-coral/15 overflow-hidden">
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold text-coral">Youtuber</p>

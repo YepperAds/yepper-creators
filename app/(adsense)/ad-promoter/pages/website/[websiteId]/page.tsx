@@ -509,7 +509,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                                 : 'Connect GSC in the Analytics tab to verify your site and unlock tier-based pricing.'}
                                         </p>
                                     </div>
-                                    <button onClick={() => setActiveTab('analytics')} className="shrink-0 px-3 py-1.5 bg-black text-white text-xs font-semibold border border-border hover:bg-surface-2 transition-colors whitespace-nowrap">
+                                    <button onClick={() => setActiveTab('analytics')} className="shrink-0 px-3 py-1.5 bg-black text-[#fff] text-xs font-semibold border border-border hover:bg-surface-2 transition-colors whitespace-nowrap">
                                         Go to Analytics
                                     </button>
                                 </div>
@@ -807,7 +807,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                                     return analytics.byDay.map((d: any, i: any) => (
                                                         <div key={i} className="flex-1 group relative">
                                                             <div style={{ height: `${(d.count / max) * 100}%` }} className="w-full bg-white hover:bg-zinc-400 transition-colors min-h-[2px]" />
-                                                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-white px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.count}</span>
+                                                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.count}</span>
                                                         </div>
                                                     ));
                                                 })()}
@@ -1023,7 +1023,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                                         return gscData.byDay.map((d: any, i: any) => (
                                                             <div key={i} className="flex-1 group relative">
                                                                 <div style={{ height: `${(d.clicks / max) * 100}%` }} className="w-full bg-blue-500 hover:bg-blue-400 transition-colors min-h-[2px]" />
-                                                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-white px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.clicks}</span>
+                                                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.clicks}</span>
                                                             </div>
                                                         ));
                                                     })()}
@@ -1175,9 +1175,9 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                 <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
                     <div className="sticky top-0 z-10 bg-black border-b border-border">
                         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-                            <p className="text-sm font-semibold text-white">Add New Ad Space</p>
+                            <p className="text-sm font-semibold text-[#fff]">Add New Ad Space</p>
                             <button onClick={handleCloseCategoriesForm} className="p-1.5 hover:bg-surface-2 border border-border transition-colors">
-                                <X size={15} className="text-white" />
+                                <X size={15} className="text-[#fff]" />
                             </button>
                         </div>
                     </div>

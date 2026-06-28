@@ -68,7 +68,7 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
   return (
     <button
       onClick={() => onCollaborate(creator)}
-      className="w-56 shrink-0 text-left rounded-xl bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
+      className="w-56 shrink-0 text-left rounded-xl bg-surface-1 dark:bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
     >
       <div className="flex items-center gap-2 mb-2">
         {creator.avatar ? (
@@ -162,7 +162,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals }: { web
       <div>
         <button
           onClick={() => setActiveWebsite(null)}
-          className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white transition-colors"
+          className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" /> Back to browse
         </button>

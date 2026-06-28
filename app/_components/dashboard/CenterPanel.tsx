@@ -18,11 +18,15 @@ import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
+// Solid pill, not just bare text on the mesh backdrop — the panels using
+// this (websites, wallet, analytics, etc.) render directly on `yp-mesh`
+// with no card behind them, so `text-subtle` alone has poor contrast
+// against the vivid light-mode gradient.
 function BackToFeed({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white transition-colors"
+      className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
     >
       <ArrowLeftIcon className="w-4 h-4" /> Back to feed
     </button>
@@ -95,7 +99,7 @@ export default function CenterPanel({
       <div>
         <HotDealsSection deals={hotDeals} />
         <OwnContentCTA />
-        <div className="rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
+        <div className="rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
           <DashboardFeed
             websites={websites.length > 0 ? websites : MOCK_WEBSITES}

@@ -20,7 +20,7 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="h-16 shrink-0 border-b border-border bg-surface-1/80 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-20">
+    <header className="h-16 shrink-0 border-b border-border bg-surface-1 dark:bg-surface-1/80 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-20">
       <Link href="/" className="flex items-center gap-2">
         <Image src="/logos/yepper-logo.png" alt="Yepper" width={100} height={28} className="h-7 w-auto object-contain" priority />
       </Link>

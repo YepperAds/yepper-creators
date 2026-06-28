@@ -269,7 +269,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-(--color-subtle) text-white hover:opacity-90 transition-opacity"
+              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-coral text-white hover:bg-coral-dark transition-colors"
             >
               Save changes
             </button>

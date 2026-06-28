@@ -293,7 +293,7 @@ function SelectWebsitesForExistingAd() {
                     
                     <div className={`w-6 h-6 border flex items-center justify-center ${
                       isSelected 
-                        ? 'border-border bg-black text-white' 
+                        ? 'border-border bg-black text-[#fff]' 
                         : 'border-border'
                     }`}>
                       {isSelected && <Check size={14} />}
@@ -301,7 +301,7 @@ function SelectWebsitesForExistingAd() {
                   </div>
                   
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="default" className="text-xs px-2 py-1 bg-black text-white">
+                    <Badge variant="default" className="text-xs px-2 py-1 bg-black text-[#fff]">
                       {formatCategoryForDisplay(website.businessCategories)}
                     </Badge>
                     

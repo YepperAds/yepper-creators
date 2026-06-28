@@ -566,7 +566,7 @@ function DirectAdvertise() {
                 <div className="flex flex-col items-center">
                   <div className={`w-10 h-10 border-2 flex items-center justify-center transition-all ${
                     step >= item.num 
-                      ? 'border-border bg-black text-white' 
+                      ? 'border-border bg-black text-[#fff]' 
                       : 'border-border bg-surface-1 text-muted'
                   }`}>
                     <span className="text-sm font-semibold">{item.num}</span>
@@ -811,7 +811,7 @@ function DirectAdvertise() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Processing...' : 'Continue to Authentication'}
                 </button>
@@ -868,7 +868,7 @@ function DirectAdvertise() {
                   <button
                     onClick={() => createAdAndProceed()}
                     disabled={isLoading}
-                    className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Creating Ad...' : 'Create Ad & Proceed to Payment'}
                   </button>
@@ -903,7 +903,7 @@ function DirectAdvertise() {
                     </a>
                     <NextLink
                       href="/analytics"
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-black text-white border border-border px-6 py-3 font-semibold hover:bg-gray-800 transition-colors"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-black text-[#fff] border border-border px-6 py-3 font-semibold hover:bg-gray-800 transition-colors"
                     >
                       Go to dashboard & monitor traffic →
                     </NextLink>
@@ -939,7 +939,7 @@ function DirectAdvertise() {
                     <button
                       onClick={handlePayment}
                       disabled={isLoading}
-                      className="w-full bg-black text-white py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? 'Processing...' : 'Proceed to Payment'}
                     </button>

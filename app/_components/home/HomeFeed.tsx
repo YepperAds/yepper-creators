@@ -28,7 +28,7 @@ function domainOf(link: string): string {
 
 function YoutuberCard({ creator }: { creator: PublicCreator }) {
   return (
-    <div className="rounded-2xl bg-coral/8 border border-coral/15 p-4 sm:p-5">
+    <div className="rounded-2xl bg-surface-1 dark:bg-coral/8 border border-coral/15 p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-coral">Youtuber</p>
         <button

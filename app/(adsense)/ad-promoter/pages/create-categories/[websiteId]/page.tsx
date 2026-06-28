@@ -53,7 +53,7 @@ function CategoryModal({ activeCategory, details, categoryData, updateCategoryDa
       <div className="bg-surface-1 border border-border max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-black text-white">{details.icon}</div>
+            <div className="p-2 bg-black text-[#fff]">{details.icon}</div>
             <div>
               <h2 className="text-xl font-semibold text-white">{details.name}</h2>
               <p className="text-sm text-subtle">{details.category} • {details.position}</p>
@@ -583,7 +583,7 @@ const CategoryCreation = () => {
                 onClick={() => setActiveFilter(filter.id)}
                 className={`px-4 py-2 text-sm border border-border transition-colors ${
                   activeFilter === filter.id
-                    ? 'bg-black text-white'
+                    ? 'bg-black text-[#fff]'
                     : 'bg-surface-1 text-white hover:bg-surface-3'
                 }`}
               >
@@ -612,7 +612,7 @@ const CategoryCreation = () => {
                     <div className="flex items-center gap-3">
                       <div className={`p-2 ${
                         completedCategories.includes(category) 
-                          ? 'bg-black text-white' 
+                          ? 'bg-black text-[#fff]' 
                           : 'bg-surface-1 border-border'
                       } text-white`}>
                         {completedCategories.includes(category) ? (

@@ -297,7 +297,7 @@ function BusinessCategorySelection() {
                         <Icon size={40} className="mr-3 text-white" />
                       </div>
                       {isSelected && (
-                        <div className="bg-black text-white p-1">
+                        <div className="bg-black text-[#fff] p-1">
                           <Check size={16} />
                         </div>
                       )}

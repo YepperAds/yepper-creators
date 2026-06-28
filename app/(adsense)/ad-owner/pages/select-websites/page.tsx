@@ -276,7 +276,7 @@ function WebsiteSelection() {
                   
                   <div className={`w-6 h-6 border flex items-center justify-center ${
                     selectedWebsites.includes(website._id) 
-                      ? 'border-border bg-black text-white' 
+                      ? 'border-border bg-black text-[#fff]' 
                       : 'border-border'
                   }`}>
                     {selectedWebsites.includes(website._id) && <Check size={14} />}
@@ -284,7 +284,7 @@ function WebsiteSelection() {
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="default" className="text-xs px-2 py-1 bg-black text-white">
+                  <Badge variant="default" className="text-xs px-2 py-1 bg-black text-[#fff]">
                     {formatCategoryForDisplay(website.businessCategories)}
                   </Badge>
                   

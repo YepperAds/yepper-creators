@@ -146,7 +146,7 @@ function AdDetails(): React.ReactElement {
                             <div className="absolute top-4 right-4">
                                 <button
                                     onClick={toggleMute}
-                                    className="bg-black/50 text-white p-2 border border-white"
+                                    className="bg-black/50 text-[#fff] p-2 border border-[#fff]"
                                 >
                                     {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                                 </button>

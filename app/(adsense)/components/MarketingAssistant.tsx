@@ -567,13 +567,13 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm transition-all"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-[#fff] backdrop-blur-sm transition-all"
                 >
                   <ChevronLeft size={20} />
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm transition-all"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-[#fff] backdrop-blur-sm transition-all"
                 >
                   <ChevronRight size={20} />
                 </button>
@@ -671,7 +671,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
         <>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="fixed top-4 left-4 z-50 bg-black text-white p-2 rounded-lg hover:bg-gray-800"
+            className="fixed top-4 left-4 z-50 bg-black text-[#fff] p-2 rounded-lg hover:bg-gray-800"
           >
             {isSidebarOpen ? <XIcon /> : <MenuIcon />}
           </button>
@@ -682,7 +682,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
             <div className="p-4 border-b border-border">
               <button
                 onClick={startNewConversation}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-black text-[#fff] rounded-lg hover:bg-gray-800"
               >
                 <PlusIcon />
                 <span className="text-sm">New Chat</span>
@@ -740,7 +740,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
 
             <div className="p-4 border-t border-border">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                <div className="w-8 h-8 bg-black text-[#fff] rounded-full flex items-center justify-center text-sm font-semibold">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -787,7 +787,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
                   <div key={idx}>
                     {message.role === 'user' ? (
                       <div className="flex justify-end mb-4">
-                        <div className="max-w-lg bg-black text-white rounded-2xl px-5 py-3 shadow-lg">
+                        <div className="max-w-lg bg-black text-[#fff] rounded-2xl px-5 py-3 shadow-lg">
                           <p className="text-sm leading-relaxed">
                             {message.content}
                           </p>
@@ -847,7 +847,7 @@ Track these core metrics: engagement rate, conversion rate, customer acquisition
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isLoading}
-                  className="bg-black text-white px-6 py-2.5 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 text-sm font-medium shadow-lg"
+                  className="bg-black text-[#fff] px-6 py-2.5 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 text-sm font-medium shadow-lg"
                 >
                   Send
                 </button>

@@ -44,29 +44,29 @@ const DeleteCategoryModal = ({
             ></div>
             
             <div className="relative w-full max-w-md mx-4">
-                <div className="backdrop-blur-md bg-gradient-to-b from-red-900/30 to-red-900/10 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+                <div className="backdrop-blur-md bg-gradient-to-b from-red-900/30 to-red-900/10 rounded-3xl overflow-hidden border border-[#fff]/10 shadow-2xl">
                     <div className="p-10 relative z-10">
                         {/* Header Section */}
                         <div className="flex items-center mb-8">
                             <div className="relative">
                                 <div className="absolute inset-0 rounded-full bg-red-500 blur-md opacity-40"></div>
                                 <div className="relative p-3 rounded-full bg-gradient-to-r from-red-600 to-red-400">
-                                    <Trash2 className="text-white" size={24} />
+                                    <Trash2 className="text-[#fff]" size={24} />
                                 </div>
                             </div>
                             <div className="ml-4">
-                                <h2 className="text-3xl font-bold text-white">Delete Category</h2>
+                                <h2 className="text-3xl font-bold text-[#fff]">Delete Category</h2>
                             </div>
-                            <button 
-                                onClick={onCancel} 
-                                className="ml-auto text-white/70 hover:text-white transition-colors"
+                            <button
+                                onClick={onCancel}
+                                className="ml-auto text-[#fff]/70 hover:text-[#fff] transition-colors"
                             >
                                 <X size={24} />
                             </button>
                         </div>
 
                         {/* Content Section */}
-                        <p className="text-white/80 mb-8 text-lg">
+                        <p className="text-[#fff]/80 mb-8 text-lg">
                             Are you sure you want to delete this ad category? 
                             This action cannot be undone and will affect all related ads.
                         </p>

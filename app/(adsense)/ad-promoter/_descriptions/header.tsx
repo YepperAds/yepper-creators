@@ -23,9 +23,9 @@ const HeaderPicContainer = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-black text-[#fff] flex items-center justify-center p-6">
       <div 
-        className="max-w-6xl w-full rounded-3xl overflow-hidden border border-white/10 backdrop-blur-md bg-gradient-to-b from-blue-900/30 to-blue-900/10 transition-all duration-500"
+        className="max-w-6xl w-full rounded-3xl overflow-hidden border border-[#fff]/10 backdrop-blur-md bg-gradient-to-b from-blue-900/30 to-blue-900/10 transition-all duration-500"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           {/* Image Section */}
@@ -54,14 +54,14 @@ const HeaderPicContainer = () => {
                 </span>
               </h1>
               
-              <p className="text-white/70 leading-relaxed mb-8">
+              <p className="text-[#fff]/70 leading-relaxed mb-8">
                 Premium positioning integrated with the website's header image or banner, blending seamlessly with the site's design while commanding attention through prominent placement in the upper portion.
               </p>
             </div>
 
             <div className="space-y-4 mb-8">
               {features.map((feature: any, index: any) => (
-                <div key={index} className="flex items-center text-white/80">
+                <div key={index} className="flex items-center text-[#fff]/80">
                   <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center mr-3">
                     <Sparkles size={14} className="text-blue-400" />
                   </div>

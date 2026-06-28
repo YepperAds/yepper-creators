@@ -251,7 +251,7 @@ const AddWebsiteForm = ({
             <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
               <ArrowLeft size={16} className="mr-1.5" /> Back
             </button>
-            <span className="px-3 py-1 text-xs font-medium bg-black text-white">Step {step} of 4 — {label}</span>
+            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 4 — {label}</span>
           </div>
           {children}
         </div>
@@ -266,7 +266,7 @@ const AddWebsiteForm = ({
                 <ArrowLeft size={18} className="mr-2" />
                 <span className="font-medium">Back</span>
               </button>
-              <span className="px-3 py-1 text-sm font-medium bg-black text-white">Step {step} of 4 — {label}</span>
+              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 4 — {label}</span>
             </div>
           </div>
         </header>
@@ -312,7 +312,7 @@ const AddWebsiteForm = ({
           <button
             onClick={handleNext}
             disabled={verifyLoading}
-            className="w-full bg-black text-white py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {verifyLoading ? <><Loader size={16} className="animate-spin" /> Loading…</> : 'Continue to Domain Verification'}
           </button>
@@ -379,7 +379,7 @@ const AddWebsiteForm = ({
               <button
                 onClick={handleVerifyDomain}
                 disabled={verifyLoading}
-                className="w-full bg-black text-white py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {verifyLoading
                   ? <><Loader size={16} className="animate-spin" /> Checking DNS…</>
@@ -398,7 +398,7 @@ const AddWebsiteForm = ({
           <button
             onClick={handleNext}
             disabled={!verified}
-            className="w-full bg-black text-white py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Continue to Website Icon
           </button>
@@ -451,7 +451,7 @@ const AddWebsiteForm = ({
             </div>
           )}
 
-          <button onClick={handleNext} className="w-full bg-black text-white py-3 hover:bg-gray-800 transition-colors font-medium">
+          <button onClick={handleNext} className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium">
             Continue to Categories
           </button>
         </div>
@@ -479,7 +479,7 @@ const AddWebsiteForm = ({
               {selectedBusinessCategories.map(id => {
                 const cat = businessCategories.find(c => c.id === id);
                 return (
-                  <span key={id} className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-black text-white">
+                  <span key={id} className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-black text-[#fff]">
                     <Check size={12} /> {cat?.name}
                   </span>
                 );
@@ -512,7 +512,7 @@ const AddWebsiteForm = ({
                 >
                   <div className="flex justify-between items-start mb-6">
                     <Icon size={40} className="text-white" />
-                    {isSelected && <div className="bg-black text-white p-1"><Check size={16} /></div>}
+                    {isSelected && <div className="bg-black text-[#fff] p-1"><Check size={16} /></div>}
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">{category.name}</h3>
                   <p className="text-subtle text-sm">{category.description}</p>
@@ -524,7 +524,7 @@ const AddWebsiteForm = ({
           <div className="flex items-center justify-center min-h-96">
             <div className="text-center">
               <h2 className="text-2xl font-semibold mb-4 text-white">No Categories Available</h2>
-              <button onClick={fetchBusinessCategories} className="bg-black text-white px-6 py-2 hover:bg-gray-800">Refresh</button>
+              <button onClick={fetchBusinessCategories} className="bg-black text-[#fff] px-6 py-2 hover:bg-gray-800">Refresh</button>
             </div>
           </div>
         )}
@@ -536,7 +536,7 @@ const AddWebsiteForm = ({
           <button
             onClick={handleFinalSubmit}
             disabled={selectedBusinessCategories.length === 0 || isSubmitting}
-            className="bg-black text-white px-8 py-3 hover:bg-gray-800 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-black text-[#fff] px-8 py-3 hover:bg-gray-800 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isSubmitting
               ? <><Loader size={16} className="animate-spin" /> Creating Website…</>

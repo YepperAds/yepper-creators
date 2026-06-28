@@ -192,7 +192,7 @@ const PendingAds = () => {
                     <div key={detail.website._id} className="border border-border p-4 bg-surface-2">
                       <div className="flex items-center justify-between mb-3">
                         <h5 className="font-medium text-white">{detail.website.websiteName}</h5>
-                        <span className={`text-xs px-2 py-1 border ${detail.approved ? 'bg-black text-white' : 'border-border bg-surface-3 text-white'}>
+                        <span className={`text-xs px-2 py-1 border ${detail.approved ? 'bg-black text-[#fff]' : 'border-border bg-surface-3 text-white'}>
                           }`}>
                             {detail.approved ? 'Approved' : 'Pending'}
                         </span>

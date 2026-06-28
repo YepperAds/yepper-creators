@@ -50,7 +50,7 @@ const CategoryInfoModal = ({  isOpen, onClose, category  }: any) => {
             <div className="relative w-full h-full max-w-7xl mx-auto">
                 <button 
                     onClick={onClose}
-                    className="absolute top-6 right-6 z-50 p-3 bg-surface-1/10 backdrop-blur-xl rounded-full border border-white/20 text-white/80 hover:text-white hover:bg-surface-1/20 transition-all duration-300"
+                    className="absolute top-6 right-6 z-50 p-3 bg-surface-1/10 backdrop-blur-xl rounded-full border border-[#fff]/20 text-[#fff]/80 hover:text-[#fff] hover:bg-surface-1/20 transition-all duration-300"
                 >
                     <X className="w-6 h-6" />
                 </button>

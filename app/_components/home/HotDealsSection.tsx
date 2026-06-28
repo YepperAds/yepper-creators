@@ -34,7 +34,7 @@ export default function HotDealsSection({ deals }: { deals: HotDeal[] }) {
         {deals.map((deal) => {
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           return (
-            <div key={deal.id} className="w-72 shrink-0 rounded-2xl border border-coral/20 bg-coral/8 p-4">
+            <div key={deal.id} className="w-72 shrink-0 rounded-2xl border border-coral/20 bg-surface-1 dark:bg-coral/8 p-4">
               <p className="text-[10px] font-bold uppercase text-coral mb-1">{deal.businessCategory.replace(/-/g, ' ')}</p>
               <h3 className="text-sm font-bold text-white truncate">{deal.title}</h3>
               {deal.description && (

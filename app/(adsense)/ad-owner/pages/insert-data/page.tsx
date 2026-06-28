@@ -426,7 +426,7 @@ function BusinessForm() {
                       onClick={() => handleCategorySelect(category.value)}
                       className={`p-4 border text-left transition-all duration-200 hover:shadow-lg group ${
                         isSelected 
-                          ? 'border-border bg-black text-white' 
+                          ? 'border-border bg-black text-[#fff]' 
                           : 'border-border hover:border-border bg-surface-1'
                       }`}
                     >
@@ -436,19 +436,19 @@ function BusinessForm() {
                             ? 'bg-surface-1 bg-opacity-20' 
                             : 'bg-surface-3 group-hover:bg-surface-3'
                         }`}>
-                          <IconComponent 
-                            size={24} 
-                            className={isSelected ? 'text-white' : 'text-subtle'}
+                          <IconComponent
+                            size={24}
+                            className={isSelected ? 'text-[#fff]' : 'text-subtle'}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className={`font-medium mb-1 ${
-                            isSelected ? 'text-white' : 'text-white'
+                            isSelected ? 'text-[#fff]' : 'text-white'
                           }`}>
                             {category.label}
                           </h4>
                           <p className={`text-sm ${
-                            isSelected ? 'text-white text-opacity-80' : 'text-subtle'
+                            isSelected ? 'text-[#fff] text-opacity-80' : 'text-subtle'
                           }`}>
                             {category.description}
                           </p>

@@ -687,7 +687,7 @@ const SelectCategoriesForExistingAd = () => {
                                 <div className={`w-10 h-10 border-2 flex items-center justify-center mx-auto mb-2 transition-colors ${
                                   isSelected ? 'bg-black border-border' : 'border-border'
                                 }`}>
-                                  {isSelected && <Check size={20} className="text-white" />}
+                                  {isSelected && <Check size={20} className="text-[#fff]" />}
                                 </div>
                                 <Text 
                                   variant="small" 

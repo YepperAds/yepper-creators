@@ -86,7 +86,7 @@ export default function OwnContentCTA() {
 
   if (loaded && !hasWebsite && !hasYoutube) {
     return (
-      <div className="mb-5 rounded-2xl border border-coral/20 bg-coral/5 p-4 flex flex-wrap items-center gap-3">
+      <div className="mb-5 rounded-2xl border border-coral/20 bg-surface-1 dark:bg-coral/5 p-4 flex flex-wrap items-center gap-3">
         <p className="text-sm font-semibold text-white flex-1 min-w-[220px]">
           Get your own website or channel showing up here on Yepper.
         </p>

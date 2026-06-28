@@ -56,7 +56,7 @@ function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
       ) : ads.length > 0 ? (
         <>
           <AdStack ads={ads} />
-          <p className="text-sm text-white mt-2 mb-3">{ads.length} ad{ads.length === 1 ? '' : 's'} running</p>
+          <p className="text-sm text-[#fff] mt-2 mb-3">{ads.length} ad{ads.length === 1 ? '' : 's'} running</p>
         </>
       ) : (
         <div className="h-20 rounded-xl border border-dashed border-neutral-700 flex flex-col items-center justify-center text-center mb-3 px-2">
@@ -65,7 +65,7 @@ function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
         </div>
       )}
 
-      <Link href="/?panel=ad-posts" scroll={false} className="text-xs font-medium text-neutral-400 hover:text-white">
+      <Link href="/?panel=ad-posts" scroll={false} className="text-xs font-medium text-neutral-400 hover:text-[#fff]">
         View all
       </Link>
     </div>

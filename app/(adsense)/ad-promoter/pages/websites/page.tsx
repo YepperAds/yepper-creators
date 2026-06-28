@@ -456,7 +456,7 @@ function Websites() {
                                         <Badge variant='danger' className="absolute top-4 left-4">
                                           Pending Review
                                         </Badge>
-                                        <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm">
+                                        <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-[#fff] px-3 py-1 rounded text-sm">
                                           {timeRemaining}
                                         </div>
                                       </div>

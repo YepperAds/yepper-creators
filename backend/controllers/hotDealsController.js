@@ -127,17 +127,20 @@ async function insertItemRows(dealId, rows) {
 // POST /api/admin/hot-deals
 exports.adminCreateDeal = async (req, res) => {
   try {
-    const { title, description, businessCategory, coverImageUrl, items } = req.body;
+    const { title, description, businessCategory, coverImageUrl, status, items } = req.body;
     if (!title || !businessCategory) return res.status(400).json({ success: false, message: 'Title and business category are required' });
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'At least one item is required' });
+    if (status !== undefined && !['draft', 'active', 'archived'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
 
     const rows = [];
     for (const item of items) rows.push(await buildItemRow(item));
 
     const dealRes = await query(
-      `INSERT INTO hot_deals (title, description, business_category, cover_image_url, created_by)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-      [title, description || null, businessCategory, coverImageUrl || null, req.admin?.username || null],
+      `INSERT INTO hot_deals (title, description, business_category, cover_image_url, status, created_by)
+       VALUES ($1,$2,$3,$4,COALESCE($5,'draft'),$6) RETURNING id`,
+      [title, description || null, businessCategory, coverImageUrl || null, status || null, req.admin?.username || null],
     );
     await insertItemRows(dealRes.rows[0].id, rows);
 

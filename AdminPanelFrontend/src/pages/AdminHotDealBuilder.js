@@ -227,16 +227,14 @@ export default function AdminHotDealBuilder() {
           <label style={S.label}>Description</label>
           <textarea disabled={locked} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} style={{ ...S.input, resize: 'vertical' }} />
         </div>
-        {!isNew && (
-          <div>
-            <label style={S.label}>Status</label>
-            <select disabled={locked} value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...S.input, width: 200 }}>
-              <option value="draft">draft</option>
-              <option value="active">active</option>
-              <option value="archived">archived</option>
-            </select>
-          </div>
-        )}
+        <div>
+          <label style={S.label}>Status</label>
+          <select disabled={locked} value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...S.input, width: 200 }}>
+            <option value="draft">draft (hidden from visitors)</option>
+            <option value="active">active (shown on the homepage)</option>
+            <option value="archived">archived</option>
+          </select>
+        </div>
       </div>
 
       {/* Items */}

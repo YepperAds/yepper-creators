@@ -87,7 +87,7 @@ export default function CenterPanel({
     content = (
       <div>
         <BackToFeed onClick={backToFeed} />
-        <AdvertiseBrowser websites={websites} creators={creators} />
+        <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} />
       </div>
     );
   } else {

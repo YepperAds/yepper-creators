@@ -1,7 +1,7 @@
-export default function DealsPage() {
-  return (
-    <div className="flex-1 flex items-center justify-center h-full">
-      <h1 className="text-2xl font-semibold">Hot Deals</h1>
-    </div>
-  );
+import { getPublicHotDeals } from '@/app/_lib/public-home';
+import DealsGrid from '../_components/DealsGrid';
+
+export default async function DealsPage() {
+  const deals = await getPublicHotDeals();
+  return <DealsGrid deals={deals} />;
 }

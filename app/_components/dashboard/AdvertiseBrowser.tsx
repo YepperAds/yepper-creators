@@ -6,8 +6,9 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import VideoEmbed from '@/app/_components/home/VideoEmbed';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
+import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteLogoTile from './WebsiteLogoTile';
-import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 interface AdSpace {
   _id: string;
@@ -103,7 +104,7 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
   );
 }
 
-export default function AdvertiseBrowser({ websites, creators }: { websites: PublicWebsite[]; creators: PublicCreator[] }) {
+export default function AdvertiseBrowser({ websites, creators, hotDeals }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[] }) {
   const router = useRouter();
   const categories = buildCategories(websites, creators);
 
@@ -183,6 +184,8 @@ export default function AdvertiseBrowser({ websites, creators }: { websites: Pub
   // a small video preview row for each creator, logo tiles for websites.
   return (
     <div className="space-y-8">
+      <HotDealsSection deals={hotDeals} />
+
       <div>
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Advertise on Yepper</h3>
         <p className="text-sm text-subtle">Browse by category, then pick a website or channel to advertise with.</p>

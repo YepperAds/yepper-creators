@@ -12,6 +12,28 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 const DURATION_BANDS = ['5–15s', '15–30s'] as const;
 
+// Same business-category list advertisers pick from when buying website ad
+// space (see app/(adsense)/ad-owner/pages/insert-data/page.tsx) — required
+// here too so a YouTube claim carries the same business-identity info.
+const BUSINESS_CATEGORIES = [
+  { id: 'technology',        label: 'Technology' },
+  { id: 'food-beverage',     label: 'Food & Beverage' },
+  { id: 'real-estate',       label: 'Real Estate' },
+  { id: 'automotive',        label: 'Automotive' },
+  { id: 'health-wellness',   label: 'Health & Wellness' },
+  { id: 'entertainment',     label: 'Entertainment' },
+  { id: 'fashion',           label: 'Fashion' },
+  { id: 'education',         label: 'Education' },
+  { id: 'business-services', label: 'Business Services' },
+  { id: 'travel-tourism',    label: 'Travel & Tourism' },
+  { id: 'arts-culture',      label: 'Arts & Culture' },
+  { id: 'photography',       label: 'Photography' },
+  { id: 'gifts-events',      label: 'Gifts & Events' },
+  { id: 'government-public', label: 'Government & Public' },
+  { id: 'general-retail',    label: 'General Retail' },
+  { id: 'other',             label: 'Others' },
+] as const;
+
 interface AdSlot {
   slotType: string;
   label: string;
@@ -65,6 +87,8 @@ export default function AdSpacesModal({
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [businessCategories, setBusinessCategories] = useState<string[]>([]);
+  const [businessCategoryOther, setBusinessCategoryOther] = useState('');
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -101,7 +125,13 @@ export default function AdSpacesModal({
     setAdSize('medium');
     setDurationBand(DURATION_BANDS[1]);
     setPendingFile(null);
+    setBusinessCategories([]);
+    setBusinessCategoryOther('');
     setError('');
+  };
+
+  const toggleBusinessCategory = (id: string) => {
+    setBusinessCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   };
 
   const priceForSelection = (): number | null => {
@@ -110,8 +140,21 @@ export default function AdSpacesModal({
     return (row as any)[adType] ?? null;
   };
 
+  const canSubmit =
+    !!pendingFile &&
+    businessCategories.length > 0 &&
+    (!businessCategories.includes('other') || businessCategoryOther.trim().length > 0);
+
   const submitClaim = async () => {
     if (!expandedSlot || !pendingFile) return;
+    if (!businessCategories.length) {
+      setError('Select at least one business category.');
+      return;
+    }
+    if (businessCategories.includes('other') && !businessCategoryOther.trim()) {
+      setError('Please describe your "Others" business category.');
+      return;
+    }
     const slotType = expandedSlot;
     setClaimingSlot(slotType);
     setError('');
@@ -123,6 +166,8 @@ export default function AdSpacesModal({
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
       formData.append('durationBand', durationBand);
+      formData.append('businessCategories', JSON.stringify(businessCategories));
+      formData.append('businessCategoryOther', businessCategoryOther.trim());
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
       // backend's — it won't ride along on this cross-origin request, so
@@ -274,6 +319,32 @@ export default function AdSpacesModal({
                       </div>
                     </div>
 
+                    {/* Business category */}
+                    <div>
+                      <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">
+                        Business Category <span className="text-red-400">*</span>
+                      </p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {BUSINESS_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => toggleBusinessCategory(cat.id)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${businessCategories.includes(cat.id) ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                      {businessCategories.includes('other') && (
+                        <input
+                          value={businessCategoryOther}
+                          onChange={(e) => setBusinessCategoryOther(e.target.value)}
+                          placeholder='Describe your "Others" category…'
+                          className="mt-2 w-full bg-(--color-surface-1) border border-(--color-border) rounded-lg px-3 py-2 text-xs text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30"
+                        />
+                      )}
+                    </div>
+
                     {/* Price */}
                     {price !== null && (
                       <div className="rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 flex items-center justify-between">
@@ -296,7 +367,7 @@ export default function AdSpacesModal({
 
                     <button
                       onClick={submitClaim}
-                      disabled={!pendingFile || claimingSlot === slot.slotType}
+                      disabled={!canSubmit || claimingSlot === slot.slotType}
                       className="w-full py-2 rounded-lg bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
                     >
                       {claimingSlot === slot.slotType ? 'Processing…' : price !== null ? `Pay ${price.toLocaleString()} RWF & Claim` : 'Pay & Claim'}

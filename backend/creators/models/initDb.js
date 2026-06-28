@@ -147,6 +147,10 @@ async function initCreatorsDatabase() {
     // from `status`, which tracks slot occupancy (pending/used/cancelled).
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'pending'`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS tx_ref VARCHAR(255)`,
+    // Same business-category requirement as the website-ad flow's
+    // business_categories/business_category_other on import_ads.
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_categories JSONB DEFAULT '[]'`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_category_other TEXT`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
     // Tracks the burn-in + platform-upload pipeline in the background so the

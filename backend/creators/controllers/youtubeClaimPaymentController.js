@@ -19,6 +19,7 @@ const {
 } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
+const { validateBusinessCategories } = require('../utils/businessCategories');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./adSpaceController');
 
 const CREATOR_SHARE = 0.70; // creator keeps 70%, Yepper takes the rest
@@ -30,10 +31,21 @@ exports.initiateClaimPayment = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
 
   const { creatorId } = req.params;
-  const { slotType, durationBand } = req.body;
+  const { slotType, durationBand, businessCategoryOther } = req.body;
   const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
+
+  // Same business-category requirement as buying website ad space — sent as
+  // a JSON-stringified array, same shape as businessCategories on /api/web-advertise.
+  let businessCategories;
+  try {
+    businessCategories = JSON.parse(req.body.businessCategories || '[]');
+  } catch {
+    return res.status(400).json({ success: false, message: 'Invalid businessCategories' });
+  }
+  const categoryError = validateBusinessCategories(businessCategories, businessCategoryOther);
+  if (categoryError) return res.status(400).json({ success: false, message: categoryError });
 
   try {
     const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
@@ -64,10 +76,12 @@ exports.initiateClaimPayment = async (req, res) => {
     const imageUrl = await uploadCreativeToCloudinary(req.file);
 
     const claimColumns = `creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size,
-       duration_band, tier, amount, creator_earnings, yepper_cut, currency, tx_ref`;
+       duration_band, tier, amount, creator_earnings, yepper_cut, currency,
+       business_categories, business_category_other, tx_ref`;
     const claimValues = [
       creatorId, String(advertiserId), slotType, imageUrl, adType, adSize,
       durationBand, tier, totalCost, creatorEarnings, yepperCut, 'RWF',
+      JSON.stringify(businessCategories), businessCategoryOther || null,
     ];
 
     if (remainingAmount <= 0.01) {
@@ -80,7 +94,7 @@ exports.initiateClaimPayment = async (req, res) => {
 
         const claimRes = await client.query(
           `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'paid') RETURNING id`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'paid') RETURNING id`,
           [...claimValues, tx_ref],
         );
         claimId = claimRes.rows[0].id;
@@ -108,7 +122,7 @@ exports.initiateClaimPayment = async (req, res) => {
         amount: totalCost, currency: 'RWF', status: 'successful',
         walletApplied: walletToUse, amountPaid: 0,
         paymentMethod: 'wallet_only',
-        metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adType, tier, creatorEarnings, yepperCut },
+        metadata: { kind: 'youtube_claim', claimId, creatorId, slotType, adSize, durationBand, adType, tier, creatorEarnings, yepperCut, businessCategories, businessCategoryOther },
         paidAt: new Date(),
       });
 
@@ -127,7 +141,7 @@ exports.initiateClaimPayment = async (req, res) => {
     try {
       const claimRes = await query(
         `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending') RETURNING id`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'pending') RETURNING id`,
         [...claimValues, tx_ref],
       );
       claimId = claimRes.rows[0].id;

@@ -9,9 +9,11 @@
     "lint": "eslint",
     "backend:dev": "cd backend && npm run dev",
     "backend:start": "cd backend && npm run start",
+    "worker:dev": "cd backend && npm run worker:dev",
+    "worker:start": "cd backend && npm run worker",
     "backend-adsense:dev": "cd backend-adsense && node server.js",
     "backend-adsense:start": "cd backend-adsense && node server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run backend:dev\" \"npm run backend-adsense:dev\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run backend:dev\" \"npm run worker:dev\" \"npm run backend-adsense:dev\""
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

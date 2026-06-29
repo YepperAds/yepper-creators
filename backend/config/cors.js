@@ -12,7 +12,7 @@ const allowedOrigins = [
   'http://127.0.0.1:3001',
   'https://yepper-creators-admin.vercel.app',
   'https://yepper-creators.onrender.com',
-  'https://yepper-creators.vercel.app',
+  'https://yepper.cc',
   'https://yepper-creators-api.onrender.com',
   process.env.FRONTEND_URL,
   process.env.FRONTEND_ORIGIN,

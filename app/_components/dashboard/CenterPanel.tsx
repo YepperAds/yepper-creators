@@ -48,6 +48,7 @@ export default function CenterPanel({
   const router = useRouter();
   const searchParams = useSearchParams();
   const panel = searchParams.get('panel');
+  const dealId = searchParams.get('dealId') ?? undefined;
 
   const backToFeed = () => router.replace('/', { scroll: false });
 
@@ -91,13 +92,13 @@ export default function CenterPanel({
     content = (
       <div>
         <BackToFeed onClick={backToFeed} />
-        <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} />
+        <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} initialDealId={dealId} />
       </div>
     );
   } else {
     content = (
       <div>
-        <HotDealsSection deals={hotDeals} />
+        <HotDealsSection deals={hotDeals} initialDealId={dealId} />
         <OwnContentCTA />
         <div className="rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>

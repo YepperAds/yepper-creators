@@ -23,8 +23,10 @@ const {
 const { priceFor } = require('../creators/utils/youtubeTierPricing');
 const { validateBusinessCategories } = require('../creators/utils/businessCategories');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('../creators/controllers/adSpaceController');
+const sendEmailNotification = require('./emailService');
 
 const CREATOR_SHARE = 0.70; // creator keeps 70% of the deal price, Yepper takes the rest
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
@@ -231,6 +233,67 @@ exports.adminDeleteDeal = async (req, res) => {
   } catch (err) {
     console.error('[hotDeals] adminDeleteDeal error:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete deal' });
+  }
+};
+
+// POST /api/admin/hot-deals/:id/send-email — emails a specific person a link
+// straight to this deal. `/?dealId=` is read by HotDealsSection wherever it's
+// rendered (logged-out home feed and the logged-in dashboard alike — see
+// app/_components/home/HotDealsSection.tsx) and auto-opens the purchase
+// modal, so the recipient lands directly on "claim this deal" either way.
+exports.adminSendDealEmail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, title, description } = req.body;
+    if (!email || !String(email).trim()) return res.status(400).json({ success: false, message: 'Recipient email is required' });
+    if (!title || !String(title).trim()) return res.status(400).json({ success: false, message: 'Title is required' });
+
+    const deal = await loadDealWithItems(id);
+    if (!deal) return res.status(404).json({ success: false, message: 'Deal not found' });
+
+    const link = `${FRONTEND_URL}/?dealId=${deal.id}`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
+            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+            <tr><td style="padding:40px;">
+              <p style="color:#333;font-size:19px;margin:0 0 16px 0;font-weight:700;">${title}</p>
+              ${description ? `<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">${description}</p>` : ''}
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+                <tr><td style="padding:14px 16px;background:#fafafa;border:1px solid #eee;border-radius:8px;">
+                  <p style="color:#888;font-size:11px;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:.04em;">${deal.items.length} bundled placement${deal.items.length === 1 ? '' : 's'}</p>
+                  <p style="color:#111;font-size:18px;margin:0;font-weight:700;">${deal.totalPrice.toLocaleString()} RWF</p>
+                </td></tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center" style="padding:0 0 32px 0;">
+                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
+                    View &amp; Claim This Deal →
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
+                Clicking the button takes you straight to this deal — log in (or create an account) and you'll land right back here to finish claiming it.
+              </p>
+            </td></tr>
+            <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
+              <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
+                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+              </p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body></html>`;
+
+    const result = await sendEmailNotification(String(email).trim(), title, html);
+    if (result && result.skipped) {
+      return res.status(503).json({ success: false, message: 'Email sending is not configured on this server' });
+    }
+    return res.json({ success: true, message: 'Email sent' });
+  } catch (err) {
+    console.error('[hotDeals] adminSendDealEmail error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send email' });
   }
 };
 

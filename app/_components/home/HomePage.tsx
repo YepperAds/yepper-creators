@@ -13,10 +13,12 @@ export default function HomePage({
   websites,
   creators,
   hotDeals,
+  dealId,
 }: {
   websites: PublicWebsite[];
   creators: PublicCreator[];
   hotDeals: HotDeal[];
+  dealId?: string;
 }) {
   // Placeholder content while the network is thin — see app/_lib/mock-home-data.ts
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
@@ -37,7 +39,7 @@ export default function HomePage({
           </p>
         </div>
 
-        <HotDealsSection deals={hotDeals} />
+        <HotDealsSection deals={hotDeals} initialDealId={dealId} />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           <HomeFeed websites={displayWebsites} creators={displayCreators} />

@@ -6,9 +6,14 @@ import DashboardHome from '@/app/_components/dashboard/DashboardHome';
 import ProtectedRoute from '@/app/_components/auth/ProtectedRoute';
 import { getPublicWebsites, getPublicCreators, getPublicHotDeals } from '@/app/_lib/public-home';
 
-export default async function RootPage() {
+export default async function RootPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dealId?: string }>;
+}) {
   const cookieStore = await cookies();
   const session = cookieStore.get('yepper_session');
+  const { dealId } = await searchParams;
 
   const [websites, creators, hotDeals] = await Promise.all([
     getPublicWebsites(),
@@ -26,5 +31,5 @@ export default async function RootPage() {
     );
   }
 
-  return <HomePage websites={websites} creators={creators} hotDeals={hotDeals} />;
+  return <HomePage websites={websites} creators={creators} hotDeals={hotDeals} dealId={dealId} />;
 }

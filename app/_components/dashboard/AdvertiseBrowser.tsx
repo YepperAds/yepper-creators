@@ -104,7 +104,7 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
   );
 }
 
-export default function AdvertiseBrowser({ websites, creators, hotDeals }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[] }) {
+export default function AdvertiseBrowser({ websites, creators, hotDeals, initialDealId }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[]; initialDealId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categories = buildCategories(websites, creators);
@@ -204,7 +204,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals }: { web
   // a small video preview row for each creator, logo tiles for websites.
   return (
     <div className="space-y-8">
-      <HotDealsSection deals={hotDeals} />
+      <HotDealsSection deals={hotDeals} initialDealId={initialDealId} />
 
       <div>
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Advertise on Yepper</h3>

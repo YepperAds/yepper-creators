@@ -64,5 +64,6 @@ router.get('/hot-deals/youtube-price-preview', adminAuth, hotDeals.adminYoutubeP
 router.get('/hot-deals/:id',                   adminAuth, hotDeals.adminGetDeal);
 router.put('/hot-deals/:id',                   adminAuth, hotDeals.adminUpdateDeal);
 router.delete('/hot-deals/:id',                adminAuth, hotDeals.adminDeleteDeal);
+router.post('/hot-deals/:id/send-email',       adminAuth, hotDeals.adminSendDealEmail);
 
 module.exports = router;

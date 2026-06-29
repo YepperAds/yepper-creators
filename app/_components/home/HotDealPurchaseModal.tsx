@@ -158,7 +158,10 @@ export default function HotDealPurchaseModal({
 
             {needsLogin && (
               <p className="mb-3 text-xs text-amber-400 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-                Log in to buy this deal — <a href="/login" className="underline font-semibold">go to login</a>.
+                Log in to buy this deal —{' '}
+                <a href={`/login?from=${encodeURIComponent(`/?dealId=${deal.id}`)}`} className="underline font-semibold">
+                  go to login
+                </a>.
               </p>
             )}
             {error && (

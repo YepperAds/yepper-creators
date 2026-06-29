@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FireIcon } from '@heroicons/react/24/solid';
 import type { HotDeal } from '@/app/_lib/public-home';
 import HotDealPurchaseModal from './HotDealPurchaseModal';
@@ -17,8 +17,26 @@ function itemSummary(deal: HotDeal): string {
 // Admin-curated bundles, shown to every visitor — signed in or not — as a
 // trending section above the normal feed. See HotDealPurchaseModal for the
 // all-or-nothing checkout.
-export default function HotDealsSection({ deals }: { deals: HotDeal[] }) {
-  const [active, setActive] = useState<HotDeal | null>(null);
+//
+// `initialDealId` deep-links straight into a specific deal's purchase modal
+// (e.g. from an emailed link — see adminSendDealEmail in
+// hotDealsController.js) wherever this section is rendered: the logged-out
+// home feed and every dashboard panel that shows it alike.
+export default function HotDealsSection({ deals, initialDealId }: { deals: HotDeal[]; initialDealId?: string }) {
+  const [active, setActive] = useState<HotDeal | null>(
+    () => (initialDealId ? deals.find((d) => d.id === initialDealId) ?? null : null),
+  );
+
+  // Strip `dealId` back out of the URL once consumed, without disturbing any
+  // other params (e.g. `panel=advertise`) — plain History API so this never
+  // needs a useSearchParams()/Suspense boundary just for a one-time cleanup.
+  useEffect(() => {
+    if (!initialDealId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('dealId');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!deals.length) return null;
 

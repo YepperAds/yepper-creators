@@ -117,28 +117,33 @@ type FeedItem =
   | { type: 'creator'; key: string; data: PublicCreator }
   | { type: 'website'; key: string; data: PublicWebsite };
 
-function buildFeedItems(creators: PublicCreator[], websites: PublicWebsite[], total: number): FeedItem[] {
+// Interleaves real creators/websites (roughly 1 website per 3 slots) and
+// stops once both lists are exhausted — each real listing appears exactly
+// once, never repeated to pad out to some fixed feed length.
+function buildFeedItems(creators: PublicCreator[], websites: PublicWebsite[]): FeedItem[] {
   const items: FeedItem[] = [];
   let ci = 0;
   let wi = 0;
-  for (let i = 0; i < total; i++) {
+  let i = 0;
+  while (ci < creators.length || wi < websites.length) {
     const websiteSlot = (i + 1) % 3 === 0;
-    if (websiteSlot && websites.length > 0) {
-      items.push({ type: 'website', key: `w-${i}`, data: websites[wi % websites.length] });
+    if (websiteSlot && wi < websites.length) {
+      items.push({ type: 'website', key: `w-${i}`, data: websites[wi] });
       wi++;
-    } else if (creators.length > 0) {
-      items.push({ type: 'creator', key: `c-${i}`, data: creators[ci % creators.length] });
+    } else if (ci < creators.length) {
+      items.push({ type: 'creator', key: `c-${i}`, data: creators[ci] });
       ci++;
-    } else if (websites.length > 0) {
-      items.push({ type: 'website', key: `w-${i}`, data: websites[wi % websites.length] });
+    } else if (wi < websites.length) {
+      items.push({ type: 'website', key: `w-${i}`, data: websites[wi] });
       wi++;
     }
+    i++;
   }
   return items;
 }
 
 export default function HomeFeed({ websites, creators }: { websites: PublicWebsite[]; creators: PublicCreator[] }) {
-  const items = buildFeedItems(creators, websites, 12);
+  const items = buildFeedItems(creators, websites);
 
   if (items.length === 0) {
     return (

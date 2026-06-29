@@ -49,6 +49,13 @@ router.get('/ads/customization/:categoryId', async (req, res) => {
 
 router.get('/category/:categoryId', categoryController.getCategoryById);
 
+// Advertiser-facing ad-space browse for a website — read-only, doesn't touch
+// req.user, and is called both by logged-in advertisers (AdvertiseBrowser)
+// and the admin Hot Deal builder (which has no advertiser session at all).
+// Was sitting behind authMiddleware below, so the admin builder's unauthenticated
+// request 401'd and silently rendered an empty ad-space dropdown.
+router.get('/:websiteId/advertiser', categoryController.getCategoriesByWebsiteForAdvertisers);
+
 // ── AUTHENTICATED ────────────────────────────────────────────────────────────
 
 router.use(authMiddleware);
@@ -117,7 +124,6 @@ router.put('/:categoryId/reset-user-count', categoryController.resetUserCount);
 router.delete('/:categoryId', categoryController.deleteCategory);
 
 // ── WILDCARD — must be last ──────────────────────────────────────────────────
-router.get('/:websiteId/advertiser', categoryController.getCategoriesByWebsiteForAdvertisers);
 router.get('/:websiteId', categoryController.getCategoriesByWebsite);
 
 module.exports = router;

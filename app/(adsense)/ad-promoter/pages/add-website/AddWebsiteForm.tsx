@@ -4,13 +4,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Upload, ArrowLeft, Check, AlertTriangle,
-  Building2, Code, Utensils, Home, Car, Heart, Gamepad2,
-  Shirt, BookOpen, Briefcase, Plane, Music, Camera, Gift,
-  Shield, Zap, Loader, ClipboardCopy, RefreshCw,
+  Upload, ArrowLeft, Check, AlertTriangle, Loader, ClipboardCopy, RefreshCw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api from '@/app/_lib/adsense-api';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -69,13 +67,6 @@ const AddWebsiteForm = ({
   const [errors,       setErrors]       = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const iconMap = {
-    'any': Zap, 'technology': Code, 'food': Utensils, 'realestate': Home,
-    'automotive': Car, 'health': Heart, 'gaming': Gamepad2, 'fashion': Shirt,
-    'education': BookOpen, 'business': Briefcase, 'travel': Plane,
-    'entertainment': Music, 'photography': Camera, 'ecommerce': Gift, 'finance': Shield,
-  };
-
   useEffect(() => { fetchBusinessCategories(); }, []);
 
   const fetchBusinessCategories = async () => {
@@ -83,10 +74,7 @@ const AddWebsiteForm = ({
       setLoadingCategories(true);
       const response = await api.get('/api/business-categories/categories');
       if (response.data.success) {
-        const categoriesWithIcons = response.data.data.categories.map(category => ({
-          ...category, icon: iconMap[category.id] || Building2,
-        }));
-        setBusinessCategories(categoriesWithIcons);
+        setBusinessCategories(response.data.data.categories);
       }
     } catch {
       setErrors({ general: 'Failed to load business categories. Please refresh.' });
@@ -478,11 +466,7 @@ const AddWebsiteForm = ({
             <div className="flex flex-wrap gap-2">
               {selectedBusinessCategories.map(id => {
                 const cat = businessCategories.find(c => c.id === id);
-                return (
-                  <span key={id} className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-black text-[#fff]">
-                    <Check size={12} /> {cat?.name}
-                  </span>
-                );
+                return <CategoryCard key={id} id={id} label={cat?.name} />;
               })}
             </div>
           </div>
@@ -499,24 +483,19 @@ const AddWebsiteForm = ({
         ) : businessCategories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {businessCategories.map(category => {
-              const Icon = category.icon;
               const isSelected = selectedBusinessCategories.includes(category.id);
               const isDisabled = isAnySelected && category.id !== 'any';
               return (
-                <div
+                <CategoryCard
                   key={category.id}
+                  id={category.id}
+                  label={category.name}
+                  description={category.description}
+                  selected={isSelected}
                   onClick={() => !isDisabled && handleBusinessCategoryToggle(category.id)}
-                  className={`border border-border bg-surface-1 p-6 cursor-pointer transition-all duration-200 ${
-                    isSelected ? 'bg-surface-3' : isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-surface-2'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-6">
-                    <Icon size={40} className="text-white" />
-                    {isSelected && <div className="bg-black text-[#fff] p-1"><Check size={16} /></div>}
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{category.name}</h3>
-                  <p className="text-subtle text-sm">{category.description}</p>
-                </div>
+                  size="card"
+                  className={isDisabled ? 'opacity-40 pointer-events-none' : ''}
+                />
               );
             })}
           </div>

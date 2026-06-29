@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminFetch, publicFetch } from '../utils/adminApi';
+import CategoryChip from '../components/CategoryChip';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -211,16 +212,21 @@ export default function AdminHotDealBuilder() {
       {error && <div style={{ color: '#b91c1c', marginBottom: 16, fontSize: 13 }}>Error: {error}</div>}
 
       <div style={S.card}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={S.label}>Title</label>
-            <input disabled={locked} value={title} onChange={(e) => setTitle(e.target.value)} style={S.input} placeholder="Back-to-school bundle" />
-          </div>
-          <div>
-            <label style={S.label}>Business category</label>
-            <select disabled={locked} value={businessCategory} onChange={(e) => setBusinessCategory(e.target.value)} style={S.input}>
-              {BUSINESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+        <div style={{ marginBottom: 14 }}>
+          <label style={S.label}>Title</label>
+          <input disabled={locked} value={title} onChange={(e) => setTitle(e.target.value)} style={S.input} placeholder="Back-to-school bundle" />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={S.label}>Business category</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {BUSINESS_CATEGORIES.map((c) => (
+              <CategoryChip
+                key={c}
+                id={c}
+                selected={businessCategory === c}
+                onClick={locked ? undefined : () => setBusinessCategory(c)}
+              />
+            ))}
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>

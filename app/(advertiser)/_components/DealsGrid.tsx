@@ -3,33 +3,8 @@
 import { useState } from 'react';
 import { FireIcon } from '@heroicons/react/24/solid';
 import type { HotDeal } from '@/app/_lib/public-home';
+import { getBusinessCategory } from '@/app/_lib/business-categories';
 import HotDealPurchaseModal from '@/app/_components/home/HotDealPurchaseModal';
-
-// Same business-category list used everywhere else an advertiser picks a
-// category (see AdSpacesModal.tsx / HotDealPurchaseModal.tsx) — needed here
-// too just to turn the deal's stored category id into a human-readable label.
-const BUSINESS_CATEGORY_LABELS: Record<string, string> = {
-  technology: 'Technology',
-  'food-beverage': 'Food & Beverage',
-  'real-estate': 'Real Estate',
-  automotive: 'Automotive',
-  'health-wellness': 'Health & Wellness',
-  entertainment: 'Entertainment',
-  fashion: 'Fashion',
-  education: 'Education',
-  'business-services': 'Business Services',
-  'travel-tourism': 'Travel & Tourism',
-  'arts-culture': 'Arts & Culture',
-  photography: 'Photography',
-  'gifts-events': 'Gifts & Events',
-  'government-public': 'Government & Public',
-  'general-retail': 'General Retail',
-  other: 'Others',
-};
-
-function categoryLabel(id: string): string {
-  return BUSINESS_CATEGORY_LABELS[id] || id;
-}
 
 function itemSummary(deal: HotDeal): string {
   const youtubeCount = deal.items.filter((i) => i.itemType === 'youtube').length;
@@ -66,25 +41,31 @@ export default function DealsGrid({ deals }: { deals: HotDeal[] }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {deals.map((deal) => {
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
+          const category = getBusinessCategory(deal.businessCategory);
+          const textShadow = '0 1px 3px rgba(0,0,0,0.6)';
           return (
-            <div key={deal.id} className="rounded-2xl border border-(--color-coral)/20 bg-(--color-coral)/8 p-5 flex flex-col">
-              <p className="text-[10px] font-bold uppercase text-(--color-coral) mb-1">{categoryLabel(deal.businessCategory)}</p>
-              <h3 className="text-base font-bold text-(--color-white)">{deal.title}</h3>
+            <div
+              key={deal.id}
+              style={{ backgroundImage: category.gradient, '--glow': category.glow } as React.CSSProperties}
+              className="category-art p-5 flex flex-col"
+            >
+              <p style={{ textShadow }} className="relative z-10 text-[10px] font-bold uppercase text-[#fff]/80 mb-1">{category.label}</p>
+              <h3 style={{ textShadow }} className="relative z-10 text-base font-bold text-[#fff]">{deal.title}</h3>
               {deal.description && (
-                <p className="text-xs text-(--color-muted) mt-1.5 line-clamp-3">{deal.description}</p>
+                <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/85 mt-1.5 line-clamp-3">{deal.description}</p>
               )}
-              <p className="text-xs text-(--color-muted) mt-3">{itemSummary(deal)}</p>
+              <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/70 mt-3">{itemSummary(deal)}</p>
 
-              <div className="mt-4 pt-4 border-t border-(--color-border) flex items-center justify-between">
+              <div className="relative z-10 mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-bold text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
+                  <p style={{ textShadow }} className="text-lg font-bold text-emerald-300">{deal.totalPrice.toLocaleString()} RWF</p>
                   {savings > 0 && (
-                    <p className="text-[11px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
+                    <p style={{ textShadow }} className="text-[11px] text-[#fff]/70 line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                   )}
                 </div>
                 <button
                   onClick={() => setActive(deal)}
-                  className="px-4 py-2 rounded-lg bg-(--color-coral) text-xs font-bold text-white"
+                  className="px-4 py-2 rounded-lg bg-[#fff] text-xs font-bold text-black shadow-sm"
                 >
                   View deal
                 </button>

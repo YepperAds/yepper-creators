@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckCircleIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { PublicCreator } from '@/app/_lib/public-home';
 import { getToken } from '@/app/(adsense)/utils/token';
+import { BUSINESS_CATEGORIES } from '@/app/_lib/business-categories';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 // The claim upload includes an image file and can land close to the Next.js
 // API route proxy's ~4.5MB Vercel body cap — go straight to the backend
@@ -11,28 +13,6 @@ import { getToken } from '@/app/(adsense)/utils/token';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 const DURATION_BANDS = ['5–15s', '15–30s'] as const;
-
-// Same business-category list advertisers pick from when buying website ad
-// space (see app/(adsense)/ad-owner/pages/insert-data/page.tsx) — required
-// here too so a YouTube claim carries the same business-identity info.
-const BUSINESS_CATEGORIES = [
-  { id: 'technology',        label: 'Technology' },
-  { id: 'food-beverage',     label: 'Food & Beverage' },
-  { id: 'real-estate',       label: 'Real Estate' },
-  { id: 'automotive',        label: 'Automotive' },
-  { id: 'health-wellness',   label: 'Health & Wellness' },
-  { id: 'entertainment',     label: 'Entertainment' },
-  { id: 'fashion',           label: 'Fashion' },
-  { id: 'education',         label: 'Education' },
-  { id: 'business-services', label: 'Business Services' },
-  { id: 'travel-tourism',    label: 'Travel & Tourism' },
-  { id: 'arts-culture',      label: 'Arts & Culture' },
-  { id: 'photography',       label: 'Photography' },
-  { id: 'gifts-events',      label: 'Gifts & Events' },
-  { id: 'government-public', label: 'Government & Public' },
-  { id: 'general-retail',    label: 'General Retail' },
-  { id: 'other',             label: 'Others' },
-] as const;
 
 interface AdSlot {
   slotType: string;
@@ -324,15 +304,14 @@ export default function AdSpacesModal({
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">
                         Business Category <span className="text-red-400">*</span>
                       </p>
-                      <div className="flex gap-1.5 flex-wrap">
+                      <div className="flex gap-2 flex-wrap">
                         {BUSINESS_CATEGORIES.map((cat) => (
-                          <button
+                          <CategoryCard
                             key={cat.id}
+                            id={cat.id}
+                            selected={businessCategories.includes(cat.id)}
                             onClick={() => toggleBusinessCategory(cat.id)}
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${businessCategories.includes(cat.id) ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
-                          >
-                            {cat.label}
-                          </button>
+                          />
                         ))}
                       </div>
                       {businessCategories.includes('other') && (

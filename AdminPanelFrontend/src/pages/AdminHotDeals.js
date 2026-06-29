@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminFetch } from '../utils/adminApi';
+import CategoryChip from '../components/CategoryChip';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -78,7 +79,7 @@ export default function AdminHotDeals() {
                   <td style={{ padding: '12px 16px', fontWeight: 500 }}>
                     <Link to={`/hot-deals/${d.id}`} style={{ color: '#111', textDecoration: 'none' }}>{d.title}</Link>
                   </td>
-                  <td style={{ padding: '12px 16px', color: '#666' }}>{d.businessCategory}</td>
+                  <td style={{ padding: '12px 16px' }}><CategoryChip id={d.businessCategory} size="badge" /></td>
                   <td style={{ padding: '12px 16px', color: '#888' }}>{d.itemCount}</td>
                   <td style={{ padding: '12px 16px', color: '#111', fontWeight: 600 }}>{fmt(d.totalPrice)} RWF</td>
                   <td style={{ padding: '12px 16px' }}>

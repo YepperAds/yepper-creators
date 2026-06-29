@@ -153,3 +153,67 @@ body {
 .yp-float {
   animation: yp-float 3s ease-in-out infinite;
 }
+
+/* ── Category art shell — glass + clay + neumorphic + skeuomorphic mashup,
+   used everywhere a business category is selected or displayed (see
+   CategoryCard.tsx). Each category supplies its own `background-image`
+   gradient + `--glow` color inline; this class supplies the shared shape,
+   depth, and gloss so every category reads as one consistent material
+   instead of flat color swatches or stock icons.
+   - claymorphism: big soft radius + thick, soft ambient shadow
+   - neumorphism: paired inset highlight (top-left) / inset shadow (bottom-right)
+   - skeuomorphism: a lighter top edge + darker bottom edge, like a bevel
+   - liquid glass: a glossy radial highlight blob via ::before ───────────── */
+.category-art {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border-top: 1px solid rgba(255,255,255,0.35);
+  border-left: 1px solid rgba(255,255,255,0.18);
+  border-bottom: 1px solid rgba(0,0,0,0.25);
+  box-shadow:
+    0 14px 28px -8px rgba(0,0,0,0.45),
+    0 4px 10px rgba(0,0,0,0.28),
+    inset 2px 2px 5px rgba(255,255,255,0.22),
+    inset -3px -4px 10px rgba(0,0,0,0.30),
+    0 0 24px -6px var(--glow, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.category-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 28% 18%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.12) 32%, transparent 55%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.category-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 90%, var(--glow, transparent) 0%, transparent 60%);
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.category-art-interactive {
+  cursor: pointer;
+}
+.category-art-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 18px 32px -8px rgba(0,0,0,0.5),
+    0 6px 12px rgba(0,0,0,0.3),
+    inset 2px 2px 5px rgba(255,255,255,0.25),
+    inset -3px -4px 10px rgba(0,0,0,0.30),
+    0 0 30px -4px var(--glow, transparent);
+}
+.category-art-selected {
+  box-shadow:
+    0 14px 28px -8px rgba(0,0,0,0.45),
+    0 4px 10px rgba(0,0,0,0.28),
+    inset 2px 2px 5px rgba(255,255,255,0.22),
+    inset -3px -4px 10px rgba(0,0,0,0.30),
+    0 0 0 2px rgba(255,255,255,0.85),
+    0 0 28px -2px var(--glow, transparent);
+}

@@ -5,9 +5,10 @@ import { getToken } from '@/app/(adsense)/utils/token';
 // BusinessCategorySelection.js - Modified version
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Check, ArrowLeft, Building2, Code, Utensils, Home, Car, Heart, Gamepad2, Shirt, BookOpen, Briefcase, Plane, Music, Camera, Gift, Shield, Zap, Loader } from 'lucide-react';
+import { ArrowLeft, Building2, Loader } from 'lucide-react';
 import { Button, Grid, Badge, Container } from '@/app/(adsense)/components/components';
 import api from '@/app/_lib/adsense-api';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 
 function BusinessCategorySelection() {
@@ -35,25 +36,6 @@ function BusinessCategorySelection() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const iconMap = {
-    'any': Zap,
-    'technology': Code,
-    'food-beverage': Utensils,
-    'real-estate': Home,
-    'automotive': Car,
-    'health-wellness': Heart,
-    'entertainment': Gamepad2,
-    'fashion': Shirt,
-    'education': BookOpen,
-    'business-services': Briefcase,
-    'travel-tourism': Plane,
-    'arts-culture': Music,
-    'photography': Camera,
-    'gifts-events': Gift,
-    'government-public': Shield,
-    'general-retail': Building2
-  };
-
   const [businessCategories, setBusinessCategories] = useState([]);
 
   useEffect(() => {
@@ -70,11 +52,7 @@ function BusinessCategorySelection() {
     try {
       const response = await api.get('/api/business-categories/categories');
       if ((response.data as any).success) {
-        const categoriesWithIcons = (response.data as any).data.categories.map(category => ({
-          ...category,
-          icon: iconMap[category.id] || Building2
-        }));
-        setBusinessCategories(categoriesWithIcons);
+        setBusinessCategories((response.data as any).data.categories);
       }
     } catch (error: unknown) {
       setError('Failed to load categories');
@@ -273,41 +251,21 @@ function BusinessCategorySelection() {
           {businessCategories && businessCategories.length > 0 ? (
             <Grid cols={3} gap={6}>
               {businessCategories.map((category: any) => {
-                const Icon = category.icon;
                 const isSelected = selectedCategories.includes(category.id);
                 const isAnySelected = selectedCategories.includes('any');
                 const isDisabled = isAnySelected && category.id !== 'any';
 
                 return (
-                  <div
+                  <CategoryCard
                     key={category.id}
+                    id={category.id}
+                    label={category.name}
+                    description={category.description}
+                    selected={isSelected}
                     onClick={() => !isDisabled && handleCategoryToggle(category.id)}
-                    className={`
-                      border border-border bg-surface-1 p-6 transition-all duration-200 cursor-pointer
-                      ${isSelected 
-                        ? 'bg-surface-3' 
-                        : isDisabled 
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-surface-2'
-                      }
-                    `}
-                  >
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex items-center">
-                        <Icon size={40} className="mr-3 text-white" />
-                      </div>
-                      {isSelected && (
-                        <div className="bg-black text-[#fff] p-1">
-                          <Check size={16} />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white mb-2">{category.name}</h3>
-                      <p className="text-subtle text-sm">{category.description}</p>
-                    </div>
-                  </div>
+                    size="card"
+                    className={isDisabled ? 'opacity-40 pointer-events-none' : ''}
+                  />
                 );
               })}
             </Grid>

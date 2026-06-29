@@ -9,6 +9,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ArrowLeft, Building2, Tag, MapPin, FileText, X } from 'lucide-react';
 import { Container, Badge, Input, Button, TextArea } from '@/app/(adsense)/components/components';
 import api from '@/app/_lib/adsense-api';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 
 function BusinessForm() {
@@ -91,22 +92,22 @@ function BusinessForm() {
   }, [file, ({}), router]);
 
   const businessCategories = [
-    { value: 'technology', label: 'Technology', icon: 'Monitor', description: 'Software, hardware, IT services' },
-    { value: 'food-beverage', label: 'Food & Beverage', icon: 'Coffee', description: 'Restaurants, cafes, food services' },
-    { value: 'real-estate', label: 'Real Estate', icon: 'Home', description: 'Property sales, rentals, development' },
-    { value: 'automotive', label: 'Automotive', icon: 'Car', description: 'Car sales, repairs, services' },
-    { value: 'health-wellness', label: 'Health & Wellness', icon: 'Heart', description: 'Healthcare, fitness, beauty' },
-    { value: 'entertainment', label: 'Entertainment', icon: 'Gamepad2', description: 'Gaming, events, recreation' },
-    { value: 'fashion', label: 'Fashion', icon: 'Shirt', description: 'Clothing, accessories, style' },
-    { value: 'education', label: 'Education', icon: 'GraduationCap', description: 'Schools, training, courses' },
-    { value: 'business-services', label: 'Business Services', icon: 'Briefcase', description: 'Consulting, legal, finance' },
-    { value: 'travel-tourism', label: 'Travel & Tourism', icon: 'Plane', description: 'Hotels, tours, travel agencies' },
-    { value: 'arts-culture', label: 'Arts & Culture', icon: 'Palette', description: 'Museums, galleries, creative' },
-    { value: 'photography', label: 'Photography', icon: 'Camera', description: 'Photo services, studios' },
-    { value: 'gifts-events', label: 'Gifts & Events', icon: 'Gift', description: 'Party planning, gift shops' },
-    { value: 'government-public', label: 'Government & Public', icon: 'Users', description: 'Public services, non-profit' },
-    { value: 'general-retail', label: 'General Retail', icon: 'ShoppingBag', description: 'Stores, e-commerce, shopping' },
-    { value: 'other', label: 'Others', icon: 'Tag', description: "Can't find your category? Describe it yourself" }
+    { value: 'technology', label: 'Technology', description: 'Software, hardware, IT services' },
+    { value: 'food-beverage', label: 'Food & Beverage', description: 'Restaurants, cafes, food services' },
+    { value: 'real-estate', label: 'Real Estate', description: 'Property sales, rentals, development' },
+    { value: 'automotive', label: 'Automotive', description: 'Car sales, repairs, services' },
+    { value: 'health-wellness', label: 'Health & Wellness', description: 'Healthcare, fitness, beauty' },
+    { value: 'entertainment', label: 'Entertainment', description: 'Gaming, events, recreation' },
+    { value: 'fashion', label: 'Fashion', description: 'Clothing, accessories, style' },
+    { value: 'education', label: 'Education', description: 'Schools, training, courses' },
+    { value: 'business-services', label: 'Business Services', description: 'Consulting, legal, finance' },
+    { value: 'travel-tourism', label: 'Travel & Tourism', description: 'Hotels, tours, travel agencies' },
+    { value: 'arts-culture', label: 'Arts & Culture', description: 'Museums, galleries, creative' },
+    { value: 'photography', label: 'Photography', description: 'Photo services, studios' },
+    { value: 'gifts-events', label: 'Gifts & Events', description: 'Party planning, gift shops' },
+    { value: 'government-public', label: 'Government & Public', description: 'Public services, non-profit' },
+    { value: 'general-retail', label: 'General Retail', description: 'Stores, e-commerce, shopping' },
+    { value: 'other', label: 'Others', description: "Can't find your category? Describe it yourself" }
   ];
 
   const handleInputChange = (e) => {
@@ -416,55 +417,17 @@ function BusinessForm() {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {businessCategories.map((category: any) => {
-                  const IconComponent = category.icon;
-                  const isSelected = businessData.businessCategories.includes(category.value);
-                  
-                  return (
-                    <button
-                      key={category.value}
-                      onClick={() => handleCategorySelect(category.value)}
-                      className={`p-4 border text-left transition-all duration-200 hover:shadow-lg group ${
-                        isSelected 
-                          ? 'border-border bg-black text-[#fff]' 
-                          : 'border-border hover:border-border bg-surface-1'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-lg transition-colors ${
-                          isSelected 
-                            ? 'bg-surface-1 bg-opacity-20' 
-                            : 'bg-surface-3 group-hover:bg-surface-3'
-                        }`}>
-                          <IconComponent
-                            size={24}
-                            className={isSelected ? 'text-[#fff]' : 'text-subtle'}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`font-medium mb-1 ${
-                            isSelected ? 'text-[#fff]' : 'text-white'
-                          }`}>
-                            {category.label}
-                          </h4>
-                          <p className={`text-sm ${
-                            isSelected ? 'text-[#fff] text-opacity-80' : 'text-subtle'
-                          }`}>
-                            {category.description}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {isSelected && (
-                        <div className="mt-3 flex items-center justify-end">
-                          <div className="w-5 h-5 bg-surface-1 rounded-full flex items-center justify-center">
-                            <div className="w-2 h-2 bg-black rounded-full"></div>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                {businessCategories.map((category) => (
+                  <CategoryCard
+                    key={category.value}
+                    id={category.value}
+                    label={category.label}
+                    description={category.description}
+                    selected={businessData.businessCategories.includes(category.value)}
+                    onClick={() => handleCategorySelect(category.value)}
+                    size="card"
+                  />
+                ))}
               </div>
             </div>
 

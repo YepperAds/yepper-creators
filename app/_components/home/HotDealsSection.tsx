@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FireIcon } from '@heroicons/react/24/solid';
 import type { HotDeal } from '@/app/_lib/public-home';
+import { getBusinessCategory } from '@/app/_lib/business-categories';
 import HotDealPurchaseModal from './HotDealPurchaseModal';
 
 function redirectToLoginForDeal(dealId: string) {
@@ -69,25 +70,31 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
       <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
         {deals.map((deal) => {
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
+          const category = getBusinessCategory(deal.businessCategory);
+          const textShadow = '0 1px 3px rgba(0,0,0,0.6)';
           return (
-            <div key={deal.id} className="w-72 shrink-0 rounded-2xl border border-coral/20 bg-surface-1 dark:bg-coral/8 p-4">
-              <p className="text-[10px] font-bold uppercase text-coral-text mb-1">{deal.businessCategory.replace(/-/g, ' ')}</p>
-              <h3 className="text-sm font-bold text-white truncate">{deal.title}</h3>
+            <div
+              key={deal.id}
+              style={{ backgroundImage: category.gradient, '--glow': category.glow } as React.CSSProperties}
+              className="category-art w-72 shrink-0 p-4"
+            >
+              <p style={{ textShadow }} className="relative z-10 text-[10px] font-bold uppercase text-[#fff]/80 mb-1">{category.label}</p>
+              <h3 style={{ textShadow }} className="relative z-10 text-sm font-bold text-[#fff] truncate">{deal.title}</h3>
               {deal.description && (
-                <p className="text-xs text-muted mt-1 line-clamp-2">{deal.description}</p>
+                <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/85 mt-1 line-clamp-2">{deal.description}</p>
               )}
-              <p className="text-xs text-muted mt-2">{itemSummary(deal)}</p>
+              <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/70 mt-2">{itemSummary(deal)}</p>
 
-              <div className="mt-3 flex items-center justify-between">
+              <div className="relative z-10 mt-3 flex items-center justify-between">
                 <div>
-                  <p className="text-base font-bold text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
+                  <p style={{ textShadow }} className="text-base font-bold text-emerald-300">{deal.totalPrice.toLocaleString()} RWF</p>
                   {savings > 0 && (
-                    <p className="text-[10px] text-muted line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
+                    <p style={{ textShadow }} className="text-[10px] text-[#fff]/70 line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                   )}
                 </div>
                 <button
                   onClick={() => viewDeal(deal)}
-                  className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white"
+                  className="px-3 py-1.5 rounded-lg bg-[#fff] text-xs font-bold text-black shadow-sm"
                 >
                   View deal
                 </button>

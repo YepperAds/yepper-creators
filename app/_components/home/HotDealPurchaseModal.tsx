@@ -4,30 +4,10 @@ import { useRef, useState } from 'react';
 import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { HotDeal } from '@/app/_lib/public-home';
 import { getToken } from '@/app/(adsense)/utils/token';
+import { BUSINESS_CATEGORIES } from '@/app/_lib/business-categories';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
-
-// Same business-category list advertisers pick from everywhere else in the
-// app (see AdSpacesModal.tsx / insert-data/page.tsx) — required here too so
-// a Hot Deal purchase carries the same business-identity info as any other ad.
-const BUSINESS_CATEGORIES = [
-  { id: 'technology',        label: 'Technology' },
-  { id: 'food-beverage',     label: 'Food & Beverage' },
-  { id: 'real-estate',       label: 'Real Estate' },
-  { id: 'automotive',        label: 'Automotive' },
-  { id: 'health-wellness',   label: 'Health & Wellness' },
-  { id: 'entertainment',     label: 'Entertainment' },
-  { id: 'fashion',           label: 'Fashion' },
-  { id: 'education',         label: 'Education' },
-  { id: 'business-services', label: 'Business Services' },
-  { id: 'travel-tourism',    label: 'Travel & Tourism' },
-  { id: 'arts-culture',      label: 'Arts & Culture' },
-  { id: 'photography',       label: 'Photography' },
-  { id: 'gifts-events',      label: 'Gifts & Events' },
-  { id: 'government-public', label: 'Government & Public' },
-  { id: 'general-retail',    label: 'General Retail' },
-  { id: 'other',             label: 'Others' },
-] as const;
 
 function itemLabel(item: HotDeal['items'][number]): string {
   if (item.itemType === 'youtube') return `YouTube — ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
@@ -199,15 +179,14 @@ export default function HotDealPurchaseModal({
                 <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">
                   Business Category <span className="text-red-400">*</span>
                 </p>
-                <div className="flex gap-1.5 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
                   {BUSINESS_CATEGORIES.map((cat) => (
-                    <button
+                    <CategoryCard
                       key={cat.id}
+                      id={cat.id}
+                      selected={businessCategories.includes(cat.id)}
                       onClick={() => toggleBusinessCategory(cat.id)}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${businessCategories.includes(cat.id) ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-2) text-(--color-muted) border-(--color-border)'}`}
-                    >
-                      {cat.label}
-                    </button>
+                    />
                   ))}
                 </div>
                 {businessCategories.includes('other') && (

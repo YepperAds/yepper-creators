@@ -2,6 +2,7 @@
 
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import VideoEmbed from './VideoEmbed';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 
 // Logged-out visitors can't collaborate yet — send them to log in, then land
@@ -103,7 +104,11 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
           <div>
             <p className="text-sm font-bold text-[#fff] dark:text-[#0b0b0c] font-(--font-display)">{website.websiteName}</p>
             {website.businessCategories?.length > 0 && (
-              <p className="mt-1 text-sm text-[#fff]/70 dark:text-[#0b0b0c]/70">{website.businessCategories.join(' · ')}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {website.businessCategories.map((c) => (
+                  <CategoryCard key={c} id={c} size="badge" />
+                ))}
+              </div>
             )}
           </div>
           <p className="text-xs text-[#fff]/50 dark:text-[#0b0b0c]/50">{domainOf(website.websiteLink)}</p>

@@ -348,6 +348,15 @@ async function finalizeHotDealPurchase({ deal, advertiserId, checkoutInfo, walle
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
+    // One of the bundled YouTube slots got claimed by someone else (via the
+    // regular claim flow or another deal) between checkout and payment —
+    // same race the direct claim flow already handles in
+    // youtubeClaimPaymentController.js. Surface it the same way instead of
+    // letting it bubble up as an uncaught 500 that leaves the Payment row
+    // stuck in 'pending' forever.
+    if (err.code === '23505' && err.constraint === 'youtube_ad_claims_open_slot') {
+      return { ok: false, status: 409, message: 'One of the YouTube slots in this deal was just claimed by someone else' };
+    }
     throw err;
   } finally {
     client.release();

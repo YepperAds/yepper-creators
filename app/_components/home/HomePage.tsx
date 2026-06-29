@@ -33,7 +33,7 @@ export default function HomePage({
           <h1 className="text-4xl sm:text-5xl font-bold text-white font-(--font-display) tracking-tight leading-[1.05]">
             Your audience, their next ad space
           </h1>
-          <p className="mt-4 text-base text-subtle">
+          <p className="mt-4 text-base text-white">
             Yepper connects website owners and YouTube creators with advertisers — book ad space directly,
             no agencies in between.
           </p>
@@ -59,7 +59,7 @@ export default function HomePage({
               </span>
             ))}
           </div>
-          <p className="text-xs text-muted">© {new Date().getFullYear()} Yepper Inc.</p>
+          <p className="text-xs text-white">© {new Date().getFullYear()} Yepper Inc.</p>
         </div>
       </footer>
     </div>

@@ -107,13 +107,18 @@ body {
    viewport so it reads as one continuous backdrop behind every card
    as the page scrolls, instead of being boxed into a hero section. */
 .yp-mesh {
+  /* Capped lower than the original (was up to 0.85) — at full saturation, no
+     gray text color could clear 4.5:1 against the blob peaks no matter how
+     dark, since the peak itself was nearly as dark as mid-gray text. These
+     ceilings keep every blob's peak luminance high enough that --subtle/
+     --muted text (and the brand logo) stay legible at any point on the mesh. */
   background-image:
-    radial-gradient(at 15% 0%,  rgba(16,144,200,0.85) 0px, transparent 60%),
-    radial-gradient(at 80% 5%,  rgba(16,144,200,0.70) 0px, transparent 55%),
-    radial-gradient(at 60% 35%, rgba(150,90,170,0.55) 0px, transparent 60%),
-    radial-gradient(at 25% 55%, rgba(232,71,43,0.65) 0px, transparent 60%),
-    radial-gradient(at 85% 65%, rgba(232,71,43,0.75) 0px, transparent 55%),
-    radial-gradient(at 50% 95%, rgba(232,71,43,0.85) 0px, transparent 55%);
+    radial-gradient(at 15% 0%,  rgba(16,144,200,0.30) 0px, transparent 60%),
+    radial-gradient(at 80% 5%,  rgba(16,144,200,0.25) 0px, transparent 55%),
+    radial-gradient(at 60% 35%, rgba(150,90,170,0.19) 0px, transparent 60%),
+    radial-gradient(at 25% 55%, rgba(232,71,43,0.23) 0px, transparent 60%),
+    radial-gradient(at 85% 65%, rgba(232,71,43,0.26) 0px, transparent 55%),
+    radial-gradient(at 50% 95%, rgba(232,71,43,0.30) 0px, transparent 55%);
   background-attachment: fixed;
   background-color: var(--color-surface-1);
 }

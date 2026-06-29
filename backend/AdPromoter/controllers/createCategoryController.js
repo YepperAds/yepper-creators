@@ -9,6 +9,9 @@ const Website = require('../models/CreateWebsiteModel');
 const WebOwnerBalance = require('../models/WebOwnerBalanceModel');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const Pricing = require('../../models/PricingModel');
+const sendEmailNotification = require('../../controllers/emailService');
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 function catToClient(c) {
   if (!c) return null;
@@ -499,6 +502,75 @@ exports.deleteCategory = async (req, res) => {
     res.status(500).json({ message: 'Failed to delete category', error: error.message });
   } finally {
     client.release();
+  }
+};
+
+// ── sendCategoryInvite ────────────────────────────────────────────────────────
+// The logged-in website owner emails a chosen recipient a direct link into
+// booking this specific ad space — same link the advertiser flow itself uses
+// (app/(adsense)/ad-owner/pages/direct-ad), which handles its own login/signup
+// inline, so no separate /login?from= redirect is needed here.
+exports.sendCategoryInvite = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
+    const { categoryId } = req.params;
+    const { email } = req.body;
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ message: 'Recipient email is required' });
+    }
+
+    const category = await AdCategory.findById(categoryId);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
+    if (category.owner_id?.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const website = await Website.findById(category.website_id);
+    const websiteName = website?.website_name || 'this website';
+    const spaceName = category.category_name || category.space_type;
+
+    const link = `${FRONTEND_URL}/ad-owner/pages/direct-ad?websiteId=${category.website_id}&categoryId=${category.id}`;
+    const subject = `Advertise on ${websiteName}`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
+            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+            <tr><td style="padding:40px;">
+              <p style="color:#333;font-size:19px;margin:0 0 16px 0;font-weight:700;">${subject}</p>
+              <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+                The "${spaceName}" ad space on ${websiteName} is open. Book it to run your ad there.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center" style="padding:0 0 32px 0;">
+                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
+                    Advertise on ${websiteName} →
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
+                Clicking the button takes you straight there — log in (or create an account) and you'll land right back here to finish booking it.
+              </p>
+            </td></tr>
+            <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
+              <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
+                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+              </p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body></html>`;
+
+    const result = await sendEmailNotification(String(email).trim(), subject, html);
+    if (result && result.skipped) {
+      return res.status(503).json({ message: 'Email sending is not configured on this server' });
+    }
+    return res.json({ success: true, message: 'Email sent' });
+  } catch (error) {
+    console.error('Error sending category invite:', error);
+    res.status(500).json({ message: 'Failed to send email', error: error.message });
   }
 };
 

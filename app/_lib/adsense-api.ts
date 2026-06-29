@@ -148,6 +148,7 @@ export const categoryAPI = {
   resetUserCount:         (categoryId: string, data: unknown) => adsenseHttp.put(`/api/ad-categories/${categoryId}/reset-user-count`, data),
   updateLanguage:         (categoryId: string, data: unknown) => adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/language`, data),
   delete:                 (categoryId: string)                => adsenseHttp.delete(`/api/ad-categories/${categoryId}`),
+  sendInvite:             (categoryId: string, data: unknown)  => adsenseHttp.post(`/api/ad-categories/${categoryId}/send-invite`, data),
 
   // Wallet
   getWallet:            ()                                 => adsenseHttp.get('/api/ad-categories/wallet'),

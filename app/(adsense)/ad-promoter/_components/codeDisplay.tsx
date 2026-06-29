@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code, Info, Zap, MousePointer, Globe,
-  Trash2, X, ChevronDown, ChevronRight, BookOpen,
+  Trash2, X, ChevronDown, ChevronRight, BookOpen, Mail,
   Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked,
 } from 'lucide-react';
 
@@ -307,7 +307,7 @@ const InstallSteps = ({ framework, src }) => {
 };
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onLanguageChange, onDeleteCategory, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onLanguageChange, onDeleteCategory, onSendInvite, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
   const [framework, setFramework] = useState('html');
   const [humanLang, setHumanLang] = useState('english');
@@ -470,6 +470,16 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
                             <span className="capitalize">{cat.defaultLanguage || currentLabel}</span>
                           </div>
                         </div>
+                        {onSendInvite && (
+                          <button
+                            onClick={() => onSendInvite(cat)}
+                            title="Email someone a link to advertise on this space"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
+                          >
+                            <Mail className="w-3 h-3" />
+                            <span>Invite</span>
+                          </button>
+                        )}
                         {onDeleteCategory && (
                           <button
                             onClick={() => onDeleteCategory(cat)}

@@ -6,6 +6,9 @@ const { query }  = require('../../config/db');
 const cloudinary  = require('../../config/storage');
 const { AD_FORMATS, AD_TYPES, AD_SIZES } = require('../utils/adOverlay');
 const { getYoutubeTierPricing } = require('../utils/youtubeTierPricing');
+const sendEmailNotification = require('../../controllers/emailService');
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const JWT_SECRET = () => {
   if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
@@ -111,6 +114,76 @@ exports.getAdSpaces = async (req, res) => {
   } catch (err) {
     console.error('[adSpaces] getAdSpaces error:', err);
     return res.status(500).json({ success: false, message: 'Failed to load ad spaces' });
+  }
+};
+
+// POST /api/social/youtube/ad-spaces/send-invite — the logged-in creator
+// emails a chosen recipient a direct link into claiming an ad slot on their
+// own channel. Mirrors adminSendDealEmail's link-deep-link pattern: clicking
+// it lands the recipient on the dashboard's advertise panel with this
+// creator's "Collaborate" modal already open (see AdvertiseBrowser.tsx's
+// `creatorId` query param), logging in first via /login?from= if needed.
+exports.sendAdSpaceInvite = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to send an invite' });
+
+  const { email } = req.body;
+  if (!email || !String(email).trim()) {
+    return res.status(400).json({ success: false, message: 'Recipient email is required' });
+  }
+
+  try {
+    const creatorRes = await query(
+      `SELECT c.full_name, sc.username AS channel_name
+       FROM creators c
+       LEFT JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       WHERE c.id = $1`,
+      [creatorId],
+    );
+    if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+    const channelName = creatorRes.rows[0].channel_name || creatorRes.rows[0].full_name || 'this channel';
+
+    const target = `/?panel=advertise&creatorId=${creatorId}`;
+    const link = `${FRONTEND_URL}/login?from=${encodeURIComponent(target)}`;
+    const subject = `Advertise on ${channelName}`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
+            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+            <tr><td style="padding:40px;">
+              <p style="color:#333;font-size:19px;margin:0 0 16px 0;font-weight:700;">${subject}</p>
+              <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+                A YouTube ad slot is open on ${channelName}. Claim it to run your ad in one of their videos.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center" style="padding:0 0 32px 0;">
+                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
+                    Advertise on ${channelName} →
+                  </a>
+                </td></tr>
+              </table>
+              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
+                Clicking the button takes you straight there — log in (or create an account) and you'll land right back here to claim a slot.
+              </p>
+            </td></tr>
+            <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
+              <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
+                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+              </p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body></html>`;
+
+    const result = await sendEmailNotification(String(email).trim(), subject, html);
+    if (result && result.skipped) {
+      return res.status(503).json({ success: false, message: 'Email sending is not configured on this server' });
+    }
+    return res.json({ success: true, message: 'Email sent' });
+  } catch (err) {
+    console.error('[adSpaces] sendAdSpaceInvite error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send email' });
   }
 };
 

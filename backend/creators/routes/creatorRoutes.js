@@ -54,6 +54,7 @@ router.get('/api/social/youtube/ad-formats',                   adSpaces.getAdFor
 router.get('/api/social/youtube/ad-type-preference',          adSpaces.getAdTypePreference);
 router.post('/api/social/youtube/ad-type-preference',         adSpaces.setAdTypePreference);
 router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
+router.post('/api/social/youtube/ad-spaces/send-invite',      adSpaces.sendAdSpaceInvite);
 // Claiming a slot is paid — price is derived server-side from the creator's
 // subscriber tier (see youtubeTierPricing.js) and settled via wallet/refund
 // credits or a Flutterwave redirect for the remainder.

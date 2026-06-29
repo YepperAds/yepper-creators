@@ -121,6 +121,7 @@ router.get('/pending/:ownerId', categoryController.getPendingAds);
 router.put('/approve/:adId/website/:websiteId', categoryController.approveAdForWebsite);
 router.post('/reject/:adId/:websiteId/:categoryId', adRejectionController.rejectAd);
 router.put('/:categoryId/reset-user-count', categoryController.resetUserCount);
+router.post('/:categoryId/send-invite', categoryController.sendCategoryInvite);
 router.delete('/:categoryId', categoryController.deleteCategory);
 
 // ── WILDCARD — must be last ──────────────────────────────────────────────────

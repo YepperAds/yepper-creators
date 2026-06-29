@@ -45,6 +45,7 @@ import { useSession } from '@/app/_hooks/useSession';
 import AdModalData from '@/app/(adsense)/ad-promoter/_components/adModalData';
 import DeleteCategoryModal from '../../../_components/DeleteCategoryModal';
 import AdCustomizationModal from '../../../_components/AdCustomizationModal';
+import SendCategoryInviteModal from '../../../_components/SendCategoryInviteModal';
 import api from '@/app/_lib/adsense-api';
 import TrafficGrantBanner from '../../../_components/TrafficGrantBanner';
 
@@ -67,6 +68,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
+    const [categoryToInvite, setCategoryToInvite] = useState(null);
     const [isEditingWebsiteName, setIsEditingWebsiteName] = useState(false);
     const [tempWebsiteName, setTempWebsiteName] = useState('');
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
@@ -287,6 +289,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
     const handleCloseCategoriesForm = () => { setCategoriesForm(false); setResult(true); fetchWebsiteData(); };
     const handleDeleteCategory = (cat) => setCategoryToDelete(cat);
     const handleDeleteSuccess = () => { setCategoryToDelete(null); fetchWebsiteData(); };
+    const handleSendInvite = (cat) => setCategoryToInvite(cat);
 
     const handleAllSpacesLanguageChange = async (lang) => {
         try {
@@ -569,6 +572,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                 onAddSpace={handleOpenCategoriesForm}
                                 onLanguageChange={handleAllSpacesLanguageChange}
                                 onDeleteCategory={handleDeleteCategory}
+                                onSendInvite={handleSendInvite}
                                 earningsSummary={earningsSummary}
                                 scriptInstalled={!!earningsSummary?.scriptInstalled}
                             />
@@ -1167,6 +1171,13 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                     category={categoryToDelete}
                     onDeleteSuccess={handleDeleteSuccess}
                     onCancel={() => setCategoryToDelete(null)}
+                />
+            )}
+
+            {categoryToInvite && (
+                <SendCategoryInviteModal
+                    category={categoryToInvite}
+                    onClose={() => setCategoryToInvite(null)}
                 />
             )}
 

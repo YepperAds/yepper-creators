@@ -14,6 +14,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import PostAdModal from '@/app/(advertiser)/_components/PostAdModal';
+import SendAdInviteModal from '@/app/(advertiser)/_components/SendAdInviteModal';
 
 interface DeepAnalysis {
   engagement_score: string;
@@ -134,6 +135,7 @@ export default function ConnectAccountsPage() {
   const [adType, setAdType] = useState('corner');
   const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
   const [adTypeSaving, setAdTypeSaving] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
 
   const popupRef = useRef<Window | null>(null);
@@ -568,7 +570,15 @@ export default function ConnectAccountsPage() {
                       ))}
                     </div>
 
-                    <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Spaces</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide">Ad Spaces</p>
+                      <button
+                        onClick={() => setInviteModalOpen(true)}
+                        className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
+                      >
+                        Send Ad Invite
+                      </button>
+                    </div>
                     {adSpacesLoading ? (
                       <p className="text-xs text-(--color-muted)">Loading…</p>
                     ) : adSpacesError ? (
@@ -587,6 +597,12 @@ export default function ConnectAccountsPage() {
                     )}
                     <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed — once claimed, their ad is offered automatically next time you hit Post Ad.</p>
                   </div>
+
+                  <SendAdInviteModal
+                    open={inviteModalOpen}
+                    channelName={account.username}
+                    onClose={() => setInviteModalOpen(false)}
+                  />
 
                   {/* Tier pricing table — tier is based purely on subscriber count */}
                   {ytPricing && (

@@ -5,6 +5,10 @@ import { FireIcon } from '@heroicons/react/24/solid';
 import type { HotDeal } from '@/app/_lib/public-home';
 import HotDealPurchaseModal from './HotDealPurchaseModal';
 
+function redirectToLoginForDeal(dealId: string) {
+  window.location.href = `/login?from=${encodeURIComponent(`/?dealId=${dealId}`)}`;
+}
+
 function itemSummary(deal: HotDeal): string {
   const youtubeCount = deal.items.filter((i) => i.itemType === 'youtube').length;
   const websiteCount = deal.items.filter((i) => i.itemType === 'website').length;
@@ -22,7 +26,13 @@ function itemSummary(deal: HotDeal): string {
 // (e.g. from an emailed link — see adminSendDealEmail in
 // hotDealsController.js) wherever this section is rendered: the logged-out
 // home feed and every dashboard panel that shows it alike.
-export default function HotDealsSection({ deals, initialDealId }: { deals: HotDeal[]; initialDealId?: string }) {
+//
+// `requireLogin` is set by the logged-out home feed (HomePage.tsx is only
+// ever rendered when there's no session — see app/page.tsx) so "View deal"
+// sends the visitor to log in first, then lands them right back on this
+// same deal's purchase modal via the `dealId` deep link above, instead of
+// only discovering they need to log in after filling out the whole form.
+export default function HotDealsSection({ deals, initialDealId, requireLogin }: { deals: HotDeal[]; initialDealId?: string; requireLogin?: boolean }) {
   const [active, setActive] = useState<HotDeal | null>(
     () => (initialDealId ? deals.find((d) => d.id === initialDealId) ?? null : null),
   );
@@ -39,6 +49,14 @@ export default function HotDealsSection({ deals, initialDealId }: { deals: HotDe
   }, []);
 
   if (!deals.length) return null;
+
+  const viewDeal = (deal: HotDeal) => {
+    if (requireLogin) {
+      redirectToLoginForDeal(deal.id);
+      return;
+    }
+    setActive(deal);
+  };
 
   return (
     <div className="mb-8">
@@ -68,7 +86,7 @@ export default function HotDealsSection({ deals, initialDealId }: { deals: HotDe
                   )}
                 </div>
                 <button
-                  onClick={() => setActive(deal)}
+                  onClick={() => viewDeal(deal)}
                   className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white"
                 >
                   View deal

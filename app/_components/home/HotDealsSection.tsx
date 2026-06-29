@@ -45,7 +45,7 @@ export default function HotDealsSection({ deals, initialDealId }: { deals: HotDe
       <div className="flex items-center gap-2 mb-3">
         <FireIcon className="w-5 h-5 text-coral" />
         <h2 className="text-lg font-bold text-white font-(--font-display)">Hot Deals</h2>
-        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-coral/15 text-coral">Trending</span>
+        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-coral/15 text-coral-text">Trending</span>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
@@ -53,7 +53,7 @@ export default function HotDealsSection({ deals, initialDealId }: { deals: HotDe
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           return (
             <div key={deal.id} className="w-72 shrink-0 rounded-2xl border border-coral/20 bg-surface-1 dark:bg-coral/8 p-4">
-              <p className="text-[10px] font-bold uppercase text-coral mb-1">{deal.businessCategory.replace(/-/g, ' ')}</p>
+              <p className="text-[10px] font-bold uppercase text-coral-text mb-1">{deal.businessCategory.replace(/-/g, ' ')}</p>
               <h3 className="text-sm font-bold text-white truncate">{deal.title}</h3>
               {deal.description && (
                 <p className="text-xs text-muted mt-1 line-clamp-2">{deal.description}</p>

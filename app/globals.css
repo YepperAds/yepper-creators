@@ -17,8 +17,9 @@
   --color-white:       var(--text-main);  
 
   /* ── Accent — Coral (use sparingly) ──────────────────────── */
-  --color-coral:       #E8472B;   
-  --color-coral-dark:  #C73820;   
+  --color-coral:       #E8472B;
+  --color-coral-dark:  #C73820;
+  --color-coral-text:  var(--coral-text);  /* coral used as text on a surface — darker in light mode for AA contrast */
 
   /* ── Accent — Blue (use sparingly) ───────────────────────── */
   --color-blue:        #1090C8;   
@@ -41,22 +42,24 @@
   --surface-2:  #FAFAFA;   /* Slightly off-white for nested */
   --surface-3:  #F0F0F0;   /* Hover surfaces */
   --border:     #E5E5E5;   /* Light borders */
-  --muted:      #A3A3A3;   /* Muted text (icons/disables) */
+  --muted:      #707070;   /* Muted text (icons/disables) — was #A3A3A3 (2.8:1 on white, fails AA); now ~4.9:1 */
   --subtle:     #525252;   /* Secondary text */
   --text-main:  #111111;   /* Primary text (Note: mapped to --color-white in tailwind for legacy compat) */
+  --coral-text: #C73820;   /* coral-dark — coral text needs the darker shade on white to clear 4.5:1 */
   color-scheme: light;
 }
 
 /* ── Dark Mode ───────────────────────────────────────────────── */
 .dark {
-  --bg:         #000000;   
-  --surface-1:  #0F0F0F;   
-  --surface-2:  #1A1A1A;   
-  --surface-3:  #262626;   
-  --border:     #333333;   
-  --muted:      #6B6B6B;   
-  --subtle:     #ABABAB;   
-  --text-main:  #FFFFFF;   
+  --bg:         #000000;
+  --surface-1:  #0F0F0F;
+  --surface-2:  #1A1A1A;
+  --surface-3:  #262626;
+  --border:     #333333;
+  --muted:      #828282;   /* was #6B6B6B (3.6:1 on near-black, fails AA); now ~5:1 */
+  --subtle:     #ABABAB;
+  --text-main:  #FFFFFF;
+  --coral-text: #E8472B;   /* vivid coral already clears 4.5:1 on dark surfaces */
   color-scheme: dark;
 }
 

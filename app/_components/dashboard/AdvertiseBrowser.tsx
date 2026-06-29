@@ -174,7 +174,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
             {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-surface-3 animate-pulse" />)}
           </div>
         ) : spacesError ? (
-          <p className="text-sm text-coral">{spacesError}</p>
+          <p className="text-sm text-coral-text">{spacesError}</p>
         ) : adSpaces.length === 0 ? (
           <p className="text-sm text-muted">No ad spaces available on this website yet.</p>
         ) : (
@@ -189,9 +189,9 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                 <div>
                   <p className="text-sm font-bold text-white">{space.categoryName}</p>
                   {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
-                  {space.isFullyBooked && <p className="text-xs text-coral mt-0.5">Fully booked</p>}
+                  {space.isFullyBooked && <p className="text-xs text-coral-text mt-0.5">Fully booked</p>}
                 </div>
-                <p className="text-sm font-bold text-coral shrink-0">${space.price}</p>
+                <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
               </button>
             ))}
           </div>
@@ -216,7 +216,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       ) : (
         categories.map((cat) => (
           <section key={cat.key}>
-            <p className="text-xs font-bold uppercase tracking-wide text-coral mb-3">{cat.label}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">{cat.label}</p>
 
             {cat.creators.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-1 mb-3 -mx-1 px-1">

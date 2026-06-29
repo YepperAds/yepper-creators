@@ -125,7 +125,7 @@ export default function SystemInfoPanel() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-2.5 text-xs font-bold rounded-t-lg transition-colors ${
-              tab === t ? 'text-coral border-b-2 border-coral' : 'text-muted hover:text-white'
+              tab === t ? 'text-coral-text border-b-2 border-coral' : 'text-muted hover:text-white'
             }`}
           >
             {t}

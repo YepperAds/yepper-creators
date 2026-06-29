@@ -2,12 +2,12 @@
 
 const crypto    = require('crypto');
 const dns       = require('dns/promises');
-const nodemailer = require('nodemailer');
 const jwt       = require('jsonwebtoken');
 
 const { query } = require('../../config/db');
 const Creator   = require('../models/Creator');
 const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
+const sendEmailNotification = require('../../controllers/emailService');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
 
@@ -51,34 +51,15 @@ function getCreatorId(req) {
 
 // ─── SMTP (creators-specific mailer) ─────────────────────────────────────────
 
-const FRONTEND_URL    = process.env.FRONTEND_URL    || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || FRONTEND_URL;
-
-const SMTP_HOST  = process.env.SMTP_HOST;
-const SMTP_PORT  = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
-const SMTP_USER  = process.env.SMTP_USER;
-const SMTP_PASS  = process.env.SMTP_PASS;
-const FROM_EMAIL = process.env.FROM_EMAIL ||
-  `no-reply@${(FRONTEND_ORIGIN || 'localhost').replace(/^https?:\/\//, '')}`;
-
-let mailer = null;
-if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
-  mailer = nodemailer.createTransport({
-    host: SMTP_HOST, port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-} else {
-  console.warn('[creators] SMTP not configured — creator emails will be skipped.');
-}
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 
 async function sendEmail(to, subject, html) {
-  if (!mailer) {
-    console.log(`[creators] Skipping email to ${to}: SMTP not configured.`);
-    return false;
-  }
   try {
-    await mailer.sendMail({ from: FROM_EMAIL, to, subject, html });
+    const result = await sendEmailNotification(to, subject, html);
+    if (result && result.skipped) {
+      console.log(`[creators] Skipping email to ${to}: ${result.reason}.`);
+      return false;
+    }
     return true;
   } catch (err) {
     console.error('[creators] Failed to send email:', err);

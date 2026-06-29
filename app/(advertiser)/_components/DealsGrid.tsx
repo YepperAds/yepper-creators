@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { FireIcon } from '@heroicons/react/24/solid';
 import type { HotDeal } from '@/app/_lib/public-home';
 import { getBusinessCategory } from '@/app/_lib/business-categories';
@@ -42,30 +43,28 @@ export default function DealsGrid({ deals }: { deals: HotDeal[] }) {
         {deals.map((deal) => {
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           const category = getBusinessCategory(deal.businessCategory);
-          const textShadow = '0 1px 3px rgba(0,0,0,0.6)';
           return (
-            <div
-              key={deal.id}
-              style={{ backgroundImage: category.gradient, '--glow': category.glow } as React.CSSProperties}
-              className="category-art p-5 flex flex-col"
-            >
-              <p style={{ textShadow }} className="relative z-10 text-[10px] font-bold uppercase text-[#fff]/80 mb-1">{category.label}</p>
-              <h3 style={{ textShadow }} className="relative z-10 text-base font-bold text-[#fff]">{deal.title}</h3>
+            <div key={deal.id} className="category-art p-5 flex flex-col">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Image src={category.image} alt="" width={22} height={22} className="yp-float shrink-0" />
+                <p className="text-[10px] font-bold uppercase text-(--color-muted)">{category.label}</p>
+              </div>
+              <h3 className="text-base font-bold text-(--color-white)">{deal.title}</h3>
               {deal.description && (
-                <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/85 mt-1.5 line-clamp-3">{deal.description}</p>
+                <p className="text-xs text-(--color-subtle) mt-1.5 line-clamp-3">{deal.description}</p>
               )}
-              <p style={{ textShadow }} className="relative z-10 text-xs text-[#fff]/70 mt-3">{itemSummary(deal)}</p>
+              <p className="text-xs text-(--color-muted) mt-3">{itemSummary(deal)}</p>
 
-              <div className="relative z-10 mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+              <div className="mt-4 pt-4 border-t border-(--color-border) flex items-center justify-between">
                 <div>
-                  <p style={{ textShadow }} className="text-lg font-bold text-emerald-300">{deal.totalPrice.toLocaleString()} RWF</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
                   {savings > 0 && (
-                    <p style={{ textShadow }} className="text-[11px] text-[#fff]/70 line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
+                    <p className="text-[11px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                   )}
                 </div>
                 <button
                   onClick={() => setActive(deal)}
-                  className="px-4 py-2 rounded-lg bg-[#fff] text-xs font-bold text-black shadow-sm"
+                  className="px-4 py-2 rounded-lg bg-(--color-coral) text-xs font-bold text-white"
                 >
                   View deal
                 </button>

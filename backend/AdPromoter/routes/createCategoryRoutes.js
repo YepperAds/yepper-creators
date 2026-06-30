@@ -10,7 +10,9 @@ const authMiddleware  = require('../../middleware/authmiddleware');
 const earningsController = require('../controllers/earningsController');
 const {
   resolveAllSlots, TEMPLATES, FONTS, SHADOWS,
-  MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, MAX_SLOTS, clampNumber,
+  MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, MAX_SLOTS,
+  MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT,
+  clampNumber,
 } = require('../utils/adCustomization');
 
 // ── PUBLIC ───────────────────────────────────────────────────────────────────
@@ -150,6 +152,16 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
       if ('height' in sanitized) {
         const h = clampNumber(sanitized.height, MIN_HEIGHT, MAX_HEIGHT);
         if (h === undefined) delete sanitized.height; else sanitized.height = h;
+      }
+      // Same reasoning — an uncapped image can blow the whole card out of
+      // proportion (or be shrunk to nothing to dodge view counts).
+      if ('imageHeight' in sanitized) {
+        const ih = clampNumber(sanitized.imageHeight, MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT);
+        if (ih === undefined) delete sanitized.imageHeight; else sanitized.imageHeight = ih;
+      }
+      if ('imageWidthPercent' in sanitized) {
+        const iw = clampNumber(sanitized.imageWidthPercent, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT);
+        if (iw === undefined) delete sanitized.imageWidthPercent; else sanitized.imageWidthPercent = iw;
       }
       slots[String(idx)] = sanitized;
     }

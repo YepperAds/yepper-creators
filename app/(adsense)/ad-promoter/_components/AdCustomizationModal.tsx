@@ -22,6 +22,12 @@ const SYSTEM_DEFAULT = {
   borderColor: 'rgba(0, 0, 0, 0.08)',
   borderWidth: 1,
   imagePosition: 'top',
+  // Capped by default so an advertiser's uploaded image — whatever its real
+  // resolution/aspect ratio — can never blow the card out of proportion.
+  // imageHeight applies when imagePosition is 'top', imageWidthPercent when
+  // it's 'left'. Must match SYSTEM_DEFAULT in backend/AdPromoter/utils/adCustomization.js.
+  imageHeight: 160,
+  imageWidthPercent: 40,
   showImage: true,
   showDescription: true,
   showCTA: true,
@@ -61,6 +67,12 @@ const FONT_OPTIONS = [
   { key: 'bold', label: 'Bold Display', stack: '"Montserrat",-apple-system,sans-serif', google: 'Montserrat:wght@600;700;800' },
   { key: 'classic', label: 'Classic Slab', stack: '"Roboto Slab",Georgia,serif', google: 'Roboto+Slab:wght@500;600;700' },
 ];
+
+// Roughly how much vertical room the title/description/CTA/padding need —
+// keeps the card height in step with the image height instead of a tiny
+// image floating in a huge box, or a big image crammed into a small one.
+// Must match TEXT_AREA_RESERVE in backend/AdPromoter/utils/adCustomization.js.
+const TEXT_AREA_RESERVE = 140;
 
 function toHexColor(value, fallback) {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
@@ -160,6 +172,17 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
     setSettings(prev => ({ ...prev, backgroundColor: hex, template: undefined, ...(contrast || {}) }));
   };
 
+  // The container should "go with" the image instead of leaving it stranded
+  // in a mismatched box — shrinking the image shrinks the card, growing it
+  // grows the card. Only applies to top-image layout (where the image stacks
+  // with the text, so its height directly competes with the card's height);
+  // left-image layout is already proportional since it's a width percentage
+  // of whatever the card's width already is.
+  const handleImageHeightChange = (px) => {
+    const clampedHeight = Math.min(800, Math.max(90, px + TEXT_AREA_RESERVE));
+    setSettings(prev => ({ ...prev, imageHeight: px, height: clampedHeight }));
+  };
+
   const applyTemplate = (key) => {
     const t = TEMPLATES.find(t => t.key === key);
     if (!t) return;
@@ -209,8 +232,8 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
 }
 
 .ad-image {
-  width: 100%;
-  height: auto;
+  width: ${settings.imagePosition === 'left' ? settings.imageWidthPercent + '%' : '100%'};
+  height: ${settings.imagePosition === 'left' ? '100%' : settings.imageHeight + 'px'};
   object-fit: cover;
   border-radius: 8px;
 }`;
@@ -443,11 +466,11 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
           }}>
             {settings.showImage && (
               <div style={{
-                flex: settings.imagePosition === 'left' ? '0 0 40%' : '0 0 auto',
+                flex: settings.imagePosition === 'left' ? `0 0 ${settings.imageWidthPercent}%` : `0 0 ${settings.imageHeight}px`,
+                width: settings.imagePosition === 'left' ? undefined : '100%',
                 borderRadius: '12px',
                 overflow: 'hidden',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                minHeight: settings.imagePosition === 'top' ? '150px' : 'auto'
               }} className="ad-image">
                 <div style={{
                   width: '100%',
@@ -647,6 +670,42 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div>
+                    {settings.imagePosition === 'left' ? (
+                      <>
+                        <label className="block text-sm font-medium text-white mb-2">
+                          Image Size: {settings.imageWidthPercent}% of width
+                        </label>
+                        <input
+                          type="range"
+                          min="20"
+                          max="65"
+                          value={settings.imageWidthPercent}
+                          onChange={(e: any) => updateSetting('imageWidthPercent', parseInt(e.target.value))}
+                          className="w-full accent-black"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label className="block text-sm font-medium text-white mb-2">
+                          Image Size: {settings.imageHeight}px tall
+                        </label>
+                        <input
+                          type="range"
+                          min="60"
+                          max="360"
+                          value={settings.imageHeight}
+                          onChange={(e: any) => handleImageHeightChange(parseInt(e.target.value))}
+                          className="w-full accent-black"
+                        />
+                      </>
+                    )}
+                    <p className="text-xs text-subtle mt-1">
+                      Any uploaded image is cropped to fit this — it can never blow up the card.
+                      {settings.imagePosition !== 'left' && ' The ad space resizes to match.'}
+                    </p>
                   </div>
 
                   <div>

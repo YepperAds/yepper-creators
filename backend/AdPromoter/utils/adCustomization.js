@@ -19,6 +19,13 @@ const SYSTEM_DEFAULT = {
   borderWidth: 1,
   shadow: 'medium',
   fontFamily: 'system',
+  // Image area is capped by default — an advertiser's uploaded image (any
+  // resolution/aspect ratio) must never be able to blow the card out of
+  // proportion. imageHeight applies when imagePosition is 'top' (the image
+  // sits above the text); imageWidthPercent when it's 'left' (image beside
+  // the text). object-fit:cover crops to whichever box this defines.
+  imageHeight: 160,
+  imageWidthPercent: 40,
 };
 
 // Curated background+text bundles. backgroundColor can be any valid CSS
@@ -133,7 +140,14 @@ const SHADOWS = {
 
 const MIN_WIDTH = 160, MAX_WIDTH = 1200;
 const MIN_HEIGHT = 90, MAX_HEIGHT = 800;
+const MIN_IMAGE_HEIGHT = 60, MAX_IMAGE_HEIGHT = 360;
+const MIN_IMAGE_WIDTH_PCT = 20, MAX_IMAGE_WIDTH_PCT = 65;
 const MAX_SLOTS = 20; // sanity ceiling, independent of whatever user_count claims
+
+// Roughly how much vertical room the title/description/CTA/padding need —
+// used to keep the card height in step with the image height instead of
+// leaving a tiny image floating in a huge box or a big image crammed into one.
+const TEXT_AREA_RESERVE = 140;
 
 function clampNumber(n, min, max) {
   const v = Number(n);
@@ -153,6 +167,12 @@ function resolveSlot(slotData) {
   if (w !== undefined) resolved.width = w; else delete resolved.width;
   const h = clampNumber(resolved.height, MIN_HEIGHT, MAX_HEIGHT);
   if (h !== undefined) resolved.height = h; else delete resolved.height;
+
+  // Always defined (they're in SYSTEM_DEFAULT) — clamp in place rather than
+  // drop, so a bad value falls back to a safe number instead of disappearing
+  // from the CSS interpolation.
+  resolved.imageHeight = clampNumber(resolved.imageHeight, MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT) ?? SYSTEM_DEFAULT.imageHeight;
+  resolved.imageWidthPercent = clampNumber(resolved.imageWidthPercent, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT) ?? SYSTEM_DEFAULT.imageWidthPercent;
 
   resolved.shadowCss = SHADOWS[resolved.shadow] || SHADOWS.medium;
   const font = FONTS[resolved.fontFamily] || FONTS.system;
@@ -190,5 +210,6 @@ function truncateWords(text, maxWords) {
 module.exports = {
   SYSTEM_DEFAULT, TEMPLATES, FONTS, SHADOWS,
   MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, MAX_SLOTS,
+  MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT, TEXT_AREA_RESERVE,
   clampNumber, resolveSlot, resolveAllSlots, truncateWords,
 };

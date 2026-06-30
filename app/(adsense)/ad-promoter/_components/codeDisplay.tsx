@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code, Info, Zap, MousePointer, Globe,
   Trash2, X, ChevronDown, ChevronRight, BookOpen, Mail,
-  Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked,
+  Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked, Atom,
 } from 'lucide-react';
 
 const AUTO_RELIABLE = [
@@ -20,6 +20,7 @@ const FRAMEWORKS = [
   { id: 'php',        label: 'PHP',         Icon: Server },
   { id: 'python',     label: 'Python',      Icon: Terminal },
   { id: 'nextjs',     label: 'Next.js',     Icon: Layers },
+  { id: 'react',      label: 'React',       Icon: Atom },
   { id: 'vue',        label: 'Vue.js',      Icon: Puzzle },
   { id: 'wordpress',  label: 'WordPress',   Icon: BookMarked },
 ];
@@ -72,6 +73,21 @@ export default function RootLayout({ children }) {
 //     </Html>
 //   );
 // }`;
+
+    case 'react':
+      return `// src/App.jsx (or your root component) — Create React App, Vite, etc.
+import { useEffect } from 'react';
+
+useEffect(() => {
+  const script = document.createElement('script');
+  script.src = '${src}';
+  script.async = true;
+  document.head.appendChild(script);
+  return () => document.head.removeChild(script);
+}, []);
+
+// ─── OR add it directly to public/index.html instead ───────────
+// <script src="${src}" async></script>`;
 
     case 'vue':
       return `// src/main.js — add before app.mount()
@@ -177,6 +193,16 @@ function buildIframeEmbed(framework, src, spaceType) {
   loading="lazy"
   title="Advertisement"
 />`;
+    case 'react':
+      return `{/* Place this exactly where you want the ad */}
+<iframe
+  src="${src}"
+  width={${w}}
+  height={${h}}
+  style={{ border: 0, maxWidth: '100%' }}
+  loading="lazy"
+  title="Advertisement"
+/>`;
     case 'vue':
       return `<!-- Place this exactly where you want the ad -->
 <iframe
@@ -232,6 +258,12 @@ function getInstallSteps(framework, src) {
       'For Pages Router: add to pages/_document.js inside <Head>.',
       'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
       'The script auto-loads on every page because it\'s in the root layout.',
+    ],
+    react: [
+      'Add the useEffect snippet to your root component (e.g. App.jsx) — it injects the script once on mount.',
+      'Or skip the useEffect and paste the <script> tag straight into public/index.html instead.',
+      'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
+      'Note: the iframe\'s style prop is an object ({ border: 0, ... }), not a CSS string — required by JSX.',
     ],
     vue: [
       'Open src/main.js (or main.ts).',

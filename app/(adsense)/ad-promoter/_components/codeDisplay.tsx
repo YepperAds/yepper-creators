@@ -14,14 +14,20 @@ const AUTO_RELIABLE = [
 ];
 
 // ── Supported frameworks (icons only — no emojis) ─────────────────────────────
+// "Vanilla JS" (not "JavaScript") is deliberate — a React site IS technically
+// JavaScript, and that label alone was getting picked by React/Next.js owners
+// over the dedicated React/Next.js tabs, who then pasted a raw `style="..."`
+// string into JSX and broke their build (react/style-prop-object). Putting
+// React and Next.js right next to it keeps the framework-specific tabs from
+// being missed.
 const FRAMEWORKS = [
   { id: 'html',       label: 'HTML',        Icon: Code2 },
-  { id: 'javascript', label: 'JavaScript',  Icon: Braces },
+  { id: 'javascript', label: 'Vanilla JS',  Icon: Braces },
+  { id: 'react',      label: 'React',       Icon: Atom },
+  { id: 'nextjs',     label: 'Next.js',     Icon: Layers },
+  { id: 'vue',        label: 'Vue.js',      Icon: Puzzle },
   { id: 'php',        label: 'PHP',         Icon: Server },
   { id: 'python',     label: 'Python',      Icon: Terminal },
-  { id: 'nextjs',     label: 'Next.js',     Icon: Layers },
-  { id: 'react',      label: 'React',       Icon: Atom },
-  { id: 'vue',        label: 'Vue.js',      Icon: Puzzle },
   { id: 'wordpress',  label: 'WordPress',   Icon: BookMarked },
 ];
 
@@ -222,7 +228,9 @@ function buildIframeEmbed(framework, src, spaceType) {
       return `{# Django/Flask Jinja2 template #}
 <iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
     case 'javascript':
-      return `<!-- HTML -->
+      return `<!-- Plain HTML/vanilla JS only — building with React or Next.js?
+     Use the "React" or "Next.js" tab instead: this style="..." string
+     is invalid JSX and will fail a build that lints for it. -->
 <iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>
 
 // Or create it dynamically:

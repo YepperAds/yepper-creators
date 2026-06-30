@@ -186,62 +186,44 @@ function recommendedEmbedSize(spaceType) {
 // re-renders (React/Vue/etc. own the <iframe> element itself, never its
 // contents) can't wipe it out the way they can a script-injected div, and it
 // doesn't depend on the main script finding a data-yepper-space placeholder.
+//
+// The tag itself is IDENTICAL across every framework on purpose — no style="..."
+// attribute (the JSX-vs-HTML split that kept breaking React builds: `style` must
+// be an object in JSX, a string in HTML, and people paste whichever tab's code
+// they grabbed first without checking). `frameBorder="0"` replaces it: HTML
+// attribute names are case-insensitive so it's valid HTML as-is, and React
+// recognizes the exact spelling `frameBorder` as a known DOM prop, so it's also
+// valid JSX with no warnings — one snippet, paste-safe everywhere.
+function buildIframeTag(src, w, h) {
+  return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"></iframe>`;
+}
+
 function buildIframeEmbed(framework, src, spaceType) {
   const { w, h } = recommendedEmbedSize(spaceType);
+  const tag = buildIframeTag(src, w, h);
   switch (framework) {
     case 'nextjs':
-      return `{/* Place this exactly where you want the ad */}
-<iframe
-  src="${src}"
-  width={${w}}
-  height={${h}}
-  style={{ border: 0, maxWidth: '100%' }}
-  loading="lazy"
-  title="Advertisement"
-/>`;
     case 'react':
       return `{/* Place this exactly where you want the ad */}
 <iframe
   src="${src}"
   width={${w}}
   height={${h}}
-  style={{ border: 0, maxWidth: '100%' }}
+  frameBorder="0"
   loading="lazy"
   title="Advertisement"
 />`;
     case 'vue':
-      return `<!-- Place this exactly where you want the ad -->
-<iframe
-  src="${src}"
-  width="${w}"
-  height="${h}"
-  style="border:0;max-width:100%;"
-  loading="lazy"
-  title="Advertisement"
-></iframe>`;
+      return `<!-- Place this exactly where you want the ad -->\n${tag}`;
     case 'wordpress':
     case 'php':
-      return `<?php echo '<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>'; ?>
-<!-- Or directly: -->
-<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
+      return `<?php echo '${tag.replace(/'/g, "\\'")}'; ?>\n<!-- Or directly: -->\n${tag}`;
     case 'python':
-      return `{# Django/Flask Jinja2 template #}
-<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
+      return `{# Django/Flask Jinja2 template #}\n${tag}`;
     case 'javascript':
-      return `<!-- Plain HTML/vanilla JS only — building with React or Next.js?
-     Use the "React" or "Next.js" tab instead: this style="..." string
-     is invalid JSX and will fail a build that lints for it. -->
-<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>
-
-// Or create it dynamically:
-const el = document.createElement('iframe');
-el.src = '${src}';
-el.width = ${w}; el.height = ${h};
-el.style.border = '0'; el.style.maxWidth = '100%';
-el.loading = 'lazy';
-document.querySelector('#your-container').appendChild(el);`;
+      return `${tag}\n\n// Or create it dynamically:\nconst el = document.createElement('iframe');\nel.src = '${src}';\nel.width = ${w}; el.height = ${h};\nel.frameBorder = '0';\nel.loading = 'lazy';\ndocument.querySelector('#your-container').appendChild(el);`;
     default: // html
-      return `<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
+      return tag;
   }
 }
 
@@ -271,7 +253,6 @@ function getInstallSteps(framework, src) {
       'Add the useEffect snippet to your root component (e.g. App.jsx) — it injects the script once on mount.',
       'Or skip the useEffect and paste the <script> tag straight into public/index.html instead.',
       'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
-      'Note: the iframe\'s style prop is an object ({ border: 0, ... }), not a CSS string — required by JSX.',
     ],
     vue: [
       'Open src/main.js (or main.ts).',

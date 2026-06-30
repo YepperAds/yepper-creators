@@ -6,6 +6,13 @@
 const AdCategory = require('../models/CreateCategoryModel');
 const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
 
+// Only Floating and Modal are truly position-independent (position:fixed,
+// appended straight to <body>). Everything else now ships as a
+// precise-placement iframe instead (see serveAdEmbed / codeDisplay.tsx) —
+// this script must not also auto-guess a spot for those, or the owner ends
+// up with a duplicate ad next to the iframe they placed.
+const AUTO_RELIABLE = ['floating', 'modalpic'];
+
 function extractDomain(url) {
   try {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`);
@@ -320,6 +327,7 @@ exports.serveAdScript = async (req, res) => {
   }
 
   /* ── 2. Find or create host container ──────────────────── */
+  var _AUTO=${JSON.stringify(AUTO_RELIABLE)};
   function getHost(){
     var existing=D.querySelector('[data-yid="'+_i+'"]');
     if(existing)return existing;
@@ -329,50 +337,17 @@ exports.serveAdScript = async (req, res) => {
     host.className=_px+'-host '+_wa;
     host.setAttribute('data-yid',_i);
 
-    /* placement: look for explicit placeholder first */
+    /* An explicit placeholder div always wins, for any spaceType. */
     var ph=D.querySelector('[data-yepper-space="'+_i+'"]')||
            D.querySelector('[data-yepper-ad="'+_i+'"]');
     if(ph){ph.appendChild(host);return host;}
 
-    /* Auto-placement by spaceType */
+    /* No placeholder: only Floating/Modal auto-place. Everything else ships
+       as a precise-placement iframe — bail instead of guessing a spot, so
+       this script doesn't render a duplicate next to that iframe. */
     var sp=_sp.toLowerCase();
+    if(_AUTO.indexOf(sp)===-1)return null;
 
-    if(sp==='header'){
-      var hdr=D.querySelector('header')||D.querySelector('[role="banner"]')||D.body.firstElementChild;
-      if(hdr)hdr.insertAdjacentElement('afterbegin',host); else D.body.insertAdjacentElement('afterbegin',host);
-      return host;
-    }
-    if(sp==='floating'||sp==='overlay'||sp==='modalpic'||sp==='mobile interstitial'){
-      D.body.appendChild(host);
-      return host;
-    }
-    if(sp==='bottom'||sp==='profooter'){
-      var ftr=D.querySelector('footer')||D.querySelector('[role="contentinfo"]');
-      if(ftr)ftr.insertAdjacentElement('beforebegin',host); else D.body.appendChild(host);
-      return host;
-    }
-    if(sp==='sidebar'||sp==='stickysidebar'||sp==='left rail'||sp==='rightrail'){
-      var aside=D.querySelector('aside')||D.querySelector('[role="complementary"]');
-      if(aside){aside.insertAdjacentElement('afterbegin',host);return host;}
-    }
-    if(sp==='in feed'){
-      var articles=D.querySelectorAll('article');
-      if(articles.length>2){articles[1].insertAdjacentElement('afterend',host);return host;}
-    }
-    if(sp==='above the fold'){
-      var main=D.querySelector('main')||D.querySelector('[role="main"]')||D.body;
-      main.insertAdjacentElement('afterbegin',host);
-      return host;
-    }
-
-    /* Fallback: insert after the current script tag */
-    var scripts=D.getElementsByTagName('script');
-    for(var si=scripts.length-1;si>=0;si--){
-      if(scripts[si].src&&(scripts[si].src.indexOf('/api/p/unit/'+_i)>-1||scripts[si].src.indexOf('/api/ads/script/'+_i)>-1)){
-        scripts[si].parentNode.insertBefore(host,scripts[si].nextSibling);
-        return host;
-      }
-    }
     D.body.appendChild(host);
     return host;
   }
@@ -513,6 +488,7 @@ exports.serveAdScript = async (req, res) => {
         var custom=d.customization||{};
         injectStyles(custom);
         var host=getHost();
+        if(!host)return; /* not auto-reliable and no placeholder — skip, the iframe is the intended path */
 
         fetch(_b+'/feed?categoryId='+_i+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
@@ -522,6 +498,7 @@ exports.serveAdScript = async (req, res) => {
       .catch(function(){
         injectStyles({});
         var host=getHost();
+        if(!host)return;
         fetch(_b+'/feed?categoryId='+_i,{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,data);})

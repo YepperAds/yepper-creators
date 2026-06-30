@@ -17,11 +17,13 @@ function neutralClass(id) {
   return WRAPPERS[parseInt(id.slice(-2), 16) % WRAPPERS.length];
 }
 
-// Auto-spacetypes that work without semantic HTML
-const AUTO_RELIABLE = [
-  'header','floating','overlay','modalpic','mobile interstitial',
-  'bottom','profooter',
-];
+// Only Floating and Modal are truly position-independent (position:fixed,
+// appended straight to <body>). Everything else now ships as a
+// precise-placement iframe instead (see AdScriptController.serveAdEmbed /
+// codeDisplay.tsx) — the script must NOT also try to auto-guess a spot for
+// those via querySelector('header')/('footer')/etc., or the owner ends up
+// with two ads: one from this guess, one from the iframe they placed.
+const AUTO_RELIABLE = ['floating', 'modalpic'];
 
 // CSS per spaceType (scoped to each category prefix)
 function placementCSS(spaceType, px) {
@@ -203,6 +205,7 @@ exports.serveSiteScript = async (req, res) => {
   }
 
   /* ── Find or create host for a space ─────────────────── */
+  var _AUTO=${JSON.stringify(AUTO_RELIABLE)};
   function getHost(sp){
     var existing=D.querySelector('[data-yid="'+sp.id+'"]');
     if(existing)return existing;
@@ -211,51 +214,19 @@ exports.serveSiteScript = async (req, res) => {
     host.className=sp.px+'-host '+sp.wrap;
     host.setAttribute('data-yid',sp.id);
 
-    /* Always check for an explicit placeholder div first,
-       regardless of mode — this is what makes manual divs work */
+    /* An explicit placeholder div always wins, for any spaceType — this is
+       what makes data-yepper-space work as a manual-placement option too. */
     var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
     if(ph){ph.appendChild(host);return host;}
 
-    /* No placeholder found and space is manual — skip, nothing to render into */
-    if(sp.mode==='manual'){return null;}
-
-    /* Auto placement fallback */
+    /* No placeholder: only Floating/Modal auto-place (position:fixed,
+       independent of the page's DOM). Everything else (Header, Overlay,
+       Mobile Interstitial, Bottom, proFooter, sidebar, etc.) ships as a
+       precise-placement iframe — skip here so it doesn't also get a guessed
+       duplicate inserted next to the iframe the owner already placed. */
     var st=sp.spaceType.toLowerCase();
+    if(_AUTO.indexOf(st)===-1){return null;}
 
-    if(st==='header'){
-      var hdr=D.querySelector('header,[role="banner"]');
-      if(hdr){hdr.insertAdjacentElement('afterbegin',host);return host;}
-    }
-    if(st==='floating'||st==='overlay'||st==='modalpic'||st==='mobile interstitial'){
-      D.body.appendChild(host);return host;
-    }
-    if(st==='bottom'||st==='profooter'){
-      var ftr=D.querySelector('footer,[role="contentinfo"]');
-      if(ftr){ftr.insertAdjacentElement('beforebegin',host);}
-      else D.body.appendChild(host);
-      return host;
-    }
-    if(st==='sidebar'||st==='stickysidebar'||st==='left rail'||st==='rightrail'){
-      var aside=D.querySelector('aside,[role="complementary"],.sidebar,.side-bar,.widget-area');
-      if(aside){aside.insertAdjacentElement('afterbegin',host);return host;}
-    }
-    if(st==='in feed'){
-      var arts=D.querySelectorAll('article,.article,.post,.feed-item');
-      if(arts.length>1){arts[1].insertAdjacentElement('afterend',host);return host;}
-    }
-    if(st==='above the fold'||st==='beneath title'||st==='inline content'){
-      var main=D.querySelector('main,[role="main"],.main-content,.content,.post-content');
-      if(main){main.insertAdjacentElement('afterbegin',host);return host;}
-    }
-
-    /* Last resort: after script tag */
-    var scripts=D.getElementsByTagName('script');
-    for(var si=scripts.length-1;si>=0;si--){
-      if(scripts[si].src&&(scripts[si].src.indexOf('/api/p/site/')>-1||scripts[si].src.indexOf('/api/ads/script/site/')>-1)){
-        scripts[si].parentNode.insertBefore(host,scripts[si].nextSibling);
-        return host;
-      }
-    }
     D.body.appendChild(host);
     return host;
   }

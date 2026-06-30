@@ -158,7 +158,53 @@ exports.serveSiteScript = async (req, res) => {
       _c="${CAT_BASE}",
       _f="${FRONTEND}",
       _spaces=${spacesJSON},
-      _rot=5000;
+      _rot=5000,
+      _pageLoadTs=Date.now();
+
+  /* ── Genie show/hide animation for floating ads ───────── */
+  function injectAnimCSS(){
+    if(D.getElementById('_ys_anim'))return;
+    var s=D.createElement('style');
+    s.id='_ys_anim';
+    s.textContent=
+      '@keyframes ywGenieIn{0%{opacity:0;transform:scale(.05,.05) translate(45%,45%);border-radius:50%;}40%{opacity:1;transform:scale(.55,1.15) translate(10%,-4%);border-radius:30% 30% 10% 10%;}65%{transform:scale(1.06,.94) translate(-2%,1%);border-radius:18px;}85%{transform:scale(.98,1.02) translate(1%,-.5%);}100%{opacity:1;transform:scale(1,1) translate(0,0);border-radius:16px;}}'+
+      '@keyframes ywGenieOut{0%{opacity:1;transform:scale(1,1) translate(0,0);border-radius:16px;}30%{transform:scale(1.06,.94) translate(-2%,1%);border-radius:18px;}60%{opacity:1;transform:scale(.5,1.2) translate(10%,-6%);border-radius:30% 30% 10% 10%;}100%{opacity:0;transform:scale(.05,.05) translate(45%,45%);border-radius:50%;}}'+
+      '@keyframes ywFloatBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}'+
+      '.yw-genie-pre{opacity:0;transform:scale(.05,.05) translate(45%,45%);}'+
+      '.yw-genie-in{animation:ywGenieIn .65s cubic-bezier(.34,1.3,.64,1) forwards;}'+
+      '.yw-genie-out{animation:ywGenieOut .55s cubic-bezier(.5,0,.75,0) forwards;}'+
+      '.yw-float-bob{animation:ywFloatBob 4.5s ease-in-out infinite;}';
+    D.head.appendChild(s);
+  }
+
+  function revealFloating(host){
+    host.classList.remove('yw-genie-out');
+    host.classList.remove('yw-genie-pre');
+    host.style.display='block';
+    void host.offsetWidth; /* force reflow so the browser registers the class swap */
+    host.classList.add('yw-genie-in');
+    var onIn=function(e){
+      if(e.target!==host||e.animationName!=='ywGenieIn')return;
+      host.removeEventListener('animationend',onIn);
+      host.classList.remove('yw-genie-in');
+      host.classList.add('yw-float-bob');
+    };
+    host.addEventListener('animationend',onIn);
+  }
+
+  function hideFloating(host){
+    host.classList.remove('yw-float-bob');
+    host.classList.remove('yw-genie-in');
+    host.classList.add('yw-genie-out');
+    var onOut=function(e){
+      if(e.target!==host||e.animationName!=='ywGenieOut')return;
+      host.removeEventListener('animationend',onOut);
+      host.classList.remove('yw-genie-out');
+      host.classList.add('yw-genie-pre');
+      host.style.display='none';
+    };
+    host.addEventListener('animationend',onOut);
+  }
 
   var TR={
     english:    {title:'Available Advertising Space',price:'Price',cta:'Advertise Here'},
@@ -227,6 +273,11 @@ exports.serveSiteScript = async (req, res) => {
     var st=sp.spaceType.toLowerCase();
     if(_AUTO.indexOf(st)===-1){return null;}
 
+    if(st==='floating'){
+      host.style.transformOrigin='bottom right';
+      host.classList.add('yw-genie-pre');
+    }
+
     D.body.appendChild(host);
     return host;
   }
@@ -246,11 +297,19 @@ exports.serveSiteScript = async (req, res) => {
       fbtn.textContent='×';
       fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
       fbtn.onclick=function(){
-        host.style.display='none';
-        setTimeout(function(){host.style.display='block';},40000);
+        hideFloating(host);
+        setTimeout(function(){revealFloating(host);},40000);
       };
       host.appendChild(fbtn);
     }
+  }
+
+  /* ── Schedule a floating host's genie entrance, 3s after page load ── */
+  function scheduleFloatingIntro(host){
+    if(host.dataset.ywIntroScheduled)return;
+    host.dataset.ywIntroScheduled='1';
+    var wait=Math.max(0,3000-(Date.now()-_pageLoadTs));
+    setTimeout(function(){revealFloating(host);},wait);
   }
 
   /* ── Render ads into host ─────────────────────────────── */
@@ -265,6 +324,7 @@ exports.serveSiteScript = async (req, res) => {
           '<a class="'+sp.px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_wid+'&categoryId='+sp.id+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
         '</div>';
       addDismissButton(host, sp.spaceType);
+      if(sp.spaceType.toLowerCase()==='floating')scheduleFloatingIntro(host);
       return;
     }
 
@@ -311,6 +371,7 @@ exports.serveSiteScript = async (req, res) => {
     });
 
     addDismissButton(host, sp.spaceType);
+    if(sp.spaceType.toLowerCase()==='floating')scheduleFloatingIntro(host);
 
     if(items.length>1){
       var cur=0;
@@ -459,6 +520,7 @@ exports.serveSiteScript = async (req, res) => {
 
   /* ── Init ──────────────────────────────────────────────── */
   function init(){
+    injectAnimCSS();
     placeAllSpaces();
     firePageview();
     hookSpaNavigation();

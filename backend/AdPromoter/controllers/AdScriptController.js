@@ -319,79 +319,89 @@ exports.serveAdScript = async (req, res) => {
   }
 
   /* ── 1. Inject styles ──────────────────────────────────── */
-  function injectStyles(custom){
+  /* Each ad slot in this category is styled independently — slot 0's
+     template/color/font never bleeds into slot 1. \`data\` is the resolved
+     response from /ads/customization (one fully-resolved bundle per slot,
+     already defaulted to plain white+shadow — no dark-mode auto-adaptation,
+     that's gone for good). */
+  function injectStyles(data){
     var sid='_ys_'+_i;
     var el=D.getElementById(sid);
     if(!el){el=D.createElement('style');el.id=sid;D.head.appendChild(el);}
 
     var placementCss="${placementStyles(spaceType, prefix).replace(/\n/g,' ').replace(/"/g,'\\"')}";
 
-    var isH=custom.imagePosition==='left';
-    var flexDir=isH?'row':'column';
+    var fontCss='';
+    (data.fontImports||[]).forEach(function(fi){
+      fontCss+='@import url(https://fonts.googleapis.com/css2?'+fi+'&display=swap);';
+    });
 
-    var base=placementCss+\`
-      .\${_px}-ad{
-        display:block;
-        width:\${custom.width?custom.width+'px':'100%'};
-        max-width:\${custom.maxWidth||100}%;
-        height:\${custom.height?custom.height+'px':'auto'};
-        text-decoration:none;
-        overflow:hidden;
-        background:\${custom.backgroundColor||'#f1f1f1'};
-        border:\${custom.borderWidth||1}px solid \${custom.borderColor||'rgba(255,255,255,0.18)'};
-        border-radius:\${custom.borderRadius||16}px;
-        box-shadow:\${custom.shadow==='none'?'none':custom.shadow==='small'?'0 2px 4px rgba(0,0,0,0.1)':custom.shadow==='large'?'0 20px 50px rgba(0,0,0,0.3)':'0 8px 32px rgba(31,38,135,0.18)'};
-        transition:all 0.3s ease;
-        position:relative;
-        color:inherit;
-        padding:\${custom.padding||0}px;
-        box-sizing:border-box;
+    var slots=data.slots||[];
+    /* Safety net for any item whose slot index has no resolved bundle
+       (customization fetch failed, or more items than configured slots) —
+       plain white+shadow, same as the system default, instead of unstyled. */
+    var rulesCss='.'+_px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
+    slots.forEach(function(s,si){
+      var isH=s.imagePosition==='left';
+      var flexDir=isH?'row':'column';
+      var sel='.'+_px+'-ad[data-slot="'+si+'"]';
+      rulesCss+=\`
+        \${sel}{
+          display:block;
+          width:\${s.width?s.width+'px':'100%'};
+          max-width:\${s.maxWidth||100}%;
+          height:\${s.height?s.height+'px':'auto'};
+          text-decoration:none;
+          overflow:hidden;
+          background:\${s.backgroundColor};
+          border:\${s.borderWidth}px solid \${s.borderColor};
+          border-radius:\${s.borderRadius||16}px;
+          box-shadow:\${s.shadowCss};
+          transition:all 0.3s ease;
+          position:relative;
+          color:inherit;
+          padding:\${s.padding||0}px;
+          box-sizing:border-box;
+          font-family:\${s.fontStack};
+        }
+        \${sel}:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(31,38,135,0.28);}
+        \${sel} .\${_px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
+        \${sel} .\${_px}-img-wrap{overflow:hidden;border-radius:10px;\${isH?'flex:0 0 40%;min-width:120px;':'width:100%;'}\${s.showImage===false?'display:none;':''}}
+        \${sel} .\${_px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+        \${sel} .\${_px}-title{font-size:\${s.titleSize||16}px;font-weight:600;color:\${s.titleColor};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+        \${sel} .\${_px}-desc{font-size:\${s.descriptionSize||14}px;color:\${s.descriptionColor};line-height:1.5;margin:0 0 12px;display:-webkit-box;-webkit-line-clamp:\${isH?2:3};-webkit-box-orient:vertical;overflow:hidden;\${s.showDescription===false?'display:none;':''}}
+        \${sel} .\${_px}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:\${s.ctaBackground};color:\${s.ctaColor};padding:8px 22px;border-radius:8px;font-size:\${s.ctaSize||14}px;font-weight:500;transition:all 0.2s ease;\${s.showCTA===false?'display:none;':''}}
+        \${sel} .\${_px}-cta:hover{opacity:0.85;}
+      \`;
+      if(s.customCSS){
+        rulesCss+=s.customCSS
+          .replace(/\\.ad-container/g,sel)
+          .replace(/\\.ad-title/g,sel+' .'+_px+'-title')
+          .replace(/\\.ad-description/g,sel+' .'+_px+'-desc')
+          .replace(/\\.ad-cta/g,sel+' .'+_px+'-cta')
+          .replace(/\\.ad-image/g,sel+' .'+_px+'-img');
       }
-      .\${_px}-ad:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(31,38,135,0.28);}
-      .\${_px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
-      .\${_px}-img-wrap{overflow:hidden;border-radius:10px;\${isH?'flex:0 0 40%;min-width:120px;':'width:100%;'}\${custom.showImage===false?'display:none;':''}}
+    });
+
+    /* Floating's host has a fixed width baked into placementStyles() so it
+       looks right with zero configuration — override it once the first
+       slot sets a custom width, so the size control actually has an effect. */
+    var hostOverride='';
+    if(_sp.toLowerCase()==='floating'&&slots[0]&&slots[0].width){
+      hostOverride='.'+_px+'-host{width:'+slots[0].width+'px;}';
+    }
+
+    el.textContent=placementCss+fontCss+rulesCss+hostOverride+\`
       .\${_px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease;}
       .\${_px}-ad:hover .\${_px}-img{transform:scale(1.03);}
-      .\${_px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
-      .\${_px}-title{font-size:\${custom.titleSize||16}px;font-weight:600;color:\${custom.titleColor||'rgba(0,0,0,0.9)'};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-      .\${_px}-desc{font-size:\${custom.descriptionSize||14}px;color:\${custom.descriptionColor||'rgba(0,0,0,0.6)'};line-height:1.5;margin:0 0 12px;display:-webkit-box;-webkit-line-clamp:\${isH?2:3};-webkit-box-orient:vertical;overflow:hidden;\${custom.showDescription===false?'display:none;':''}}
-      .\${_px}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:\${custom.ctaBackground||'#000'};color:\${custom.ctaColor||'#fff'};padding:8px 22px;border-radius:8px;font-size:\${custom.ctaSize||14}px;font-weight:500;transition:all 0.2s ease;\${custom.showCTA===false?'display:none;':''}}
-      .\${_px}-cta:hover{opacity:0.85;}
       .\${_px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
-      .\${_px}-empty{padding:20px;text-align:center;background:#f5f5f5;border-radius:12px;}
+      .\${_px}-empty{padding:20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
       .\${_px}-empty-title{font-size:15px;font-weight:600;margin:0 0 6px;}
       .\${_px}-empty-price{font-size:13px;color:#555;margin:0 0 14px;}
       .\${_px}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;}
       .\${_px}-empty-cta:hover{background:#e84118;}
-      @media(prefers-color-scheme:dark){
-        .\${_px}-ad{background:rgba(0,0,0,0.22);border-color:rgba(255,255,255,0.12);}
-        .\${_px}-title{color:rgba(255,255,255,0.92);}
-        .\${_px}-desc{color:rgba(255,255,255,0.65);}
-        .\${_px}-credit{color:rgba(255,255,255,0.3);}
-        .\${_px}-empty{background:rgba(255,255,255,0.06);}
-        .\${_px}-empty-title{color:#fff;}
-        .\${_px}-empty-price{color:rgba(255,255,255,0.5);}
-      }
     \`;
-
-    /* Floating's host has a fixed width baked into placementStyles() so it
-       looks right with zero configuration — override it here once a custom
-       width is set, so the size slider actually has an effect on it. */
-    if(_sp.toLowerCase()==='floating'&&custom.width){
-      base+='.'+_px+'-host{width:'+custom.width+'px;}';
-    }
-
-    /* Merge custom CSS if any */
-    if(custom.customCSS){
-      base+=custom.customCSS
-        .replace(/\\.ad-container/g,'.'+_px+'-ad')
-        .replace(/\\.ad-title/g,'.'+_px+'-title')
-        .replace(/\\.ad-description/g,'.'+_px+'-desc')
-        .replace(/\\.ad-cta/g,'.'+_px+'-cta')
-        .replace(/\\.ad-image/g,'.'+_px+'-img');
-    }
-    el.textContent=base;
   }
 
   /* ── 2. Find or create host container ──────────────────── */
@@ -504,8 +514,12 @@ exports.serveAdScript = async (req, res) => {
     var items=Array.from(host.querySelectorAll('.'+_px+'-ad'));
     if(!items.length){emptyState(host);return;}
 
-    /* Hide all except first */
-    items.forEach(function(el,idx){el.style.display=idx===0?'block':'none';});
+    /* Hide all except first; tag each with its slot index so injectStyles'
+       per-slot rules (background/colors/font/size) apply to the right one. */
+    items.forEach(function(el,idx){
+      el.style.display=idx===0?'block':'none';
+      el.setAttribute('data-slot',idx);
+    });
 
     /* Track views + clicks */
     function trackView(adId){
@@ -561,10 +575,9 @@ exports.serveAdScript = async (req, res) => {
     var ck='?z='+_i+'&r='+Math.random().toString(36).slice(2);
 
     fetch(_c+'/ads/customization/'+_i+ck,{cache:'no-store'})
-      .then(function(r){return r.ok?r.json():Promise.resolve({});})
+      .then(function(r){return r.ok?r.json():Promise.resolve({slots:[],fontImports:[]});})
       .then(function(d){
-        var custom=d.customization||{};
-        injectStyles(custom);
+        injectStyles(d);
         var host=getHost();
         if(!host)return; /* not auto-reliable and no placeholder — skip, the iframe is the intended path */
 
@@ -574,7 +587,7 @@ exports.serveAdScript = async (req, res) => {
           .catch(function(){emptyState(host);});
       })
       .catch(function(){
-        injectStyles({});
+        injectStyles({slots:[],fontImports:[]});
         var host=getHost();
         if(!host)return;
         fetch(_b+'/feed?categoryId='+_i,{cache:'no-store'})
@@ -636,46 +649,52 @@ function blankEmbedPage() {
   return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0"></body></html>';
 }
 
-function buildEmbedCardCss(prefix, custom) {
-  const isH = custom.imagePosition === 'left';
-  const flexDir = isH ? 'row' : 'column';
-  return `
+// Each ad slot is styled independently (slot 0's template/color/font never
+// bleeds into slot 1's) — `slots` is the fully-resolved per-slot bundle list
+// from resolveAllSlots, already defaulted to plain white+shadow with no
+// dark-mode auto-adaptation.
+function buildEmbedCardCss(prefix, slots, fontImports) {
+  let css = `
     html,body{margin:0;padding:0;height:100%;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
-    .${prefix}-ad{
-      display:block;
-      width:100%;
-      height:100%;
-      text-decoration:none;
-      overflow:hidden;
-      background:${custom.backgroundColor || '#f1f1f1'};
-      border:${custom.borderWidth ?? 1}px solid ${custom.borderColor || 'rgba(0,0,0,0.1)'};
-      border-radius:${custom.borderRadius ?? 12}px;
-      box-shadow:${custom.shadow === 'none' ? 'none' : custom.shadow === 'large' ? '0 12px 30px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.08)'};
-      position:relative;
-      color:inherit;
-      box-sizing:border-box;
-    }
-    .${prefix}-inner{display:flex;flex-direction:${flexDir};gap:10px;align-items:${isH ? 'center' : 'stretch'};height:100%;padding:10px;box-sizing:border-box;}
-    .${prefix}-img-wrap{overflow:hidden;border-radius:8px;${isH ? 'flex:0 0 40%;min-width:80px;' : 'width:100%;flex:1;'}${custom.showImage === false ? 'display:none;' : ''}}
+    .${prefix}-ad{display:block;width:100%;height:100%;text-decoration:none;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);position:relative;color:inherit;box-sizing:border-box;}
     .${prefix}-img{width:100%;height:100%;object-fit:cover;display:block;}
-    .${prefix}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
-    .${prefix}-title{font-size:${custom.titleSize || 14}px;font-weight:600;color:${custom.titleColor || 'rgba(0,0,0,0.9)'};margin:0 0 4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .${prefix}-desc{font-size:${custom.descriptionSize || 12}px;color:${custom.descriptionColor || 'rgba(0,0,0,0.6)'};line-height:1.4;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;${custom.showDescription === false ? 'display:none;' : ''}}
-    .${prefix}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:${custom.ctaBackground || '#000'};color:${custom.ctaColor || '#fff'};padding:5px 14px;border-radius:6px;font-size:${custom.ctaSize || 12}px;font-weight:500;${custom.showCTA === false ? 'display:none;' : ''}}
     .${prefix}-credit{position:absolute;bottom:2px;right:6px;font-size:8px;color:rgba(0,0,0,0.35);}
     .${prefix}-credit a{color:inherit;text-decoration:none;}
-    .${prefix}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;background:#f5f5f5;border-radius:12px;padding:10px;box-sizing:border-box;}
+    .${prefix}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-radius:12px;padding:10px;box-sizing:border-box;}
     .${prefix}-empty-title{font-size:13px;font-weight:600;margin:0 0 4px;}
     .${prefix}-empty-price{font-size:11px;color:#555;margin:0 0 10px;}
     .${prefix}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;}
-    @media(prefers-color-scheme:dark){
-      .${prefix}-ad{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);}
-      .${prefix}-title{color:rgba(255,255,255,0.92);}
-      .${prefix}-desc{color:rgba(255,255,255,0.65);}
-      .${prefix}-empty{background:rgba(255,255,255,0.06);}
-      .${prefix}-empty-title,.${prefix}-empty-price{color:rgba(255,255,255,0.8);}
-    }`;
+  `;
+
+  (fontImports || []).forEach(fi => {
+    css += `@import url(https://fonts.googleapis.com/css2?${fi}&display=swap);`;
+  });
+
+  (slots || []).forEach((s, si) => {
+    const isH = s.imagePosition === 'left';
+    const flexDir = isH ? 'row' : 'column';
+    const sel = `.${prefix}-ad[data-slot="${si}"]`;
+    css += `
+      ${sel}{background:${s.backgroundColor};border:${s.borderWidth}px solid ${s.borderColor};border-radius:${s.borderRadius ?? 12}px;box-shadow:${s.shadowCss};font-family:${s.fontStack};}
+      ${sel} .${prefix}-inner{display:flex;flex-direction:${flexDir};gap:10px;align-items:${isH ? 'center' : 'stretch'};height:100%;padding:10px;box-sizing:border-box;}
+      ${sel} .${prefix}-img-wrap{overflow:hidden;border-radius:8px;${isH ? 'flex:0 0 40%;min-width:80px;' : 'width:100%;flex:1;'}${s.showImage === false ? 'display:none;' : ''}}
+      ${sel} .${prefix}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+      ${sel} .${prefix}-title{font-size:${s.titleSize || 14}px;font-weight:600;color:${s.titleColor};margin:0 0 4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      ${sel} .${prefix}-desc{font-size:${s.descriptionSize || 12}px;color:${s.descriptionColor};line-height:1.4;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;${s.showDescription === false ? 'display:none;' : ''}}
+      ${sel} .${prefix}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:${s.ctaBackground};color:${s.ctaColor};padding:5px 14px;border-radius:6px;font-size:${s.ctaSize || 12}px;font-weight:500;${s.showCTA === false ? 'display:none;' : ''}}
+    `;
+    if (s.customCSS) {
+      css += s.customCSS
+        .replace(/\.ad-container/g, sel)
+        .replace(/\.ad-title/g, `${sel} .${prefix}-title`)
+        .replace(/\.ad-description/g, `${sel} .${prefix}-desc`)
+        .replace(/\.ad-cta/g, `${sel} .${prefix}-cta`)
+        .replace(/\.ad-image/g, `${sel} .${prefix}-img`);
+    }
+  });
+
+  return css;
 }
 
 exports.serveAdEmbed = async (req, res) => {
@@ -688,6 +707,7 @@ exports.serveAdEmbed = async (req, res) => {
     if (!UUID_RE.test(categoryId)) return res.status(400).send(blankEmbedPage());
 
     const { resolveCategoryAndAds, escapeHtml } = require('./AdDisplayController');
+    const { resolveAllSlots, truncateWords } = require('../utils/adCustomization');
     const { adCategory, ads } = await resolveCategoryAndAds(categoryId, req);
     if (!adCategory) return res.status(404).send(blankEmbedPage());
 
@@ -695,10 +715,10 @@ exports.serveAdEmbed = async (req, res) => {
     const FRONTEND = process.env.FRONTEND_URL || '';
     const API_BASE = `${BACKEND}/api/p`;
     const prefix = 'ye' + categoryId.slice(-6);
-    const custom = adCategory.customization || {};
     const websiteId = adCategory.website_id;
     const categoryPrice = adCategory.price;
-    const cardCss = buildEmbedCardCss(prefix, custom);
+    const { slots, fontImports } = resolveAllSlots(adCategory.customization, adCategory.user_count);
+    const cardCss = buildEmbedCardCss(prefix, slots, fontImports);
 
     let bodyHtml;
     if (!ads.length) {
@@ -713,7 +733,7 @@ exports.serveAdEmbed = async (req, res) => {
         const imageUrl = escapeHtml(ad.image_url || '');
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name || '');
-        const description = escapeHtml(ad.ad_description || '');
+        const description = escapeHtml(truncateWords(ad.ad_description, 10));
         return {
           adId: ad.id,
           href: targetUrl,
@@ -745,7 +765,7 @@ exports.serveAdEmbed = async (req, res) => {
       }
 
       const items = adCards.map((card, idx) => `
-          <a class="${prefix}-ad" data-ad-id="${card.adId}" href="${card.href}" target="_blank" rel="noopener" style="display:${idx === 0 ? 'block' : 'none'}">
+          <a class="${prefix}-ad" data-ad-id="${card.adId}" data-slot="${idx}" href="${card.href}" target="_blank" rel="noopener" style="display:${idx === 0 ? 'block' : 'none'}">
             <div class="${prefix}-inner">${card.inner}</div>
             ${card.credit}
           </a>`).join('');

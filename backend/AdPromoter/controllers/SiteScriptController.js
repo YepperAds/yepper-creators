@@ -229,36 +229,64 @@ exports.serveSiteScript = async (req, res) => {
   }
 
   /* ── Inject styles for a space ───────────────────────── */
-  function injectStyles(sp, custom){
+  /* Each ad slot in this space is styled independently — slot 0's
+     template/color/font never bleeds into slot 1. \`data\` is the resolved
+     response from /ads/customization (one fully-resolved bundle per slot,
+     already defaulted to plain white+shadow — no dark-mode auto-adaptation). */
+  function injectStyles(sp, data){
     var sid='_ys_'+sp.id;
     if(D.getElementById(sid))return;
     var el=D.createElement('style');
     el.id=sid;
-    var isH=custom.imagePosition==='left';
-    var flexDir=isH?'row':'column';
-    el.textContent=sp.css+\`
-      .\${sp.px}-ad{display:block;width:\${custom.width?custom.width+'px':'100%'};max-width:\${custom.maxWidth||100}%;height:\${custom.height?custom.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${custom.backgroundColor||'#f1f1f1'};border:\${custom.borderWidth||1}px solid \${custom.borderColor||'rgba(255,255,255,0.18)'};border-radius:\${custom.borderRadius||16}px;box-shadow:\${custom.shadow==='none'?'none':custom.shadow==='small'?'0 2px 4px rgba(0,0,0,0.1)':custom.shadow==='large'?'0 20px 50px rgba(0,0,0,0.3)':'0 8px 32px rgba(31,38,135,0.18)'};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;}
-      .\${sp.px}-ad:hover{transform:translateY(-2px);}
-      .\${sp.px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
-      .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;\${isH?'flex:0 0 40%;min-width:120px;':'width:100%;'}\${custom.showImage===false?'display:none;':''}}
+
+    var fontCss='';
+    (data.fontImports||[]).forEach(function(fi){
+      fontCss+='@import url(https://fonts.googleapis.com/css2?'+fi+'&display=swap);';
+    });
+
+    var slots=data.slots||[];
+    /* Safety net for any item whose slot index has no resolved bundle. */
+    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
+    slots.forEach(function(s,si){
+      var isH=s.imagePosition==='left';
+      var flexDir=isH?'row':'column';
+      var sel='.'+sp.px+'-ad[data-slot="'+si+'"]';
+      rulesCss+=\`
+        \${sel}{display:block;width:\${s.width?s.width+'px':'100%'};max-width:\${s.maxWidth||100}%;height:\${s.height?s.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${s.backgroundColor};border:\${s.borderWidth}px solid \${s.borderColor};border-radius:\${s.borderRadius||16}px;box-shadow:\${s.shadowCss};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;font-family:\${s.fontStack};}
+        \${sel}:hover{transform:translateY(-2px);}
+        \${sel} .\${sp.px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
+        \${sel} .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;\${isH?'flex:0 0 40%;min-width:120px;':'width:100%;'}\${s.showImage===false?'display:none;':''}}
+        \${sel} .\${sp.px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+        \${sel} .\${sp.px}-title{font-size:\${s.titleSize||16}px;font-weight:600;color:\${s.titleColor};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+        \${sel} .\${sp.px}-desc{font-size:\${s.descriptionSize||14}px;color:\${s.descriptionColor};line-height:1.5;margin:0 0 12px;\${s.showDescription===false?'display:none;':''}}
+        \${sel} .\${sp.px}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:\${s.ctaBackground};color:\${s.ctaColor};padding:8px 22px;border-radius:8px;font-size:\${s.ctaSize||14}px;font-weight:500;\${s.showCTA===false?'display:none;':''}}
+      \`;
+      if(s.customCSS){
+        rulesCss+=s.customCSS
+          .replace(/\\.ad-container/g,sel)
+          .replace(/\\.ad-title/g,sel+' .'+sp.px+'-title')
+          .replace(/\\.ad-description/g,sel+' .'+sp.px+'-desc')
+          .replace(/\\.ad-cta/g,sel+' .'+sp.px+'-cta')
+          .replace(/\\.ad-image/g,sel+' .'+sp.px+'-img');
+      }
+    });
+
+    el.textContent=sp.css+fontCss+rulesCss+\`
       .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
-      .\${sp.px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
-      .\${sp.px}-title{font-size:\${custom.titleSize||16}px;font-weight:600;color:\${custom.titleColor||'rgba(0,0,0,0.9)'};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-      .\${sp.px}-desc{font-size:\${custom.descriptionSize||14}px;color:\${custom.descriptionColor||'rgba(0,0,0,0.6)'};line-height:1.5;margin:0 0 12px;\${custom.showDescription===false?'display:none;':''}}
-      .\${sp.px}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:\${custom.ctaBackground||'#000'};color:\${custom.ctaColor||'#fff'};padding:8px 22px;border-radius:8px;font-size:\${custom.ctaSize||14}px;font-weight:500;\${custom.showCTA===false?'display:none;':''}}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
-      .\${sp.px}-empty{padding:20px;text-align:center;background:#f5f5f5;border-radius:12px;}
+      .\${sp.px}-empty{padding:20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
       .\${sp.px}-empty-title{font-size:15px;font-weight:600;margin:0 0 6px;}
       .\${sp.px}-empty-price{font-size:13px;color:#555;margin:0 0 14px;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
     \`;
+
     /* Floating's host has a fixed width baked into placementCSS() so it looks
-       right with zero configuration — override it once a custom width is
-       set, so the size slider actually has an effect on it. */
-    if(sp.spaceType.toLowerCase()==='floating'&&custom.width){
-      el.textContent+='.'+sp.px+'-host{width:'+custom.width+'px;}';
+       right with zero configuration — override it once the first slot sets a
+       custom width, so the size control actually has an effect on it. */
+    if(sp.spaceType.toLowerCase()==='floating'&&slots[0]&&slots[0].width){
+      el.textContent+='.'+sp.px+'-host{width:'+slots[0].width+'px;}';
     }
     D.head.appendChild(el);
   }
@@ -326,7 +354,7 @@ exports.serveSiteScript = async (req, res) => {
   }
 
   /* ── Render ads into host ─────────────────────────────── */
-  function renderAds(host, sp, data, custom){
+  function renderAds(host, sp, data){
     var lang=getLang(sp.lang);
 
     if(!data||!data.html){
@@ -356,9 +384,12 @@ exports.serveSiteScript = async (req, res) => {
     host.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a></div>'+html;
 
     var items=Array.from(host.querySelectorAll('.'+sp.px+'-ad'));
-    if(!items.length){renderAds(host,sp,null,custom);return;}
+    if(!items.length){renderAds(host,sp,null);return;}
 
-    items.forEach(function(el,idx){el.style.display=idx===0?'block':'none';});
+    items.forEach(function(el,idx){
+      el.style.display=idx===0?'block':'none';
+      el.setAttribute('data-slot',idx);
+    });
 
     function trackView(adId){
       if(!adId||adId==='undefined'||adId==='null')return;
@@ -408,26 +439,25 @@ exports.serveSiteScript = async (req, res) => {
     var ck='?z='+sp.id+'&r='+Math.random().toString(36).slice(2);
 
     fetch(_c+'/ads/customization/'+sp.id+ck,{cache:'no-store'})
-      .then(function(r){return r.ok?r.json():Promise.resolve({});})
+      .then(function(r){return r.ok?r.json():Promise.resolve({slots:[],fontImports:[]});})
       .then(function(d){
-        var custom=d.customization||{};
-        injectStyles(sp,custom);
+        injectStyles(sp,d);
         var host=getHost(sp);
         if(!host)return; /* manual with no placeholder — skip */
 
         fetch(_b+'/feed?categoryId='+sp.id+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
-          .then(function(data){renderAds(host,sp,data,custom);})
-          .catch(function(){renderAds(host,sp,null,{});});
+          .then(function(data){renderAds(host,sp,data);})
+          .catch(function(){renderAds(host,sp,null);});
       })
       .catch(function(){
-        injectStyles(sp,{});
+        injectStyles(sp,{slots:[],fontImports:[]});
         var host=getHost(sp);
         if(!host)return;
         fetch(_b+'/feed?categoryId='+sp.id,{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
-          .then(function(data){renderAds(host,sp,data,{});})
-          .catch(function(){renderAds(host,sp,null,{});});
+          .then(function(data){renderAds(host,sp,data);})
+          .catch(function(){renderAds(host,sp,null);});
       });
   }
 

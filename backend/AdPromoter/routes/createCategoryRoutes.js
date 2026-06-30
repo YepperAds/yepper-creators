@@ -8,21 +8,10 @@ const WithdrawalController = require('../controllers/WithdrawalController');
 const adRejectionController = require('../controllers/AdRejectionController');
 const authMiddleware  = require('../../middleware/authmiddleware');
 const earningsController = require('../controllers/earningsController');
-
-// ── Ad-box size bounds ──────────────────────────────────────────────────────
-// Enforced server-side (not just the dashboard slider's min/max) so a website
-// owner can't shrink an ad box to near-invisible via a direct API call to
-// hide ads they're still being paid to show.
-const SIZE_BOUNDS = { width: [160, 1200], height: [90, 800] };
-function clampCustomizationSizes(customization) {
-  for (const [key, [min, max]] of Object.entries(SIZE_BOUNDS)) {
-    if (!(key in customization)) continue;
-    const n = Number(customization[key]);
-    if (!Number.isFinite(n)) { delete customization[key]; continue; }
-    customization[key] = Math.min(max, Math.max(min, n));
-  }
-  return customization;
-}
+const {
+  resolveAllSlots, TEMPLATES, FONTS, SHADOWS,
+  MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, MAX_SLOTS, clampNumber,
+} = require('../utils/adCustomization');
 
 // ── PUBLIC ───────────────────────────────────────────────────────────────────
 
@@ -55,7 +44,11 @@ router.get('/ads/customization/:categoryId', async (req, res) => {
     res.header('Expires', '0');
     const category = await AdCategory.findById(req.params.categoryId);
     if (!category) return res.status(404).json({ error: 'Category not found' });
-    res.json({ customization: category.customization || {}, timestamp: Date.now() });
+    // Slots are resolved (defaults + template + overrides flattened) here so
+    // every renderer just consumes ready-to-use bundles — no template/default
+    // logic duplicated across the three rendering surfaces.
+    const { slots, fontImports } = resolveAllSlots(category.customization, category.user_count);
+    res.json({ slots, fontImports, timestamp: Date.now() });
   } catch (error) {
     console.error('Error fetching customization:', error);
     res.status(500).json({ error: 'Failed to fetch customization' });
@@ -113,10 +106,12 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
 
     const { categoryId } = req.params;
-    const { customization } = req.body;
-    if (!customization || typeof customization !== 'object') {
-      return res.status(400).json({ error: 'Invalid customization payload' });
+    const { slotIndex, customization, reset } = req.body;
+    const idx = parseInt(slotIndex, 10);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= MAX_SLOTS) {
+      return res.status(400).json({ error: 'Invalid slotIndex' });
     }
+
     const category = await AdCategory.findById(categoryId);
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
@@ -124,7 +119,42 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
     const userId  = (req.user.id || req.user._id || req.user.userId)?.toString();
     if (ownerId !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
-    const merged = { ...(category.customization || {}), ...clampCustomizationSizes(customization) };
+    // Each ad slot is styled independently — picking a template/color for
+    // slot 0 must never bleed into slot 1's look — so this can only ever
+    // touch the one slot the dashboard is currently editing.
+    const maxSlots = Math.max(1, category.user_count || 1);
+    if (idx >= maxSlots) {
+      return res.status(400).json({ error: `This category only has ${maxSlots} ad space(s) configured` });
+    }
+
+    const existing = category.customization || {};
+    const slots = { ...(existing.slots || {}) };
+
+    if (reset) {
+      delete slots[String(idx)];
+    } else {
+      if (!customization || typeof customization !== 'object') {
+        return res.status(400).json({ error: 'Invalid customization payload' });
+      }
+      const sanitized = { ...customization };
+      if (sanitized.template && !TEMPLATES[sanitized.template]) delete sanitized.template;
+      if (sanitized.fontFamily && !FONTS[sanitized.fontFamily]) delete sanitized.fontFamily;
+      if (sanitized.shadow && !SHADOWS[sanitized.shadow]) delete sanitized.shadow;
+      // Server-side floor/ceiling — not just the dashboard slider's min/max —
+      // so a direct API call can't shrink an ad box to near-invisible to
+      // dodge showing ads it's still being paid to show.
+      if ('width' in sanitized) {
+        const w = clampNumber(sanitized.width, MIN_WIDTH, MAX_WIDTH);
+        if (w === undefined) delete sanitized.width; else sanitized.width = w;
+      }
+      if ('height' in sanitized) {
+        const h = clampNumber(sanitized.height, MIN_HEIGHT, MAX_HEIGHT);
+        if (h === undefined) delete sanitized.height; else sanitized.height = h;
+      }
+      slots[String(idx)] = sanitized;
+    }
+
+    const merged = { ...existing, slots };
     const updated = await AdCategory.update(categoryId, { customization: merged });
 
     res.json({ success: true, message: 'Customization saved successfully', customization: updated.customization, timestamp: Date.now() });

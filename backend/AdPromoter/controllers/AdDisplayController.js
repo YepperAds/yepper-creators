@@ -4,6 +4,7 @@ const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
 const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
+const { truncateWords } = require('../utils/adCustomization');
 
 function extractDomain(url) {
   try {
@@ -52,6 +53,11 @@ async function resolveCategoryAndAds(categoryId, req) {
 
   if (!selectedAds.length) return { adCategory, website, ads: [], blocked: false };
 
+  // Ordered by position in selected_ads (the order ads were sold into this
+  // category) — `id = ANY(...)` alone doesn't guarantee row order, and each
+  // ad's position here is now also its display-slot index (per-slot
+  // customization is keyed by this same index), so it has to be stable
+  // across requests instead of whatever order Postgres feels like returning.
   const { rows: ads } = await query(
     `SELECT * FROM import_ads
      WHERE id = ANY($1::uuid[])
@@ -64,7 +70,8 @@ async function resolveCategoryAndAds(categoryId, req) {
              SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
              WHERE cat_id = $3
            )
-       )`,
+       )
+     ORDER BY array_position($1::uuid[], id)`,
     [selectedAds, adCategory.website_id?.toString(), categoryId]
   );
 
@@ -106,7 +113,11 @@ exports.displayAd = async (req, res) => {
         const imageUrl = escapeHtml(ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image');
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name);
-        const description = escapeHtml(ad.ad_description || '');
+        // Cap to 10 words server-side (not just a CSS line-clamp) so the full
+        // description never sits in the page's DOM where any visitor can
+        // read it via "view source"/devtools regardless of how it's clipped
+        // visually.
+        const description = escapeHtml(truncateWords(ad.ad_description, 10));
         return `
           <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">

@@ -253,7 +253,8 @@ exports.serveAdScript = async (req, res) => {
       _f="${FRONTEND}",
       _p=${categoryPrice},
       _l="${defaultLanguage}",
-      _t=4000,
+      _tAd=7000,
+      _tEmpty=3000,
       _sp="${spaceType}",
       _px="${prefix}",
       _wa="${wrapAlias}",
@@ -552,13 +553,22 @@ exports.serveAdScript = async (req, res) => {
       var cur=0;
       var firstAdId = items[cur].dataset.adId;
       if(firstAdId && firstAdId !== 'undefined') trackView(firstAdId);
-      setInterval(function(){
-        items[cur].style.display='none';
-        cur=(cur+1)%items.length;
-        items[cur].style.display='block';
-        var rotId = items[cur].dataset.adId;
-        if(rotId && rotId !== 'undefined') trackView(rotId);
-      },_t);
+      /* Real ads get more time on screen than the "Available Ad Space"
+         filler — a recursive setTimeout (not setInterval) so each item's
+         own dwell time decides the next swap, instead of one fixed period
+         for everything. */
+      (function scheduleNext(){
+        var curAdId=items[cur].dataset.adId;
+        var dwell=(curAdId && curAdId!=='undefined')?_tAd:_tEmpty;
+        setTimeout(function(){
+          items[cur].style.display='none';
+          cur=(cur+1)%items.length;
+          items[cur].style.display='block';
+          var rotId = items[cur].dataset.adId;
+          if(rotId && rotId !== 'undefined') trackView(rotId);
+          scheduleNext();
+        },dwell);
+      })();
     } else {
       var firstId = items[0] && items[0].dataset && items[0].dataset.adId;
       if (firstId && firstId !== 'undefined') trackView(firstId);
@@ -803,12 +813,18 @@ ${bodyHtml}
     track('view',items[0].dataset.adId);
     if(items.length>1){
       var cur=0;
-      setInterval(function(){
-        items[cur].style.display='none';
-        cur=(cur+1)%items.length;
-        items[cur].style.display='block';
-        track('view',items[cur].dataset.adId);
-      },4000);
+      /* Real ads dwell longer than the "Available Ad Space" filler. */
+      (function scheduleNext(){
+        var curAdId=items[cur].dataset.adId;
+        var dwell=(curAdId&&curAdId!=='undefined')?7000:3000;
+        setTimeout(function(){
+          items[cur].style.display='none';
+          cur=(cur+1)%items.length;
+          items[cur].style.display='block';
+          track('view',items[cur].dataset.adId);
+          scheduleNext();
+        },dwell);
+      })();
     }
   }
 })();

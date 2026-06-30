@@ -158,7 +158,8 @@ exports.serveSiteScript = async (req, res) => {
       _c="${CAT_BASE}",
       _f="${FRONTEND}",
       _spaces=${spacesJSON},
-      _rot=4000,
+      _rotAd=7000,
+      _rotEmpty=3000,
       _pageLoadTs=Date.now();
 
   /* ── Genie show/hide animation for floating ads ───────── */
@@ -421,13 +422,21 @@ exports.serveSiteScript = async (req, res) => {
       var cur=0;
       var firstAdId=items[cur].dataset.adId;
       if(firstAdId&&firstAdId!=='undefined'&&firstAdId!=='null')trackView(firstAdId);
-      setInterval(function(){
-        items[cur].style.display='none';
-        cur=(cur+1)%items.length;
-        items[cur].style.display='block';
-        var rotId=items[cur].dataset.adId;
-        if(rotId&&rotId!=='undefined'&&rotId!=='null')trackView(rotId);
-      },_rot);
+      /* Real ads dwell longer than the "Available Ad Space" filler — a
+         recursive setTimeout so each item's own dwell time decides the next
+         swap, instead of one fixed period for everything. */
+      (function scheduleNext(){
+        var curAdId=items[cur].dataset.adId;
+        var dwell=(curAdId&&curAdId!=='undefined'&&curAdId!=='null')?_rotAd:_rotEmpty;
+        setTimeout(function(){
+          items[cur].style.display='none';
+          cur=(cur+1)%items.length;
+          items[cur].style.display='block';
+          var rotId=items[cur].dataset.adId;
+          if(rotId&&rotId!=='undefined'&&rotId!=='null')trackView(rotId);
+          scheduleNext();
+        },dwell);
+      })();
     } else {
       var singleId=items[0]&&items[0].dataset&&items[0].dataset.adId;
       if(singleId&&singleId!=='undefined'&&singleId!=='null')trackView(singleId);

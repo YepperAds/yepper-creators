@@ -237,7 +237,7 @@ exports.serveSiteScript = async (req, res) => {
     var isH=custom.imagePosition==='left';
     var flexDir=isH?'row':'column';
     el.textContent=sp.css+\`
-      .\${sp.px}-ad{display:block;width:\${custom.width?custom.width+'px':'100%'};max-width:\${custom.maxWidth||100}%;text-decoration:none;overflow:hidden;background:\${custom.backgroundColor||'#f1f1f1'};border:\${custom.borderWidth||1}px solid \${custom.borderColor||'rgba(255,255,255,0.18)'};border-radius:\${custom.borderRadius||16}px;box-shadow:\${custom.shadow==='none'?'none':custom.shadow==='small'?'0 2px 4px rgba(0,0,0,0.1)':custom.shadow==='large'?'0 20px 50px rgba(0,0,0,0.3)':'0 8px 32px rgba(31,38,135,0.18)'};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;}
+      .\${sp.px}-ad{display:block;width:\${custom.width?custom.width+'px':'100%'};max-width:\${custom.maxWidth||100}%;height:\${custom.height?custom.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${custom.backgroundColor||'#f1f1f1'};border:\${custom.borderWidth||1}px solid \${custom.borderColor||'rgba(255,255,255,0.18)'};border-radius:\${custom.borderRadius||16}px;box-shadow:\${custom.shadow==='none'?'none':custom.shadow==='small'?'0 2px 4px rgba(0,0,0,0.1)':custom.shadow==='large'?'0 20px 50px rgba(0,0,0,0.3)':'0 8px 32px rgba(31,38,135,0.18)'};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;}
       .\${sp.px}-ad:hover{transform:translateY(-2px);}
       .\${sp.px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
       .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;\${isH?'flex:0 0 40%;min-width:120px;':'width:100%;'}\${custom.showImage===false?'display:none;':''}}
@@ -254,6 +254,12 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-empty-price{font-size:13px;color:#555;margin:0 0 14px;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
     \`;
+    /* Floating's host has a fixed width baked into placementCSS() so it looks
+       right with zero configuration — override it once a custom width is
+       set, so the size slider actually has an effect on it. */
+    if(sp.spaceType.toLowerCase()==='floating'&&custom.width){
+      el.textContent+='.'+sp.px+'-host{width:'+custom.width+'px;}';
+    }
     D.head.appendChild(el);
   }
 

@@ -334,6 +334,7 @@ exports.serveAdScript = async (req, res) => {
         display:block;
         width:\${custom.width?custom.width+'px':'100%'};
         max-width:\${custom.maxWidth||100}%;
+        height:\${custom.height?custom.height+'px':'auto'};
         text-decoration:none;
         overflow:hidden;
         background:\${custom.backgroundColor||'#f1f1f1'};
@@ -373,6 +374,13 @@ exports.serveAdScript = async (req, res) => {
         .\${_px}-empty-price{color:rgba(255,255,255,0.5);}
       }
     \`;
+
+    /* Floating's host has a fixed width baked into placementStyles() so it
+       looks right with zero configuration — override it here once a custom
+       width is set, so the size slider actually has an effect on it. */
+    if(_sp.toLowerCase()==='floating'&&custom.width){
+      base+='.'+_px+'-host{width:'+custom.width+'px;}';
+    }
 
     /* Merge custom CSS if any */
     if(custom.customCSS){

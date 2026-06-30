@@ -9,6 +9,21 @@ const adRejectionController = require('../controllers/AdRejectionController');
 const authMiddleware  = require('../../middleware/authmiddleware');
 const earningsController = require('../controllers/earningsController');
 
+// ── Ad-box size bounds ──────────────────────────────────────────────────────
+// Enforced server-side (not just the dashboard slider's min/max) so a website
+// owner can't shrink an ad box to near-invisible via a direct API call to
+// hide ads they're still being paid to show.
+const SIZE_BOUNDS = { width: [160, 1200], height: [90, 800] };
+function clampCustomizationSizes(customization) {
+  for (const [key, [min, max]] of Object.entries(SIZE_BOUNDS)) {
+    if (!(key in customization)) continue;
+    const n = Number(customization[key]);
+    if (!Number.isFinite(n)) { delete customization[key]; continue; }
+    customization[key] = Math.min(max, Math.max(min, n));
+  }
+  return customization;
+}
+
 // ── PUBLIC ───────────────────────────────────────────────────────────────────
 
 router.get('/space/:categoryId', async (req, res) => {
@@ -99,6 +114,9 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
 
     const { categoryId } = req.params;
     const { customization } = req.body;
+    if (!customization || typeof customization !== 'object') {
+      return res.status(400).json({ error: 'Invalid customization payload' });
+    }
     const category = await AdCategory.findById(categoryId);
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
@@ -106,7 +124,7 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
     const userId  = (req.user.id || req.user._id || req.user.userId)?.toString();
     if (ownerId !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
-    const merged = { ...(category.customization || {}), ...customization };
+    const merged = { ...(category.customization || {}), ...clampCustomizationSizes(customization) };
     const updated = await AdCategory.update(categoryId, { customization: merged });
 
     res.json({ success: true, message: 'Customization saved successfully', customization: updated.customization, timestamp: Date.now() });

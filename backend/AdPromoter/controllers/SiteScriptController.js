@@ -168,23 +168,18 @@ exports.serveSiteScript = async (req, res) => {
     s.id='_ys_anim';
     s.textContent=
       '@keyframes ywGenieIn{'+
-        '0%{opacity:0;filter:blur(7px);transform:scale(.04,.12) translate(48%,48%) skew(-13deg,-9deg);border-radius:50% 50% 8% 50%;}'+
-        '22%{opacity:1;filter:blur(5px);transform:scale(.22,.5) translate(31%,23%) skew(-9deg,-6deg);border-radius:40% 30% 8% 30%;}'+
-        '48%{filter:blur(2.5px);transform:scale(.55,.84) translate(14%,9%) skew(-4deg,-2deg);border-radius:24px 20px 8px 20px;}'+
-        '74%{filter:blur(.5px);transform:scale(.87,1.03) translate(3%,1%) skew(-1deg,0deg);border-radius:18px;}'+
-        '100%{opacity:1;filter:blur(0);transform:scale(1,1) translate(0,0) skew(0,0);border-radius:16px;}'+
+        '0%{opacity:0;transform:scale(.4) translate(18%,18%);}'+
+        '60%{opacity:1;transform:scale(1.03) translate(-1%,-1%);}'+
+        '100%{opacity:1;transform:scale(1) translate(0,0);}'+
       '}'+
       '@keyframes ywGenieOut{'+
-        '0%{opacity:1;filter:blur(0);transform:scale(1,1) translate(0,0) skew(0,0);border-radius:16px;}'+
-        '26%{filter:blur(.5px);transform:scale(.86,1.05) translate(4%,-1%) skew(2deg,1deg);border-radius:18px;}'+
-        '52%{filter:blur(2.5px);transform:scale(.5,.8) translate(16%,10%) skew(7deg,4deg);border-radius:26px 22px 8px 22px;}'+
-        '78%{opacity:.75;filter:blur(5px);transform:scale(.2,.4) translate(35%,29%) skew(11deg,7deg);border-radius:45% 35% 8% 35%;}'+
-        '100%{opacity:0;filter:blur(7px);transform:scale(.03,.1) translate(48%,48%) skew(15deg,9deg);border-radius:50% 50% 8% 50%;}'+
+        '0%{opacity:1;transform:scale(1) translate(0,0);}'+
+        '100%{opacity:0;transform:scale(.4) translate(18%,18%);}'+
       '}'+
       '@keyframes ywFloatBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}'+
-      '.yw-genie-pre{opacity:0;filter:blur(7px);transform:scale(.04,.12) translate(48%,48%) skew(-13deg,-9deg);}'+
-      '.yw-genie-in{animation:ywGenieIn .85s cubic-bezier(.22,1,.36,1) forwards;}'+
-      '.yw-genie-out{animation:ywGenieOut .7s cubic-bezier(.55,0,1,.45) forwards;}'+
+      '.yw-genie-pre{opacity:0;transform:scale(.4) translate(18%,18%);}'+
+      '.yw-genie-in{animation:ywGenieIn .45s cubic-bezier(.16,1,.3,1) forwards;}'+
+      '.yw-genie-out{animation:ywGenieOut .32s cubic-bezier(.7,0,.84,0) forwards;}'+
       '.yw-float-bob{animation:ywFloatBob 4.5s ease-in-out infinite;}';
     D.head.appendChild(s);
   }

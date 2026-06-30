@@ -10,6 +10,7 @@ router.get('/display', adDisplayController.displayAd);
 router.get('/search', adDisplayController.searchAd);
 router.get('/script/:scriptId', AdScriptController.serveAdScript);
 router.get('/script/site/:websiteId', SiteScriptController.serveSiteScript);
+router.get('/embed/:categoryId', AdScriptController.serveAdEmbed);
 router.post('/view/:adId', adDisplayController.incrementView);
 router.post('/click/:adId', adDisplayController.incrementClick);
 

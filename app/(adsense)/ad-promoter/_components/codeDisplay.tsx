@@ -139,32 +139,75 @@ echo '<script src="${src}" async></script>';
 }
 
 // ── Manual placement div per framework ───────────────────────────────────────
-function buildManualDiv(spaceId, framework) {
+// Standard ad-unit sizes (industry-standard, same ones AdSense/Carbon Ads
+// use) keyed by spaceType — picked so the box reads naturally wherever that
+// type usually sits (a 728x90 leaderboard for in-feed/above-the-fold, a
+// narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
+// attributes freely; this is just a sane default.
+function recommendedEmbedSize(spaceType) {
+  const sizes = {
+    'sidebar':         { w: 300, h: 250 },
+    'left rail':       { w: 160, h: 600 },
+    'rightrail':       { w: 160, h: 600 },
+    'stickysidebar':   { w: 300, h: 250 },
+    'inline content':  { w: 300, h: 250 },
+    'in feed':         { w: 728, h: 90 },
+    'above the fold':  { w: 728, h: 90 },
+    'beneath title':   { w: 728, h: 90 },
+  };
+  return sizes[(spaceType || '').toLowerCase()] || { w: 300, h: 250 };
+}
+
+// Iframe embed — for spaceTypes the main site script can't reliably auto-place
+// (sidebar, in-feed, inline content, etc). The owner drops this exactly where
+// they want the ad. Because it's a separate document, a framework's own
+// re-renders (React/Vue/etc. own the <iframe> element itself, never its
+// contents) can't wipe it out the way they can a script-injected div, and it
+// doesn't depend on the main script finding a data-yepper-space placeholder.
+function buildIframeEmbed(framework, src, spaceType) {
+  const { w, h } = recommendedEmbedSize(spaceType);
   switch (framework) {
     case 'nextjs':
-      return `{/* Place this div exactly where you want the ad */}
-<div data-yepper-space="${spaceId}"></div>`;
+      return `{/* Place this exactly where you want the ad */}
+<iframe
+  src="${src}"
+  width={${w}}
+  height={${h}}
+  style={{ border: 0, maxWidth: '100%' }}
+  loading="lazy"
+  title="Advertisement"
+/>`;
     case 'vue':
-      return `<!-- Place this div exactly where you want the ad -->
-<div data-yepper-space="${spaceId}"></div>`;
+      return `<!-- Place this exactly where you want the ad -->
+<iframe
+  src="${src}"
+  width="${w}"
+  height="${h}"
+  style="border:0;max-width:100%;"
+  loading="lazy"
+  title="Advertisement"
+></iframe>`;
     case 'wordpress':
     case 'php':
-      return `<?php echo '<div data-yepper-space="${spaceId}"></div>'; ?>
+      return `<?php echo '<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>'; ?>
 <!-- Or directly: -->
-<div data-yepper-space="${spaceId}"></div>`;
+<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
     case 'python':
       return `{# Django/Flask Jinja2 template #}
-<div data-yepper-space="${spaceId}"></div>`;
+<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
     case 'javascript':
       return `<!-- HTML -->
-<div data-yepper-space="${spaceId}"></div>
+<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>
 
 // Or create it dynamically:
-const el = document.createElement('div');
-el.dataset.yepperSpace = '${spaceId}';
+const el = document.createElement('iframe');
+el.src = '${src}';
+el.width = ${w}; el.height = ${h};
+el.style.border = '0'; el.style.maxWidth = '100%';
+el.loading = 'lazy';
 document.querySelector('#your-container').appendChild(el);`;
     default: // html
-      return `<div data-yepper-space="${spaceId}"></div>`;
+      return `<iframe src="${src}" width="${w}" height="${h}" style="border:0;max-width:100%;" loading="lazy" title="Advertisement"></iframe>`;
   }
 }
 
@@ -181,39 +224,39 @@ function getInstallSteps(framework, src) {
       'Add the DOMContentLoaded snippet to any JS file that runs on every page.',
       'Or paste it as a <script> tag in your HTML.',
       'The listener ensures the Yepper script loads after the page is ready.',
-      'For manual ad spaces, add <div data-yepper-space="..."> in your HTML.',
+      'For precise-placement spaces, paste the <iframe> tag where you want each ad — no script needed for those.',
     ],
     nextjs: [
       'Use Next.js\'s built-in <Script> component — no install needed.',
       'For App Router: add it to app/layout.js with strategy="afterInteractive".',
       'For Pages Router: add to pages/_document.js inside <Head>.',
-      'For manual spaces, drop <div data-yepper-space="..."> in any JSX.',
+      'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
       'The script auto-loads on every page because it\'s in the root layout.',
     ],
     vue: [
       'Open src/main.js (or main.ts).',
       'Add the script creation code before app.mount().',
       'Or add it inside onMounted() in your root App.vue.',
-      'For manual spaces, add <div data-yepper-space="..."> in any .vue template.',
+      'For precise-placement spaces, paste the <iframe> in any .vue template — no script involvement needed.',
     ],
     wordpress: [
       'Go to Appearance → Theme Editor in your WordPress Admin.',
       'Open your active theme\'s functions.php file.',
       'Paste the PHP snippet at the end of functions.php.',
       'Save. The script will load on every page of your site.',
-      'For manual spaces, add the PHP echo div in your theme templates.',
+      'For precise-placement spaces, echo the iframe tag in your theme templates.',
     ],
     php: [
       'Open your main PHP layout file (header.php, layout.php, base.php, etc.).',
       'Paste the script echo or raw HTML tag inside <head>.',
       'It will load on every page that includes this layout file.',
-      'For manual spaces, echo the div in any template where you want an ad.',
+      'For precise-placement spaces, echo the iframe tag in any template where you want an ad.',
     ],
     python: [
       'Open your base template (base.html for Django or Flask).',
       'Add the <script> tag inside the head block.',
       'Templates that extend base.html will automatically include the script.',
-      'For manual spaces, add <div data-yepper-space="..."> in any template.',
+      'For precise-placement spaces, paste the <iframe> tag in any template — no script needed for those.',
     ],
   };
   return steps[framework] || steps.html;
@@ -324,6 +367,12 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
 
   const mainCode    = buildSiteScript(rawSrc, framework);
   const currentLabel = HUMAN_LANGUAGES.find(l => l.value === humanLang)?.label || 'English';
+
+  // Spaces the main site script can't reliably auto-place — these get an
+  // iframe embed instead of a data-yepper-space div (see buildIframeEmbed).
+  const embedCategories = categories.filter(
+    (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
+  );
 
   const handleSaveLang = () => {
     if (onLanguageChange) onLanguageChange(humanLang);
@@ -496,40 +545,47 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
                 </div>
               </div>
 
-              {/* Manual placement divs (accordion) */}
-              <div className="border-t border-zinc-700">
-                <button
-                  onClick={() => setShowManual(o => !o)}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-800 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <MousePointer className="w-4 h-4 text-purple-400" />
-                    <span className="text-sm font-semibold text-zinc-100">Manual Placement Divs</span>
-                    <span className="text-xs text-zinc-500 ml-1">— for exact positioning</span>
-                  </div>
-                  {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
-                </button>
-                {showManual && (
-                  <div className="px-5 pb-5 space-y-4">
-                    <p className="text-xs text-zinc-500 leading-relaxed">
-                      For spaces that need <strong className="text-zinc-300">exact placement</strong>, paste the matching div
-                      at that exact location. The main script above must still be present.
-                    </p>
-                    <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
-                      {categories.map((cat: any, idx: any) => (
-                        <div key={cat._id} className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-zinc-500 font-mono">{idx + 1}.</span>
-                            <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
-                            <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
-                          </div>
-                          <CodeBlock code={buildManualDiv(cat._id, framework)} />
-                        </div>
-                      ))}
+              {/* Precise-placement spaces (accordion) — iframe embeds */}
+              {embedCategories.length > 0 && (
+                <div className="border-t border-zinc-700">
+                  <button
+                    onClick={() => setShowManual(o => !o)}
+                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-800 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MousePointer className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
+                      <span className="text-xs text-zinc-500 ml-1">— iframe embed, paste exactly where you want the ad</span>
                     </div>
-                  </div>
-                )}
-              </div>
+                    {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
+                  </button>
+                  {showManual && (
+                    <div className="px-5 pb-5 space-y-4">
+                      <p className="text-xs text-zinc-500 leading-relaxed">
+                        These spaces (sidebar, in-feed, inline content, etc.) can't be reliably auto-placed by the main
+                        script, so they use a self-contained <strong className="text-zinc-300">iframe</strong> instead —
+                        no script needed, and it can't be wiped out by React/Vue re-renders the way an injected div can.
+                        Paste the matching tag exactly where you want that ad to appear.
+                      </p>
+                      <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
+                        {embedCategories.map((cat: any, idx: any) => {
+                          const embedSrc = `${BACKEND}/api/p/embed/${cat._id}`;
+                          return (
+                            <div key={cat._id} className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-500 font-mono">{idx + 1}.</span>
+                                <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
+                                <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
+                              </div>
+                              <CodeBlock code={buildIframeEmbed(framework, embedSrc, cat.spaceType)} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -537,8 +593,9 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
           <div className="border-t border-zinc-700 px-5 py-3 flex items-start gap-2 bg-zinc-950">
             <Info className="w-3 h-3 text-zinc-500 mt-0.5 shrink-0" />
             <p className="text-xs text-zinc-500">
-              Select your framework above to see the right code. The main script handles everything automatically.
-              For exact placement, expand "Manual Placement Divs". New spaces are picked up automatically — no need to update the main script.
+              Select your framework above to see the right code. The main script auto-places Header, Floating, Overlay,
+              Modal, Mobile Interstitial, Bottom and Footer spaces — nothing else to do for those.
+              {embedCategories.length > 0 && ' For the rest, expand "Precise-Placement Spaces" and paste the iframe where you want each ad.'}
             </p>
           </div>
         </div>

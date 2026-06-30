@@ -12,66 +12,89 @@ function extractDomain(url) {
   } catch { return null; }
 }
 
+// Ad fields (business_name, ad_description, business_link) are
+// advertiser-submitted and get interpolated straight into HTML/attributes
+// served on yepper's own domain (and, for the script path, innerHTML'd
+// directly into the publisher's page) — escape unconditionally so a
+// malicious or buggy submission can't break out into markup/script.
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+exports.escapeHtml = escapeHtml;
+
+// Shared by displayAd (JSON, used by the injected script) and the iframe
+// embed endpoint (AdScriptController.serveAdEmbed) — both need the exact
+// same "is this category allowed to show ads on this referer, and which
+// ones" resolution, just rendered into a different envelope.
+async function resolveCategoryAndAds(categoryId, req) {
+  const adCategory = await AdCategory.findById(categoryId);
+  if (!adCategory) return { adCategory: null, website: null, ads: [], blocked: false };
+
+  // Domain check — only block on a definite mismatch (a referer that's present
+  // but points elsewhere). Missing referer is allowed through, since some
+  // browsers/extensions strip it for privacy and shouldn't break legit placements.
+  const website = await Website.findById(adCategory.website_id);
+  const registeredDomain = website?.website_link ? extractDomain(website.website_link) : null;
+  if (registeredDomain) {
+    const referer = req.headers.referer || req.headers.origin || '';
+    const incoming = referer ? extractDomain(referer) : null;
+    if (incoming && incoming !== registeredDomain) {
+      notifyDomainMismatch(website.owner_id, website.id, registeredDomain, incoming).catch(() => {});
+      return { adCategory, website, ads: [], blocked: true };
+    }
+  }
+
+  const selectedAds = Array.isArray(adCategory.selected_ads)
+    ? adCategory.selected_ads
+    : JSON.parse(adCategory.selected_ads || '[]');
+
+  if (!selectedAds.length) return { adCategory, website, ads: [], blocked: false };
+
+  const { rows: ads } = await query(
+    `SELECT * FROM import_ads
+     WHERE id = ANY($1::uuid[])
+       AND EXISTS (
+         SELECT 1 FROM jsonb_array_elements(website_selections) sel
+         WHERE sel->>'websiteId' = $2
+           AND (sel->>'approved')::boolean = true
+           AND sel->>'status' = 'active'
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
+             WHERE cat_id = $3
+           )
+       )`,
+    [selectedAds, adCategory.website_id?.toString(), categoryId]
+  );
+
+  const adsToShow = ads.slice(0, adCategory.user_count || ads.length);
+  return { adCategory, website, ads: adsToShow, blocked: false };
+}
+exports.resolveCategoryAndAds = resolveCategoryAndAds;
+
 exports.displayAd = async (req, res) => {
   try {
     const { categoryId } = req.query;
     if (!categoryId) return res.json({ html: '' });
 
-    const adCategory = await AdCategory.findById(categoryId);
-    if (!adCategory) return res.json({ html: '' });
+    const { adCategory, ads: adsToShow } = await resolveCategoryAndAds(categoryId, req);
+    if (!adCategory || !adsToShow.length) return res.json({ html: '' });
 
-    // Domain check — only block on a definite mismatch (a referer that's present
-    // but points elsewhere). Missing referer is allowed through, since some
-    // browsers/extensions strip it for privacy and shouldn't break legit placements.
-    const website = await Website.findById(adCategory.website_id);
-    const registeredDomain = website?.website_link ? extractDomain(website.website_link) : null;
-    if (registeredDomain) {
-      const referer = req.headers.referer || req.headers.origin || '';
-      const incoming = referer ? extractDomain(referer) : null;
-      if (incoming && incoming !== registeredDomain) {
-        notifyDomainMismatch(website.owner_id, website.id, registeredDomain, incoming).catch(() => {});
-        return res.json({ html: '' });
-      }
-    }
-
-    const selectedAds = Array.isArray(adCategory.selected_ads)
-      ? adCategory.selected_ads
-      : JSON.parse(adCategory.selected_ads || '[]');
-
-    if (!selectedAds.length) return res.json({ html: '' });
-
-    // Fetch active ads from JSONB
-    const { rows: ads } = await query(
-      `SELECT * FROM import_ads
-       WHERE id = ANY($1::uuid[])
-         AND EXISTS (
-           SELECT 1 FROM jsonb_array_elements(website_selections) sel
-           WHERE sel->>'websiteId' = $2
-             AND (sel->>'approved')::boolean = true
-             AND sel->>'status' = 'active'
-             AND EXISTS (
-               SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
-               WHERE cat_id = $3
-             )
-         )`,
-      [selectedAds, adCategory.website_id?.toString(), categoryId]
-    );
-
-    if (!ads.length) return res.json({ html: '' });
-
-    const adsToShow = ads.slice(0, adCategory.user_count || ads.length);
     const adsHtml = adsToShow.map(ad => {
       try {
-        const imageUrl = ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image';
-        const targetUrl = (ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`;
+        const imageUrl = escapeHtml(ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image');
+        const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
+        const businessName = escapeHtml(ad.business_name);
+        const description = escapeHtml(ad.ad_description || '');
         return `
           <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">
               <div class="sp-content">
-                <img class="sp-image" src="${imageUrl}" alt="${ad.business_name}" loading="lazy">
+                <img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy">
                 <div class="sp-text-content">
-                  <h3 class="sp-business-name">${ad.business_name}</h3>
-                  <p class="sp-description">${ad.ad_description || ''}</p>
+                  <h3 class="sp-business-name">${businessName}</h3>
+                  <p class="sp-description">${description}</p>
                   <button class="sp-cta" type="button">Visit Website</button>
                 </div>
               </div>

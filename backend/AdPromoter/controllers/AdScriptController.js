@@ -487,7 +487,11 @@ exports.serveAdScript = async (req, res) => {
   }
 
   /* ── 5. Load customization then ads ───────────────────── */
-  function init(){
+  function placeSpace(){
+    /* Already live? (querySelector only matches nodes still attached to the
+       document, so this is false if an SPA re-render wiped the host out.) */
+    if(D.querySelector('[data-yid="'+_i+'"]'))return;
+
     /* Use a neutral param name to avoid common blocker rules */
     var ck='?z='+_i+'&r='+Math.random().toString(36).slice(2);
 
@@ -511,6 +515,27 @@ exports.serveAdScript = async (req, res) => {
           .then(function(data){renderAds(host,data);})
           .catch(function(){emptyState(host);});
       });
+  }
+
+  /* ── SPA route-change support ─────────────────────────── */
+  /* Single-page apps (Next.js, React Router, Vue Router, etc.) navigate
+     without a full reload, so a one-shot DOMContentLoaded init() only ever
+     runs on the very first page, and a framework re-render can wipe the
+     host out without this script ever knowing. Wrapping pushState/
+     replaceState + listening for popstate catches both. */
+  function hookSpaNavigation(){
+    try{
+      var onRouteChange=function(){ setTimeout(placeSpace,80); };
+      window.addEventListener('popstate',onRouteChange);
+      var _push=history.pushState,_replace=history.replaceState;
+      history.pushState=function(){ var r=_push.apply(history,arguments); onRouteChange(); return r; };
+      history.replaceState=function(){ var r=_replace.apply(history,arguments); onRouteChange(); return r; };
+    }catch(e){}
+  }
+
+  function init(){
+    placeSpace();
+    hookSpaNavigation();
 
     /* Listen for live customization refreshes */
     try{
@@ -529,5 +554,155 @@ exports.serveAdScript = async (req, res) => {
   } catch (err) {
     console.error('AdScriptController error:', err);
     res.status(500).send('// Error loading ad unit');
+  }
+};
+
+// ── Iframe embed (for spaceTypes the script can't reliably auto-place — sidebar,
+// inline content, in-feed, etc.) ─────────────────────────────────────────────
+// The owner drops <iframe src="…"> exactly where they want the ad. Because an
+// iframe is a separate document, it can't be touched by the host page's own
+// framework re-renders (React/Vue own the <iframe> element itself, never its
+// contents) and doesn't depend on querySelector finding a placeholder div —
+// see the integration-format discussion this came out of.
+function blankEmbedPage() {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0"></body></html>';
+}
+
+function buildEmbedCardCss(prefix, custom) {
+  const isH = custom.imagePosition === 'left';
+  const flexDir = isH ? 'row' : 'column';
+  return `
+    html,body{margin:0;padding:0;height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+    .${prefix}-ad{
+      display:block;
+      width:100%;
+      height:100%;
+      text-decoration:none;
+      overflow:hidden;
+      background:${custom.backgroundColor || '#f1f1f1'};
+      border:${custom.borderWidth ?? 1}px solid ${custom.borderColor || 'rgba(0,0,0,0.1)'};
+      border-radius:${custom.borderRadius ?? 12}px;
+      box-shadow:${custom.shadow === 'none' ? 'none' : custom.shadow === 'large' ? '0 12px 30px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.08)'};
+      position:relative;
+      color:inherit;
+      box-sizing:border-box;
+    }
+    .${prefix}-inner{display:flex;flex-direction:${flexDir};gap:10px;align-items:${isH ? 'center' : 'stretch'};height:100%;padding:10px;box-sizing:border-box;}
+    .${prefix}-img-wrap{overflow:hidden;border-radius:8px;${isH ? 'flex:0 0 40%;min-width:80px;' : 'width:100%;flex:1;'}${custom.showImage === false ? 'display:none;' : ''}}
+    .${prefix}-img{width:100%;height:100%;object-fit:cover;display:block;}
+    .${prefix}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+    .${prefix}-title{font-size:${custom.titleSize || 14}px;font-weight:600;color:${custom.titleColor || 'rgba(0,0,0,0.9)'};margin:0 0 4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .${prefix}-desc{font-size:${custom.descriptionSize || 12}px;color:${custom.descriptionColor || 'rgba(0,0,0,0.6)'};line-height:1.4;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;${custom.showDescription === false ? 'display:none;' : ''}}
+    .${prefix}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:${custom.ctaBackground || '#000'};color:${custom.ctaColor || '#fff'};padding:5px 14px;border-radius:6px;font-size:${custom.ctaSize || 12}px;font-weight:500;${custom.showCTA === false ? 'display:none;' : ''}}
+    .${prefix}-credit{position:absolute;bottom:2px;right:6px;font-size:8px;color:rgba(0,0,0,0.35);}
+    .${prefix}-credit a{color:inherit;text-decoration:none;}
+    .${prefix}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;background:#f5f5f5;border-radius:12px;padding:10px;box-sizing:border-box;}
+    .${prefix}-empty-title{font-size:13px;font-weight:600;margin:0 0 4px;}
+    .${prefix}-empty-price{font-size:11px;color:#555;margin:0 0 10px;}
+    .${prefix}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;}
+    @media(prefers-color-scheme:dark){
+      .${prefix}-ad{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);}
+      .${prefix}-title{color:rgba(255,255,255,0.92);}
+      .${prefix}-desc{color:rgba(255,255,255,0.65);}
+      .${prefix}-empty{background:rgba(255,255,255,0.06);}
+      .${prefix}-empty-title,.${prefix}-empty-price{color:rgba(255,255,255,0.8);}
+    }`;
+}
+
+exports.serveAdEmbed = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(categoryId)) return res.status(400).send(blankEmbedPage());
+
+    const { resolveCategoryAndAds, escapeHtml } = require('./AdDisplayController');
+    const { adCategory, ads } = await resolveCategoryAndAds(categoryId, req);
+    if (!adCategory) return res.status(404).send(blankEmbedPage());
+
+    const BACKEND  = process.env.BACKEND_URL || '';
+    const FRONTEND = process.env.FRONTEND_URL || '';
+    const API_BASE = `${BACKEND}/api/p`;
+    const prefix = 'ye' + categoryId.slice(-6);
+    const custom = adCategory.customization || {};
+    const websiteId = adCategory.website_id;
+    const categoryPrice = adCategory.price;
+    const cardCss = buildEmbedCardCss(prefix, custom);
+
+    let bodyHtml;
+    if (!ads.length) {
+      bodyHtml = `
+        <div class="${prefix}-empty">
+          <p class="${prefix}-empty-title">Available Advertising Space</p>
+          <p class="${prefix}-empty-price">Price: $${categoryPrice}/mo</p>
+          <a class="${prefix}-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
+        </div>`;
+    } else {
+      const items = ads.map((ad, idx) => {
+        const imageUrl = escapeHtml(ad.image_url || '');
+        const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
+        const businessName = escapeHtml(ad.business_name || '');
+        const description = escapeHtml(ad.ad_description || '');
+        return `
+          <a class="${prefix}-ad" data-ad-id="${ad.id}" href="${targetUrl}" target="_blank" rel="noopener" style="display:${idx === 0 ? 'block' : 'none'}">
+            <div class="${prefix}-inner">
+              <div class="${prefix}-img-wrap"><img class="${prefix}-img" src="${imageUrl}" alt="" loading="lazy"></div>
+              <div class="${prefix}-text">
+                <p class="${prefix}-title">${businessName}</p>
+                <p class="${prefix}-desc">${description}</p>
+                <span class="${prefix}-cta">Visit Website</span>
+              </div>
+            </div>
+            <span class="${prefix}-credit">Ad by Yepper</span>
+          </a>`;
+      }).join('');
+      bodyHtml = `<div class="${prefix}-wrap" style="position:relative;width:100%;height:100%;">${items}</div>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${cardCss}</style>
+</head>
+<body>
+${bodyHtml}
+<script>
+(function(){
+  var items=Array.prototype.slice.call(document.querySelectorAll('.${prefix}-ad'));
+  var _b="${API_BASE}",_i="${categoryId}";
+  function track(kind,adId){
+    if(!adId||adId==='undefined')return;
+    var url=_b+(kind==='view'?'/ev/':'/ec/')+adId+'?cid='+_i;
+    try{navigator.sendBeacon(url,'{}');}catch(e){fetch(url,{method:'POST',mode:'cors',credentials:'omit'}).catch(function(){});}
+  }
+  items.forEach(function(el){
+    el.addEventListener('click',function(){track('click',el.dataset.adId);});
+  });
+  if(items.length){
+    track('view',items[0].dataset.adId);
+    if(items.length>1){
+      var cur=0;
+      setInterval(function(){
+        items[cur].style.display='none';
+        cur=(cur+1)%items.length;
+        items[cur].style.display='block';
+        track('view',items[cur].dataset.adId);
+      },5000);
+    }
+  }
+})();
+</script>
+</body>
+</html>`;
+
+    res.send(html);
+  } catch (err) {
+    console.error('AdScriptController serveAdEmbed error:', err);
+    res.status(500).send(blankEmbedPage());
   }
 };

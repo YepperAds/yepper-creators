@@ -406,18 +406,30 @@ exports.serveSiteScript = async (req, res) => {
       });
   }
 
-  /* ── Init all spaces ──────────────────────────────────── */
-  function init(){
-    /* 1. Load all pre-configured spaces */
-    _spaces.forEach(function(sp){ loadSpace(sp); });
+  /* ── Place (or re-place) every space ──────────────────── */
+  /* React/Vue/Next/etc. don't do full page reloads after the first load,
+     and their own re-renders can wipe out a script-injected DOM node since
+     the framework never knows it's there. querySelector only matches nodes
+     still attached to the document, so any space whose host got removed —
+     by an SPA re-render, or just never created yet on this route — gets
+     (re)loaded here. Safe to call repeatedly: already-live spaces are
+     skipped with no extra fetch. */
+  function placeAllSpaces(){
+    _spaces.forEach(function(sp){
+      if(D.querySelector('[data-yid="'+sp.id+'"]'))return;
+      loadSpace(sp);
+    });
 
-    /* 2. Scan DOM for any data-yepper-space divs not already covered. */
     var divs=D.querySelectorAll('[data-yepper-space]');
     for(var i=0;i<divs.length;i++){
-      loadSpaceById(divs[i].getAttribute('data-yepper-space'));
+      var id=divs[i].getAttribute('data-yepper-space');
+      if(D.querySelector('[data-yid="'+id+'"]'))continue;
+      loadSpaceById(id);
     }
+  }
 
-    /* 3. Fire analytics pageview ping */
+  /* ── Analytics pageview ping ──────────────────────────── */
+  function firePageview(){
     try{
       var _pv={
         websiteId:_wid,
@@ -436,6 +448,33 @@ exports.serveSiteScript = async (req, res) => {
         }).catch(function(){});
       }
     }catch(e){}
+  }
+
+  /* ── SPA route-change support ─────────────────────────── */
+  /* Single-page apps (Next.js, React Router, Vue Router, etc.) navigate
+     without a full reload, so a one-shot DOMContentLoaded init() only ever
+     runs on the very first page. Wrapping pushState/replaceState + listening
+     for popstate is the same technique analytics scripts like Umami use to
+     catch those client-side navigations. A short delay lets the framework
+     finish its own render of the new route before we go looking for spaces. */
+  function onRouteChange(){
+    setTimeout(function(){ placeAllSpaces(); firePageview(); },80);
+  }
+
+  function hookSpaNavigation(){
+    try{
+      window.addEventListener('popstate',onRouteChange);
+      var _push=history.pushState,_replace=history.replaceState;
+      history.pushState=function(){ var r=_push.apply(history,arguments); onRouteChange(); return r; };
+      history.replaceState=function(){ var r=_replace.apply(history,arguments); onRouteChange(); return r; };
+    }catch(e){}
+  }
+
+  /* ── Init ──────────────────────────────────────────────── */
+  function init(){
+    placeAllSpaces();
+    firePageview();
+    hookSpaNavigation();
   }
 
   D.readyState==='loading'

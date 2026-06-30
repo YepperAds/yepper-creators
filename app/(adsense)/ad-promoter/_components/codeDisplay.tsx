@@ -8,10 +8,14 @@ import {
   Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked, Atom,
 } from 'lucide-react';
 
-const AUTO_RELIABLE = [
-  'header','floating','overlay','modalpic',
-  'mobile interstitial','bottom','profooter'
-];
+// Only Floating and Modal are truly position-independent (position:fixed,
+// appended straight to <body> — they never depend on the page's DOM
+// structure). Header/Overlay/Mobile Interstitial/Bottom/proFooter used to be
+// "auto" too via a querySelector('header')/querySelector('footer') guess,
+// but that guess can land wrong (or not match the page's structure at all),
+// with no way for the owner to override it — so everything except these two
+// now goes through the iframe / Precise-Placement track instead.
+const AUTO_RELIABLE = ['floating', 'modalpic'];
 
 // ── Supported frameworks (icons only — no emojis) ─────────────────────────────
 // "Vanilla JS" (not "JavaScript") is deliberate — a React site IS technically
@@ -160,10 +164,10 @@ echo '<script src="${src}" async></script>';
   }
 }
 
-// ── Manual placement div per framework ───────────────────────────────────────
+// ── Iframe embed sizing per spaceType ──────────────────────────────────────────
 // Standard ad-unit sizes (industry-standard, same ones AdSense/Carbon Ads
 // use) keyed by spaceType — picked so the box reads naturally wherever that
-// type usually sits (a 728x90 leaderboard for in-feed/above-the-fold, a
+// type usually sits (a 728x90 leaderboard for header/in-feed/above-the-fold, a
 // narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
 // attributes freely; this is just a sane default.
 function recommendedEmbedSize(spaceType) {
@@ -176,6 +180,9 @@ function recommendedEmbedSize(spaceType) {
     'in feed':         { w: 728, h: 90 },
     'above the fold':  { w: 728, h: 90 },
     'beneath title':   { w: 728, h: 90 },
+    'header':          { w: 728, h: 90 },
+    'bottom':          { w: 728, h: 90 },
+    'profooter':       { w: 728, h: 90 },
   };
   return sizes[(spaceType || '').toLowerCase()] || { w: 300, h: 250 };
 }
@@ -614,8 +621,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
           <div className="border-t border-zinc-700 px-5 py-3 flex items-start gap-2 bg-zinc-950">
             <Info className="w-3 h-3 text-zinc-500 mt-0.5 shrink-0" />
             <p className="text-xs text-zinc-500">
-              Select your framework above to see the right code. The main script auto-places Header, Floating, Overlay,
-              Modal, Mobile Interstitial, Bottom and Footer spaces — nothing else to do for those.
+              Select your framework above to see the right code. The main script auto-places Floating and Modal
+              spaces — nothing else to do for those.
               {embedCategories.length > 0 && ' For the rest, expand "Precise-Placement Spaces" and paste the iframe where you want each ad.'}
             </p>
           </div>

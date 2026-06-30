@@ -469,6 +469,18 @@ exports.serveAdScript = async (req, res) => {
       host.appendChild(btn);
     }
 
+    /* Dismiss button for floating — reappears after 40s */
+    if(_sp==='Floating'){
+      var fbtn=D.createElement('button');
+      fbtn.textContent='×';
+      fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+      fbtn.onclick=function(){
+        host.style.display='none';
+        setTimeout(function(){host.style.display='block';},40000);
+      };
+      host.appendChild(fbtn);
+    }
+
     if(items.length>1){
       var cur=0;
       var firstAdId = items[cur].dataset.adId;

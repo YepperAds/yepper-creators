@@ -231,6 +231,28 @@ exports.serveSiteScript = async (req, res) => {
     return host;
   }
 
+  /* ── Dismiss button for a host (floating reappears after 40s) ── */
+  function addDismissButton(host, spaceType){
+    var stLower=spaceType.toLowerCase();
+    if(stLower==='overlay'||stLower==='modalpic'){
+      var btn=D.createElement('button');
+      btn.textContent='×';
+      btn.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;';
+      btn.onclick=function(){host.style.display='none';};
+      host.appendChild(btn);
+    }
+    if(stLower==='floating'){
+      var fbtn=D.createElement('button');
+      fbtn.textContent='×';
+      fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+      fbtn.onclick=function(){
+        host.style.display='none';
+        setTimeout(function(){host.style.display='block';},40000);
+      };
+      host.appendChild(fbtn);
+    }
+  }
+
   /* ── Render ads into host ─────────────────────────────── */
   function renderAds(host, sp, data, custom){
     var lang=getLang(sp.lang);
@@ -242,6 +264,7 @@ exports.serveSiteScript = async (req, res) => {
           '<p class="'+sp.px+'-empty-price">'+lang.price+': $'+sp.price+'/mo</p>'+
           '<a class="'+sp.px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_wid+'&categoryId='+sp.id+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
         '</div>';
+      addDismissButton(host, sp.spaceType);
       return;
     }
 
@@ -287,27 +310,7 @@ exports.serveSiteScript = async (req, res) => {
       });
     });
 
-    /* Dismiss for overlays */
-    var stLower=sp.spaceType.toLowerCase();
-    if(stLower==='overlay'||stLower==='modalpic'){
-      var btn=D.createElement('button');
-      btn.textContent='×';
-      btn.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;';
-      btn.onclick=function(){host.style.display='none';};
-      host.appendChild(btn);
-    }
-
-    /* Dismiss for floating — reappears after 40s */
-    if(stLower==='floating'){
-      var fbtn=D.createElement('button');
-      fbtn.textContent='×';
-      fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
-      fbtn.onclick=function(){
-        host.style.display='none';
-        setTimeout(function(){host.style.display='block';},40000);
-      };
-      host.appendChild(fbtn);
-    }
+    addDismissButton(host, sp.spaceType);
 
     if(items.length>1){
       var cur=0;

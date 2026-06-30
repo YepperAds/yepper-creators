@@ -379,6 +379,29 @@ exports.serveAdScript = async (req, res) => {
         '<p class="'+_px+'-empty-price">'+lang.price+': $'+_p+'/mo</p>'+
         '<a class="'+_px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_w+'&categoryId='+_i+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
       '</div>';
+    addDismissButton(host);
+  }
+
+  /* ── Dismiss button (floating reappears after 40s) ─────── */
+  function addDismissButton(host){
+    if(_sp==='overlay'||_sp==='modalPic'){
+      var btn=D.createElement('button');
+      btn.textContent='×';
+      btn.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;';
+      btn.onclick=function(){host.style.display='none';};
+      host.style.position='fixed';
+      host.appendChild(btn);
+    }
+    if(_sp==='Floating'){
+      var fbtn=D.createElement('button');
+      fbtn.textContent='×';
+      fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+      fbtn.onclick=function(){
+        host.style.display='none';
+        setTimeout(function(){host.style.display='block';},40000);
+      };
+      host.appendChild(fbtn);
+    }
   }
 
   function credit(){
@@ -434,27 +457,7 @@ exports.serveAdScript = async (req, res) => {
       });
     });
 
-    /* Dismiss button for overlays */
-    if(_sp==='overlay'||_sp==='modalPic'){
-      var btn=D.createElement('button');
-      btn.textContent='×';
-      btn.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;';
-      btn.onclick=function(){host.style.display='none';};
-      host.style.position='fixed';
-      host.appendChild(btn);
-    }
-
-    /* Dismiss button for floating — reappears after 40s */
-    if(_sp==='Floating'){
-      var fbtn=D.createElement('button');
-      fbtn.textContent='×';
-      fbtn.style.cssText='position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#000;color:#fff;font-size:15px;line-height:24px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
-      fbtn.onclick=function(){
-        host.style.display='none';
-        setTimeout(function(){host.style.display='block';},40000);
-      };
-      host.appendChild(fbtn);
-    }
+    addDismissButton(host);
 
     if(items.length>1){
       var cur=0;

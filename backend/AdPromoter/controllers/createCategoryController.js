@@ -151,6 +151,7 @@ exports.createCategory = async (req, res) => {
       price: finalPrice,
       spaceType,
       placementMode: placementMode || 'auto',
+      userCount: parseInt(userCount, 10) || 0,
       instructions,
       customAttributes: customAttributes || {},
       webOwnerEmail: userEmail,

@@ -158,7 +158,7 @@ exports.serveSiteScript = async (req, res) => {
       _c="${CAT_BASE}",
       _f="${FRONTEND}",
       _spaces=${spacesJSON},
-      _rot=5000,
+      _rot=4000,
       _pageLoadTs=Date.now();
 
   /* ── Genie show/hide animation for floating ads ───────── */

@@ -253,7 +253,7 @@ exports.serveAdScript = async (req, res) => {
       _f="${FRONTEND}",
       _p=${categoryPrice},
       _l="${defaultLanguage}",
-      _t=5000,
+      _t=4000,
       _sp="${spaceType}",
       _px="${prefix}",
       _wa="${wrapAlias}",
@@ -701,24 +701,46 @@ exports.serveAdEmbed = async (req, res) => {
           <a class="${prefix}-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
         </div>`;
     } else {
-      const items = ads.map((ad, idx) => {
+      const adCards = ads.map(ad => {
         const imageUrl = escapeHtml(ad.image_url || '');
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name || '');
         const description = escapeHtml(ad.ad_description || '');
-        return `
-          <a class="${prefix}-ad" data-ad-id="${ad.id}" href="${targetUrl}" target="_blank" rel="noopener" style="display:${idx === 0 ? 'block' : 'none'}">
-            <div class="${prefix}-inner">
-              <div class="${prefix}-img-wrap"><img class="${prefix}-img" src="${imageUrl}" alt="" loading="lazy"></div>
-              <div class="${prefix}-text">
-                <p class="${prefix}-title">${businessName}</p>
-                <p class="${prefix}-desc">${description}</p>
-                <span class="${prefix}-cta">Visit Website</span>
-              </div>
-            </div>
-            <span class="${prefix}-credit">Ad by Yepper</span>
-          </a>`;
-      }).join('');
+        return {
+          adId: ad.id,
+          href: targetUrl,
+          inner: `
+            <div class="${prefix}-img-wrap"><img class="${prefix}-img" src="${imageUrl}" alt="" loading="lazy"></div>
+            <div class="${prefix}-text">
+              <p class="${prefix}-title">${businessName}</p>
+              <p class="${prefix}-desc">${description}</p>
+              <span class="${prefix}-cta">Visit Website</span>
+            </div>`,
+          credit: `<span class="${prefix}-credit">Ad by Yepper</span>`,
+        };
+      });
+
+      // Owner configured more slots than are sold — rotate an "available"
+      // card in too, so it isn't just dropped from the loop.
+      if (ads.length < (adCategory.user_count || ads.length)) {
+        adCards.push({
+          adId: '',
+          href: `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}`,
+          inner: `
+            <div class="${prefix}-text" style="width:100%;text-align:center;justify-content:center;">
+              <p class="${prefix}-title">Available Advertising Space</p>
+              <p class="${prefix}-desc">Price: $${categoryPrice}/mo</p>
+              <span class="${prefix}-cta">Advertise Here</span>
+            </div>`,
+          credit: '',
+        });
+      }
+
+      const items = adCards.map((card, idx) => `
+          <a class="${prefix}-ad" data-ad-id="${card.adId}" href="${card.href}" target="_blank" rel="noopener" style="display:${idx === 0 ? 'block' : 'none'}">
+            <div class="${prefix}-inner">${card.inner}</div>
+            ${card.credit}
+          </a>`).join('');
       bodyHtml = `<div class="${prefix}-wrap" style="position:relative;width:100%;height:100%;">${items}</div>`;
     }
 
@@ -752,7 +774,7 @@ ${bodyHtml}
         cur=(cur+1)%items.length;
         items[cur].style.display='block';
         track('view',items[cur].dataset.adId);
-      },5000);
+      },4000);
     }
   }
 })();

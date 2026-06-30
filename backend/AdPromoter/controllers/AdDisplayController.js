@@ -73,6 +73,26 @@ async function resolveCategoryAndAds(categoryId, req) {
 }
 exports.resolveCategoryAndAds = resolveCategoryAndAds;
 
+// When the website owner configured more ad slots (user_count) than are
+// currently sold, append one "Available Advertising Space" item to the
+// rotation so visitors see it (and can buy the remaining slot) instead of
+// the open slot just being silently dropped from the loop.
+function availableSlotHtml(adCategory, categoryId) {
+  const FRONTEND = process.env.FRONTEND_URL || '';
+  return `
+    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
+      <a href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}" class="sp-link" target="_blank" rel="noopener">
+        <div class="sp-content">
+          <div class="sp-text-content">
+            <h3 class="sp-business-name">Available Advertising Space</h3>
+            <p class="sp-description">Price: $${adCategory.price}/mo</p>
+            <button class="sp-cta" type="button">Advertise Here</button>
+          </div>
+        </div>
+      </a>
+    </div>`;
+}
+
 exports.displayAd = async (req, res) => {
   try {
     const { categoryId } = req.query;
@@ -103,7 +123,11 @@ exports.displayAd = async (req, res) => {
       } catch (e) { return ''; }
     }).filter(Boolean).join('');
 
-    return res.json({ html: `<div class="sp-container">${adsHtml}</div>` });
+    const openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
+      ? availableSlotHtml(adCategory, categoryId)
+      : '';
+
+    return res.json({ html: `<div class="sp-container">${adsHtml}${openSlot}</div>` });
   } catch (error) {
     console.error('Error displaying ad:', error);
     return res.json({ html: '' });

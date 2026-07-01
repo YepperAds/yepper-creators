@@ -46,9 +46,11 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   );
 }
 
-// A cartoon "where the ad shows up" sticker — a sunny sky, drifting clouds,
-// a little storefront awning and a starburst "AD" sticker nudging over it —
-// deliberately illustrated rather than a realistic browser mockup, since the
+// A cartoon "where the ad shows up" sticker — a sunny sky with drifting
+// clouds behind a cartoon browser window (traffic-light dots + address bar
+// + content lines, so it unmistakably reads as "a website" instead of a
+// generic storefront scene) and a starburst "AD" sticker nudging over it —
+// deliberately illustrated rather than a realistic screenshot, since the
 // point is a fun, promo-poster read ("your ad pops up on real sites"), not a
 // literal screenshot of any one site.
 function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
@@ -57,35 +59,35 @@ function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
       <p className="text-[11px] font-bold text-[#0284c7] truncate mb-1.5">{website.websiteName}</p>
       <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-b from-[#7dd3fc] to-[#38bdf8]">
         {/* Cartoon sun, top-left, with a soft radiating halo */}
-        <div className="absolute top-1.5 left-1.5 w-3.5 h-3.5 rounded-full bg-[#fde047] shadow-[0_0_0_3px_rgba(253,224,71,0.45),0_0_10px_2px_rgba(253,224,71,0.5)]" />
+        <div className="absolute top-1 left-1.5 w-3 h-3 rounded-full bg-[#fde047] shadow-[0_0_0_3px_rgba(253,224,71,0.45),0_0_10px_2px_rgba(253,224,71,0.5)]" />
 
-        {/* Drifting cloud blobs */}
-        <div className="yp-cloud-drift absolute top-2 right-3 flex items-center">
+        {/* Drifting cloud blobs, peeking above the browser window */}
+        <div className="yp-cloud-drift absolute top-1 right-2 flex items-center">
           <span className="w-3 h-2 rounded-full bg-[#fff]/85" />
           <span className="w-2 h-2.5 rounded-full bg-[#fff]/85 -ml-1" />
         </div>
-        <div className="yp-cloud-drift absolute top-5 right-7 flex items-center" style={{ animationDelay: '1.5s' }}>
-          <span className="w-2 h-1.5 rounded-full bg-[#fff]/70" />
-          <span className="w-1.5 h-2 rounded-full bg-[#fff]/70 -ml-0.5" />
+
+        {/* Sparkle accent */}
+        <span className="yp-sparkle absolute top-0.5 right-7 w-1 h-1 rounded-full bg-[#fff]" />
+
+        {/* Cartoon browser window — traffic-light dots + address pill +
+            content lines are the unmistakable "this is a website" cue */}
+        <div className="absolute inset-x-1.5 bottom-1.5 top-4 rounded-md bg-[#fff] shadow-md overflow-hidden">
+          <div className="h-2 bg-[#e2e8f0] flex items-center gap-0.5 px-1">
+            <span className="w-[3px] h-[3px] rounded-full bg-[#f87171]" />
+            <span className="w-[3px] h-[3px] rounded-full bg-[#fbbf24]" />
+            <span className="w-[3px] h-[3px] rounded-full bg-[#4ade80]" />
+            <span className="ml-1 flex-1 h-[3px] rounded-full bg-[#cbd5e1]" />
+          </div>
+          <div className="px-1.5 pt-1.5 space-y-1">
+            <div className="h-1 w-3/4 rounded bg-[#0284c7]/35" />
+            <div className="h-1 w-1/2 rounded bg-[#0284c7]/20" />
+            <div className="h-1 w-2/3 rounded bg-[#0284c7]/20" />
+          </div>
         </div>
 
-        {/* Sparkle accents */}
-        <span className="yp-sparkle absolute top-1 right-1 w-1 h-1 rounded-full bg-[#fff]" />
-        <span className="yp-sparkle absolute bottom-6 left-2 w-1 h-1 rounded-full bg-[#fff]" style={{ animationDelay: '0.6s' }} />
-
-        {/* Cartoon storefront: striped awning + door, sitting on the "ground" */}
-        <div className="absolute bottom-0 inset-x-0 h-3.5 bg-[#0369a1]/25" />
-        <div className="absolute bottom-3.5 inset-x-2 h-2 rounded-t-md overflow-hidden flex">
-          <span className="flex-1 bg-[#fff]" />
-          <span className="flex-1 bg-[#fb923c]" />
-          <span className="flex-1 bg-[#fff]" />
-          <span className="flex-1 bg-[#fb923c]" />
-          <span className="flex-1 bg-[#fff]" />
-        </div>
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-t-sm bg-[#7c4a1e]" />
-
-        {/* Starburst "Ad" sticker nudging over the scene */}
-        <div className="yp-adshake absolute bottom-1 right-1 z-10 flex items-center justify-center w-6 h-6 yp-starburst bg-[#fb923c] shadow-lg">
+        {/* Starburst "Ad" sticker nudging over the browser window */}
+        <div className="yp-adshake absolute bottom-0.5 right-0.5 z-10 flex items-center justify-center w-6 h-6 yp-starburst bg-[#fb923c] shadow-lg">
           <span className="text-[7px] font-extrabold text-[#fff] leading-none">AD</span>
         </div>
       </div>

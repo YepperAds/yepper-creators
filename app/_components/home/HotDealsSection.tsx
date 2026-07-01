@@ -73,42 +73,42 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           const category = getBusinessCategory(deal.businessCategory);
           return (
-            <div key={deal.id} className="category-art w-72 shrink-0 overflow-hidden p-0">
-              {category.isIcon ? (
-                <div className="flex items-center gap-1.5 px-4 pt-4">
-                  <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />
-                  <p className="text-[10px] font-bold uppercase text-(--color-muted)">{category.label}</p>
-                </div>
-              ) : (
-                <div className="relative h-24 w-full">
+            <div key={deal.id} className={`category-art w-72 shrink-0 overflow-hidden p-0 relative ${category.isIcon ? '' : 'h-64'}`}>
+              {!category.isIcon && (
+                <>
                   <Image src={category.image} alt="" fill sizes="288px" className="object-cover" />
-                  <div className="category-photo-scrim absolute inset-0" />
+                  {/* Flat wash over the whole photo (not just a bottom gradient) so
+                      every line of white text stays legible wherever it lands. */}
+                  <div className="absolute inset-0 bg-black/55" />
                   <div className="absolute inset-0 overflow-hidden">
-                    <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                    <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
                   </div>
-                  <p className="absolute bottom-2 left-3 z-10 text-sm font-extrabold uppercase text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
+                </>
+              )}
+
+              <div className={category.isIcon ? 'p-4' : 'relative z-10 h-full flex flex-col p-4'}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  {category.isIcon && <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />}
+                  <p className={`text-[10px] font-extrabold uppercase tracking-wide ${category.isIcon ? 'text-(--color-muted)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>
                     {category.label}
                   </p>
                 </div>
-              )}
-
-              <div className="p-4 pt-3">
-                <h3 className="text-sm font-bold text-(--color-white) truncate">{deal.title}</h3>
+                <h3 className={`text-sm font-bold truncate ${category.isIcon ? 'text-(--color-white)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>{deal.title}</h3>
                 {deal.description && (
-                  <p className="text-xs text-(--color-subtle) mt-1 line-clamp-2">{deal.description}</p>
+                  <p className={`text-xs mt-1 line-clamp-2 ${category.isIcon ? 'text-(--color-subtle)' : 'text-white/85 [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>{deal.description}</p>
                 )}
-                <p className="text-xs text-(--color-muted) mt-2">{itemSummary(deal)}</p>
+                <p className={`text-xs mt-2 ${category.isIcon ? 'text-(--color-muted)' : 'text-white/75'}`}>{itemSummary(deal)}</p>
 
-                <div className="mt-3 flex items-center justify-between">
+                <div className={`flex items-center justify-between pt-3 ${category.isIcon ? 'mt-3' : 'mt-auto'}`}>
                   <div>
-                    <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
+                    <p className={`text-base font-bold ${category.isIcon ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-400'}`}>{deal.totalPrice.toLocaleString()} RWF</p>
                     {savings > 0 && (
-                      <p className="text-[10px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
+                      <p className={`text-[10px] line-through ${category.isIcon ? 'text-(--color-muted)' : 'text-white/60'}`}>{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                     )}
                   </div>
                   <button
                     onClick={() => viewDeal(deal)}
-                    className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white"
+                    className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white shrink-0"
                   >
                     View deal
                   </button>

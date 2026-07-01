@@ -25,7 +25,7 @@ const MAIN_ITEMS = [
 
 const ADD_ITEMS = [
   { label: 'Add website',          panel: 'add-website',      icon: PlusCircleIcon },
-  { label: 'Add YouTube channel',  panel: 'connect-accounts', icon: VideoCameraIcon },
+  { label: 'Connect accounts',     panel: 'connect-accounts', icon: VideoCameraIcon },
 ];
 
 const ACCOUNT_ITEMS = [

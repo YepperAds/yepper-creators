@@ -34,7 +34,7 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
         {video ? (
           <VideoEmbed url={video.url} thumbnail={video.thumbnail} title={video.title} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/40 text-[9px]">No video yet</div>
+          <div className="w-full h-full flex items-center justify-center text-[#fff]/40 text-[9px]">No video yet</div>
         )}
       </div>
     </div>
@@ -60,7 +60,7 @@ function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
           <div className="h-1 w-1/2 rounded bg-[#0369a1]/25" />
           <div className="h-1 w-2/3 rounded bg-[#0369a1]/25" />
         </div>
-        <div className="yp-adshake absolute bottom-1.5 right-1.5 bg-[#fb923c] text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-lg">
+        <div className="yp-adshake absolute bottom-1.5 right-1.5 bg-[#fb923c] text-[#fff] text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-lg">
           Ad
         </div>
       </div>

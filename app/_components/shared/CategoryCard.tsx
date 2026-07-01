@@ -36,7 +36,7 @@ export default function CategoryCard({ id, label, description, selected, onClick
         <>
           {selected && (
             <span className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-coral flex items-center justify-center shadow-sm">
-              <CheckIcon className="w-3 h-3 text-white" />
+              <CheckIcon className="w-3 h-3 text-[#fff]" />
             </span>
           )}
           {image}
@@ -67,13 +67,13 @@ export default function CategoryCard({ id, label, description, selected, onClick
         <div className="category-photo-scrim absolute inset-0" />
         {selected && (
           <span className="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-coral flex items-center justify-center shadow-sm">
-            <CheckIcon className="w-3.5 h-3.5 text-white" />
+            <CheckIcon className="w-3.5 h-3.5 text-[#fff]" />
           </span>
         )}
         <div className="relative z-10 p-4">
-          <span className="text-lg font-extrabold text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{displayLabel}</span>
+          <span className="text-lg font-extrabold text-[#fff] [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{displayLabel}</span>
           {description && (
-            <span className="block text-xs text-white/85 mt-1 line-clamp-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">{description}</span>
+            <span className="block text-xs text-[#fff]/85 mt-1 line-clamp-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">{description}</span>
           )}
         </div>
       </>

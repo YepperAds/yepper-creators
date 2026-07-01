@@ -108,7 +108,7 @@ export default function HotDealsSection({
                 <div className="relative z-10 h-full flex flex-col justify-between p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-coral px-2 py-0.5 mb-1.5 text-[9px] font-extrabold uppercase tracking-wide text-[#fff]">
+                      <span className="yp-pulse-pop inline-flex items-center gap-1 rounded-full bg-coral px-2 py-0.5 mb-1.5 text-[9px] font-extrabold uppercase tracking-wide text-[#fff]">
                         <FireIcon className="w-2.5 h-2.5" /> Hot deal
                       </span>
                       <p className="text-lg sm:text-xl font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
@@ -117,7 +117,7 @@ export default function HotDealsSection({
                     </div>
                     <button
                       onClick={() => pickDeal(deal)}
-                      className="shrink-0 flex items-center gap-1 px-4 py-2 rounded-full bg-[#fff] text-black text-xs font-extrabold shadow-[0_0_14px_rgba(255,255,255,0.55)] hover:shadow-[0_0_20px_rgba(255,255,255,0.75)] transition-shadow"
+                      className="yp-cta-glow-pulse shrink-0 flex items-center gap-1 px-4 py-2 rounded-full bg-[#fff] text-black text-xs font-extrabold hover:shadow-[0_0_30px_rgba(255,255,255,1)] transition-shadow"
                     >
                       Pick the package <ArrowRightIcon className="w-3 h-3" />
                     </button>

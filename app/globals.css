@@ -232,10 +232,36 @@ body {
    read exactly the same in light and dark mode (the whole point of putting
    it on a photo + fixed white price panel is that it shouldn't repaint when
    the visitor's OS/browser theme does). ─────────────────────────────────── */
+/* Breathing glow, not a static shadow — reads as "live promotion" the way a
+   pulsing neon sign does. Only the shadow's own size/opacity moves, nothing
+   shifts position, so it never disturbs the layout around it. */
+@keyframes yp-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 20px 4px rgba(250, 204, 21, 0.5); }
+  50%      { box-shadow: 0 0 0 3px rgba(250, 204, 21, 1),   0 0 34px 10px rgba(250, 204, 21, 0.8); }
+}
 .hotdeal-glow {
   /* Radius comes from the element's own rounded-* utility class, not here,
      so the two never fight over which one wins the cascade. */
-  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 20px 4px rgba(250, 204, 21, 0.5);
+  animation: yp-glow-pulse 2.4s ease-in-out infinite;
+}
+
+/* Subtle scale pulse for the "Hot deal" tag and the CTA button — draws the
+   eye without moving anything out of place (transform: scale only, no
+   position change, so text/icons inside never reflow or drift). */
+@keyframes yp-pulse-pop {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+.yp-pulse-pop {
+  animation: yp-pulse-pop 1.7s ease-in-out infinite;
+}
+
+@keyframes yp-cta-glow-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 255, 255, 0.55); }
+  50%      { box-shadow: 0 0 28px rgba(255, 255, 255, 0.95); }
+}
+.yp-cta-glow-pulse {
+  animation: yp-cta-glow-pulse 1.7s ease-in-out infinite;
 }
 
 /* Small attention-getting wiggle for the fake "Ad" popup on website platform

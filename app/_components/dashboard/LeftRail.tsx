@@ -72,7 +72,7 @@ export default function LeftRail() {
 
   return (
     <>
-      <aside className="w-60 shrink-0 p-4">
+      <aside className="w-64 shrink-0 p-4">
         <div className="rounded-2xl border border-border bg-surface-1 p-3 sticky top-4">
           <nav className="flex flex-col gap-1">
             {MAIN_ITEMS.map((item) => (

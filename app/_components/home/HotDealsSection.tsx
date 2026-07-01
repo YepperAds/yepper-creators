@@ -77,10 +77,10 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
               {!category.isIcon && (
                 <>
                   <Image src={category.image} alt="" fill sizes="288px" className="object-cover" />
-                  {/* Flat wash over the whole photo (not just a bottom gradient) so
-                      every line of white text stays legible wherever it lands, on any
-                      photo brightness and in either theme. */}
-                  <div className="absolute inset-0 bg-black/60" />
+                  {/* Darkens more toward the bottom, where the actual text block sits,
+                      so legibility doesn't depend on how bright that patch of the source
+                      photo happens to be (e.g. a light laptop screen behind the title). */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/65 to-black/85" />
                 </>
               )}
 

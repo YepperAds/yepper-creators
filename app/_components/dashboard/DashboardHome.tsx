@@ -28,7 +28,7 @@ export default function DashboardHome({
     <div className="yp-mesh min-h-screen font-(--font-inter)">
       <Header />
       <div className="max-w-7xl mx-auto flex">
-        <Suspense fallback={<div className="w-56 shrink-0" />}>
+        <Suspense fallback={<div className="w-64 shrink-0" />}>
           <LeftRail />
         </Suspense>
         <main className="flex-1 min-w-0 p-4">

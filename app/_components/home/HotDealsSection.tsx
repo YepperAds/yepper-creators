@@ -126,21 +126,26 @@ export default function HotDealsSection({
                 </div>
               </div>
 
-              <div className="bg-[#fff] px-3 py-3">
-                <div className="flex items-center justify-center flex-wrap gap-2 mb-2.5">
-                  {savings > 0 && (
-                    <span className="text-[11px] text-black/40 line-through">{originalPrice.toLocaleString()} RWF</span>
-                  )}
-                  <span className="text-xs text-black">
-                    Only on <span className="text-sm font-extrabold">{deal.totalPrice.toLocaleString()} RWF</span>
-                  </span>
-                  {savings > 0 && (
-                    <span className="text-[10px] font-extrabold text-[#fff] bg-coral px-2 py-0.5 rounded-full">
-                      Save {savings.toLocaleString()} RWF
+              {/* Promo-stripe band, not flush with the card edges — the white
+                  content panel below sits padded inside it, rather than the
+                  white filling the whole width/corners like a plain document. */}
+              <div className="yp-promo-stripes px-3 pt-3 pb-3">
+                <div className="rounded-2xl bg-[#fff] px-3 py-3 shadow-[0_6px_18px_rgba(0,0,0,0.18)]">
+                  <div className="flex items-center justify-center flex-wrap gap-2 mb-2.5">
+                    {savings > 0 && (
+                      <span className="text-[11px] text-black/40 line-through">{originalPrice.toLocaleString()} RWF</span>
+                    )}
+                    <span className="text-xs text-black">
+                      Only on <span className="text-sm font-extrabold">{deal.totalPrice.toLocaleString()} RWF</span>
                     </span>
-                  )}
+                    {savings > 0 && (
+                      <span className="text-[10px] font-extrabold text-[#fff] bg-coral px-2 py-0.5 rounded-full">
+                        Save {savings.toLocaleString()} RWF
+                      </span>
+                    )}
+                  </div>
+                  <PlatformCarousel items={deal.items} creators={creators} websites={websites} />
                 </div>
-                <PlatformCarousel items={deal.items} creators={creators} websites={websites} />
               </div>
             </div>
           );

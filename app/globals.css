@@ -293,3 +293,48 @@ body {
 .yp-marquee:hover {
   animation-play-state: paused;
 }
+
+/* ── Cartoon promo backdrop for the hot deal's price/platforms panel — a
+   diagonal candy-stripe band in the brand coral, the classic "sale banner"
+   texture, so the white price panel reads as a card sitting on a promo
+   background instead of being the bottom half of the tile edge-to-edge. */
+.yp-promo-stripes {
+  background-color: #e8472b;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.14) 0px,
+    rgba(255, 255, 255, 0.14) 14px,
+    transparent 14px,
+    transparent 28px
+  );
+}
+
+/* Slow independent drift for the cartoon cloud shapes on the website
+   platform tile — each instance gets its own animation-delay via inline
+   style so a row of tiles doesn't move in lockstep. */
+@keyframes yp-cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(4px); }
+}
+.yp-cloud-drift {
+  animation: yp-cloud-drift 4s ease-in-out infinite;
+}
+
+/* Twinkle for the little sparkle accents on the website tile's cartoon sky. */
+@keyframes yp-sparkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50%      { opacity: 1;    transform: scale(1.15); }
+}
+.yp-sparkle {
+  animation: yp-sparkle 1.8s ease-in-out infinite;
+}
+
+/* 8-point starburst sticker shape for the "Ad" badge on the website tile —
+   reads as a cartoon sale sticker instead of a plain rounded label. */
+.yp-starburst {
+  clip-path: polygon(
+    50.0% 0.0%, 58.0% 30.6%, 85.4% 14.6%, 69.4% 42.0%, 100.0% 50.0%,
+    69.4% 58.0%, 85.4% 85.4%, 58.0% 69.4%, 50.0% 100.0%, 42.0% 69.4%,
+    14.6% 85.4%, 30.6% 58.0%, 0.0% 50.0%, 30.6% 42.0%, 14.6% 14.6%, 42.0% 30.6%
+  );
+}

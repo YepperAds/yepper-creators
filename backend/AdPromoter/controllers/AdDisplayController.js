@@ -122,7 +122,7 @@ exports.displayAd = async (req, res) => {
           <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">
               <div class="sp-content">
-                <img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy">
+                <div class="sp-image-wrapper"><img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy"></div>
                 <div class="sp-text-content">
                   <h3 class="sp-business-name">${businessName}</h3>
                   <p class="sp-description">${description}</p>

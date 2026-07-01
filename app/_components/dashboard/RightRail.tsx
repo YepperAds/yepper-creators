@@ -3,10 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { GlobeAltIcon, FilmIcon, PhotoIcon } from '@heroicons/react/24/outline';
-
-interface OwnWebsite { id: string | number; websiteName: string; imageUrl: string | null }
-interface OwnAdPost { id: number; title: string; thumbnail_url: string | null }
-interface MyAd { id: string; image: string | null; title: string; kind: 'website' | 'youtube' }
+import { fetchDashboardAds, type OwnWebsite, type MyAd } from '@/app/_lib/my-ads';
 
 function Box({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -79,55 +76,13 @@ export default function RightRail() {
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const sessRes  = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
-        const sessJson = await sessRes.json().catch(() => ({}));
-        const userId   = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
-        if (!userId || cancelled) return;
-
-        const [wRes, aRes, activeRes] = await Promise.all([
-          fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store' }),
-          fetch(`/api/social/ad-posts?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
-          fetch('/api/proxy/api/ad-categories/active-ads', { credentials: 'include', cache: 'no-store' }),
-        ]);
-
+    fetchDashboardAds()
+      .then(({ websites: ownWebsites, ads }) => {
         if (cancelled) return;
-
-        const wJson = await wRes.json().catch(() => ({}));
-        const ownWebsites: OwnWebsite[] = Array.isArray(wJson) ? wJson : (wJson?.data ?? []);
         setWebsites(ownWebsites);
-
-        const aJson = await aRes.json().catch(() => ({}));
-        const adPosts: OwnAdPost[] = Array.isArray(aJson?.data) ? aJson.data : [];
-
-        const ownWebsiteIds = new Set(ownWebsites.map((w) => String(w.id)));
-        const activeJson = await activeRes.json().catch(() => ({}));
-        const activeAds: Array<Record<string, unknown>> = Array.isArray(activeJson?.activeAds) ? activeJson.activeAds : [];
-        const websiteAds: MyAd[] = activeAds
-          .filter((ad) => Array.isArray(ad.websiteSelections) && (ad.websiteSelections as Array<Record<string, unknown>>).some(
-            (s) => ownWebsiteIds.has(String(s.websiteId)) && s.approved && !s.isRejected && s.status === 'active',
-          ))
-          .map((ad) => ({
-            id: `web-${ad.id}`,
-            image: (ad.imageUrl as string) || null,
-            title: (ad.businessName as string) || 'Ad',
-            kind: 'website' as const,
-          }));
-
-        const youtubeAds: MyAd[] = adPosts.map((p) => ({
-          id: `yt-${p.id}`,
-          image: p.thumbnail_url || null,
-          title: p.title,
-          kind: 'youtube' as const,
-        }));
-
-        if (!cancelled) setMyAds([...youtubeAds, ...websiteAds]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+        setMyAds(ads);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 

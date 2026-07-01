@@ -8,6 +8,7 @@ import VideoEmbed from '@/app/_components/home/VideoEmbed';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteLogoTile from './WebsiteLogoTile';
+import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 interface AdSpace {
@@ -204,7 +205,12 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   // a small video preview row for each creator, logo tiles for websites.
   return (
     <div className="space-y-8">
-      <HotDealsSection deals={hotDeals} initialDealId={initialDealId} />
+      <HotDealsSection
+        deals={hotDeals}
+        initialDealId={initialDealId}
+        websites={websites.length > 0 ? websites : MOCK_WEBSITES}
+        creators={creators.length > 0 ? creators : MOCK_CREATORS}
+      />
 
       <div>
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Advertise on Yepper</h3>

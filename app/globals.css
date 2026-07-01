@@ -226,3 +226,43 @@ body {
 .category-photo-scrim {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
 }
+
+/* ── Hot deal spotlight card (HotDealsSection.tsx) — every color here is a
+   literal value, never a --color-* theme token, because the deal is meant to
+   read exactly the same in light and dark mode (the whole point of putting
+   it on a photo + fixed white price panel is that it shouldn't repaint when
+   the visitor's OS/browser theme does). ─────────────────────────────────── */
+.hotdeal-glow {
+  border-radius: 28px;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 28px 6px rgba(250, 204, 21, 0.55);
+}
+
+/* Small attention-getting wiggle for the fake "Ad" popup on website platform
+   tiles — deliberately irregular (not a smooth sine) so it reads as a nudge,
+   not a smooth loading/pulse animation. */
+@keyframes yp-adshake {
+  0%, 100% { transform: rotate(0deg); }
+  20%      { transform: rotate(-6deg); }
+  40%      { transform: rotate(5deg); }
+  60%      { transform: rotate(-4deg); }
+  80%      { transform: rotate(3deg); }
+}
+.yp-adshake {
+  animation: yp-adshake 2.2s ease-in-out infinite;
+}
+
+/* Continuous right-to-left drift for the platform-tiles row, only turned on
+   (via the .yp-marquee class) once there are enough tiles that sliding is
+   actually useful — the row's content is duplicated once in the markup so
+   the loop point at -50% is seamless. Pauses on hover so it's actually
+   possible to click a tile. */
+@keyframes yp-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.yp-marquee {
+  animation: yp-marquee 22s linear infinite;
+}
+.yp-marquee:hover {
+  animation-play-state: paused;
+}

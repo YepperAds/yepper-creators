@@ -98,7 +98,12 @@ export default function CenterPanel({
   } else {
     content = (
       <div>
-        <HotDealsSection deals={hotDeals} initialDealId={dealId} />
+        <HotDealsSection
+          deals={hotDeals}
+          initialDealId={dealId}
+          websites={websites.length > 0 ? websites : MOCK_WEBSITES}
+          creators={creators.length > 0 ? creators : MOCK_CREATORS}
+        />
         <OwnContentCTA />
         <div className="rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>

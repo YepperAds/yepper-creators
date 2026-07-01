@@ -39,7 +39,7 @@ export default function HomePage({
           </p>
         </div>
 
-        <HotDealsSection deals={hotDeals} initialDealId={dealId} requireLogin />
+        <HotDealsSection deals={hotDeals} initialDealId={dealId} requireLogin websites={displayWebsites} creators={displayCreators} />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           <HomeFeed websites={displayWebsites} creators={displayCreators} />

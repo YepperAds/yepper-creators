@@ -3,21 +3,13 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { FireIcon } from '@heroicons/react/24/solid';
-import type { HotDeal } from '@/app/_lib/public-home';
+import type { HotDeal, PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 import { getBusinessCategory } from '@/app/_lib/business-categories';
 import HotDealPurchaseModal from './HotDealPurchaseModal';
+import PlatformCarousel from './HotDealPlatformCard';
 
 function redirectToLoginForDeal(dealId: string) {
   window.location.href = `/login?from=${encodeURIComponent(`/?dealId=${dealId}`)}`;
-}
-
-function itemSummary(deal: HotDeal): string {
-  const youtubeCount = deal.items.filter((i) => i.itemType === 'youtube').length;
-  const websiteCount = deal.items.filter((i) => i.itemType === 'website').length;
-  const parts: string[] = [];
-  if (youtubeCount) parts.push(`${youtubeCount} YouTube slot${youtubeCount === 1 ? '' : 's'}`);
-  if (websiteCount) parts.push(`${websiteCount} website space${websiteCount === 1 ? '' : 's'}`);
-  return parts.join(' + ');
 }
 
 // Admin-curated bundles, shown to every visitor — signed in or not — as a
@@ -30,11 +22,30 @@ function itemSummary(deal: HotDeal): string {
 // home feed and every dashboard panel that shows it alike.
 //
 // `requireLogin` is set by the logged-out home feed (HomePage.tsx is only
-// ever rendered when there's no session — see app/page.tsx) so "View deal"
-// sends the visitor to log in first, then lands them right back on this
-// same deal's purchase modal via the `dealId` deep link above, instead of
-// only discovering they need to log in after filling out the whole form.
-export default function HotDealsSection({ deals, initialDealId, requireLogin }: { deals: HotDeal[]; initialDealId?: string; requireLogin?: boolean }) {
+// ever rendered when there's no session — see app/page.tsx) so "Pick the
+// package" sends the visitor to log in first, then lands them right back on
+// this same deal's purchase modal via the `dealId` deep link above, instead
+// of only discovering they need to log in after filling out the whole form.
+//
+// `websites`/`creators` resolve each deal item's real content (channel
+// avatar + an actual video, or the site's real name) for the platform tiles
+// below the price — see HotDealPlatformCard.tsx. Every color on this card is
+// a literal value, not a --color-* theme token: the whole point of the photo
+// + fixed white price panel is that it reads identically in light and dark
+// mode, per explicit design direction.
+export default function HotDealsSection({
+  deals,
+  initialDealId,
+  requireLogin,
+  websites = [],
+  creators = [],
+}: {
+  deals: HotDeal[];
+  initialDealId?: string;
+  requireLogin?: boolean;
+  websites?: PublicWebsite[];
+  creators?: PublicCreator[];
+}) {
   const [active, setActive] = useState<HotDeal | null>(
     () => (initialDealId ? deals.find((d) => d.id === initialDealId) ?? null : null),
   );
@@ -52,7 +63,7 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
 
   if (!deals.length) return null;
 
-  const viewDeal = (deal: HotDeal) => {
+  const pickDeal = (deal: HotDeal) => {
     if (requireLogin) {
       redirectToLoginForDeal(deal.id);
       return;
@@ -68,49 +79,40 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-coral/15 text-coral-text">Trending</span>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="space-y-5">
         {deals.map((deal) => {
-          const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           const category = getBusinessCategory(deal.businessCategory);
           return (
-            <div key={deal.id} className={`category-art w-72 shrink-0 overflow-hidden p-0 relative ${category.isIcon ? '' : 'h-64'}`}>
-              {!category.isIcon && (
-                <>
-                  <Image src={category.image} alt="" fill sizes="288px" className="object-cover" />
-                  {/* Darkens more toward the bottom, where the actual text block sits,
-                      so legibility doesn't depend on how bright that patch of the source
-                      photo happens to be (e.g. a light laptop screen behind the title). */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/65 to-black/85" />
-                </>
-              )}
-
-              <div className={category.isIcon ? 'p-4' : 'relative z-10 h-full flex flex-col p-4'}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  {category.isIcon && <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />}
-                  <p className={`text-[10px] font-extrabold uppercase tracking-wide ${category.isIcon ? 'text-(--color-muted)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>
-                    {category.label}
-                  </p>
-                </div>
-                <h3 className={`text-sm font-bold truncate ${category.isIcon ? 'text-(--color-white)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.title}</h3>
-                {deal.description && (
-                  <p className={`text-xs mt-1 line-clamp-2 ${category.isIcon ? 'text-(--color-subtle)' : 'text-white/85 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.description}</p>
+            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-[28px]">
+              <div className="relative h-48 sm:h-56 bg-[#111318]">
+                {!category.isIcon && (
+                  <>
+                    <Image src={category.image} alt="" fill sizes="(max-width: 768px) 100vw, 800px" className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/55 to-black/70" />
+                  </>
                 )}
-                <p className={`text-xs mt-2 ${category.isIcon ? 'text-(--color-muted)' : 'text-white/75 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{itemSummary(deal)}</p>
 
-                <div className={`flex items-center justify-between pt-3 ${category.isIcon ? 'mt-3' : 'mt-auto'}`}>
-                  <div>
-                    <p className={`text-base font-bold ${category.isIcon ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-400 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.totalPrice.toLocaleString()} RWF</p>
-                    {savings > 0 && (
-                      <p className={`text-[10px] line-through ${category.isIcon ? 'text-(--color-muted)' : 'text-white/60'}`}>{(deal.totalPrice + savings).toLocaleString()} RWF</p>
-                    )}
+                <div className="relative z-10 h-full flex flex-col justify-between p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
+                      {category.label}
+                    </p>
+                    <button
+                      onClick={() => pickDeal(deal)}
+                      className="shrink-0 px-5 py-2.5 rounded-full bg-white text-black text-sm font-extrabold shadow-[0_0_18px_rgba(255,255,255,0.55)] hover:shadow-[0_0_26px_rgba(255,255,255,0.75)] transition-shadow"
+                    >
+                      Pick the package
+                    </button>
                   </div>
-                  <button
-                    onClick={() => viewDeal(deal)}
-                    className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white shrink-0"
-                  >
-                    View deal
-                  </button>
+                  <p className="text-lg font-bold text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.8)]">{deal.title}</p>
                 </div>
+              </div>
+
+              <div className="bg-white px-5 py-5">
+                <p className="text-center text-sm text-black mb-4">
+                  Only on <span className="text-lg font-extrabold">{deal.totalPrice.toLocaleString()} RWF</span>
+                </p>
+                <PlatformCarousel items={deal.items} creators={creators} websites={websites} />
               </div>
             </div>
           );

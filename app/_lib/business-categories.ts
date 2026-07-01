@@ -3,41 +3,46 @@
 // through this — previously each surface kept its own duplicated category
 // array and/or a separate Lucide-icon map, which drifted out of sync.
 //
-// Each category gets a real 3D-rendered image (Microsoft's Fluent Emoji 3D
-// set, MIT-licensed — see /public/category-icons) instead of a flat icon or
-// emoji glyph, displayed in a single unified claymorphism card (see
-// CategoryCard.tsx / .category-art in globals.css) — one consistent
-// material/color language, the image is what tells categories apart.
+// Each category gets a real photo (see /public/category-photos) shown as a
+// full-bleed background behind a frosted-glass panel (see CategoryCard.tsx /
+// .category-art in globals.css) — replaces the old Fluent Emoji 3D render
+// set. "Others" and "Any category" have no natural photo (they're catch-alls,
+// not a real business type) so they keep the old 3D icon.
 export interface BusinessCategory {
   id: string;
   label: string;
-  /** Path under /public to this category's 3D render. */
+  /** Path under /public to this category's background photo (or, for the
+   * 'other'/'any' catch-alls, their old 3D icon render). */
   image: string;
+  /** True for the two catch-all entries still on the old icon set — lets
+   * rendering surfaces skip the photo-background treatment for them. */
+  isIcon?: boolean;
 }
 
 export const BUSINESS_CATEGORIES: BusinessCategory[] = [
-  { id: 'technology',        label: 'Technology',          image: '/category-icons/technology.png' },
-  { id: 'food-beverage',     label: 'Food & Beverage',     image: '/category-icons/food-beverage.png' },
-  { id: 'real-estate',       label: 'Real Estate',         image: '/category-icons/real-estate.png' },
-  { id: 'automotive',        label: 'Automotive',          image: '/category-icons/automotive.png' },
-  { id: 'health-wellness',   label: 'Health & Wellness',   image: '/category-icons/health-wellness.png' },
-  { id: 'entertainment',     label: 'Entertainment',       image: '/category-icons/entertainment.png' },
-  { id: 'fashion',           label: 'Fashion',             image: '/category-icons/fashion.png' },
-  { id: 'education',         label: 'Education',           image: '/category-icons/education.png' },
-  { id: 'business-services', label: 'Business Services',   image: '/category-icons/business-services.png' },
-  { id: 'travel-tourism',    label: 'Travel & Tourism',    image: '/category-icons/travel-tourism.png' },
-  { id: 'arts-culture',      label: 'Arts & Culture',      image: '/category-icons/arts-culture.png' },
-  { id: 'photography',       label: 'Photography',         image: '/category-icons/photography.png' },
-  { id: 'gifts-events',      label: 'Gifts & Events',      image: '/category-icons/gifts-events.png' },
-  { id: 'government-public', label: 'Government & Public', image: '/category-icons/government-public.png' },
-  { id: 'general-retail',    label: 'General Retail',      image: '/category-icons/general-retail.png' },
-  { id: 'other',             label: 'Others',              image: '/category-icons/other.png' },
+  { id: 'technology',        label: 'Technology',          image: '/category-photos/technology.jpg' },
+  { id: 'food-beverage',     label: 'Food & Beverage',     image: '/category-photos/food-beverage.jpg' },
+  { id: 'real-estate',       label: 'Real Estate',         image: '/category-photos/real-estate.jpg' },
+  { id: 'automotive',        label: 'Automotive',          image: '/category-photos/automotive.jpg' },
+  { id: 'health-wellness',   label: 'Health & Wellness',   image: '/category-photos/health-wellness.jpg' },
+  { id: 'entertainment',     label: 'Entertainment',       image: '/category-photos/entertainment.jpg' },
+  { id: 'fashion',           label: 'Fashion',             image: '/category-photos/fashion.png' },
+  { id: 'education',         label: 'Education',           image: '/category-photos/education.jpg' },
+  { id: 'business-services', label: 'Business Services',   image: '/category-photos/business-services.jpg' },
+  { id: 'travel-tourism',    label: 'Travel & Tourism',    image: '/category-photos/travel-tourism.jpg' },
+  { id: 'arts-culture',      label: 'Arts & Culture',      image: '/category-photos/arts-culture.jpg' },
+  { id: 'photography',       label: 'Photography',         image: '/category-photos/photography.jpg' },
+  { id: 'gifts-events',      label: 'Gifts & Events',      image: '/category-photos/gifts-events.jpg' },
+  { id: 'government-public', label: 'Government & Public', image: '/category-photos/government-public.jpg' },
+  { id: 'general-retail',    label: 'General Retail',      image: '/category-photos/general-retail.jpg' },
+  { id: 'other',             label: 'Others',              image: '/category-icons/other.png', isIcon: true },
 ];
 
 const ANY_CATEGORY: BusinessCategory = {
   id: 'any',
   label: 'Any category',
   image: '/category-icons/any.png',
+  isIcon: true,
 };
 
 const BY_ID = new Map([...BUSINESS_CATEGORIES, ANY_CATEGORY].map((c) => [c.id, c]));

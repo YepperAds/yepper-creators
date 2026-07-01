@@ -192,3 +192,37 @@ body {
     inset -4px -4px 10px var(--clay-shadow-light),
     0 0 0 3px var(--color-coral);
 }
+
+/* ── Category photo card — full-bleed category photo behind a glass shine,
+   used for category-selection grids (CategoryCard.tsx size="card") and hot
+   deal headers (HotDealsSection.tsx). A frosted glass PANE would hide the
+   photo it's supposed to show off, so "glass" here means a light border +
+   glossy shine sweep (.yp-shimmer, same trick as WebsiteLogoTile) + soft
+   puffed shadow — not a blur. Only the bottom scrim darkens, and only enough
+   for the label to stay readable over any photo. ─────────────────────────── */
+.category-photo-card {
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    8px 8px 18px var(--clay-shadow-dark),
+    -6px -6px 16px var(--clay-shadow-light),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.category-photo-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    10px 10px 22px var(--clay-shadow-dark),
+    -7px -7px 18px var(--clay-shadow-light),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.category-photo-selected {
+  box-shadow:
+    8px 8px 18px var(--clay-shadow-dark),
+    -6px -6px 16px var(--clay-shadow-light),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 0 0 3px var(--color-coral);
+}
+.category-photo-scrim {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
+}

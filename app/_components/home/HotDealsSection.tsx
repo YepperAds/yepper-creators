@@ -73,30 +73,46 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
           const category = getBusinessCategory(deal.businessCategory);
           return (
-            <div key={deal.id} className="category-art w-72 shrink-0 p-4">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />
-                <p className="text-[10px] font-bold uppercase text-(--color-muted)">{category.label}</p>
-              </div>
-              <h3 className="text-sm font-bold text-(--color-white) truncate">{deal.title}</h3>
-              {deal.description && (
-                <p className="text-xs text-(--color-subtle) mt-1 line-clamp-2">{deal.description}</p>
-              )}
-              <p className="text-xs text-(--color-muted) mt-2">{itemSummary(deal)}</p>
-
-              <div className="mt-3 flex items-center justify-between">
-                <div>
-                  <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
-                  {savings > 0 && (
-                    <p className="text-[10px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
-                  )}
+            <div key={deal.id} className="category-art w-72 shrink-0 overflow-hidden p-0">
+              {category.isIcon ? (
+                <div className="flex items-center gap-1.5 px-4 pt-4">
+                  <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />
+                  <p className="text-[10px] font-bold uppercase text-(--color-muted)">{category.label}</p>
                 </div>
-                <button
-                  onClick={() => viewDeal(deal)}
-                  className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white"
-                >
-                  View deal
-                </button>
+              ) : (
+                <div className="relative h-24 w-full">
+                  <Image src={category.image} alt="" fill sizes="288px" className="object-cover" />
+                  <div className="category-photo-scrim absolute inset-0" />
+                  <div className="absolute inset-0 overflow-hidden">
+                    <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                  </div>
+                  <p className="absolute bottom-2 left-3 z-10 text-sm font-extrabold uppercase text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
+                    {category.label}
+                  </p>
+                </div>
+              )}
+
+              <div className="p-4 pt-3">
+                <h3 className="text-sm font-bold text-(--color-white) truncate">{deal.title}</h3>
+                {deal.description && (
+                  <p className="text-xs text-(--color-subtle) mt-1 line-clamp-2">{deal.description}</p>
+                )}
+                <p className="text-xs text-(--color-muted) mt-2">{itemSummary(deal)}</p>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
+                    {savings > 0 && (
+                      <p className="text-[10px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => viewDeal(deal)}
+                    className="px-3 py-1.5 rounded-lg bg-coral text-xs font-bold text-white"
+                  >
+                    View deal
+                  </button>
+                </div>
               </div>
             </div>
           );

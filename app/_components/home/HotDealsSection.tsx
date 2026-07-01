@@ -79,38 +79,38 @@ export default function HotDealsSection({
         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-coral/15 text-coral-text">Trending</span>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-3">
         {deals.map((deal) => {
           const category = getBusinessCategory(deal.businessCategory);
           return (
-            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-[28px]">
-              <div className="relative h-48 sm:h-56 bg-[#111318]">
+            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-2xl max-w-2xl">
+              <div className="relative h-24 sm:h-28 bg-[#111318]">
                 {!category.isIcon && (
                   <>
-                    <Image src={category.image} alt="" fill sizes="(max-width: 768px) 100vw, 800px" className="object-cover" />
+                    <Image src={category.image} alt="" fill sizes="(max-width: 768px) 100vw, 640px" className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/55 to-black/70" />
                   </>
                 )}
 
-                <div className="relative z-10 h-full flex flex-col justify-between p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
+                <div className="relative z-10 h-full flex flex-col justify-between p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-base sm:text-lg font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
                       {category.label}
                     </p>
                     <button
                       onClick={() => pickDeal(deal)}
-                      className="shrink-0 px-5 py-2.5 rounded-full bg-white text-black text-sm font-extrabold shadow-[0_0_18px_rgba(255,255,255,0.55)] hover:shadow-[0_0_26px_rgba(255,255,255,0.75)] transition-shadow"
+                      className="shrink-0 px-3 py-1.5 rounded-full bg-white text-black text-[11px] font-extrabold shadow-[0_0_14px_rgba(255,255,255,0.55)] hover:shadow-[0_0_20px_rgba(255,255,255,0.75)] transition-shadow"
                     >
                       Pick the package
                     </button>
                   </div>
-                  <p className="text-lg font-bold text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.8)]">{deal.title}</p>
+                  <p className="text-xs font-bold text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.8)]">{deal.title}</p>
                 </div>
               </div>
 
-              <div className="bg-white px-5 py-5">
-                <p className="text-center text-sm text-black mb-4">
-                  Only on <span className="text-lg font-extrabold">{deal.totalPrice.toLocaleString()} RWF</span>
+              <div className="bg-white px-3 py-3">
+                <p className="text-center text-xs text-black mb-2.5">
+                  Only on <span className="text-sm font-extrabold">{deal.totalPrice.toLocaleString()} RWF</span>
                 </p>
                 <PlatformCarousel items={deal.items} creators={creators} websites={websites} />
               </div>

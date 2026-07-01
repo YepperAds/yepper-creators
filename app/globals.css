@@ -233,8 +233,9 @@ body {
    it on a photo + fixed white price panel is that it shouldn't repaint when
    the visitor's OS/browser theme does). ─────────────────────────────────── */
 .hotdeal-glow {
-  border-radius: 28px;
-  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 28px 6px rgba(250, 204, 21, 0.55);
+  /* Radius comes from the element's own rounded-* utility class, not here,
+     so the two never fight over which one wins the cascade. */
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 20px 4px rgba(250, 204, 21, 0.5);
 }
 
 /* Small attention-getting wiggle for the fake "Ad" popup on website platform

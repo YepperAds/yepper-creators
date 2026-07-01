@@ -14,27 +14,27 @@ function formatCount(n: number): string {
 function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   return (
-    <div className="w-44 shrink-0 rounded-xl bg-black p-2.5">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="w-32 shrink-0">
+      <div className="flex items-center gap-1.5 mb-1.5">
         {creator.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={creator.avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+          <img src={creator.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
         ) : (
-          <div className="w-7 h-7 rounded-full bg-white/10 shrink-0" />
+          <div className="w-5 h-5 rounded-full bg-black/10 shrink-0" />
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-1">
-            <p className="text-xs font-bold text-white truncate">{creator.channelName || creator.name}</p>
-            <CheckBadgeIcon className="w-3 h-3 text-[#3ea6ff] shrink-0" />
+            <p className="text-[11px] font-bold text-black truncate">{creator.channelName || creator.name}</p>
+            <CheckBadgeIcon className="w-2.5 h-2.5 text-[#3ea6ff] shrink-0" />
           </div>
-          <p className="text-[10px] text-white/60">{formatCount(creator.subscribers)} subscribers</p>
+          <p className="text-[9px] text-black/55">{formatCount(creator.subscribers)} subscribers</p>
         </div>
       </div>
       <div className="aspect-video rounded-lg overflow-hidden bg-black">
         {video ? (
           <VideoEmbed url={video.url} thumbnail={video.thumbnail} title={video.title} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/40 text-[10px]">No video yet</div>
+          <div className="w-full h-full flex items-center justify-center text-white/40 text-[9px]">No video yet</div>
         )}
       </div>
     </div>
@@ -47,21 +47,20 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
 // an ad placement" at a glance, the way the reference design called for.
 function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
   return (
-    <div className="w-44 shrink-0 rounded-xl bg-black p-2.5">
-      <p className="text-xs font-bold text-[#38bdf8] truncate mb-2">{website.websiteName}</p>
+    <div className="w-32 shrink-0">
+      <p className="text-[11px] font-bold text-[#0284c7] truncate mb-1.5">{website.websiteName}</p>
       <div className="relative aspect-video rounded-lg overflow-hidden bg-[#0c3d5e]">
-        <div className="absolute top-0 inset-x-0 h-4 bg-black/25 flex items-center gap-1 px-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+        <div className="absolute top-0 inset-x-0 h-3 bg-black/25 flex items-center gap-1 px-1">
+          <span className="w-1 h-1 rounded-full bg-white/30" />
+          <span className="w-1 h-1 rounded-full bg-white/30" />
+          <span className="w-1 h-1 rounded-full bg-white/30" />
         </div>
-        <div className="absolute inset-x-2 top-6 space-y-1.5">
-          <div className="h-1.5 w-3/4 rounded bg-white/25" />
-          <div className="h-1.5 w-1/2 rounded bg-white/15" />
-          <div className="h-1.5 w-2/3 rounded bg-white/15" />
-          <div className="h-1.5 w-1/3 rounded bg-white/15" />
+        <div className="absolute inset-x-1.5 top-4 space-y-1">
+          <div className="h-1 w-3/4 rounded bg-white/25" />
+          <div className="h-1 w-1/2 rounded bg-white/15" />
+          <div className="h-1 w-2/3 rounded bg-white/15" />
         </div>
-        <div className="yp-adshake absolute bottom-2 right-2 bg-[#f97316] text-white text-[9px] font-extrabold px-2 py-1 rounded-md shadow-lg">
+        <div className="yp-adshake absolute bottom-1.5 right-1.5 bg-[#f97316] text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-lg">
           Ad
         </div>
       </div>

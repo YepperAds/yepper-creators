@@ -65,9 +65,6 @@ export default function CategoryCard({ id, label, description, selected, onClick
           className="object-cover"
         />
         <div className="category-photo-scrim absolute inset-0" />
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-        </div>
         {selected && (
           <span className="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-coral flex items-center justify-center shadow-sm">
             <CheckIcon className="w-3.5 h-3.5 text-white" />

@@ -78,30 +78,28 @@ export default function HotDealsSection({ deals, initialDealId, requireLogin }: 
                 <>
                   <Image src={category.image} alt="" fill sizes="288px" className="object-cover" />
                   {/* Flat wash over the whole photo (not just a bottom gradient) so
-                      every line of white text stays legible wherever it lands. */}
-                  <div className="absolute inset-0 bg-black/55" />
-                  <div className="absolute inset-0 overflow-hidden">
-                    <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-                  </div>
+                      every line of white text stays legible wherever it lands, on any
+                      photo brightness and in either theme. */}
+                  <div className="absolute inset-0 bg-black/60" />
                 </>
               )}
 
               <div className={category.isIcon ? 'p-4' : 'relative z-10 h-full flex flex-col p-4'}>
                 <div className="flex items-center gap-1.5 mb-1">
                   {category.isIcon && <Image src={category.image} alt="" width={20} height={20} className="yp-float shrink-0" />}
-                  <p className={`text-[10px] font-extrabold uppercase tracking-wide ${category.isIcon ? 'text-(--color-muted)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>
+                  <p className={`text-[10px] font-extrabold uppercase tracking-wide ${category.isIcon ? 'text-(--color-muted)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>
                     {category.label}
                   </p>
                 </div>
-                <h3 className={`text-sm font-bold truncate ${category.isIcon ? 'text-(--color-white)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>{deal.title}</h3>
+                <h3 className={`text-sm font-bold truncate ${category.isIcon ? 'text-(--color-white)' : 'text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.title}</h3>
                 {deal.description && (
-                  <p className={`text-xs mt-1 line-clamp-2 ${category.isIcon ? 'text-(--color-subtle)' : 'text-white/85 [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]'}`}>{deal.description}</p>
+                  <p className={`text-xs mt-1 line-clamp-2 ${category.isIcon ? 'text-(--color-subtle)' : 'text-white/85 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.description}</p>
                 )}
-                <p className={`text-xs mt-2 ${category.isIcon ? 'text-(--color-muted)' : 'text-white/75'}`}>{itemSummary(deal)}</p>
+                <p className={`text-xs mt-2 ${category.isIcon ? 'text-(--color-muted)' : 'text-white/75 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{itemSummary(deal)}</p>
 
                 <div className={`flex items-center justify-between pt-3 ${category.isIcon ? 'mt-3' : 'mt-auto'}`}>
                   <div>
-                    <p className={`text-base font-bold ${category.isIcon ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-400'}`}>{deal.totalPrice.toLocaleString()} RWF</p>
+                    <p className={`text-base font-bold ${category.isIcon ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-400 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]'}`}>{deal.totalPrice.toLocaleString()} RWF</p>
                     {savings > 0 && (
                       <p className={`text-[10px] line-through ${category.isIcon ? 'text-(--color-muted)' : 'text-white/60'}`}>{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                     )}

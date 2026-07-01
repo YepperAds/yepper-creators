@@ -193,13 +193,13 @@ body {
     0 0 0 3px var(--color-coral);
 }
 
-/* ── Category photo card — full-bleed category photo behind a glass shine,
-   used for category-selection grids (CategoryCard.tsx size="card") and hot
-   deal headers (HotDealsSection.tsx). A frosted glass PANE would hide the
-   photo it's supposed to show off, so "glass" here means a light border +
-   glossy shine sweep (.yp-shimmer, same trick as WebsiteLogoTile) + soft
-   puffed shadow — not a blur. Only the bottom scrim darkens, and only enough
-   for the label to stay readable over any photo. ─────────────────────────── */
+/* ── Category photo card — full-bleed category photo, used for
+   category-selection grids (CategoryCard.tsx size="card") and hot deal cards
+   (HotDealsSection.tsx). A frosted glass PANE would hide the photo it's
+   supposed to show off, so "glass" here means a light border + soft puffed
+   shadow — not a blur, and no light-sweep animation over the photo itself.
+   The scrim darkens just enough for the label to stay readable over any
+   photo, in either theme. ─────────────────────────────────────────────── */
 .category-photo-card {
   border-radius: 26px;
   border: 1px solid rgba(255, 255, 255, 0.35);

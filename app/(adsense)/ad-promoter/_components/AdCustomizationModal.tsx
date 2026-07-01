@@ -28,6 +28,10 @@ const SYSTEM_DEFAULT = {
   // it's 'left'. Must match SYSTEM_DEFAULT in backend/AdPromoter/utils/adCustomization.js.
   imageHeight: 160,
   imageWidthPercent: 40,
+  // Width of the image box when imagePosition is 'top', as a percent of the
+  // card's width (centered). Defaults to 100 (full-bleed) so slots saved
+  // before this setting existed keep rendering exactly as they did.
+  topImageWidthPercent: 100,
   showImage: true,
   showDescription: true,
   showCTA: true,
@@ -232,9 +236,9 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
 }
 
 .ad-image {
-  width: ${settings.imagePosition === 'left' ? settings.imageWidthPercent + '%' : '100%'};
+  width: ${settings.imagePosition === 'left' ? settings.imageWidthPercent + '%' : settings.topImageWidthPercent + '%'};
   height: ${settings.imagePosition === 'left' ? '100%' : settings.imageHeight + 'px'};
-  object-fit: cover;
+  ${settings.imagePosition === 'left' ? '' : 'margin: 0 auto;\n  '}object-fit: contain;
   border-radius: 8px;
 }`;
   };
@@ -467,7 +471,8 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
             {settings.showImage && (
               <div style={{
                 flex: settings.imagePosition === 'left' ? `0 0 ${settings.imageWidthPercent}%` : `0 0 ${settings.imageHeight}px`,
-                width: settings.imagePosition === 'left' ? undefined : '100%',
+                width: settings.imagePosition === 'left' ? undefined : `${settings.topImageWidthPercent}%`,
+                margin: settings.imagePosition === 'left' ? undefined : '0 auto',
                 borderRadius: '12px',
                 overflow: 'hidden',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -676,7 +681,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                     {settings.imagePosition === 'left' ? (
                       <>
                         <label className="block text-sm font-medium text-white mb-2">
-                          Image Size: {settings.imageWidthPercent}% of width
+                          Image Width: {settings.imageWidthPercent}% of card
                         </label>
                         <input
                           type="range"
@@ -690,7 +695,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                     ) : (
                       <>
                         <label className="block text-sm font-medium text-white mb-2">
-                          Image Size: {settings.imageHeight}px tall
+                          Image Height: {settings.imageHeight}px tall
                         </label>
                         <input
                           type="range"
@@ -700,11 +705,22 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                           onChange={(e: any) => handleImageHeightChange(parseInt(e.target.value))}
                           className="w-full accent-black"
                         />
+                        <label className="block text-sm font-medium text-white mb-2 mt-4">
+                          Image Width: {settings.topImageWidthPercent}% of card
+                        </label>
+                        <input
+                          type="range"
+                          min="40"
+                          max="100"
+                          value={settings.topImageWidthPercent}
+                          onChange={(e: any) => updateSetting('topImageWidthPercent', parseInt(e.target.value))}
+                          className="w-full accent-black"
+                        />
                       </>
                     )}
                     <p className="text-xs text-subtle mt-1">
-                      Any uploaded image is cropped to fit this — it can never blow up the card.
-                      {settings.imagePosition !== 'left' && ' The ad space resizes to match.'}
+                      The full image always shows (never cropped) — it's scaled to fit this box, so it can never blow up the card.
+                      {settings.imagePosition !== 'left' && ' The ad space height resizes to match.'}
                     </p>
                   </div>
 

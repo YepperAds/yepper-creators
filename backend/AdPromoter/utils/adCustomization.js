@@ -26,6 +26,11 @@ const SYSTEM_DEFAULT = {
   // the text). object-fit:cover crops to whichever box this defines.
   imageHeight: 160,
   imageWidthPercent: 40,
+  // Width of the image box when imagePosition is 'top', as a percent of the
+  // card's own width (the image is centered within that width). Defaults to
+  // 100 so every ad configured before this setting existed keeps rendering
+  // exactly as it did (full-bleed) — only imageHeight changes are visible.
+  topImageWidthPercent: 100,
 };
 
 // Curated background+text bundles. backgroundColor can be any valid CSS
@@ -142,6 +147,7 @@ const MIN_WIDTH = 160, MAX_WIDTH = 1200;
 const MIN_HEIGHT = 90, MAX_HEIGHT = 800;
 const MIN_IMAGE_HEIGHT = 60, MAX_IMAGE_HEIGHT = 360;
 const MIN_IMAGE_WIDTH_PCT = 20, MAX_IMAGE_WIDTH_PCT = 65;
+const MIN_TOP_IMAGE_WIDTH_PCT = 40, MAX_TOP_IMAGE_WIDTH_PCT = 100;
 const MAX_SLOTS = 20; // sanity ceiling, independent of whatever user_count claims
 
 // Roughly how much vertical room the title/description/CTA/padding need —
@@ -173,6 +179,7 @@ function resolveSlot(slotData) {
   // from the CSS interpolation.
   resolved.imageHeight = clampNumber(resolved.imageHeight, MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT) ?? SYSTEM_DEFAULT.imageHeight;
   resolved.imageWidthPercent = clampNumber(resolved.imageWidthPercent, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT) ?? SYSTEM_DEFAULT.imageWidthPercent;
+  resolved.topImageWidthPercent = clampNumber(resolved.topImageWidthPercent, MIN_TOP_IMAGE_WIDTH_PCT, MAX_TOP_IMAGE_WIDTH_PCT) ?? SYSTEM_DEFAULT.topImageWidthPercent;
 
   resolved.shadowCss = SHADOWS[resolved.shadow] || SHADOWS.medium;
   const font = FONTS[resolved.fontFamily] || FONTS.system;
@@ -210,6 +217,7 @@ function truncateWords(text, maxWords) {
 module.exports = {
   SYSTEM_DEFAULT, TEMPLATES, FONTS, SHADOWS,
   MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, MAX_SLOTS,
-  MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT, TEXT_AREA_RESERVE,
+  MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT, MIN_IMAGE_WIDTH_PCT, MAX_IMAGE_WIDTH_PCT,
+  MIN_TOP_IMAGE_WIDTH_PCT, MAX_TOP_IMAGE_WIDTH_PCT, TEXT_AREA_RESERVE,
   clampNumber, resolveSlot, resolveAllSlots, truncateWords,
 };

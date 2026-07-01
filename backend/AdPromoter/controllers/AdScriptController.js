@@ -367,7 +367,7 @@ exports.serveAdScript = async (req, res) => {
         }
         \${sel}:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(31,38,135,0.28);}
         \${sel} .\${_px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
-        \${sel} .\${_px}-img-wrap{overflow:hidden;border-radius:10px;flex-shrink:0;\${isH?'flex:0 0 '+(s.imageWidthPercent||40)+'%;min-width:120px;':'width:100%;height:'+(s.imageHeight||160)+'px;'}\${s.showImage===false?'display:none;':''}}
+        \${sel} .\${_px}-img-wrap{overflow:hidden;border-radius:10px;flex-shrink:0;\${isH?'flex:0 0 '+(s.imageWidthPercent||40)+'%;min-width:120px;':'width:'+(s.topImageWidthPercent||100)+'%;margin:0 auto;height:'+(s.imageHeight||160)+'px;'}\${s.showImage===false?'display:none;':''}}
         \${sel} .\${_px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
         \${sel} .\${_px}-title{font-size:\${s.titleSize||16}px;font-weight:600;color:\${s.titleColor};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
         \${sel} .\${_px}-desc{font-size:\${s.descriptionSize||14}px;color:\${s.descriptionColor};line-height:1.5;margin:0 0 12px;display:-webkit-box;-webkit-line-clamp:\${isH?2:3};-webkit-box-orient:vertical;overflow:hidden;\${s.showDescription===false?'display:none;':''}}
@@ -393,7 +393,7 @@ exports.serveAdScript = async (req, res) => {
     }
 
     el.textContent=placementCss+fontCss+rulesCss+hostOverride+\`
-      .\${_px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease;}
+      .\${_px}-img{width:100%;height:100%;object-fit:contain;display:block;transition:transform 0.3s ease;}
       .\${_px}-ad:hover .\${_px}-img{transform:scale(1.03);}
       .\${_px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
@@ -668,7 +668,7 @@ function buildEmbedCardCss(prefix, slots, fontImports) {
     html,body{margin:0;padding:0;height:100%;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
     .${prefix}-ad{display:block;width:100%;height:100%;text-decoration:none;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);position:relative;color:inherit;box-sizing:border-box;}
-    .${prefix}-img{width:100%;height:100%;object-fit:cover;display:block;}
+    .${prefix}-img{width:100%;height:100%;object-fit:contain;display:block;}
     .${prefix}-credit{position:absolute;bottom:2px;right:6px;font-size:8px;color:rgba(0,0,0,0.35);}
     .${prefix}-credit a{color:inherit;text-decoration:none;}
     .${prefix}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-radius:12px;padding:10px;box-sizing:border-box;}
@@ -694,7 +694,7 @@ function buildEmbedCardCss(prefix, slots, fontImports) {
     css += `
       ${sel}{background:${s.backgroundColor};border:${s.borderWidth}px solid ${s.borderColor};border-radius:${s.borderRadius ?? 12}px;box-shadow:${s.shadowCss};font-family:${s.fontStack};}
       ${sel} .${prefix}-inner{display:flex;flex-direction:${flexDir};gap:10px;align-items:${isH ? 'center' : 'stretch'};height:100%;padding:10px;box-sizing:border-box;}
-      ${sel} .${prefix}-img-wrap{overflow:hidden;border-radius:8px;flex-shrink:0;${isH ? `flex:0 0 ${s.imageWidthPercent || 40}%;min-width:80px;` : `width:100%;flex:0 0 ${topImageShare}%;`}${s.showImage === false ? 'display:none;' : ''}}
+      ${sel} .${prefix}-img-wrap{overflow:hidden;border-radius:8px;flex-shrink:0;${isH ? `flex:0 0 ${s.imageWidthPercent || 40}%;min-width:80px;` : `width:${s.topImageWidthPercent || 100}%;margin:0 auto;flex:0 0 ${topImageShare}%;`}${s.showImage === false ? 'display:none;' : ''}}
       ${sel} .${prefix}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
       ${sel} .${prefix}-title{font-size:${s.titleSize || 14}px;font-weight:600;color:${s.titleColor};margin:0 0 4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       ${sel} .${prefix}-desc{font-size:${s.descriptionSize || 12}px;color:${s.descriptionColor};line-height:1.4;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;${s.showDescription === false ? 'display:none;' : ''}}

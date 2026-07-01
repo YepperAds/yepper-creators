@@ -256,7 +256,7 @@ exports.serveSiteScript = async (req, res) => {
         \${sel}{display:block;width:\${s.width?s.width+'px':'100%'};max-width:\${s.maxWidth||100}%;height:\${s.height?s.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${s.backgroundColor};border:\${s.borderWidth}px solid \${s.borderColor};border-radius:\${s.borderRadius||16}px;box-shadow:\${s.shadowCss};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;font-family:\${s.fontStack};}
         \${sel}:hover{transform:translateY(-2px);}
         \${sel} .\${sp.px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
-        \${sel} .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;flex-shrink:0;\${isH?'flex:0 0 '+(s.imageWidthPercent||40)+'%;min-width:120px;':'width:100%;height:'+(s.imageHeight||160)+'px;'}\${s.showImage===false?'display:none;':''}}
+        \${sel} .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;flex-shrink:0;\${isH?'flex:0 0 '+(s.imageWidthPercent||40)+'%;min-width:120px;':'width:'+(s.topImageWidthPercent||100)+'%;margin:0 auto;height:'+(s.imageHeight||160)+'px;'}\${s.showImage===false?'display:none;':''}}
         \${sel} .\${sp.px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
         \${sel} .\${sp.px}-title{font-size:\${s.titleSize||16}px;font-weight:600;color:\${s.titleColor};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
         \${sel} .\${sp.px}-desc{font-size:\${s.descriptionSize||14}px;color:\${s.descriptionColor};line-height:1.5;margin:0 0 12px;\${s.showDescription===false?'display:none;':''}}
@@ -273,7 +273,7 @@ exports.serveSiteScript = async (req, res) => {
     });
 
     el.textContent=sp.css+fontCss+rulesCss+\`
-      .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
+      .\${sp.px}-img{width:100%;height:100%;object-fit:contain;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}

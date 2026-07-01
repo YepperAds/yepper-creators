@@ -49,18 +49,18 @@ function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
   return (
     <div className="w-32 shrink-0">
       <p className="text-[11px] font-bold text-[#0284c7] truncate mb-1.5">{website.websiteName}</p>
-      <div className="relative aspect-video rounded-lg overflow-hidden bg-[#0c3d5e]">
-        <div className="absolute top-0 inset-x-0 h-3 bg-black/25 flex items-center gap-1 px-1">
-          <span className="w-1 h-1 rounded-full bg-white/30" />
-          <span className="w-1 h-1 rounded-full bg-white/30" />
-          <span className="w-1 h-1 rounded-full bg-white/30" />
+      <div className="relative aspect-video rounded-lg overflow-hidden bg-[#7dd3fc]">
+        <div className="absolute top-0 inset-x-0 h-3 bg-[#0284c7]/20 flex items-center gap-1 px-1">
+          <span className="w-1 h-1 rounded-full bg-[#0284c7]/50" />
+          <span className="w-1 h-1 rounded-full bg-[#0284c7]/50" />
+          <span className="w-1 h-1 rounded-full bg-[#0284c7]/50" />
         </div>
         <div className="absolute inset-x-1.5 top-4 space-y-1">
-          <div className="h-1 w-3/4 rounded bg-white/25" />
-          <div className="h-1 w-1/2 rounded bg-white/15" />
-          <div className="h-1 w-2/3 rounded bg-white/15" />
+          <div className="h-1 w-3/4 rounded bg-[#0369a1]/40" />
+          <div className="h-1 w-1/2 rounded bg-[#0369a1]/25" />
+          <div className="h-1 w-2/3 rounded bg-[#0369a1]/25" />
         </div>
-        <div className="yp-adshake absolute bottom-1.5 right-1.5 bg-[#f97316] text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-lg">
+        <div className="yp-adshake absolute bottom-1.5 right-1.5 bg-[#fb923c] text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-lg">
           Ad
         </div>
       </div>

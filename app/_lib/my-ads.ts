@@ -1,10 +1,7 @@
 // Combines the two kinds of ads a signed-in user can have running —
 // their own posted YouTube ad videos, and their imported/website ads that
 // are actively showing on a website *they* own — into one list. Used by
-// both the dashboard's "My ads" sidebar box (RightRail) and its "View all"
-// destination (AdPostsList), so the two always agree on what counts as
-// "your ads" instead of the sidebar counting website ads a YouTube-only
-// list can never show.
+// the dashboard's "My ads" sidebar box (RightRail).
 
 export interface OwnWebsite {
   id: string | number;

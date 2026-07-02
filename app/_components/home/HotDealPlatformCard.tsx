@@ -8,6 +8,15 @@ function formatCount(n: number): string {
   return String(n);
 }
 
+function getDomain(link: string): string {
+  try {
+    const url = new URL(link.startsWith('http') ? link : `https://${link}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return link;
+  }
+}
+
 // A real channel + one of their actual videos (reuses VideoEmbed, same
 // autoplay-loop tile used in HomeFeed.tsx) — not a static screenshot, so a
 // hot deal's YouTube slot shows off real content instead of a placeholder.
@@ -17,7 +26,7 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   return (
     <div className="w-24 shrink-0">
-      <div className="flex items-center gap-1.5 mb-1.5">
+      <div className="h-9 flex items-center gap-1.5 mb-1.5">
         {creator.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={creator.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0 ring-2 ring-[#ff0000]/25" />
@@ -56,7 +65,9 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
 function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
   return (
     <div className="w-24 shrink-0">
-      <p className="text-[11px] font-bold text-[#0284c7] truncate mb-1.5">{website.websiteName}</p>
+      <div className="h-9 flex items-center mb-1.5">
+        <p className="text-[11px] font-bold text-[#0284c7] truncate">{getDomain(website.websiteLink)}</p>
+      </div>
       <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-b from-[#7dd3fc] to-[#38bdf8]">
         {/* Cartoon sun, top-left, with a soft radiating halo */}
         <div className="absolute top-1 left-1.5 w-3 h-3 rounded-full bg-[#fde047] shadow-[0_0_0_3px_rgba(253,224,71,0.45),0_0_10px_2px_rgba(253,224,71,0.5)]" />

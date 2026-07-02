@@ -6,8 +6,6 @@ import DashboardFeed from './DashboardFeed';
 import AdvertiseBrowser from './AdvertiseBrowser';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
-import AdPostsList from '@/app/(advertiser)/_components/AdPostsList';
-import PostAdModal from '@/app/(advertiser)/_components/PostAdModal';
 import AddWebsiteForm from '@/app/(adsense)/ad-promoter/pages/add-website/AddWebsiteForm';
 import AnalyticsPage from '@/app/(advertiser)/analytics/page';
 import WalletPage from '@/app/(advertiser)/wallet/page';
@@ -70,13 +68,6 @@ export default function CenterPanel({
         />
       </div>
     );
-  } else if (panel === 'ad-posts') {
-    content = (
-      <div>
-        <BackToFeed onClick={backToFeed} />
-        <AdPostsList />
-      </div>
-    );
   } else if (panel === 'analytics') {
     content = <div><BackToFeed onClick={backToFeed} /><AnalyticsPage /></div>;
   } else if (panel === 'wallet') {
@@ -114,15 +105,5 @@ export default function CenterPanel({
     );
   }
 
-  return (
-    <>
-      {content}
-      <PostAdModal
-        provider="youtube"
-        open={panel === 'add-ad'}
-        onClose={backToFeed}
-        onPosted={backToFeed}
-      />
-    </>
-  );
+  return content;
 }

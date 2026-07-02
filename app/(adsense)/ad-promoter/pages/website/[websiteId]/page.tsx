@@ -20,8 +20,6 @@ import {
     AlertTriangle,
     ShieldCheck,
     ShieldAlert,
-    DollarSign,
-    Signal,
     CheckCircle,
 } from 'lucide-react';
 import { MasterIntegration } from '../../../_components/codeDisplay';
@@ -358,43 +356,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                     </div>
                                 </div>
                             )}
-
-                            {/* Earnings panel */}
-                            {earningsSummary?.available ? (
-                                <div className="border border-emerald-700/40 bg-emerald-900/10 p-5">
-                                    <div className="flex items-start justify-between gap-4 mb-4">
-                                        <div>
-                                            <p className="text-sm font-bold text-emerald-300 flex items-center gap-1.5">
-                                                <DollarSign size={14} className="text-emerald-400" />
-                                                Estimated Monthly Earnings
-                                            </p>
-                                            <p className="text-xs text-emerald-400/70 mt-0.5">
-                                                {Number(earningsSummary.monthlyTraffic).toLocaleString()} visitors/mo · <span className="capitalize font-semibold">{earningsSummary.trafficTier}</span> tier
-                                            </p>
-                                        </div>
-                                        <div className="text-right shrink-0">
-                                            <p className="text-2xl font-bold text-emerald-300">RWF {Number(earningsSummary.totalOwnerEarnsPerMonth).toLocaleString()}</p>
-                                            <p className="text-xs text-emerald-400/70">total / month</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {earningsSummary.categories?.map((c: any) => (
-                                            <div key={c.categoryId} className="flex items-center justify-between bg-surface-1 border border-emerald-700/30 px-3 py-2 text-xs gap-2">
-                                                <span className="text-subtle font-medium truncate">{c.name}</span>
-                                                <span className="text-emerald-300 font-bold whitespace-nowrap shrink-0">RWF {Number(c.ownerEarns).toLocaleString()}/mo</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : earningsSummary?.reason === 'no_traffic' ? (
-                                <div className="border border-border bg-surface-1 p-4 flex items-center gap-3">
-                                    <Signal size={18} className="text-muted shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-semibold text-subtle">Install your script to see earnings</p>
-                                        <p className="text-xs text-muted mt-0.5">{earningsSummary.message || 'Add the Yepper script to your site. Once visitors are detected, earnings per ad space will appear here.'}</p>
-                                    </div>
-                                </div>
-                            ) : null}
 
                             {/* Scripts + ad space list */}
                             <MasterIntegration

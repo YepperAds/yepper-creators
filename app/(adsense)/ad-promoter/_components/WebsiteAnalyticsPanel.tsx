@@ -16,6 +16,24 @@ import {
 } from 'lucide-react';
 import api from '@/app/_lib/adsense-api';
 
+// Backend day-count endpoints only return days that actually had traffic —
+// with a sparse or short history that's 2-3 entries, which a `flex-1` bar
+// chart renders as a couple of giant blocks rather than a real chart. This
+// fills in every day across the selected range (as 0) so the chart always
+// has one thin bar per day, whatever the underlying data density.
+function buildDailySeries(byDay: Array<Record<string, unknown>>, rangeDays: number, countKey: string): { date: string; value: number }[] {
+  const map = new Map(byDay.map((d) => [String(d.date), Number(d[countKey]) || 0]));
+  const series: { date: string; value: number }[] = [];
+  const today = new Date();
+  for (let i = rangeDays - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    series.push({ date: key, value: map.get(key) ?? 0 });
+  }
+  return series;
+}
+
 // Visitor-traffic analytics for a single website the user owns — extracted
 // from the per-website "Analytics" tab (see ad-promoter/pages/website/[websiteId]/page.tsx)
 // so it can be shown as its own tab on the dashboard's main Analytics page
@@ -154,7 +172,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Total Views', value: analytics.totalViews?.toLocaleString() || '0', icon: Eye },
               { label: 'Unique Visitors', value: analytics.uniqueVisitors?.toLocaleString() || '0', icon: Users },
@@ -172,36 +190,37 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
 
           {/* Daily chart */}
-          {analytics.byDay?.length > 0 && (
-            <div className="border border-border p-6 bg-surface-1">
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Views per Day</p>
-              <div className="flex items-end gap-1 h-28">
-                {(() => {
-                  const max = Math.max(...analytics.byDay.map((d: any) => d.count), 1);
-                  return analytics.byDay.map((d: any, i: any) => (
+          {analytics.byDay?.length > 0 && (() => {
+            const series = buildDailySeries(analytics.byDay, analyticsRange, 'count');
+            const max = Math.max(...series.map((d) => d.value), 1);
+            return (
+              <div className="border border-border p-6 bg-surface-1">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Views per Day</p>
+                <div className="flex items-end gap-px h-28">
+                  {series.map((d, i) => (
                     <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
-                      <div style={{ height: `${(d.count / max) * 100}%` }} className="w-full bg-white hover:bg-zinc-400 transition-colors min-h-[2px]" />
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.count}</span>
+                      <div style={{ height: `${(d.value / max) * 100}%` }} className="w-full bg-white hover:bg-zinc-400 transition-colors min-h-[2px] rounded-t-sm" />
+                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.value}</span>
                     </div>
-                  ));
-                })()}
+                  ))}
+                </div>
+                <div className="flex justify-between mt-2 text-xs text-muted">
+                  <span>{series[0]?.date}</span>
+                  <span>{series[series.length - 1]?.date}</span>
+                </div>
               </div>
-              <div className="flex justify-between mt-2 text-xs text-muted">
-                <span>{analytics.byDay[0]?.date}</span>
-                <span>{analytics.byDay[analytics.byDay.length - 1]?.date}</span>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Map + countries */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 border border-border">
+          <div className="grid grid-cols-1 gap-5">
+            <div className="border border-border">
               <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                 <MapPin size={12} className="text-muted" />
                 <span className="text-sm font-semibold text-white">Visitor Locations</span>
                 <span className="ml-auto text-xs text-muted">{analytics.mapPoints?.length || 0} points</span>
               </div>
-              <div className="p-2"><div ref={mapRef} style={{ height: '300px', width: '100%' }} /></div>
+              <div className="p-2"><div ref={mapRef} style={{ height: '360px', width: '100%' }} /></div>
               <div className="px-4 py-2 border-t border-border flex gap-4 text-xs text-muted">
                 {[['#10b981', 'Desktop'], ['#3b82f6', 'Mobile'], ['#8b5cf6', 'Tablet']].map(([c, l]) => (
                   <span key={l} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: c }} />{l}</span>
@@ -231,7 +250,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
 
           {/* Devices + referrers + pages */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5">
             <div className="border border-border">
               <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Devices</div>
               <div className="divide-y divide-border">
@@ -299,7 +318,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 {hoursLeft > 0 && <span className="text-amber-400 ml-2">· Visible for {hoursLeft}h more</span>}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 gap-4 mb-4">
               {[
                 { label: 'Monthly Visitors', value: gd.grantedTraffic?.toLocaleString() ?? '—', sub: 'as stated by you' },
                 { label: 'Monthly Views', value: gd.grantedViews?.toLocaleString() ?? '—', sub: 'as stated by you' },
@@ -365,7 +384,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { label: 'Total Clicks', value: gscData.summary?.clicks?.toLocaleString() ?? '0', sub: 'from Google Search' },
                 { label: 'Impressions', value: gscData.summary?.impressions?.toLocaleString() ?? '0', sub: 'times shown' },
@@ -379,27 +398,28 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 </div>
               ))}
             </div>
-            {gscData.byDay?.length > 0 && (
-              <div className="border border-border p-6 bg-surface-1">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Clicks per Day</p>
-                <div className="flex items-end gap-1 h-24">
-                  {(() => {
-                    const max = Math.max(...gscData.byDay.map((d: any) => d.clicks), 1);
-                    return gscData.byDay.map((d: any, i: any) => (
+            {gscData.byDay?.length > 0 && (() => {
+              const series = buildDailySeries(gscData.byDay, analyticsRange, 'clicks');
+              const max = Math.max(...series.map((d) => d.value), 1);
+              return (
+                <div className="border border-border p-6 bg-surface-1">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Clicks per Day</p>
+                  <div className="flex items-end gap-px h-24">
+                    {series.map((d, i) => (
                       <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
-                        <div style={{ height: `${(d.clicks / max) * 100}%` }} className="w-full bg-blue-500 hover:bg-blue-400 transition-colors min-h-[2px]" />
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.clicks}</span>
+                        <div style={{ height: `${(d.value / max) * 100}%` }} className="w-full bg-blue-500 hover:bg-blue-400 transition-colors min-h-[2px] rounded-t-sm" />
+                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.value}</span>
                       </div>
-                    ));
-                  })()}
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-muted">
+                    <span>{series[0]?.date}</span>
+                    <span>{series[series.length - 1]?.date}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between mt-2 text-xs text-muted">
-                  <span>{gscData.byDay[0]?.date}</span>
-                  <span>{gscData.byDay[gscData.byDay.length - 1]?.date}</span>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              );
+            })()}
+            <div className="grid grid-cols-1 gap-5">
               <div className="border border-border">
                 <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Top Search Queries</div>
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">

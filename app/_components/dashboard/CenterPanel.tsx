@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import DashboardFeed from './DashboardFeed';
-import OwnContentCTA from './OwnContentCTA';
 import AdvertiseBrowser from './AdvertiseBrowser';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
@@ -104,7 +103,6 @@ export default function CenterPanel({
           websites={websites.length > 0 ? websites : MOCK_WEBSITES}
           creators={creators.length > 0 ? creators : MOCK_CREATORS}
         />
-        <OwnContentCTA />
         <div className="rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
           <DashboardFeed

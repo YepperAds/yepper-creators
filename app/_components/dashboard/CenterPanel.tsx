@@ -5,7 +5,6 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import DashboardFeed from './DashboardFeed';
 import AdvertiseBrowser from './AdvertiseBrowser';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
 import AddWebsiteForm from '@/app/(adsense)/ad-promoter/pages/add-website/AddWebsiteForm';
 import AnalyticsPage from '@/app/(advertiser)/analytics/page';
 import WalletPage from '@/app/(advertiser)/wallet/page';
@@ -54,19 +53,9 @@ export default function CenterPanel({
     content = (
       <AddWebsiteForm
         embedded
-        onCreated={(websiteId: string) => router.replace(`/?panel=websites&websiteId=${websiteId}`, { scroll: false })}
+        onCreated={(websiteId: string) => router.replace(`/?panel=analytics&websiteId=${websiteId}`, { scroll: false })}
         onCancel={backToFeed}
       />
-    );
-  } else if (panel === 'websites') {
-    content = (
-      <div>
-        <BackToFeed onClick={backToFeed} />
-        <WebsitesList
-          addWebsiteHref="/?panel=add-website"
-          initialExpandedId={searchParams.get('websiteId') ?? undefined}
-        />
-      </div>
     );
   } else if (panel === 'analytics') {
     content = <div><BackToFeed onClick={backToFeed} /><AnalyticsPage /></div>;

@@ -19,6 +19,7 @@ import {
     Code2,
     Megaphone,
     Settings2,
+    Activity,
     Radio,
     AlertTriangle,
     ShieldCheck,
@@ -38,11 +39,13 @@ import AdCustomizationModal from '../../../_components/AdCustomizationModal';
 import SendCategoryInviteModal from '../../../_components/SendCategoryInviteModal';
 import api from '@/app/_lib/adsense-api';
 import TrafficGrantBanner from '../../../_components/TrafficGrantBanner';
+import WebsiteAnalyticsPanel from '@/app/(adsense)/ad-promoter/_components/WebsiteAnalyticsPanel';
 
 const TABS = [
     { id: 'spaces',    label: 'Ad Spaces',     icon: Code2 },
     { id: 'ads',       label: 'Ads',           icon: Megaphone },
     { id: 'customize', label: 'Customize Ads', icon: Settings2 },
+    { id: 'analytics', label: 'Analytics',     icon: Activity },
 ];
 
 const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websiteId?: string; onBack?: () => void; embedded?: boolean } = {}) => {
@@ -430,11 +433,11 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                         </p>
                                         <p className={`text-xs ${earningsSummary?.unverifiedSurchargeActive ? 'text-red-400/80' : 'text-amber-400/70'}`}>
                                             {earningsSummary?.unverifiedSurchargeActive
-                                                ? 'Running 7+ days without GSC verification. Connect on the dashboard\'s Analytics page to restore normal pricing.'
-                                                : 'Connect GSC on the dashboard\'s Analytics page to verify your site and unlock tier-based pricing.'}
+                                                ? 'Running 7+ days without GSC verification. Connect in the Analytics tab to restore normal pricing.'
+                                                : 'Connect GSC in the Analytics tab to verify your site and unlock tier-based pricing.'}
                                         </p>
                                     </div>
-                                    <button onClick={() => router.push('/?panel=analytics')} className="shrink-0 px-3 py-1.5 bg-black text-[#fff] text-xs font-semibold border border-border hover:bg-surface-2 transition-colors whitespace-nowrap">
+                                    <button onClick={() => setActiveTab('analytics')} className="shrink-0 px-3 py-1.5 bg-black text-[#fff] text-xs font-semibold border border-border hover:bg-surface-2 transition-colors whitespace-nowrap">
                                         Go to Analytics
                                     </button>
                                 </div>
@@ -667,6 +670,11 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {/* ══════════════════════════ ANALYTICS TAB ══ */}
+                    {activeTab === 'analytics' && (
+                        <WebsiteAnalyticsPanel websiteId={websiteId} websiteLink={website?.websiteLink as string | undefined} />
                     )}
 
                 </div>

@@ -127,7 +127,7 @@ function YoutubeChannelsBox({ channels, loading }: { channels: YoutubeChannel[];
   };
 
   return (
-    <Box title="Your YouTube channels" href="/?panel=connect-accounts" addHref="/?panel=connect-accounts" addLabel="Connect YouTube channel">
+    <Box title="Your YouTube channels" href="/?panel=analytics&tab=youtube" addHref="/?panel=analytics&tab=youtube" addLabel="Connect YouTube channel">
       {loading ? (
         <div className="h-16 rounded-lg bg-background animate-pulse" />
       ) : channels.length > 0 ? (
@@ -176,7 +176,7 @@ export default function RightRail() {
 
   return (
     <aside className="w-72 shrink-0 self-start sticky top-4 space-y-4 p-4">
-      <Box title="Your websites" href="/?panel=analytics" addHref="/?panel=add-website" addLabel="Add website">
+      <Box title="Your websites" href="/?panel=analytics&tab=websites" addHref="/?panel=add-website" addLabel="Add website">
         {loading ? (
           <div className="h-16 rounded-lg bg-background animate-pulse" />
         ) : (

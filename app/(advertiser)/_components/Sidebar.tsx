@@ -156,7 +156,7 @@ export default function Sidebar() {
     {
       // Global links — accessible to both Content Creators and Web Developers
       items: [
-        { label: 'Connect Website', href: '/?panel=analytics', icon: OutlineWifi, activeIcon: SolidWifi },
+        { label: 'Connect Website', href: '/?panel=analytics&tab=websites', icon: OutlineWifi, activeIcon: SolidWifi },
         { label: 'Wallet',          href: '/?panel=wallet',   icon: OutlineBanknotes, activeIcon: SolidBanknotes },
       ]
     },

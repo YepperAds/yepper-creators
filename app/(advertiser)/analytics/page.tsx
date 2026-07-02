@@ -20,6 +20,7 @@ import {
   MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
+import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -331,10 +332,14 @@ function AdCampaignCard({ post, open, onToggle }: { post: AdPost; open: boolean;
 
 const SYNC_MS = 30_000;
 
+type MainTab = 'ads' | 'websites' | 'youtube';
+
 export default function AnalyticsPage() {
   const searchParams = useSearchParams();
   const websiteIdParam = searchParams.get('websiteId') ?? undefined;
-  const [tab, setTab] = useState<'ads' | 'websites'>(websiteIdParam ? 'websites' : 'ads');
+  const tabParam = searchParams.get('tab');
+  const initialTab: MainTab = websiteIdParam ? 'websites' : (tabParam === 'websites' || tabParam === 'youtube') ? tabParam : 'ads';
+  const [tab, setTab] = useState<MainTab>(initialTab);
   const [adsSubTab, setAdsSubTab] = useState<'social' | 'website'>('website');
 
   const [userUuid, setUserUuid] = useState<string | null>(null);
@@ -435,6 +440,7 @@ export default function AnalyticsPage() {
         {([
           { id: 'ads' as const,      label: 'Ads',      icon: MegaphoneIcon },
           { id: 'websites' as const, label: 'Websites', icon: GlobeAltIcon },
+          { id: 'youtube' as const,  label: 'YouTube',  icon: FilmIcon },
         ]).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -572,6 +578,8 @@ export default function AnalyticsPage() {
       {tab === 'websites' && (
         <WebsitesList addWebsiteHref="/?panel=add-website" initialExpandedId={websiteIdParam} />
       )}
+
+      {tab === 'youtube' && <ConnectAccountsPage />}
     </div>
     </div>
   );

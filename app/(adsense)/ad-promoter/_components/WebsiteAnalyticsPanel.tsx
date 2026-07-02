@@ -179,7 +179,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 {(() => {
                   const max = Math.max(...analytics.byDay.map((d: any) => d.count), 1);
                   return analytics.byDay.map((d: any, i: any) => (
-                    <div key={i} className="flex-1 group relative">
+                    <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
                       <div style={{ height: `${(d.count / max) * 100}%` }} className="w-full bg-white hover:bg-zinc-400 transition-colors min-h-[2px]" />
                       <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.count}</span>
                     </div>
@@ -386,7 +386,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                   {(() => {
                     const max = Math.max(...gscData.byDay.map((d: any) => d.clicks), 1);
                     return gscData.byDay.map((d: any, i: any) => (
-                      <div key={i} className="flex-1 group relative">
+                      <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
                         <div style={{ height: `${(d.clicks / max) * 100}%` }} className="w-full bg-blue-500 hover:bg-blue-400 transition-colors min-h-[2px]" />
                         <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.clicks}</span>
                       </div>

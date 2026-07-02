@@ -10,7 +10,6 @@ import {
   XMarkIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
-import { CheckCircleIcon as SolidCheck } from '@heroicons/react/24/solid';
 import WebsiteDetails from '@/app/(adsense)/ad-promoter/pages/website/[websiteId]/page';
 
 interface Website {
@@ -225,9 +224,6 @@ export default function WebsitesList({
                       <p className="text-xs text-[color:var(--color-muted)] mt-0.5 truncate">{site.websiteLink}</p>
                     </div>
                   </div>
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 shrink-0">
-                    <SolidCheck className="w-3.5 h-3.5" /> Active
-                  </span>
                 </div>
 
                 {isExpanded ? (

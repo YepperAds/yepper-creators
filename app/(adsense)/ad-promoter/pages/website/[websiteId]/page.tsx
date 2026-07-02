@@ -2,20 +2,16 @@
 // @ts-nocheck
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
     X,
     AlertCircle,
-    ArrowLeft,
     Plus,
     Check,
     Palette,
     XCircle,
     RefreshCw,
-    Edit,
-    Globe,
-    ExternalLink,
     Code2,
     Megaphone,
     Settings2,
@@ -48,8 +44,7 @@ const TABS = [
     { id: 'analytics', label: 'Analytics',     icon: Activity },
 ];
 
-const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websiteId?: string; onBack?: () => void; embedded?: boolean } = {}) => {
-    const router = useRouter();
+const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: string; onBack?: () => void; embedded?: boolean } = {}) => {
     const params = useParams();
     const websiteId = websiteIdProp ?? (params?.websiteId as string);
     const { user, isAuthenticated, token } = useSession();
@@ -61,8 +56,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
     const [categoryToInvite, setCategoryToInvite] = useState(null);
-    const [isEditingWebsiteName, setIsEditingWebsiteName] = useState(false);
-    const [tempWebsiteName, setTempWebsiteName] = useState('');
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
     const [currentCategory, setCurrentCategory] = useState(null);
     const [selectedLanguage, setSelectedLanguage] = useState('english');
@@ -201,15 +194,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
 
     const closeRejectModal = () => { setShowRejectModal(false); setSelectedAd(null); setRejectionReason(''); };
 
-    const handleUpdateWebsiteName = async () => {
-        if (!tempWebsiteName.trim()) return;
-        try {
-            const r = await api.patch(`/api/websites/${websiteId}/name`, { websiteName: tempWebsiteName.trim() });
-            setWebsite(prev => ({ ...prev, websiteName: (r.data as any).websiteName }));
-            setIsEditingWebsiteName(false);
-        } catch {}
-    };
-
     const handleOpenCategoriesForm = () => { setCategoriesForm(true); setResult(false); };
     const handleCloseCategoriesForm = () => { setCategoriesForm(false); setResult(true); fetchWebsiteData(); };
     const handleDeleteCategory = (cat) => setCategoryToDelete(cat);
@@ -265,84 +249,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, onBack, embedded }: { websit
             {/* ── Sticky Page Header + Tabs ── */}
             <div className={embedded ? 'border-b border-border bg-background' : 'border-b border-border bg-background sticky top-0 z-20'}>
                 <div className="max-w-6xl mx-auto px-6">
-
-                    {/* Top bar */}
-                    <div className="h-14 flex items-center gap-3">
-                        <button
-                            onClick={() => (onBack ? onBack() : router.back())}
-                            className="flex items-center gap-1.5 text-muted hover:text-white transition-colors text-sm shrink-0"
-                        >
-                            <ArrowLeft size={15} /> Back
-                        </button>
-
-                        <div className="w-px h-4 bg-border shrink-0" />
-
-                        {/* Website icon */}
-                        {website?.imageUrl ? (
-                            <img src={website.imageUrl as string} alt="icon" className="w-6 h-6 rounded object-cover border border-border shrink-0" />
-                        ) : (
-                            <div className="w-6 h-6 rounded border border-border bg-surface-2 flex items-center justify-center shrink-0">
-                                <Globe size={12} className="text-muted" />
-                            </div>
-                        )}
-
-                        {/* Website name — inline editable */}
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                            {isEditingWebsiteName ? (
-                                <div className="flex items-center gap-1.5">
-                                    <input
-                                        value={tempWebsiteName}
-                                        onChange={(e: any) => setTempWebsiteName(e.target.value)}
-                                        className="bg-surface-2 border border-border text-white text-sm px-2 py-1 focus:outline-none focus:border-white/40 w-40"
-                                        autoFocus
-                                        onKeyDown={(e: any) => {
-                                            if (e.key === 'Enter') handleUpdateWebsiteName();
-                                            if (e.key === 'Escape') setIsEditingWebsiteName(false);
-                                        }}
-                                    />
-                                    <button onClick={handleUpdateWebsiteName} className="p-1 bg-white text-black hover:bg-zinc-200 transition-colors"><Check size={12} /></button>
-                                    <button onClick={() => setIsEditingWebsiteName(false)} className="p-1 bg-surface-2 text-white border border-border hover:bg-surface-3 transition-colors"><X size={12} /></button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => { setTempWebsiteName(website?.websiteName as string); setIsEditingWebsiteName(true); }}
-                                    className="group flex items-center gap-1.5 text-white font-semibold text-sm truncate max-w-[180px] sm:max-w-xs hover:text-zinc-300 transition-colors"
-                                >
-                                    <span className="truncate">{website?.websiteName}</span>
-                                    <Edit size={11} className="text-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                </button>
-                            )}
-                            {website?.websiteLink && (
-                                <a
-                                    href={website.websiteLink as string}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hidden sm:flex items-center gap-1 text-xs text-muted hover:text-white transition-colors truncate max-w-[200px]"
-                                >
-                                    <ExternalLink size={10} />
-                                    {(website.websiteLink as string).replace(/^https?:\/\//, '')}
-                                </a>
-                            )}
-                        </div>
-
-                        {/* Status pills */}
-                        <div className="hidden md:flex items-center gap-2 shrink-0">
-                            {earningsSummary?.gscVerified ? (
-                                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded-sm">
-                                    <Check size={9} /> Verified
-                                </span>
-                            ) : (
-                                <span className="text-xs font-medium text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 rounded-sm">
-                                    Unverified
-                                </span>
-                            )}
-                            {earningsSummary?.trafficTier && (
-                                <span className="text-xs font-medium text-subtle border border-border bg-surface-1 px-2 py-0.5 rounded-sm capitalize">
-                                    {earningsSummary.trafficTier}
-                                </span>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Tab bar */}
                     <div className="flex items-center border-t border-border -mb-px">

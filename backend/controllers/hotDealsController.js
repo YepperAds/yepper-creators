@@ -28,6 +28,193 @@ const sendEmailNotification = require('./emailService');
 const CREATOR_SHARE = 0.70; // creator keeps 70% of the deal price, Yepper takes the rest
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+// ── Deal email — mirrors the on-site Hot Deal card ──────────────────────────
+// Same visual identity as HotDealsSection.tsx/HotDealPlatformCard.tsx (dark
+// photo banner, white price panel, platform tiles, "Pick the package"
+// button) so a recipient recognizes it as the exact same deal they'd see in
+// the app, rather than a generic "here's a link" notice.
+
+// Kept in sync with app/_lib/business-categories.ts's `image` field by hand —
+// the frontend module is TypeScript and lives in a separate deployable, so it
+// can't be `require()`d from this Node backend directly.
+const CATEGORY_META = {
+  'technology':        { label: 'Technology',          image: '/category-photos/technology.jpg' },
+  'food-beverage':     { label: 'Food & Beverage',     image: '/category-photos/food-beverage.jpg' },
+  'real-estate':       { label: 'Real Estate',         image: '/category-photos/real-estate.jpg' },
+  'automotive':        { label: 'Automotive',          image: '/category-photos/automotive.jpg' },
+  'health-wellness':   { label: 'Health & Wellness',   image: '/category-photos/health-wellness.jpg' },
+  'entertainment':     { label: 'Entertainment',       image: '/category-photos/entertainment.jpg' },
+  'fashion':           { label: 'Fashion',              image: '/category-photos/fashion.png' },
+  'education':         { label: 'Education',           image: '/category-photos/education.jpg' },
+  'business-services': { label: 'Business Services',   image: '/category-photos/business-services.jpg' },
+  'travel-tourism':    { label: 'Travel & Tourism',    image: '/category-photos/travel-tourism.jpg' },
+  'arts-culture':      { label: 'Arts & Culture',      image: '/category-photos/arts-culture.jpg' },
+  'photography':       { label: 'Photography',         image: '/category-photos/photography.jpg' },
+  'gifts-events':      { label: 'Gifts & Events',      image: '/category-photos/gifts-events.jpg' },
+  'government-public': { label: 'Government & Public', image: '/category-photos/government-public.jpg' },
+  'general-retail':    { label: 'General Retail',      image: '/category-photos/general-retail.jpg' },
+};
+function getCategoryMeta(id) {
+  return CATEGORY_META[id] || { label: id || 'Others', isIcon: true };
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+// Only allow http(s) URLs through into `src`/`background` attributes — avatar
+// and website image URLs ultimately come from user-entered profile/site
+// data, not a trusted source.
+function safeImageUrl(url) {
+  return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+function getDomain(link) {
+  try {
+    const url = new URL(link && link.startsWith('http') ? link : `https://${link}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return link || '';
+  }
+}
+
+function formatCount(n) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n || 0);
+}
+
+// Resolves the real website/creator behind a deal item, same data the
+// on-site platform tiles show (see HotDealPlatformCard.tsx) — a domain for
+// website items, or a channel name + avatar + subscriber count for YouTube
+// items.
+async function resolveItemDisplay(item) {
+  if (item.itemType === 'youtube' && item.creatorId) {
+    const creator = await Creator.findById(item.creatorId);
+    if (!creator) return null;
+    const scRes = await query(
+      `SELECT username AS channel_name, followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
+      [item.creatorId],
+    );
+    const sc = scRes.rows[0] || {};
+    return {
+      type: 'youtube',
+      name: sc.channel_name || creator.full_name || 'Creator',
+      avatar: safeImageUrl(creator.avatar),
+      subscribers: Number(sc.followers_count || 0),
+    };
+  }
+  if (item.itemType === 'website' && item.websiteId) {
+    const website = await Website.findById(item.websiteId);
+    if (!website) return null;
+    return { type: 'website', domain: getDomain(website.website_link) };
+  }
+  return null;
+}
+
+function buildTileHtml(display) {
+  if (!display) return '';
+  if (display.type === 'youtube') {
+    const avatarImg = display.avatar
+      ? `<img src="${display.avatar}" width="22" height="22" alt="" style="display:block;border-radius:50%;" />`
+      : `<div style="width:22px;height:22px;border-radius:50%;background:#e5e5e5;"></div>`;
+    return `
+      <div style="display:inline-block;width:130px;vertical-align:top;text-align:left;margin:0 6px 12px;font-size:12px;">
+        <table cellpadding="0" cellspacing="0" role="presentation"><tr>
+          <td style="width:26px;">${avatarImg}</td>
+          <td style="padding-left:6px;">
+            <p style="margin:0;font-size:11px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px;">${escapeHtml(display.name)}</p>
+            <p style="margin:0;font-size:9px;color:rgba(0,0,0,0.55);">${formatCount(display.subscribers)} subscribers</p>
+          </td>
+        </tr></table>
+        <div style="margin-top:6px;height:64px;border-radius:10px;background-color:#111;border:2px solid rgba(255,0,0,0.25);"></div>
+      </div>`;
+  }
+  return `
+    <div style="display:inline-block;width:130px;vertical-align:top;text-align:left;margin:0 6px 12px;font-size:12px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#0284c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">${escapeHtml(display.domain)}</p>
+      <div style="height:64px;border-radius:10px;background-color:#38bdf8;"></div>
+    </div>`;
+}
+
+async function buildDealEmailHtml(deal, title, description, link) {
+  const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
+  const originalPrice = deal.totalPrice + savings;
+  const pctOff = savings > 0 ? Math.round((savings / originalPrice) * 100) : 0;
+  const category = getCategoryMeta(deal.businessCategory);
+  const categoryImageUrl = category.isIcon ? null : `${FRONTEND_URL}${category.image}`;
+
+  const displays = await Promise.all(deal.items.map(resolveItemDisplay));
+  const tilesHtml = displays.filter(Boolean).map(buildTileHtml).join('');
+
+  const bannerAttrs = categoryImageUrl
+    ? `background="${categoryImageUrl}" bgcolor="#111318" style="background-image:url('${categoryImageUrl}');background-size:cover;background-position:center;"`
+    : `bgcolor="#111318"`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+    <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
+          <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+
+          <tr><td style="padding:32px 40px 0;">
+
+            <!-- ── Hot Deal card — same layout as the on-site card ── -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:16px;overflow:hidden;border:1px solid #eee;">
+
+              <!-- Banner: category photo + dark tint + badges + title -->
+              <tr><td ${bannerAttrs} style="padding:14px 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                  <td style="background-color:rgba(0,0,0,0.55);border-radius:10px;padding:12px 14px;">
+                    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                      <td valign="top">
+                        <span style="display:inline-block;background:#E8472B;color:#fff;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-bottom:6px;">🔥 Hot deal</span><br/>
+                        <span style="font-size:15px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#facc15;">${escapeHtml(category.label)}</span>
+                      </td>
+                      ${pctOff > 0 ? `<td valign="top" align="right"><span style="display:inline-block;background:#E8472B;color:#fff;font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;white-space:nowrap;">Save ${pctOff}%</span></td>` : ''}
+                    </tr></table>
+                    <p style="margin:10px 0 0;font-size:13px;font-weight:700;color:#fff;">${escapeHtml(title)}</p>
+                  </td>
+                </tr></table>
+              </td></tr>
+
+              <!-- Price panel -->
+              <tr><td style="background:#fff;padding:16px;">
+                <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-bottom:12px;">
+                  ${savings > 0 ? `<span style="font-size:12px;color:rgba(0,0,0,0.4);text-decoration:line-through;margin-right:6px;">${originalPrice.toLocaleString()} RWF</span>` : ''}
+                  <span style="font-size:13px;color:#000;">Only on <strong style="font-size:15px;">${deal.totalPrice.toLocaleString()} RWF</strong></span>
+                  ${savings > 0 ? `<span style="display:inline-block;margin-left:8px;background:#E8472B;color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;">Save ${savings.toLocaleString()} RWF</span>` : ''}
+                </td></tr></table>
+
+                ${tilesHtml ? `<div style="text-align:center;font-size:0;">${tilesHtml}</div>` : ''}
+              </td></tr>
+            </table>
+
+            ${description ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:20px 0 0;">${escapeHtml(description)}</p>` : ''}
+
+            <!-- CTA — same label as the on-site "Pick the package" button -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;"><tr><td align="center">
+              <a href="${link}" style="display:inline-block;background:#fff;color:#000;border:1px solid #000;padding:16px 36px;text-decoration:none;font-weight:800;font-size:15px;border-radius:99px;">
+                Pick the package →
+              </a>
+            </td></tr></table>
+            <p style="color:#999;font-size:13px;line-height:1.5;margin:0 0 32px;text-align:center;">
+              Clicking the button takes you straight to this deal — log in (or create an account) and you'll land right back here to finish claiming it.
+            </p>
+          </td></tr>
+
+          <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
+            <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
+              © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
+            </p>
+          </td></tr>
+        </table>
+      </td></tr></table>
+    </body></html>`;
+}
+
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
 }
@@ -252,39 +439,7 @@ exports.adminSendDealEmail = async (req, res) => {
     if (!deal) return res.status(404).json({ success: false, message: 'Deal not found' });
 
     const link = `${FRONTEND_URL}/?dealId=${deal.id}`;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-      <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
-            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
-            <tr><td style="padding:40px;">
-              <p style="color:#333;font-size:19px;margin:0 0 16px 0;font-weight:700;">${title}</p>
-              ${description ? `<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">${description}</p>` : ''}
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
-                <tr><td style="padding:14px 16px;background:#fafafa;border:1px solid #eee;border-radius:8px;">
-                  <p style="color:#888;font-size:11px;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:.04em;">${deal.items.length} bundled placement${deal.items.length === 1 ? '' : 's'}</p>
-                  <p style="color:#111;font-size:18px;margin:0;font-weight:700;">${deal.totalPrice.toLocaleString()} RWF</p>
-                </td></tr>
-              </table>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr><td align="center" style="padding:0 0 32px 0;">
-                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
-                    View &amp; Claim This Deal →
-                  </a>
-                </td></tr>
-              </table>
-              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
-                Clicking the button takes you straight to this deal — log in (or create an account) and you'll land right back here to finish claiming it.
-              </p>
-            </td></tr>
-            <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
-              <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
-                © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>
-              </p>
-            </td></tr>
-          </table>
-        </td></tr></table>
-      </body></html>`;
+    const html = await buildDealEmailHtml(deal, String(title).trim(), description ? String(description).trim() : '', link);
 
     const result = await sendEmailNotification(String(email).trim(), title, html);
     if (result && result.skipped) {

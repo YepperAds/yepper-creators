@@ -92,10 +92,10 @@ function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-bold uppercase tracking-wide text-neutral-500">My ads</h3>
         <Link
-          href="/?panel=connect-accounts"
+          href="/?panel=advertise"
           scroll={false}
           onClick={(e) => e.stopPropagation()}
-          title="Add ad — pick a channel or website"
+          title="Add ad — pick a website or YouTube channel"
           className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-800 text-white hover:bg-coral transition-colors shrink-0"
         >
           <PlusIcon className="w-3.5 h-3.5" />

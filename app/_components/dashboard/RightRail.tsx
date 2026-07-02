@@ -2,15 +2,51 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { fetchDashboardAds, type OwnWebsite, type MyAd, type YoutubeChannel } from '@/app/_lib/my-ads';
 
-function Box({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
+// The box body navigates to the "view all" panel on click; the "+" pill in
+// the header navigates to the add flow instead. Both use next/link, but the
+// outer wrapper is a plain div (not an <a>) so the inner Link never ends up
+// nested inside an anchor — stopPropagation keeps its click from also
+// triggering the outer navigation.
+function Box({
+  title,
+  href,
+  addHref,
+  addLabel,
+  children,
+}: {
+  title: string;
+  href: string;
+  addHref: string;
+  addLabel: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
   return (
-    <Link href={href} scroll={false} className="block rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2">
-      <h3 className="text-xs font-bold uppercase tracking-wide text-muted mb-3">{title}</h3>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(href, { scroll: false })}
+      onKeyDown={(e) => { if (e.key === 'Enter') router.push(href, { scroll: false }); }}
+      className="cursor-pointer rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted">{title}</h3>
+        <Link
+          href={addHref}
+          scroll={false}
+          onClick={(e) => e.stopPropagation()}
+          title={addLabel}
+          className="flex items-center justify-center w-5 h-5 rounded-full bg-background text-white hover:bg-coral transition-colors shrink-0"
+        >
+          <PlusIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
       {children}
-    </Link>
+    </div>
   );
 }
 
@@ -44,9 +80,27 @@ function AdStack({ ads }: { ads: MyAd[] }) {
 }
 
 function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
+  const router = useRouter();
   return (
-    <Link href="/?panel=ad-posts" scroll={false} className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-4 transition-colors hover:bg-neutral-800">
-      <h3 className="text-xs font-bold uppercase tracking-wide text-neutral-500 mb-3">My ads</h3>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push('/?panel=ad-posts', { scroll: false })}
+      onKeyDown={(e) => { if (e.key === 'Enter') router.push('/?panel=ad-posts', { scroll: false }); }}
+      className="cursor-pointer rounded-2xl border border-neutral-800 bg-neutral-900 p-4 transition-colors hover:bg-neutral-800"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-neutral-500">My ads</h3>
+        <Link
+          href="/?panel=add-ad"
+          scroll={false}
+          onClick={(e) => e.stopPropagation()}
+          title="Add ad"
+          className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-800 text-white hover:bg-coral transition-colors shrink-0"
+        >
+          <PlusIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
 
       {loading ? (
         <div className="h-28 rounded-xl bg-neutral-800 animate-pulse" />
@@ -61,7 +115,7 @@ function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
           <p className="text-xs text-neutral-500">No ads running yet</p>
         </div>
       )}
-    </Link>
+    </div>
   );
 }
 
@@ -73,7 +127,7 @@ function YoutubeChannelsBox({ channels, loading }: { channels: YoutubeChannel[];
   };
 
   return (
-    <Box title="Your YouTube channels" href="/?panel=connect-accounts">
+    <Box title="Your YouTube channels" href="/?panel=connect-accounts" addHref="/?panel=connect-accounts" addLabel="Connect YouTube channel">
       {loading ? (
         <div className="h-16 rounded-lg bg-background animate-pulse" />
       ) : channels.length > 0 ? (
@@ -122,7 +176,7 @@ export default function RightRail() {
 
   return (
     <aside className="w-72 shrink-0 self-start sticky top-4 space-y-4 p-4">
-      <Box title="Your websites" href="/?panel=websites">
+      <Box title="Your websites" href="/?panel=websites" addHref="/?panel=add-website" addLabel="Add website">
         {loading ? (
           <div className="h-16 rounded-lg bg-background animate-pulse" />
         ) : (

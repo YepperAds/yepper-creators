@@ -16,7 +16,10 @@ import {
   FilmIcon,
   GlobeAltIcon,
   CursorArrowRaysIcon,
+  MegaphoneIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import WebsiteAnalyticsPanel from '@/app/(adsense)/ad-promoter/_components/WebsiteAnalyticsPanel';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -37,6 +40,13 @@ interface WebsiteAd {
   clicks?: number;
   createdAt?: string;
   websiteSelections?: WebsiteSelection[];
+}
+
+interface OwnWebsite {
+  id: string | number;
+  websiteName: string;
+  websiteLink: string;
+  imageUrl: string | null;
 }
 
 interface AdPost {
@@ -337,6 +347,8 @@ function AdCampaignCard({ post, open, onToggle }: { post: AdPost; open: boolean;
 const SYNC_MS = 30_000;
 
 export default function AnalyticsPage() {
+  const [tab, setTab] = useState<'ads' | 'websites'>('ads');
+
   const [userUuid, setUserUuid] = useState<string | null>(null);
   const [adPosts,  setAdPosts ] = useState<AdPost[]>([]);
   const [loading,  setLoading ] = useState(true);
@@ -350,6 +362,34 @@ export default function AnalyticsPage() {
   const [webAds,        setWebAds]        = useState<WebsiteAd[]>([]);
   const [webAdsLoading, setWebAdsLoading]  = useState(true);
   const [openWebAds,    setOpenWebAds]     = useState<Set<string>>(new Set());
+
+  // Own websites — for the "Website Analytics" tab's visitor-traffic view
+  const [ownWebsites,        setOwnWebsites]        = useState<OwnWebsite[]>([]);
+  const [ownWebsitesLoading, setOwnWebsitesLoading] = useState(true);
+  const [selectedWebsiteId,  setSelectedWebsiteId]  = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const sessRes  = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
+        const sessJson = await sessRes.json().catch(() => ({}));
+        const uid      = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
+        if (!uid) return;
+        const res  = await fetch(`/api/proxy/api/websites/${uid}`, { credentials: 'include', cache: 'no-store' });
+        const json = await res.json().catch(() => ({}));
+        const list: OwnWebsite[] = Array.isArray(json) ? json : (json?.data ?? []);
+        if (cancelled) return;
+        setOwnWebsites(list);
+        setSelectedWebsiteId(prev => prev ?? (list[0] ? String(list[0].id) : null));
+      } finally {
+        if (!cancelled) setOwnWebsitesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectedWebsite = ownWebsites.find(w => String(w.id) === selectedWebsiteId) ?? null;
 
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -439,6 +479,27 @@ export default function AnalyticsPage() {
   return (
     <div className="flex-1 min-h-full overflow-y-auto px-6 py-8 max-w-4xl w-full mx-auto space-y-6">
 
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-1 w-fit">
+        {([
+          { id: 'ads' as const,      label: 'Ads',                icon: MegaphoneIcon },
+          { id: 'websites' as const, label: 'Website Analytics',  icon: ChartBarIcon },
+        ]).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              tab === id ? 'bg-(--color-white) text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'ads' && (
+      <>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -539,6 +600,48 @@ export default function AnalyticsPage() {
             />
           ))}
         </div>
+      )}
+      </>
+      )}
+
+      {tab === 'websites' && (
+        ownWebsitesLoading ? (
+          <div className="h-40 rounded-2xl bg-(--color-surface-2) border border-(--color-border) animate-pulse" />
+        ) : ownWebsites.length === 0 ? (
+          <div className="rounded-2xl border border-(--color-border) border-dashed bg-(--color-surface-1) p-14 flex flex-col items-center gap-3 text-center">
+            <GlobeAltIcon className="w-8 h-8 text-(--color-muted) opacity-40" />
+            <p className="text-sm font-semibold text-(--color-white)">No websites connected yet</p>
+            <Link
+              href="/?panel=add-website"
+              className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Connect a website →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {ownWebsites.length > 1 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {ownWebsites.map(w => (
+                  <button
+                    key={w.id}
+                    onClick={() => setSelectedWebsiteId(String(w.id))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                      String(w.id) === selectedWebsiteId
+                        ? 'bg-(--color-white) text-black border-transparent'
+                        : 'bg-(--color-surface-2) text-(--color-muted) border-(--color-border) hover:text-(--color-white)'
+                    }`}
+                  >
+                    {w.websiteName}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedWebsite && (
+              <WebsiteAnalyticsPanel websiteId={String(selectedWebsite.id)} websiteLink={selectedWebsite.websiteLink} />
+            )}
+          </div>
+        )
       )}
     </div>
   );

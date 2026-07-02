@@ -103,7 +103,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    <div className="w-full max-w-6xl mx-auto px-6 py-10">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Notifications</h1>
         <p className="text-sm text-(--color-muted)">All system and account activity will appear here in real time.</p>

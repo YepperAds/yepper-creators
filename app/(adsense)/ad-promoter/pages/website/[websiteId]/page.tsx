@@ -271,10 +271,10 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
             {/* ── Page Body ── */}
             {result && (
-                <div className="max-w-7xl mx-auto px-8 py-10">
+                <div className="max-w-7xl mx-auto px-8 pt-4 pb-10">
 
                     {/* Traffic grant banner */}
-                    <div className="mb-6">
+                    <div className="mb-3">
                         <TrafficGrantBanner websiteId={websiteId} />
                     </div>
 

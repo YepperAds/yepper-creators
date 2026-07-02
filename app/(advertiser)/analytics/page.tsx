@@ -117,14 +117,6 @@ function timeAgo(isoDate: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function sinceSeconds(ts: number | null): string {
-  if (!ts) return '—';
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60)   return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
-}
-
 function normaliseArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (raw && typeof raw === 'object') return Object.values(raw) as T[];
@@ -348,13 +340,12 @@ const SYNC_MS = 30_000;
 
 export default function AnalyticsPage() {
   const [tab, setTab] = useState<'ads' | 'websites'>('ads');
+  const [adsSubTab, setAdsSubTab] = useState<'social' | 'website'>('social');
 
   const [userUuid, setUserUuid] = useState<string | null>(null);
   const [adPosts,  setAdPosts ] = useState<AdPost[]>([]);
   const [loading,  setLoading ] = useState(true);
   const [syncing,  setSyncing ] = useState(false);
-  const [syncedAt, setSyncedAt] = useState<number | null>(null);
-  const [tick,     setTick    ] = useState(0);
   const [error,    setError   ] = useState('');
 
   const [openAds, setOpenAds] = useState<Set<number>>(new Set());
@@ -393,13 +384,6 @@ export default function AnalyticsPage() {
 
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Tick every 10 s to keep "synced X ago" label fresh
-  useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 10_000);
-    return () => clearInterval(t);
-  }, []);
-  void tick;
-
   // Resolve session user ID
   useEffect(() => {
     api.get<AuthResponse>(AUTH_ENDPOINTS.checkSession).then(res => {
@@ -423,7 +407,6 @@ export default function AnalyticsPage() {
       if (res.ok) {
         const posts = normaliseArray<AdPost>(res.data?.data);
         setAdPosts(posts);
-        setSyncedAt(Date.now());
         setOpenAds(prev => {
           if (prev.size === 0 && posts.length > 0) return new Set([posts[0].id]);
           return prev;
@@ -500,20 +483,22 @@ export default function AnalyticsPage() {
 
       {tab === 'ads' && (
       <>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-(--color-white)">Ad Analytics</h1>
-          <p className="text-sm text-(--color-muted) mt-0.5">Videos posted via Yepper — live stats from YouTube.</p>
-        </div>
-        <button
-          onClick={() => { if (userUuid && !syncing) syncAdPosts(userUuid); }}
-          disabled={loading || syncing || !userUuid}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-(--color-border) bg-(--color-surface-2) text-xs font-medium text-(--color-white) hover:bg-(--color-surface-3) transition-all disabled:opacity-40"
-        >
-          <ArrowPathIcon className={`w-3.5 h-3.5 ${syncing || loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+      {/* Sub-tabs — website ads vs. social media ads, so neither needs a scroll to reach */}
+      <div className="flex items-center gap-1 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-1 w-fit">
+        {([
+          { id: 'website' as const, label: 'Website Ads' },
+          { id: 'social'  as const, label: 'Social Media Ads' },
+        ]).map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setAdsSubTab(id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              adsSubTab === id ? 'bg-(--color-white) text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -523,16 +508,22 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Section header with live dot */}
+      {adsSubTab === 'social' && (
+      <>
+      {/* Section header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-(--color-white)">Ad Campaigns</h2>
           <p className="text-xs text-(--color-muted) mt-0.5">{adPosts.length} campaign{adPosts.length !== 1 ? 's' : ''} · auto-syncs every 30s</p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-(--color-muted)">
-          <span className={`w-1.5 h-1.5 rounded-full ${syncing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-          {syncing ? 'syncing…' : syncedAt ? `synced ${sinceSeconds(syncedAt)}` : '—'}
-        </div>
+        <button
+          onClick={() => { if (userUuid && !syncing) syncAdPosts(userUuid); }}
+          disabled={loading || syncing || !userUuid}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-(--color-border) bg-(--color-surface-2) text-xs font-medium text-(--color-white) hover:bg-(--color-surface-3) transition-all disabled:opacity-40"
+        >
+          <ArrowPathIcon className={`w-3.5 h-3.5 ${syncing || loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
       {/* Content */}
@@ -566,9 +557,13 @@ export default function AnalyticsPage() {
           ))}
         </div>
       )}
+      </>
+      )}
 
+      {adsSubTab === 'website' && (
+      <>
       {/* Website ad campaigns — traffic on ads placed directly on publisher sites */}
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-(--color-white)">Website Ad Campaigns</h2>
           <p className="text-xs text-(--color-muted) mt-0.5">
@@ -600,6 +595,8 @@ export default function AnalyticsPage() {
             />
           ))}
         </div>
+      )}
+      </>
       )}
       </>
       )}

@@ -93,7 +93,7 @@ export default function WebsitesList({
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
+    <div className="mx-auto max-w-4xl px-8 py-10">
 
       {/* ── Disconnect confirmation modal ── */}
       {disconnecting && (

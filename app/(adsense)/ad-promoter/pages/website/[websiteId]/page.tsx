@@ -248,7 +248,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
             {/* ── Sticky Page Header + Tabs ── */}
             <div className={embedded ? 'border-b border-border bg-background' : 'border-b border-border bg-background sticky top-0 z-20'}>
-                <div className="max-w-6xl mx-auto px-6">
+                <div className="max-w-7xl mx-auto px-8">
 
                     {/* Tab bar */}
                     <div className="flex items-center border-t border-border -mb-px">
@@ -280,7 +280,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
             {/* ── Page Body ── */}
             {result && (
-                <div className="max-w-6xl mx-auto px-6 py-8">
+                <div className="max-w-7xl mx-auto px-8 py-10">
 
                     {/* Traffic grant banner */}
                     <div className="mb-6">
@@ -684,14 +684,14 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
             {categoriesForm && (
                 <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
                     <div className="sticky top-0 z-10 bg-black border-b border-border">
-                        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+                        <div className="max-w-7xl mx-auto px-8 h-14 flex items-center justify-between">
                             <p className="text-sm font-semibold text-[#fff]">Add New Ad Space</p>
                             <button onClick={handleCloseCategoriesForm} className="p-1.5 hover:bg-surface-2 border border-border transition-colors">
                                 <X size={15} className="text-[#fff]" />
                             </button>
                         </div>
                     </div>
-                    <div className="max-w-6xl mx-auto px-6 py-8">
+                    <div className="max-w-7xl mx-auto px-8 py-10">
                         <AddNewCategory
                             websiteId={websiteId}
                             onSubmitSuccess={handleCloseCategoriesForm}

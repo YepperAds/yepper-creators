@@ -440,8 +440,8 @@ export default function AnalyticsPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 min-h-full overflow-y-auto px-6 py-8 max-w-4xl w-full mx-auto">
-    <div className="rounded-3xl border border-(--color-border)/40 bg-(--color-surface-1) dark:bg-(--color-surface-1)/60 backdrop-blur-2xl p-4 sm:p-6 space-y-6">
+    <div className="flex-1 min-h-full overflow-y-auto px-8 py-10 max-w-6xl w-full mx-auto">
+    <div className="rounded-3xl border border-(--color-border)/40 bg-(--color-surface-1) dark:bg-(--color-surface-1)/60 backdrop-blur-2xl p-6 sm:p-8 space-y-6">
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-1 w-fit">

@@ -340,7 +340,7 @@ const SYNC_MS = 30_000;
 
 export default function AnalyticsPage() {
   const [tab, setTab] = useState<'ads' | 'websites'>('ads');
-  const [adsSubTab, setAdsSubTab] = useState<'social' | 'website'>('social');
+  const [adsSubTab, setAdsSubTab] = useState<'social' | 'website'>('website');
 
   const [userUuid, setUserUuid] = useState<string | null>(null);
   const [adPosts,  setAdPosts ] = useState<AdPost[]>([]);
@@ -473,7 +473,7 @@ export default function AnalyticsPage() {
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              tab === id ? 'bg-(--color-white) text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+              tab === id ? 'bg-white text-black' : 'text-(--color-muted) hover:text-(--color-white)'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -494,7 +494,7 @@ export default function AnalyticsPage() {
             key={id}
             onClick={() => setAdsSubTab(id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              adsSubTab === id ? 'bg-(--color-white) text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+              adsSubTab === id ? 'bg-white text-black' : 'text-(--color-muted) hover:text-(--color-white)'
             }`}
           >
             {label}
@@ -626,7 +626,7 @@ export default function AnalyticsPage() {
                     onClick={() => setSelectedWebsiteId(String(w.id))}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                       String(w.id) === selectedWebsiteId
-                        ? 'bg-(--color-white) text-black border-transparent'
+                        ? 'bg-white text-black border-transparent'
                         : 'bg-(--color-surface-2) text-(--color-muted) border-(--color-border) hover:text-(--color-white)'
                     }`}
                   >

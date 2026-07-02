@@ -31,7 +31,7 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
           <TopNav />
 
           {/* Dynamic Page Content */}
-          <main className="flex-1 overflow-y-auto bg-(--color-background)">
+          <main className="flex-1 overflow-y-auto bg-(--color-background) p-6">
             {children}
           </main>
 

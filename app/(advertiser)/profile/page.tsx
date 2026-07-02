@@ -200,7 +200,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex-1 w-full max-w-6xl mx-auto px-6 py-10">
+    <div>
       
       {/* Hidden File Input */}
       <input 

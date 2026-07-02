@@ -29,6 +29,11 @@ function BackToFeed({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Every panel that renders in the center column shares this exact card
+// treatment (width, margins, padding) with the default feed's "Contents on
+// Yepper" card below, so no panel ever looks narrower/smaller than another.
+const PANEL_CARD = 'rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6';
+
 // The `useSearchParams()` boundary — this is the only part of the dashboard
 // that needs to be wrapped in <Suspense> by the parent. `panel` drives which
 // content shows in the center column; switching panels never leaves `/`.
@@ -58,15 +63,15 @@ export default function CenterPanel({
       />
     );
   } else if (panel === 'analytics') {
-    content = <div><BackToFeed onClick={backToFeed} /><AnalyticsPage /></div>;
+    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><AnalyticsPage /></div></div>;
   } else if (panel === 'wallet') {
-    content = <div><BackToFeed onClick={backToFeed} /><WalletPage /></div>;
+    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><WalletPage /></div></div>;
   } else if (panel === 'profile') {
-    content = <div><BackToFeed onClick={backToFeed} /><ProfilePage /></div>;
+    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><ProfilePage /></div></div>;
   } else if (panel === 'notifications') {
-    content = <div><BackToFeed onClick={backToFeed} /><NotificationsPage /></div>;
+    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><NotificationsPage /></div></div>;
   } else if (panel === 'connect-accounts') {
-    content = <div><BackToFeed onClick={backToFeed} /><ConnectAccountsPage /></div>;
+    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><ConnectAccountsPage /></div></div>;
   } else if (panel === 'advertise') {
     content = (
       <div>

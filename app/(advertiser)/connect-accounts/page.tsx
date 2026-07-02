@@ -425,7 +425,7 @@ export default function ConnectAccountsPage() {
   // WebsitePanel removed — only social connections are displayed below.
 
   return (
-    <div className="relative flex-1 max-w-7xl mx-auto px-8 py-10">
+    <div className="relative">
       {disconnectingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl w-full max-w-md p-6">

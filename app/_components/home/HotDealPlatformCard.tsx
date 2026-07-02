@@ -16,7 +16,7 @@ function formatCount(n: number): string {
 function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   return (
-    <div className="w-32 shrink-0">
+    <div className="w-24 shrink-0">
       <div className="flex items-center gap-1.5 mb-1.5">
         {creator.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -55,7 +55,7 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
 // literal screenshot of any one site.
 function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
   return (
-    <div className="w-32 shrink-0">
+    <div className="w-24 shrink-0">
       <p className="text-[11px] font-bold text-[#0284c7] truncate mb-1.5">{website.websiteName}</p>
       <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-b from-[#7dd3fc] to-[#38bdf8]">
         {/* Cartoon sun, top-left, with a soft radiating halo */}

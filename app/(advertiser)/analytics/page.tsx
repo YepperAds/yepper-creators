@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
+import WebsiteAdAudienceSnapshot from '@/app/(adsense)/ad-promoter/_components/WebsiteAdAudienceSnapshot';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -124,6 +125,7 @@ function normaliseArray<T>(raw: unknown): T[] {
 function WebsiteAdCard({ ad, open, onToggle }: { ad: WebsiteAd; open: boolean; onToggle: () => void }) {
   const activeSelection = ad.websiteSelections?.find(s => s.status === 'active' && !s.isRejected);
   const site = activeSelection && typeof activeSelection.websiteId === 'object' ? activeSelection.websiteId : null;
+  const siteId = site?._id ?? site?.id;
   const views = ad.views ?? 0;
   const clicks = ad.clicks ?? 0;
   const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0';
@@ -216,6 +218,8 @@ function WebsiteAdCard({ ad, open, onToggle }: { ad: WebsiteAd; open: boolean; o
               ● View your ad on {site.websiteName} →
             </a>
           )}
+
+          {siteId && <WebsiteAdAudienceSnapshot websiteId={String(siteId)} />}
         </div>
       )}
     </div>
@@ -320,6 +324,10 @@ function AdCampaignCard({ post, open, onToggle }: { post: AdPost; open: boolean;
               <span style={{ color }}>●</span> View on {provLabel} →
             </a>
           )}
+
+          <p className="text-xs text-(--color-muted) border border-dashed border-(--color-border) rounded-xl p-4 text-center">
+            Audience location isn&apos;t available for {provLabel} ads — Yepper doesn&apos;t currently pull per-video viewer geography from {provLabel}.
+          </p>
         </div>
       )}
     </div>

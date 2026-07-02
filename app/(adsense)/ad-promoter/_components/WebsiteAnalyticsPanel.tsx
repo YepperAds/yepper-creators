@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   RefreshCw,
   Eye,
@@ -15,24 +15,9 @@ import {
   Gift,
 } from 'lucide-react';
 import api from '@/app/_lib/adsense-api';
-
-// Backend day-count endpoints only return days that actually had traffic —
-// with a sparse or short history that's 2-3 entries, which a `flex-1` bar
-// chart renders as a couple of giant blocks rather than a real chart. This
-// fills in every day across the selected range (as 0) so the chart always
-// has one thin bar per day, whatever the underlying data density.
-function buildDailySeries(byDay: Array<Record<string, unknown>>, rangeDays: number, countKey: string): { date: string; value: number }[] {
-  const map = new Map(byDay.map((d) => [String(d.date), Number(d[countKey]) || 0]));
-  const series: { date: string; value: number }[] = [];
-  const today = new Date();
-  for (let i = rangeDays - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    series.push({ date: key, value: map.get(key) ?? 0 });
-  }
-  return series;
-}
+import { buildDailySeries } from '@/app/_lib/daily-series';
+import AudienceMap from './AudienceMap';
+import DailyBarChart from './DailyBarChart';
 
 // Visitor-traffic analytics for a single website the user owns — extracted
 // from the per-website "Analytics" tab (see ad-promoter/pages/website/[websiteId]/page.tsx)
@@ -48,8 +33,6 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
   const [gscData, setGscData] = useState<any>(null);
   const [gscLoading, setGscLoading] = useState(false);
   const [gscConnecting, setGscConnecting] = useState(false);
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const leafletMapRef = useRef<any>(null);
 
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
@@ -98,47 +81,6 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
     fetchGscData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [websiteId, analyticsRange]);
-
-  // Visitor-location map — loads Leaflet from a CDN on first use, same as
-  // the original per-website tab.
-  useEffect(() => {
-    if (!analytics?.mapPoints?.length) return;
-    const init = () => {
-      const container = mapRef.current;
-      if (!container || !(window as any).L) return;
-      if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
-      const map = (window as any).L.map(container, { zoomControl: true }).setView([20, 0], 2);
-      // CARTO's free dark basemap — no API key needed, and reads as part of
-      // the dashboard's dark UI instead of a bright OSM tile punched into it.
-      (window as any).L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-        maxZoom: 19,
-        subdomains: 'abcd',
-      }).addTo(map);
-      analytics.mapPoints.forEach((pt: any) => {
-        const c = pt.device === 'mobile' ? '#60a5fa' : pt.device === 'tablet' ? '#c084fc' : '#34d399';
-        (window as any).L.circleMarker([pt.lat, pt.lon], { radius: 6, fillColor: c, color: '#0b0f14', weight: 1.5, opacity: 1, fillOpacity: 0.9 })
-          .bindPopup(`<strong>${pt.city}, ${pt.country}</strong><br/>${pt.device}<br/>${new Date(pt.timestamp).toLocaleString()}`).addTo(map);
-      });
-      leafletMapRef.current = map;
-      requestAnimationFrame(() => map.invalidateSize());
-    };
-    if (!(window as any).L) {
-      if (!document.getElementById('leaflet-css')) {
-        const link = document.createElement('link');
-        link.id = 'leaflet-css'; link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-      }
-      const s = document.createElement('script');
-      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      s.onload = init;
-      document.head.appendChild(s);
-    } else {
-      init();
-    }
-    return () => { if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; } };
-  }, [analytics]);
 
   return (
     <div className="space-y-8">
@@ -194,27 +136,12 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
 
           {/* Daily chart */}
-          {analytics.byDay?.length > 0 && (() => {
-            const series = buildDailySeries(analytics.byDay, analyticsRange, 'count');
-            const max = Math.max(...series.map((d) => d.value), 1);
-            return (
-              <div className="border border-border p-6 bg-surface-1">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Views per Day</p>
-                <div className="flex items-end gap-px h-28">
-                  {series.map((d, i) => (
-                    <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
-                      <div style={{ height: `${(d.value / max) * 100}%` }} className="w-full bg-white hover:bg-zinc-400 transition-colors min-h-[2px] rounded-t-sm" />
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between mt-2 text-xs text-muted">
-                  <span>{series[0]?.date}</span>
-                  <span>{series[series.length - 1]?.date}</span>
-                </div>
-              </div>
-            );
-          })()}
+          {analytics.byDay?.length > 0 && (
+            <div className="border border-border p-6 bg-surface-1">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Views per Day</p>
+              <DailyBarChart series={buildDailySeries(analytics.byDay, analyticsRange, 'count')} height={112} />
+            </div>
+          )}
 
           {/* Map + countries */}
           <div className="grid grid-cols-1 gap-5">
@@ -224,7 +151,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 <span className="text-sm font-semibold text-white">Visitor Locations</span>
                 <span className="ml-auto text-xs text-muted">{analytics.mapPoints?.length || 0} points</span>
               </div>
-              <div ref={mapRef} style={{ height: '360px', width: '100%' }} />
+              <AudienceMap points={analytics.mapPoints ?? []} height={360} />
               <div className="px-4 py-2 border-t border-border flex gap-4 text-xs text-muted">
                 {[['#34d399', 'Desktop'], ['#60a5fa', 'Mobile'], ['#c084fc', 'Tablet']].map(([c, l]) => (
                   <span key={l} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: c }} />{l}</span>
@@ -402,27 +329,16 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 </div>
               ))}
             </div>
-            {gscData.byDay?.length > 0 && (() => {
-              const series = buildDailySeries(gscData.byDay, analyticsRange, 'clicks');
-              const max = Math.max(...series.map((d) => d.value), 1);
-              return (
-                <div className="border border-border p-6 bg-surface-1">
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Clicks per Day</p>
-                  <div className="flex items-end gap-px h-24">
-                    {series.map((d, i) => (
-                      <div key={i} className="flex-1 h-full group relative flex flex-col justify-end">
-                        <div style={{ height: `${(d.value / max) * 100}%` }} className="w-full bg-blue-500 hover:bg-blue-400 transition-colors min-h-[2px] rounded-t-sm" />
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black text-[#fff] px-1 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-10">{d.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-muted">
-                    <span>{series[0]?.date}</span>
-                    <span>{series[series.length - 1]?.date}</span>
-                  </div>
-                </div>
-              );
-            })()}
+            {gscData.byDay?.length > 0 && (
+              <div className="border border-border p-6 bg-surface-1">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Clicks per Day</p>
+                <DailyBarChart
+                  series={buildDailySeries(gscData.byDay, analyticsRange, 'clicks')}
+                  height={96}
+                  barColor="bg-blue-500 hover:bg-blue-400"
+                />
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-5">
               <div className="border border-border">
                 <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Top Search Queries</div>
@@ -467,41 +383,6 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
         )}
       </div>
-
-      <style jsx global>{`
-        .leaflet-container {
-          background: #0b0f14;
-          font-family: inherit;
-        }
-        .leaflet-control-zoom a {
-          background: #171b22 !important;
-          color: #e5e7eb !important;
-          border-color: #2a303c !important;
-        }
-        .leaflet-control-zoom a:hover {
-          background: #2a303c !important;
-        }
-        .leaflet-control-attribution {
-          background: rgba(11, 15, 20, 0.75) !important;
-          color: #9aa3af !important;
-        }
-        .leaflet-control-attribution a {
-          color: #cbd5e1 !important;
-        }
-        .leaflet-popup-content-wrapper {
-          background: #171b22;
-          color: #e5e7eb;
-          border-radius: 10px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
-        .leaflet-popup-tip {
-          background: #171b22;
-        }
-        .leaflet-popup-content {
-          font-size: 12px;
-          line-height: 1.5;
-        }
-      `}</style>
     </div>
   );
 }

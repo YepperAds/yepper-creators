@@ -27,11 +27,11 @@ export default function DashboardHome({
   return (
     <div className="yp-mesh min-h-screen font-(--font-inter)">
       <Header />
-      <div className="max-w-7xl mx-auto flex">
+      <div className="max-w-[1600px] mx-auto flex">
         <Suspense fallback={<div className="w-64 shrink-0" />}>
           <LeftRail />
         </Suspense>
-        <main className="flex-1 min-w-0 p-4">
+        <main className="flex-1 min-w-0 py-4 px-2">
           <Suspense fallback={<CenterPanelSkeleton />}>
             <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
           </Suspense>

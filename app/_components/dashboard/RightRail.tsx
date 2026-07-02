@@ -175,7 +175,7 @@ export default function RightRail() {
   }, []);
 
   return (
-    <aside className="w-72 shrink-0 self-start sticky top-4 space-y-4 p-4">
+    <aside className="w-72 shrink-0 self-start sticky top-4 space-y-4 py-4 pr-4 pl-2">
       <Box title="Your websites" href="/?panel=analytics&tab=websites" addHref="/?panel=add-website" addLabel="Add website">
         {loading ? (
           <div className="h-16 rounded-lg bg-background animate-pulse" />

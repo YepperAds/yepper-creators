@@ -198,13 +198,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const handleDeleteSuccess = () => { setCategoryToDelete(null); fetchWebsiteData(); };
     const handleSendInvite = (cat) => setCategoryToInvite(cat);
 
-    const handleAllSpacesLanguageChange = async (lang) => {
-        try {
-            await Promise.all(categories.map(c => api.patch(`/api/ad-categories/category/${c._id}/language`, { defaultLanguage: lang })));
-            setCategories(categories.map(c => ({ ...c, defaultLanguage: lang })));
-        } catch {}
-    };
-
     const handleSaveLanguage = () => {
         if (!currentCategory) return;
         setCategories(categories.map(c => c._id === currentCategory._id ? { ...c, defaultLanguage: selectedLanguage } : c));
@@ -362,7 +355,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 website={website}
                                 categories={categories}
                                 onAddSpace={handleOpenCategoriesForm}
-                                onLanguageChange={handleAllSpacesLanguageChange}
                                 onDeleteCategory={handleDeleteCategory}
                                 onSendInvite={handleSendInvite}
                                 earningsSummary={earningsSummary}

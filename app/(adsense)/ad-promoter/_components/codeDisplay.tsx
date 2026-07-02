@@ -3,9 +3,8 @@
 
 import React, { useState } from 'react';
 import {
-  Copy, Check, Plus, Code, Info, Zap, MousePointer, Globe,
+  Copy, Check, Plus, Code, MousePointer,
   Trash2, X, ChevronDown, ChevronRight, BookOpen, Mail,
-  Code2, Braces, Server, Terminal, Layers, Puzzle, BookMarked, Atom,
 } from 'lucide-react';
 
 // Only Floating and Modal are truly position-independent (position:fixed,
@@ -17,151 +16,9 @@ import {
 // now goes through the iframe / Precise-Placement track instead.
 const AUTO_RELIABLE = ['floating', 'modalpic'];
 
-// ── Supported frameworks (icons only — no emojis) ─────────────────────────────
-// "Vanilla JS" (not "JavaScript") is deliberate — a React site IS technically
-// JavaScript, and that label alone was getting picked by React/Next.js owners
-// over the dedicated React/Next.js tabs, who then pasted a raw `style="..."`
-// string into JSX and broke their build (react/style-prop-object). Putting
-// React and Next.js right next to it keeps the framework-specific tabs from
-// being missed.
-const FRAMEWORKS = [
-  { id: 'html',       label: 'HTML',        Icon: Code2 },
-  { id: 'javascript', label: 'Vanilla JS',  Icon: Braces },
-  { id: 'react',      label: 'React',       Icon: Atom },
-  { id: 'nextjs',     label: 'Next.js',     Icon: Layers },
-  { id: 'vue',        label: 'Vue.js',      Icon: Puzzle },
-  { id: 'php',        label: 'PHP',         Icon: Server },
-  { id: 'python',     label: 'Python',      Icon: Terminal },
-  { id: 'wordpress',  label: 'WordPress',   Icon: BookMarked },
-];
-
-const HUMAN_LANGUAGES = [
-  { value: 'english',     label: 'English' },
-  { value: 'french',      label: 'French (Français)' },
-  { value: 'kinyarwanda', label: 'Kinyarwanda' },
-  { value: 'kiswahili',   label: 'Swahili' },
-  { value: 'chinese',     label: 'Chinese (中文)' },
-  { value: 'spanish',     label: 'Spanish (Español)' },
-];
-
-// ── Main site script per framework ────────────────────────────────────────────
-function buildSiteScript(src, framework) {
-  switch (framework) {
-    case 'javascript':
-      return `// Add to any existing JS file, or inline in a <script> tag
-document.addEventListener('DOMContentLoaded', function () {
-  var s = document.createElement('script');
-  s.src = '${src}';
-  s.async = true;
-  document.head.appendChild(s);
-});`;
-
-    case 'nextjs':
-      return `// app/layout.js — App Router (Next.js 13+)
-import Script from 'next/script';
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Script src="${src}" strategy="afterInteractive" />
-      </body>
-    </html>
-  );
-}
-
-// pages/_document.js — Pages Router
-// import { Html, Head, Main, NextScript } from 'next/document';
-// export default function Document() {
-//   return (
-//     <Html>
-//       <Head>
-//         <script src="${src}" async />
-//       </Head>
-//       <body><Main /><NextScript /></body>
-//     </Html>
-//   );
-// }`;
-
-    case 'react':
-      return `// src/App.jsx (or your root component) — Create React App, Vite, etc.
-import { useEffect } from 'react';
-
-useEffect(() => {
-  const script = document.createElement('script');
-  script.src = '${src}';
-  script.async = true;
-  document.head.appendChild(script);
-  return () => document.head.removeChild(script);
-}, []);
-
-// ─── OR add it directly to public/index.html instead ───────────
-// <script src="${src}" async></script>`;
-
-    case 'vue':
-      return `// src/main.js — add before app.mount()
-const script = document.createElement('script');
-script.src = '${src}';
-script.async = true;
-document.head.appendChild(script);
-
-// ─── OR in App.vue using onMounted ─────────────────────
-// <script setup>
-// import { onMounted } from 'vue';
-// onMounted(() => {
-//   const s = document.createElement('script');
-//   s.src = '${src}';
-//   s.async = true;
-//   document.head.appendChild(s);
-// });
-// </script>`;
-
-    case 'wordpress':
-      return `<?php
-// Add to your theme's functions.php
-
-function yepper_enqueue_script() {
-    wp_enqueue_script(
-        'yepper-ads',
-        '${src}',
-        array(),   // no dependencies
-        null,      // no version (auto-updates)
-        false      // load in <head>
-    );
-    add_filter('script_loader_tag', function($tag, $handle) {
-        if ($handle === 'yepper-ads') {
-            return str_replace('<script', '<script async', $tag);
-        }
-        return $tag;
-    }, 10, 2);
-}
-add_action('wp_enqueue_scripts', 'yepper_enqueue_script');`;
-
-    case 'php':
-      return `<?php
-// In your main PHP layout file (header.php, layout.php, etc.)
-echo '<script src="${src}" async></script>';
-?>
-
-<!-- Or directly in HTML: -->
-<script src="${src}" async></script>`;
-
-    case 'python':
-      return `{# Django — base.html template #}
-{% block head %}
-  <script src="${src}" async></script>
-{% endblock %}
-
-{# ─── Flask — base.html Jinja2 template ──────────────── #}
-{# <script src="${src}" async></script>                    #}
-
-{# FastAPI / other Python frameworks:                      #}
-{# Add the script tag to your base HTML template.          #}`;
-
-    default: // html
-      return `<script src="${src}" async></script>`;
-  }
+// ── Main site script ──────────────────────────────────────────────────────────
+function buildSiteScript(src) {
+  return `<script src="${src}" async></script>`;
 }
 
 // ── Iframe embed sizing per spaceType ──────────────────────────────────────────
@@ -205,89 +62,19 @@ function buildIframeTag(src, w, h) {
   return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"></iframe>`;
 }
 
-function buildIframeEmbed(framework, src, spaceType) {
+function buildIframeEmbed(src, spaceType) {
   const { w, h } = recommendedEmbedSize(spaceType);
-  const tag = buildIframeTag(src, w, h);
-  switch (framework) {
-    case 'nextjs':
-    case 'react':
-      return `{/* Place this exactly where you want the ad */}
-<iframe
-  src="${src}"
-  width={${w}}
-  height={${h}}
-  frameBorder="0"
-  loading="lazy"
-  title="Advertisement"
-/>`;
-    case 'vue':
-      return `<!-- Place this exactly where you want the ad -->\n${tag}`;
-    case 'wordpress':
-    case 'php':
-      return `<?php echo '${tag.replace(/'/g, "\\'")}'; ?>\n<!-- Or directly: -->\n${tag}`;
-    case 'python':
-      return `{# Django/Flask Jinja2 template #}\n${tag}`;
-    case 'javascript':
-      return `${tag}\n\n// Or create it dynamically:\nconst el = document.createElement('iframe');\nel.src = '${src}';\nel.width = ${w}; el.height = ${h};\nel.frameBorder = '0';\nel.loading = 'lazy';\ndocument.querySelector('#your-container').appendChild(el);`;
-    default: // html
-      return tag;
-  }
+  return buildIframeTag(src, w, h);
 }
 
-// ── Installation steps per framework ─────────────────────────────────────────
-function getInstallSteps(framework, src) {
-  const steps = {
-    html: [
-      'Open your HTML file (e.g. index.html).',
-      'Find the <head> section.',
-      'Paste the script tag anywhere inside <head> — or just before </body>.',
-      'Save and reload your site.',
-    ],
-    javascript: [
-      'Add the DOMContentLoaded snippet to any JS file that runs on every page.',
-      'Or paste it as a <script> tag in your HTML.',
-      'The listener ensures the Yepper script loads after the page is ready.',
-      'For precise-placement spaces, paste the <iframe> tag where you want each ad — no script needed for those.',
-    ],
-    nextjs: [
-      'Use Next.js\'s built-in <Script> component — no install needed.',
-      'For App Router: add it to app/layout.js with strategy="afterInteractive".',
-      'For Pages Router: add to pages/_document.js inside <Head>.',
-      'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
-      'The script auto-loads on every page because it\'s in the root layout.',
-    ],
-    react: [
-      'Add the useEffect snippet to your root component (e.g. App.jsx) — it injects the script once on mount.',
-      'Or skip the useEffect and paste the <script> tag straight into public/index.html instead.',
-      'For precise-placement spaces, drop the <iframe> directly in any JSX — it\'s a normal element, safe from re-renders.',
-    ],
-    vue: [
-      'Open src/main.js (or main.ts).',
-      'Add the script creation code before app.mount().',
-      'Or add it inside onMounted() in your root App.vue.',
-      'For precise-placement spaces, paste the <iframe> in any .vue template — no script involvement needed.',
-    ],
-    wordpress: [
-      'Go to Appearance → Theme Editor in your WordPress Admin.',
-      'Open your active theme\'s functions.php file.',
-      'Paste the PHP snippet at the end of functions.php.',
-      'Save. The script will load on every page of your site.',
-      'For precise-placement spaces, echo the iframe tag in your theme templates.',
-    ],
-    php: [
-      'Open your main PHP layout file (header.php, layout.php, base.php, etc.).',
-      'Paste the script echo or raw HTML tag inside <head>.',
-      'It will load on every page that includes this layout file.',
-      'For precise-placement spaces, echo the iframe tag in any template where you want an ad.',
-    ],
-    python: [
-      'Open your base template (base.html for Django or Flask).',
-      'Add the <script> tag inside the head block.',
-      'Templates that extend base.html will automatically include the script.',
-      'For precise-placement spaces, paste the <iframe> tag in any template — no script needed for those.',
-    ],
-  };
-  return steps[framework] || steps.html;
+// ── Installation steps ────────────────────────────────────────────────────────
+function getInstallSteps() {
+  return [
+    'Open your HTML file (e.g. index.html).',
+    'Find the <head> section.',
+    'Paste the script tag anywhere inside <head> — or just before </body>.',
+    'Save and reload your site.',
+  ];
 }
 
 // ── Copy button ───────────────────────────────────────────────────────────────
@@ -327,30 +114,10 @@ const CodeBlock = ({ code }) => (
   </div>
 );
 
-// ── Framework selector ────────────────────────────────────────────────────────
-const FrameworkPicker = ({ active, onChange }) => (
-  <div className="flex flex-wrap gap-1.5">
-    {FRAMEWORKS.map(({ id, label, Icon }) => (
-      <button
-        key={id}
-        onClick={() => onChange(id)}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-          active === id
-            ? 'bg-blue-600 border-blue-500 text-white'
-            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
-        }`}
-      >
-        <Icon className="w-3 h-3" />
-        <span>{label}</span>
-      </button>
-    ))}
-  </div>
-);
-
 // ── Installation steps accordion ─────────────────────────────────────────────
-const InstallSteps = ({ framework, src }) => {
+const InstallSteps = () => {
   const [open, setOpen] = useState(false);
-  const steps = getInstallSteps(framework, src);
+  const steps = getInstallSteps();
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden">
       <button
@@ -378,11 +145,8 @@ const InstallSteps = ({ framework, src }) => {
 };
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onLanguageChange, onDeleteCategory, onSendInvite, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
-  const [framework, setFramework] = useState('html');
-  const [humanLang, setHumanLang] = useState('english');
-  const [langSaved, setLangSaved] = useState(false);
   const [showManual, setShowManual] = useState(false);
 
   const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -393,20 +157,13 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
   };
   const rawSrc = extractSrc(website?.site_script) || `${BACKEND}/api/p/site/${website?.id}`;
 
-  const mainCode    = buildSiteScript(rawSrc, framework);
-  const currentLabel = HUMAN_LANGUAGES.find(l => l.value === humanLang)?.label || 'English';
+  const mainCode = buildSiteScript(rawSrc);
 
   // Spaces the main site script can't reliably auto-place — these get an
   // iframe embed instead of a data-yepper-space div (see buildIframeEmbed).
   const embedCategories = categories.filter(
     (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
   );
-
-  const handleSaveLang = () => {
-    if (onLanguageChange) onLanguageChange(humanLang);
-    setLangSaved(true);
-    setTimeout(() => setLangSaved(false), 2000);
-  };
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
@@ -433,62 +190,10 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
       {open && (
         <div className="border-t border-zinc-700">
 
-          {/* Framework picker */}
-          <div className="px-5 py-4 border-b border-zinc-700 bg-zinc-950">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Globe className="w-3.5 h-3.5" /> Choose your framework / technology
-            </p>
-            <FrameworkPicker active={framework} onChange={setFramework} />
-          </div>
-
-          {/* Language selector */}
-          <div className="px-5 py-3 border-b border-zinc-700 bg-zinc-950 flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <Globe className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="font-medium text-zinc-300">Ads Language</span>
-              <span className="text-zinc-600">— all spaces serve ads in:</span>
-            </div>
-            <div className="flex items-center gap-2 ml-auto flex-wrap">
-              <select
-                value={humanLang}
-                onChange={e => { setHumanLang(e.target.value); setLangSaved(false); }}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-zinc-500"
-              >
-                {HUMAN_LANGUAGES.map(l => (
-                  <option key={l.value} value={l.value}>{l.label}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleSaveLang}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all border ${
-                  langSaved
-                    ? 'bg-green-900 border-green-700 text-green-300'
-                    : 'bg-zinc-800 border-zinc-600 text-zinc-200 hover:bg-zinc-700'
-                }`}
-              >
-                {langSaved ? <><Check className="w-3 h-3" /> Saved</> : 'Apply to All'}
-              </button>
-            </div>
-          </div>
-
           {/* Main script */}
           <div className="p-5 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-semibold text-zinc-100">
-                Main Site Script — paste this <strong>once</strong> on every page
-              </h3>
-            </div>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              This single script handles <strong className="text-zinc-300">all</strong> your ad spaces automatically.
-              You only need one copy across your entire site. Never change it when you add more spaces.
-            </p>
             <CodeBlock code={mainCode} />
-            <InstallSteps framework={framework} src={rawSrc} />
-            <div className="bg-blue-950 border border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-300 flex items-start gap-2">
-              <Zap className="w-3 h-3 shrink-0 mt-0.5" />
-              <span>Works for all auto-placed spaces: Header, Footer, Floating, Overlay, Mobile Interstitial, and more.</span>
-            </div>
+            <InstallSteps />
           </div>
 
           {/* Ad spaces list */}
@@ -544,7 +249,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
                               <span className="italic">earnings pending traffic</span>
                             )}
                             <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
-                            <span className="capitalize">{cat.defaultLanguage || currentLabel}</span>
+                            <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
                           </div>
                         </div>
                         {onSendInvite && (
@@ -605,7 +310,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
                                 <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
                                 <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
                               </div>
-                              <CodeBlock code={buildIframeEmbed(framework, embedSrc, cat.spaceType)} />
+                              <CodeBlock code={buildIframeEmbed(embedSrc, cat.spaceType)} />
                             </div>
                           );
                         })}
@@ -616,16 +321,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onLang
               )}
             </>
           )}
-
-          {/* Footer */}
-          <div className="border-t border-zinc-700 px-5 py-3 flex items-start gap-2 bg-zinc-950">
-            <Info className="w-3 h-3 text-zinc-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-zinc-500">
-              Select your framework above to see the right code. The main script auto-places Floating and Modal
-              spaces — nothing else to do for those.
-              {embedCategories.length > 0 && ' For the rest, expand "Precise-Placement Spaces" and paste the iframe where you want each ad.'}
-            </p>
-          </div>
         </div>
       )}
     </div>

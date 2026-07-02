@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code, MousePointer,
-  Trash2, X, ChevronDown, ChevronRight, BookOpen, Mail,
+  Trash2, X, ChevronDown, ChevronRight, Mail,
 } from 'lucide-react';
 
 // Only Floating and Modal are truly position-independent (position:fixed,
@@ -67,16 +67,6 @@ function buildIframeEmbed(src, spaceType) {
   return buildIframeTag(src, w, h);
 }
 
-// ── Installation steps ────────────────────────────────────────────────────────
-function getInstallSteps() {
-  return [
-    'Open your HTML file (e.g. index.html).',
-    'Find the <head> section.',
-    'Paste the script tag anywhere inside <head> — or just before </body>.',
-    'Save and reload your site.',
-  ];
-}
-
 // ── Copy button ───────────────────────────────────────────────────────────────
 const CopyBtn = ({ text }) => {
   const [copied, setCopied] = useState(false);
@@ -113,36 +103,6 @@ const CodeBlock = ({ code }) => (
     </div>
   </div>
 );
-
-// ── Installation steps accordion ─────────────────────────────────────────────
-const InstallSteps = () => {
-  const [open, setOpen] = useState(false);
-  const steps = getInstallSteps();
-  return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-          <span>Step-by-step installation guide</span>
-        </div>
-        {open ? <ChevronDown className="w-3.5 h-3.5 text-zinc-500" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />}
-      </button>
-      {open && (
-        <ol className="px-4 py-3 space-y-2 border-t border-zinc-700">
-          {steps.map((step: any, i: any) => (
-            <li key={i} className="flex gap-2.5 text-xs text-zinc-400">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-900 border border-blue-700 text-blue-300 flex items-center justify-center font-bold text-[10px]">{i + 1}</span>
-              <span className="leading-relaxed pt-0.5">{step}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-};
 
 // ── Main integration component ────────────────────────────────────────────────
 export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, earningsSummary, scriptInstalled = false }) => {
@@ -193,7 +153,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
           {/* Main script */}
           <div className="p-5 space-y-4">
             <CodeBlock code={mainCode} />
-            <InstallSteps />
           </div>
 
           {/* Ad spaces list */}

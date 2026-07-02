@@ -24,16 +24,23 @@ export interface MyAd {
   likes?: number;
 }
 
-export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads: MyAd[] }> {
+export interface YoutubeChannel {
+  username: string;
+  followers: number;
+  avatar: string | null;
+}
+
+export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads: MyAd[]; youtubeChannels: YoutubeChannel[] }> {
   const sessRes = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
   const sessJson = await sessRes.json().catch(() => ({}));
   const userId = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
-  if (!userId) return { websites: [], ads: [] };
+  if (!userId) return { websites: [], ads: [], youtubeChannels: [] };
 
-  const [wRes, aRes, activeRes] = await Promise.all([
+  const [wRes, aRes, activeRes, socialRes] = await Promise.all([
     fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store' }),
     fetch(`/api/social/ad-posts?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
     fetch('/api/proxy/api/ad-categories/active-ads', { credentials: 'include', cache: 'no-store' }),
+    fetch(`/api/social/stats?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
   ]);
 
   const wJson = await wRes.json().catch(() => ({}));
@@ -72,5 +79,15 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
     likes: Number(p.likes) || 0,
   }));
 
-  return { websites, ads: [...youtubeAds, ...websiteAds] };
+  const socialJson = await socialRes.json().catch(() => ({}));
+  const socialAccounts: Array<Record<string, unknown>> = Array.isArray(socialJson?.data) ? socialJson.data : [];
+  const youtubeChannels: YoutubeChannel[] = socialAccounts
+    .filter((a) => a.provider === 'youtube')
+    .map((a) => ({
+      username: a.username as string,
+      followers: Number(a.followers) || 0,
+      avatar: (a.avatar as string) || null,
+    }));
+
+  return { websites, ads: [...youtubeAds, ...websiteAds], youtubeChannels };
 }

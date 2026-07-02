@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { GlobeAltIcon, FilmIcon, PhotoIcon } from '@heroicons/react/24/outline';
-import { fetchDashboardAds, type OwnWebsite, type MyAd } from '@/app/_lib/my-ads';
+import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon } from '@heroicons/react/24/outline';
+import { fetchDashboardAds, type OwnWebsite, type MyAd, type YoutubeChannel } from '@/app/_lib/my-ads';
 
-function Box({ title, children }: { title: string; children: React.ReactNode }) {
+function Box({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-1 p-4">
+    <Link href={href} scroll={false} className="block rounded-2xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2">
       <h3 className="text-xs font-bold uppercase tracking-wide text-muted mb-3">{title}</h3>
       {children}
-    </div>
+    </Link>
   );
 }
 
@@ -45,7 +45,7 @@ function AdStack({ ads }: { ads: MyAd[] }) {
 
 function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+    <Link href="/?panel=ad-posts" scroll={false} className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-4 transition-colors hover:bg-neutral-800">
       <h3 className="text-xs font-bold uppercase tracking-wide text-neutral-500 mb-3">My ads</h3>
 
       {loading ? (
@@ -53,34 +53,68 @@ function MyAdsBox({ ads, loading }: { ads: MyAd[]; loading: boolean }) {
       ) : ads.length > 0 ? (
         <>
           <AdStack ads={ads} />
-          <p className="text-sm text-[#fff] mt-2 mb-3">{ads.length} ad{ads.length === 1 ? '' : 's'} running</p>
+          <p className="text-sm text-[#fff] mt-2">{ads.length} ad{ads.length === 1 ? '' : 's'} running</p>
         </>
       ) : (
-        <div className="h-20 rounded-xl border border-dashed border-neutral-700 flex flex-col items-center justify-center text-center mb-3 px-2">
+        <div className="h-20 rounded-xl border border-dashed border-neutral-700 flex flex-col items-center justify-center text-center px-2">
           <PhotoIcon className="w-5 h-5 text-neutral-600 mb-1" />
           <p className="text-xs text-neutral-500">No ads running yet</p>
         </div>
       )}
+    </Link>
+  );
+}
 
-      <Link href="/?panel=ad-posts" scroll={false} className="text-xs font-medium text-neutral-400 hover:text-[#fff]">
-        View all
-      </Link>
-    </div>
+function YoutubeChannelsBox({ channels, loading }: { channels: YoutubeChannel[]; loading: boolean }) {
+  const formatCount = (n: number): string => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toString();
+  };
+
+  return (
+    <Box title="Your YouTube channels" href="/?panel=connect-accounts">
+      {loading ? (
+        <div className="h-16 rounded-lg bg-background animate-pulse" />
+      ) : channels.length > 0 ? (
+        <>
+          <p className="text-sm text-white mb-2">{channels.length} connected</p>
+          <div className="space-y-2">
+            {channels.slice(0, 3).map((c) => (
+              <div key={c.username} className="flex items-center gap-2 text-sm text-subtle truncate">
+                {c.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                ) : (
+                  <PlayCircleIcon className="w-4 h-4 shrink-0" />
+                )}
+                <span className="truncate">@{c.username}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted">{formatCount(c.followers)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-subtle">Connect YouTube</p>
+      )}
+    </Box>
   );
 }
 
 export default function RightRail() {
-  const [websites, setWebsites]   = useState<OwnWebsite[]>([]);
-  const [myAds, setMyAds]         = useState<MyAd[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [websites, setWebsites]             = useState<OwnWebsite[]>([]);
+  const [myAds, setMyAds]                   = useState<MyAd[]>([]);
+  const [youtubeChannels, setYoutubeChannels] = useState<YoutubeChannel[]>([]);
+  const [loading, setLoading]               = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     fetchDashboardAds()
-      .then(({ websites: ownWebsites, ads }) => {
+      .then(({ websites: ownWebsites, ads, youtubeChannels: channels }) => {
         if (cancelled) return;
         setWebsites(ownWebsites);
         setMyAds(ads);
+        setYoutubeChannels(channels);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -88,13 +122,13 @@ export default function RightRail() {
 
   return (
     <aside className="w-72 shrink-0 self-start sticky top-4 space-y-4 p-4">
-      <Box title="Your websites">
+      <Box title="Your websites" href="/?panel=websites">
         {loading ? (
           <div className="h-16 rounded-lg bg-background animate-pulse" />
         ) : (
           <>
             <p className="text-sm text-white mb-2">{websites.length} connected</p>
-            <div className="space-y-2 mb-3">
+            <div className="space-y-2">
               {websites.slice(0, 3).map((w) => (
                 <div key={w.id} className="flex items-center gap-2 text-sm text-subtle truncate">
                   {w.imageUrl ? (
@@ -107,12 +141,11 @@ export default function RightRail() {
                 </div>
               ))}
             </div>
-            <Link href="/?panel=websites" scroll={false} className="text-xs font-medium text-subtle hover:text-white">
-              View all
-            </Link>
           </>
         )}
       </Box>
+
+      <YoutubeChannelsBox channels={youtubeChannels} loading={loading} />
 
       <MyAdsBox ads={myAds} loading={loading} />
     </aside>

@@ -87,7 +87,7 @@ export default function HotDealsSection({
           const pctOff = savings > 0 ? Math.round((savings / originalPrice) * 100) : 0;
 
           return (
-            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-2xl max-w-lg">
+            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-2xl max-w-sm">
               {/* Corner sale ribbon — clipped to a triangle by the card's own
                   overflow-hidden, the classic e-commerce "you're saving real
                   money" cue that a plain price line doesn't give you. */}

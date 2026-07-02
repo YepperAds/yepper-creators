@@ -13,6 +13,12 @@ const sendEmailNotification = require('../../controllers/emailService');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
 function catToClient(c) {
   if (!c) return null;
   return {
@@ -534,27 +540,50 @@ exports.sendCategoryInvite = async (req, res) => {
 
     const link = `${FRONTEND_URL}/ad-owner/pages/direct-ad?websiteId=${category.website_id}&categoryId=${category.id}`;
     const subject = `Advertise on ${websiteName}`;
+    const safeSpaceName   = escapeHtml(spaceName);
+    const safeWebsiteName = escapeHtml(websiteName);
+    const safeSpaceType   = escapeHtml(category.space_type || '');
+    const price = Number(category.price || 0).toFixed(2);
+
+    // Card mirrors the actual on-site ad widget (see AdDisplayController.js's
+    // availableSlotHtml/.sp-* markup): a graphic banner up top standing in
+    // for the real ad creative that hasn't been placed yet, then a white
+    // info panel with the real space details and an "Advertise Here" CTA —
+    // the same shape a recipient would see live on the site once bought.
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
       <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
         <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
           <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
             <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
-            <tr><td style="padding:40px;">
-              <p style="color:#333;font-size:19px;margin:0 0 16px 0;font-weight:700;">${subject}</p>
-              <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
-                The "${spaceName}" ad space on ${websiteName} is open. Book it to run your ad there.
-              </p>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr><td align="center" style="padding:0 0 32px 0;">
-                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:16px 36px;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;">
-                    Advertise on ${websiteName} →
-                  </a>
+
+            <tr><td style="padding:32px 40px 0;">
+
+              <!-- ── Ad space card — same shape as the live on-site ad widget ── -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:16px;overflow:hidden;border:1px solid #eee;">
+
+                <!-- Graphic banner — stands in for the real ad creative, which doesn't exist yet -->
+                <tr><td bgcolor="#f97316" style="background:linear-gradient(135deg,#fb7185,#f97316);padding:28px 16px;text-align:center;">
+                  <span style="display:inline-block;background:rgba(0,0,0,0.35);color:#fff;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:99px;margin-bottom:12px;">📣 Ad space preview</span><br/>
+                  <span style="display:inline-block;font-size:38px;font-weight:900;letter-spacing:.06em;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,0.25);">AD</span>
+                </td></tr>
+
+                <!-- Info panel — the real, current details for this space -->
+                <tr><td style="background:#fff;padding:20px;">
+                  <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#999;">${safeWebsiteName}${safeSpaceType ? ` · ${safeSpaceType}` : ''}</p>
+                  <p style="margin:0 0 10px;font-size:17px;font-weight:800;color:#111;">${safeSpaceName}</p>
+                  <p style="margin:0 0 16px;font-size:14px;color:#555;">Price: <strong style="color:#111;">$${price}/mo</strong></p>
+                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;">Advertise Here →</a>
                 </td></tr>
               </table>
-              <p style="color:#999;font-size:13px;line-height:1.5;margin:0;">
+
+              <p style="color:#555;font-size:14px;line-height:1.6;margin:20px 0 0;">
+                The "${safeSpaceName}" ad space on ${safeWebsiteName} is open. Book it to run your ad there.
+              </p>
+              <p style="color:#999;font-size:13px;line-height:1.5;margin:12px 0 32px;">
                 Clicking the button takes you straight there — log in (or create an account) and you'll land right back here to finish booking it.
               </p>
             </td></tr>
+
             <tr><td style="background:#fafafa;border-top:1px solid #eee;padding:20px 40px;">
               <p style="color:#bbb;font-size:12px;margin:0;text-align:center;">
                 © ${new Date().getFullYear()} Yepper · <a href="${FRONTEND_URL}/privacy-policy" style="color:#bbb;">Privacy Policy</a>

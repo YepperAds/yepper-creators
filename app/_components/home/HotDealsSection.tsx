@@ -97,7 +97,7 @@ export default function HotDealsSection({
                 </div>
               )}
 
-              <div className="relative h-32 sm:h-40 bg-[#111318]">
+              <div className="relative h-24 sm:h-32 bg-[#111318]">
                 {!category.isIcon && (
                   <>
                     <Image src={category.image} alt="" fill sizes="(max-width: 768px) 100vw, 640px" className="object-cover" />
@@ -105,13 +105,13 @@ export default function HotDealsSection({
                   </>
                 )}
 
-                <div className="relative z-10 h-full flex flex-col justify-between p-4">
+                <div className="relative z-10 h-full flex flex-col justify-between p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="yp-pulse-pop inline-flex items-center gap-1 rounded-full bg-coral px-2 py-0.5 mb-1.5 text-[9px] font-extrabold uppercase tracking-wide text-[#fff]">
+                      <span className="yp-pulse-pop inline-flex items-center gap-1 rounded-full bg-coral px-2 py-0.5 mb-1 text-[9px] font-extrabold uppercase tracking-wide text-[#fff]">
                         <FireIcon className="w-2.5 h-2.5" /> Hot deal
                       </span>
-                      <p className="text-lg sm:text-xl font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
+                      <p className="text-base sm:text-lg font-extrabold uppercase tracking-tight text-[#facc15] [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
                         {category.label}
                       </p>
                     </div>
@@ -129,9 +129,9 @@ export default function HotDealsSection({
               {/* Promo-stripe band, not flush with the card edges — the white
                   content panel below sits padded inside it, rather than the
                   white filling the whole width/corners like a plain document. */}
-              <div className="yp-promo-stripes px-3 pt-3 pb-3">
-                <div className="rounded-2xl bg-[#fff] px-3 py-3 shadow-[0_6px_18px_rgba(0,0,0,0.18)]">
-                  <div className="flex items-center justify-center flex-wrap gap-2 mb-2.5">
+              <div className="yp-promo-stripes px-3 pt-2 pb-2">
+                <div className="rounded-2xl bg-[#fff] px-3 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.18)]">
+                  <div className="flex items-center justify-center flex-wrap gap-2 mb-2">
                     {savings > 0 && (
                       <span className="text-[11px] text-black/40 line-through">{originalPrice.toLocaleString()} RWF</span>
                     )}

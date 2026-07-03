@@ -633,19 +633,17 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                 />
             )}
 
-            {/* Add ad space — full-screen overlay */}
+            {/* Add ad space — centered dialog, same treatment as the other modals in this file */}
             {categoriesForm && (
-                <div className="fixed inset-0 z-50 bg-black flex flex-col h-dvh">
-                    <div className="shrink-0 bg-black border-b border-border">
-                        <div className="max-w-7xl mx-auto px-8 h-14 flex items-center justify-between">
-                            <p className="text-sm font-semibold text-[#fff]">Add New Ad Space</p>
-                            <button onClick={handleCloseCategoriesForm} className="p-1.5 hover:bg-surface-2 border border-border transition-colors">
-                                <X size={15} className="text-[#fff]" />
+                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex items-center justify-between px-6 h-14 border-b border-border">
+                            <p className="text-sm font-semibold text-white">Add New Ad Space</p>
+                            <button onClick={handleCloseCategoriesForm} className="p-1.5 rounded-lg hover:bg-surface-3 border border-border transition-colors">
+                                <X size={15} className="text-white" />
                             </button>
                         </div>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                        <div className="max-w-7xl mx-auto px-8 py-10">
+                        <div className="flex-1 min-h-0 overflow-y-auto">
                             <AddNewCategory
                                 websiteId={websiteId}
                                 onSubmitSuccess={handleCloseCategoriesForm}

@@ -514,12 +514,12 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
   ];
 
   return (
-    <div className="bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-12">
+    <div>
+      <div className="max-w-6xl mx-auto px-6 py-6">
 
         {/* Page header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Select Ad Spaces</h1>
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-white mb-2">Select Ad Spaces</h1>
           <p className="text-subtle">Choose and configure advertising spaces for your website</p>
         </div>
 

@@ -131,7 +131,7 @@ function WebsiteAdCard({ ad, open, onToggle }: { ad: WebsiteAd; open: boolean; o
   const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0';
 
   return (
-    <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-2) overflow-hidden">
+    <div id={`web-ad-${ad._id}`} className="rounded-2xl border border-(--color-border) bg-(--color-surface-2) overflow-hidden scroll-mt-4">
       <button
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-(--color-surface-3) transition-colors text-left"
@@ -345,8 +345,9 @@ type MainTab = 'ads' | 'websites' | 'youtube';
 export default function AnalyticsPage() {
   const searchParams = useSearchParams();
   const websiteIdParam = searchParams.get('websiteId') ?? undefined;
+  const adIdParam = searchParams.get('adId') ?? undefined;
   const tabParam = searchParams.get('tab');
-  const initialTab: MainTab = websiteIdParam ? 'websites' : (tabParam === 'websites' || tabParam === 'youtube') ? tabParam : 'ads';
+  const initialTab: MainTab = adIdParam ? 'ads' : websiteIdParam ? 'websites' : (tabParam === 'websites' || tabParam === 'youtube') ? tabParam : 'ads';
   const [tab, setTab] = useState<MainTab>(initialTab);
   const [adsSubTab, setAdsSubTab] = useState<'social' | 'website'>('website');
 
@@ -360,7 +361,7 @@ export default function AnalyticsPage() {
 
   const [webAds,        setWebAds]        = useState<WebsiteAd[]>([]);
   const [webAdsLoading, setWebAdsLoading]  = useState(true);
-  const [openWebAds,    setOpenWebAds]     = useState<Set<string>>(new Set());
+  const [openWebAds,    setOpenWebAds]     = useState<Set<string>>(new Set(adIdParam ? [adIdParam] : []));
 
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -437,6 +438,12 @@ export default function AnalyticsPage() {
 
   const toggleWebAd = (id: string) =>
     setOpenWebAds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Deep-linked from the "just created this ad" success screen — scroll it into view once loaded.
+  useEffect(() => {
+    if (!adIdParam || webAdsLoading) return;
+    document.getElementById(`web-ad-${adIdParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [adIdParam, webAdsLoading]);
 
   // ─────────────────────────────────────────────────────────────────────────
   return (

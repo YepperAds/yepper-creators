@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useSession } from '@/app/_hooks/useSession';
-import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload, X, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload, X } from 'lucide-react';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
@@ -884,11 +884,8 @@ function DirectAdvertise() {
             <div className={`${GLASS_CARD} p-6 sm:p-8`}>
               {paymentDone ? (
                 <div className="py-4 text-center space-y-6">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-success/10 border-2 border-success flex items-center justify-center">
-                    <CheckCircle2 size={32} className="text-success" />
-                  </div>
                   <div>
-                    <h2 className="text-xl font-bold">Your ad is live! 🎉</h2>
+                    <h2 className="text-xl font-bold text-success">Your ad is live!</h2>
                     <p className="text-subtle text-sm mt-2">
                       Your advertisement is now showing on{' '}
                       <span className="font-semibold text-white">{websiteInfo?.websiteName}</span>.
@@ -904,7 +901,7 @@ function DirectAdvertise() {
                       View your ad live →
                     </a>
                     <NextLink
-                      href="/analytics"
+                      href={`/?panel=analytics&adId=${adId}`}
                       className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-surface-2 text-white border border-border px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
                     >
                       Go to dashboard & monitor traffic →

@@ -10,6 +10,9 @@ import { ArrowLeft, Globe, Building2, Link as LinkIcon, MapPin, FileText, Upload
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
+import CategoryCard from '@/app/_components/shared/CategoryCard';
+
+const GLASS_CARD = 'rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-3 flex-shrink-0" viewBox="0 0 24 24">
@@ -490,13 +493,13 @@ function DirectAdvertise() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen yp-mesh">
       {/* Fixed Alert Messages - Always visible at top */}
       {(error || success || authError || authSuccess) && (
         <div className="fixed top-0 left-0 right-0 z-50 px-6 pt-6">
           <div className="max-w-4xl mx-auto">
             {error && (
-              <div className="mb-4 border-2 border-error bg-error/10 p-4 shadow-lg">
+              <div className="mb-4 rounded-2xl border border-error bg-error/10 backdrop-blur-2xl p-4 shadow-lg">
                 <div className="flex items-start justify-between">
                   <p className="text-error text-sm flex-1">{error}</p>
                   <button
@@ -510,7 +513,7 @@ function DirectAdvertise() {
             )}
 
             {success && (
-              <div className="mb-4 border-2 border-success bg-success/10 p-4 shadow-lg">
+              <div className="mb-4 rounded-2xl border border-success bg-success/10 backdrop-blur-2xl p-4 shadow-lg">
                 <div className="flex items-start justify-between">
                   <p className="text-success text-sm flex-1">{success}</p>
                   <button
@@ -524,7 +527,7 @@ function DirectAdvertise() {
             )}
 
             {authError && (
-              <div className="mb-4 border-2 border-error bg-error/10 p-4 shadow-lg">
+              <div className="mb-4 rounded-2xl border border-error bg-error/10 backdrop-blur-2xl p-4 shadow-lg">
                 <div className="flex items-start justify-between">
                   <p className="text-error text-sm flex-1">{authError}</p>
                   <button
@@ -538,7 +541,7 @@ function DirectAdvertise() {
             )}
 
             {authSuccess && (
-              <div className="mb-4 border-2 border-success bg-success/10 p-4 shadow-lg">
+              <div className="mb-4 rounded-2xl border border-success bg-success/10 backdrop-blur-2xl p-4 shadow-lg">
                 <div className="flex items-start justify-between">
                   <p className="text-success text-sm flex-1">{authSuccess}</p>
                   <button
@@ -554,7 +557,7 @@ function DirectAdvertise() {
         </div>
       )}
 
-      <div className="border-b border-border bg-surface-2">
+      <div className="border-b border-border/40 bg-surface-1/70 dark:bg-surface-1/25 backdrop-blur-2xl">
         <div className="container mx-auto px-6 py-6">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             {[
@@ -564,9 +567,9 @@ function DirectAdvertise() {
             ].map((item: any, index: any) => (
               <React.Fragment key={item.num}>
                 <div className="flex flex-col items-center">
-                  <div className={`w-10 h-10 border-2 flex items-center justify-center transition-all ${
-                    step >= item.num 
-                      ? 'border-border bg-black text-[#fff]' 
+                  <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                    step >= item.num
+                      ? 'border-coral bg-coral text-[#fff]'
                       : 'border-border bg-surface-1 text-muted'
                   }`}>
                     <span className="text-sm font-semibold">{item.num}</span>
@@ -574,8 +577,8 @@ function DirectAdvertise() {
                   <span className="text-xs mt-2 text-subtle font-medium">{item.label}</span>
                 </div>
                 {index < 2 && (
-                  <div className={`flex-1 h-0.5 mx-4 ${
-                    step > item.num ? 'bg-black' : 'bg-gray-300'
+                  <div className={`flex-1 h-0.5 mx-4 rounded-full ${
+                    step > item.num ? 'bg-coral' : 'bg-border'
                   } transition-all`}></div>
                 )}
               </React.Fragment>
@@ -587,15 +590,15 @@ function DirectAdvertise() {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="border border-border bg-surface-1 p-8 mb-8">
+          <div className={`${GLASS_CARD} p-6 sm:p-8 mb-8`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <div className='flex gap-2 items-center'>
                   {websiteInfo?.imageUrl ? (
-                    <img 
-                      src={websiteInfo?.imageUrl} 
+                    <img
+                      src={websiteInfo?.imageUrl}
                       alt={websiteInfo?.websiteName}
-                      className="w-10 h-10 object-contain mr-3"
+                      className="w-10 h-10 rounded-xl object-contain mr-3"
                       onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = '/global.png';
@@ -606,16 +609,16 @@ function DirectAdvertise() {
                   )}
                   <p className="text-base font-medium">{websiteInfo?.websiteName}</p>
                 </div>
-                <div className="mt-4 pt-4 border-t border-border flex gap-2 items-center">
+                <div className="mt-4 pt-4 border-t border-border/40 flex gap-2 items-center">
                   <p className="text-xs font-medium text-muted">ACCEPTED CATEGORIES</p>
                   <div className="flex flex-wrap gap-2">
                     {websiteInfo?.businessCategories?.includes('any') ? (
-                      <span className="px-2 py-1 border border-border bg-surface-2 text-subtle text-xs">
+                      <span className="px-2.5 py-1 rounded-full border border-border bg-surface-2 text-subtle text-xs">
                         All Categories
                       </span>
                     ) : (
                       websiteInfo?.businessCategories?.map(cat => (
-                        <span key={cat} className="px-2 py-1 border border-border bg-surface-2 text-subtle text-xs">
+                        <span key={cat} className="px-2.5 py-1 rounded-full border border-border bg-surface-2 text-subtle text-xs">
                           {businessCategories.find(bc => bc.value === cat)?.label || cat}
                         </span>
                       ))
@@ -623,7 +626,7 @@ function DirectAdvertise() {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-semibold mb-3">Category Details</h3>
                 <p className="text-base mb-2"><span className='font-medium'>{categoryInfo?.categoryName}:</span> {categoryInfo?.description}</p>
@@ -643,9 +646,9 @@ function DirectAdvertise() {
 
           {/* Step 1: Ad Details Form */}
           {step === 1 && (
-            <div className="border border-border bg-surface-1 p-8">
+            <div className={`${GLASS_CARD} p-6 sm:p-8`}>
               <h2 className="text-xl font-semibold mb-6">Advertisement Details</h2>
-              
+
               <form onSubmit={handleSubmitBasicInfo} className="space-y-6">
                 {/* File Upload */}
                 <div>
@@ -656,15 +659,15 @@ function DirectAdvertise() {
                     onDrop={handleDrop}
                     onDragOver={(e) => e.preventDefault()}
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-border bg-surface-2 p-8 text-center cursor-pointer hover:border-muted transition-colors"
+                    className="rounded-2xl border-2 border-dashed border-border bg-surface-2 p-8 text-center cursor-pointer hover:border-coral/50 transition-colors"
                   >
                     {filePreview ? (
                       <div className="space-y-4">
                         {filePreview.type.startsWith('image/') && (
-                          <img src={filePreview.url} alt="Preview" className="max-h-48 mx-auto" />
+                          <img src={filePreview.url} alt="Preview" className="max-h-48 mx-auto rounded-xl" />
                         )}
                         {filePreview.type.startsWith('video/') && (
-                          <video src={filePreview.url} controls className="max-h-48 mx-auto" />
+                          <video src={filePreview.url} controls className="max-h-48 mx-auto rounded-xl" />
                         )}
                         <div className="flex items-center justify-center gap-2">
                           <p className="text-sm text-subtle">{file?.name}</p>
@@ -711,7 +714,7 @@ function DirectAdvertise() {
                       placeholder="Your Business Name"
                       value={businessData.businessName}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface-2 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
                       required
                     />
                     <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -724,17 +727,16 @@ function DirectAdvertise() {
                     Business Category <span className="text-red-500">*</span>
                     <span className="text-muted font-normal"> (select one or more)</span>
                   </label>
-                  <div className="border border-border bg-surface-1 p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {businessCategories.map(cat => (
-                      <label key={cat.value} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={businessData.businessCategories.includes(cat.value)}
-                          onChange={() => toggleCategory(cat.value)}
-                          className="accent-white"
-                        />
-                        {cat.label}
-                      </label>
+                      <CategoryCard
+                        key={cat.value}
+                        id={cat.value}
+                        label={cat.label}
+                        selected={businessData.businessCategories.includes(cat.value)}
+                        onClick={() => toggleCategory(cat.value)}
+                        size="card"
+                      />
                     ))}
                   </div>
                   {businessData.businessCategories.includes('other') && (
@@ -745,7 +747,7 @@ function DirectAdvertise() {
                         placeholder="Describe your business category"
                         value={businessData.businessCategoryOther}
                         onChange={handleInputChange}
-                        className="w-full pl-10 pr-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface-2 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
                         required
                       />
                       <FileText size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -765,7 +767,7 @@ function DirectAdvertise() {
                       value={businessData.businessLink}
                       onChange={handleInputChange}
                       placeholder="https://www.yourbusiness.com"
-                      className="w-full pl-10 pr-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface-2 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
                       required
                     />
                     <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -784,7 +786,7 @@ function DirectAdvertise() {
                       value={businessData.businessLocation}
                       onChange={handleInputChange}
                       placeholder="City, State, or Country"
-                      className="w-full pl-10 pr-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface-2 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
                       required
                     />
                     <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -802,7 +804,7 @@ function DirectAdvertise() {
                     onChange={handleInputChange}
                     rows="4"
                     placeholder="Tell us about your business in a few compelling words..."
-                    className="w-full px-4 py-3 border border-border focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface-2 focus:outline-none focus:ring-2 focus:ring-white focus:border-white"
                     required
                   />
                 </div>
@@ -811,7 +813,7 @@ function DirectAdvertise() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Processing...' : 'Continue to Authentication'}
                 </button>
@@ -821,7 +823,7 @@ function DirectAdvertise() {
 
           {/* Step 2: Authentication */}
           {step === 2 && (
-            <div className="border border-border bg-surface-1 p-8">
+            <div className={`${GLASS_CARD} p-6 sm:p-8`}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">
                   {isAuthenticated ? 'Review & Create Ad' : 'Sign In to Continue'}
@@ -836,17 +838,17 @@ function DirectAdvertise() {
                   </button>
                 )}
               </div>
-              
+
               {!isAuthenticated ? (
                 <div className="space-y-6">
                   <p className="text-subtle text-sm">Please sign in or create an account to proceed with your advertisement.</p>
-                  
+
                   {/* Google — primary CTA */}
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={isGoogleLoading || isLoading}
-                    className="w-full flex items-center justify-center px-4 py-3.5 border-2 border-border bg-surface-1 hover:bg-surface-2 hover:border-border transition-all duration-200 font-semibold text-subtle text-base shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center px-4 py-3.5 rounded-xl border-2 border-border bg-surface-2 hover:bg-surface-3 hover:border-border transition-all duration-200 font-semibold text-subtle text-base shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isGoogleLoading ? (
                       <svg className="animate-spin w-5 h-5 mr-3 text-muted" fill="none" viewBox="0 0 24 24">
@@ -861,14 +863,14 @@ function DirectAdvertise() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="border border-success bg-success/10 p-4">
+                  <div className="rounded-xl border border-success bg-success/10 p-4">
                     <span className="text-success text-sm">You're signed in as {user?.email}</span>
                   </div>
-                  
+
                   <button
                     onClick={() => createAdAndProceed()}
                     disabled={isLoading}
-                    className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Creating Ad...' : 'Create Ad & Proceed to Payment'}
                   </button>
@@ -879,7 +881,7 @@ function DirectAdvertise() {
 
           {/* Step 3: Payment */}
           {step === 3 && (
-            <div className="border border-border bg-surface-1 p-8">
+            <div className={`${GLASS_CARD} p-6 sm:p-8`}>
               {paymentDone ? (
                 <div className="py-4 text-center space-y-6">
                   <div className="w-16 h-16 mx-auto rounded-full bg-success/10 border-2 border-success flex items-center justify-center">
@@ -897,13 +899,13 @@ function DirectAdvertise() {
                       href={websiteInfo?.websiteLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-white text-black px-6 py-3 font-semibold hover:bg-gray-100 transition-colors"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-white text-background px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
                     >
                       View your ad live →
                     </a>
                     <NextLink
                       href="/analytics"
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-black text-[#fff] border border-border px-6 py-3 font-semibold hover:bg-gray-800 transition-colors"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-surface-2 text-white border border-border px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
                     >
                       Go to dashboard & monitor traffic →
                     </NextLink>
@@ -914,7 +916,7 @@ function DirectAdvertise() {
                   <h2 className="text-xl font-semibold mb-6">Complete Payment</h2>
 
                   <div className="space-y-6">
-                    <div className="border border-border bg-surface-2 p-6">
+                    <div className="rounded-2xl border border-border bg-surface-2 p-6">
                       <h3 className="font-semibold mb-4">Order Summary</h3>
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm">
@@ -929,7 +931,7 @@ function DirectAdvertise() {
                           <span className="text-subtle">Business:</span>
                           <span className="font-medium">{businessData.businessName}</span>
                         </div>
-                        <div className="border-t border-border pt-3 flex justify-between font-semibold text-base">
+                        <div className="border-t border-border/40 pt-3 flex justify-between font-semibold text-base">
                           <span>Total:</span>
                           <span>${categoryInfo?.price}</span>
                         </div>
@@ -939,7 +941,7 @@ function DirectAdvertise() {
                     <button
                       onClick={handlePayment}
                       disabled={isLoading}
-                      className="w-full bg-black text-[#fff] py-3 font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? 'Processing...' : 'Proceed to Payment'}
                     </button>

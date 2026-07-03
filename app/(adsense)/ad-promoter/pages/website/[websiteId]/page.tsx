@@ -2,6 +2,7 @@
 // @ts-nocheck
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -633,8 +634,9 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                 />
             )}
 
-            {/* Add ad space — centered dialog, same treatment as the other modals in this file */}
-            {categoriesForm && (
+            {/* Add ad space — centered dialog, portaled to <body> so it's never
+                constrained by an ancestor inside the embedded dashboard layout */}
+            {categoriesForm && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden">
                         <div className="shrink-0 flex items-center justify-between px-6 h-14 border-b border-border">
@@ -652,7 +654,8 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                             />
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );

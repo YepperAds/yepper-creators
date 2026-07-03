@@ -635,8 +635,8 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
             {/* Add ad space — full-screen overlay */}
             {categoriesForm && (
-                <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
-                    <div className="sticky top-0 z-10 bg-black border-b border-border">
+                <div className="fixed inset-0 z-50 bg-black flex flex-col h-dvh">
+                    <div className="shrink-0 bg-black border-b border-border">
                         <div className="max-w-7xl mx-auto px-8 h-14 flex items-center justify-between">
                             <p className="text-sm font-semibold text-[#fff]">Add New Ad Space</p>
                             <button onClick={handleCloseCategoriesForm} className="p-1.5 hover:bg-surface-2 border border-border transition-colors">
@@ -644,13 +644,15 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                             </button>
                         </div>
                     </div>
-                    <div className="max-w-7xl mx-auto px-8 py-10">
-                        <AddNewCategory
-                            websiteId={websiteId}
-                            onSubmitSuccess={handleCloseCategoriesForm}
-                            monthlyTraffic={analytics?.grantDisplay ? analytics.grantDisplay.grantedTraffic : website?.monthlyTraffic}
-                            gscData={analytics?.grantDisplay ? undefined : gscData}
-                        />
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                        <div className="max-w-7xl mx-auto px-8 py-10">
+                            <AddNewCategory
+                                websiteId={websiteId}
+                                onSubmitSuccess={handleCloseCategoriesForm}
+                                monthlyTraffic={analytics?.grantDisplay ? analytics.grantDisplay.grantedTraffic : website?.monthlyTraffic}
+                                gscData={analytics?.grantDisplay ? undefined : gscData}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

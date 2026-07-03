@@ -514,7 +514,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <div className="max-w-6xl mx-auto px-4 py-12">
 
         {/* Page header */}

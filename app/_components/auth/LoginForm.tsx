@@ -25,11 +25,6 @@ export default function LoginForm() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="text-center">
-        <h1 className="text-xl font-bold text-white font-(--font-display)">Welcome to Yepper</h1>
-        <p className="mt-1 text-sm text-subtle">Log in to manage your websites and ads.</p>
-      </div>
-
       <button
         type="button"
         onClick={handleGoogleLogin}

@@ -11,6 +11,17 @@ import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api from '@/app/_lib/adsense-api';
 
 
+const formatRemainingTime = (ms: number) => {
+  const totalMinutes = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
 const WithdrawalRequest = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,6 +43,7 @@ const WithdrawalRequest = () => {
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [withdrawCountdown, setWithdrawCountdown] = useState('');
 
   const getAuthToken = () => {
     return getToken();
@@ -69,6 +81,23 @@ const WithdrawalRequest = () => {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  useEffect(() => {
+    const nextWithdrawalAt = (wallet as any)?.nextWithdrawalAt;
+    if (!nextWithdrawalAt) {
+      setWithdrawCountdown('');
+      return;
+    }
+
+    const update = () => {
+      const remainingMs = new Date(nextWithdrawalAt).getTime() - Date.now();
+      setWithdrawCountdown(remainingMs > 0 ? formatRemainingTime(remainingMs) : '');
+    };
+
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [wallet]);
 
   const fetchWalletData = async () => {
     try {
@@ -212,6 +241,11 @@ const WithdrawalRequest = () => {
           <div className="border border-border bg-surface-1 p-6 mb-8">
             <h3 className="text-sm font-semibold text-white mb-2 uppercase tracking-wide">Available Balance</h3>
             <p className="text-3xl font-bold text-white">{formatCurrency(wallet?.balance)}</p>
+            {withdrawCountdown && (
+              <p className="text-sm text-error mt-2">
+                Next withdrawal available in {withdrawCountdown}
+              </p>
+            )}
           </div>
 
           {/* Withdrawal Form */}
@@ -347,10 +381,14 @@ const WithdrawalRequest = () => {
                 type="submit"
                 variant="primary"
                 size="lg"
-                disabled={submitting}
+                disabled={submitting || !!withdrawCountdown}
                 className="flex-1"
               >
-                {submitting ? 'Submitting...' : 'Submit Withdrawal Request'}
+                {submitting
+                  ? 'Submitting...'
+                  : withdrawCountdown
+                  ? `Available in ${withdrawCountdown}`
+                  : 'Submit Withdrawal Request'}
               </Button>
               <Button
                 type="button"

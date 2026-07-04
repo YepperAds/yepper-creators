@@ -2,6 +2,7 @@
 const { query, getClient } = require('../../config/db');
 const { Wallet, WalletTransaction } = require('../models/walletModel');
 const WithdrawalRequest = require('../models/WithdrawalModel');
+const { getWithdrawalCooldown } = require('../utils/withdrawalCooldown');
 
 exports.createWithdrawalRequest = async (req, res) => {
   const client = await getClient();
@@ -23,6 +24,12 @@ exports.createWithdrawalRequest = async (req, res) => {
     if (wallet.balance < amount) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Insufficient balance', currentBalance: wallet.balance, requestedAmount: amount });
+    }
+
+    const { canWithdraw, nextWithdrawalAt } = await getWithdrawalCooldown(wallet.id);
+    if (!canWithdraw) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Withdrawal cooldown in effect', nextWithdrawalAt });
     }
 
     // Check for existing pending request

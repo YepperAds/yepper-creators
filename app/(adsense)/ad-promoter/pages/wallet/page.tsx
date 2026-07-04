@@ -16,6 +16,17 @@ import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api from '@/app/_lib/adsense-api';
 
 
+const formatRemainingTime = (ms: number) => {
+  const totalMinutes = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
 const Wallet = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,6 +41,7 @@ const Wallet = () => {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredTransactions, setFilteredTransactions] = useState<Record<string,unknown>[]>([]);
+  const [withdrawCountdown, setWithdrawCountdown] = useState('');
 
   const getAuthToken = () => {
     return getToken();
@@ -89,6 +101,23 @@ const Wallet = () => {
 
     performSearch();
   }, [searchQuery, transactions]);
+
+  useEffect(() => {
+    const nextWithdrawalAt = (wallet as any)?.nextWithdrawalAt;
+    if (!nextWithdrawalAt) {
+      setWithdrawCountdown('');
+      return;
+    }
+
+    const update = () => {
+      const remainingMs = new Date(nextWithdrawalAt).getTime() - Date.now();
+      setWithdrawCountdown(remainingMs > 0 ? formatRemainingTime(remainingMs) : '');
+    };
+
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [wallet]);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -282,15 +311,23 @@ const Wallet = () => {
               {/* Only show Withdraw button for webOwner */}
               {walletType === 'webOwner' && (
                 <>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => router.push(`/wallet/${walletType}/withdraw`)}
-                    disabled={!wallet || wallet.balance <= 0}
-                  >
-                    <Download size={18} className="mr-2" />
-                    Withdraw
-                  </Button>
+                  <div className="flex flex-col items-end">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => router.push(`/wallet/${walletType}/withdraw`)}
+                      disabled={!wallet || wallet.balance <= 0 || !!withdrawCountdown}
+                      title={withdrawCountdown ? `Next withdrawal available in ${withdrawCountdown}` : undefined}
+                    >
+                      <Download size={18} className="mr-2" />
+                      Withdraw
+                    </Button>
+                    {withdrawCountdown && (
+                      <span className="text-xs text-subtle mt-1">
+                        Available in {withdrawCountdown}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
                     size="md"

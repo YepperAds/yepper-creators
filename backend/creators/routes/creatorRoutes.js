@@ -98,6 +98,9 @@ router.get('/api/adsense/handoff/:token',     controller.redeemHandoff);
 // ─── Wallet ───────────────────────────────────────────────────────────────────
 router.get('/api/wallet',                     controller.getWallet);
 router.get('/api/wallet/transactions',        controller.getWalletTransactions);
+router.post('/api/wallet/withdrawal-request', controller.createWalletWithdrawal);
+router.get('/api/wallet/withdrawal-requests', controller.getWalletWithdrawals);
+router.patch('/api/wallet/withdrawal-request/:requestId/cancel', controller.cancelWalletWithdrawal);
 
 // ─── Webhooks ─────────────────────────────────────────────────────────────────
 router.get('/api/webhooks/instagram',         controller.instagramWebhook);

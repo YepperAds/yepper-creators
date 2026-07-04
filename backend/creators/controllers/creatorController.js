@@ -4,10 +4,12 @@ const crypto    = require('crypto');
 const dns       = require('dns/promises');
 const jwt       = require('jsonwebtoken');
 
-const { query } = require('../../config/db');
+const { query, getClient } = require('../../config/db');
 const Creator   = require('../models/Creator');
 const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
 const sendEmailNotification = require('../../controllers/emailService');
+const WithdrawalRequest = require('../../AdPromoter/models/WithdrawalModel');
+const { getWithdrawalCooldown } = require('../../AdPromoter/utils/withdrawalCooldown');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
 
@@ -1380,16 +1382,30 @@ exports.getWallet = async (req, res) => {
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const result = await query(
-      `SELECT balance FROM wallets WHERE owner_id = $1 AND owner_type IN ('webOwner', 'advertiser')
+      `SELECT * FROM wallets WHERE owner_id = $1 AND owner_type IN ('webOwner', 'advertiser')
        ORDER BY ${WALLET_OWNER_TYPE_PRIORITY} LIMIT 1`,
       [String(session)],
     );
     if (result.rowCount === 0) {
       // No wallet yet — return zero balance
-      return res.json({ success: true, data: { balance: 0, currency: 'RWF' } });
+      return res.json({ success: true, data: { balance: 0, currency: 'RWF', canWithdraw: false, nextWithdrawalAt: null } });
     }
     const w = result.rows[0];
-    return res.json({ success: true, data: { balance: Number(w.balance || 0), currency: 'RWF' } });
+    // Only the webOwner (earnings) wallet is withdrawable — the advertiser
+    // wallet only tracks spend/refunds, same rule as AdPromoter/WalletController.
+    const withdrawable = w.owner_type === 'webOwner';
+    const { canWithdraw, nextWithdrawalAt } = withdrawable
+      ? await getWithdrawalCooldown(w.id)
+      : { canWithdraw: false, nextWithdrawalAt: null };
+    return res.json({
+      success: true,
+      data: {
+        balance: Number(w.balance || 0),
+        currency: 'RWF',
+        canWithdraw: withdrawable && canWithdraw,
+        nextWithdrawalAt,
+      },
+    });
   } catch (err) {
     console.error('[creators] GET /api/wallet error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch wallet' });
@@ -1418,6 +1434,119 @@ exports.getWalletTransactions = async (req, res) => {
   } catch (err) {
     console.error('[creators] GET /api/wallet/transactions error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch transactions' });
+  }
+};
+
+exports.createWalletWithdrawal = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+  const { amount, bankName, accountNumber, accountName, country, routingNumber, swiftCode } = req.body || {};
+  if (!amount || amount <= 0)
+    return res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
+  if (!bankName || !accountNumber || !accountName || !country)
+    return res.status(400).json({ success: false, message: 'All required bank details must be provided' });
+
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+
+    // Withdrawals only come out of the webOwner (earnings) wallet.
+    const { rows: [wallet] } = await client.query(
+      `SELECT * FROM wallets WHERE owner_id = $1 AND owner_type = 'webOwner' LIMIT 1`,
+      [String(session)],
+    );
+    if (!wallet) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Wallet not found' });
+    }
+    if (Number(wallet.balance) < Number(amount)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
+
+    const { canWithdraw, nextWithdrawalAt } = await getWithdrawalCooldown(wallet.id);
+    if (!canWithdraw) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Withdrawal cooldown in effect', nextWithdrawalAt });
+    }
+
+    const { rows: existing } = await client.query(
+      `SELECT id FROM withdrawal_requests WHERE wallet_id = $1 AND status = 'pending'`,
+      [wallet.id],
+    );
+    if (existing.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'You already have a pending withdrawal request.' });
+    }
+
+    const creator = await Creator.findById(session);
+    const withdrawalRequest = await WithdrawalRequest.create({
+      walletId: wallet.id,
+      userId: String(session),
+      userEmail: creator?.email || '',
+      ownerType: 'webOwner',
+      amount: parseFloat(amount),
+      bankDetails: { bankName, accountNumber, accountName, country, routingNumber: routingNumber || '', swiftCode: swiftCode || '' },
+      walletBalanceAtRequest: wallet.balance,
+    });
+
+    await client.query('COMMIT');
+    return res.status(201).json({
+      success: true,
+      message: 'Withdrawal request submitted successfully',
+      data: { id: withdrawalRequest.id, amount: withdrawalRequest.amount, status: withdrawalRequest.status, createdAt: withdrawalRequest.created_at },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[creators] POST /api/wallet/withdrawal-request error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to create withdrawal request' });
+  } finally {
+    client.release();
+  }
+};
+
+exports.getWalletWithdrawals = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
+  try {
+    const { rows } = await query(
+      `SELECT * FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [String(session)],
+    );
+    const data = rows.map((r) => ({
+      id: r.id,
+      amount: parseFloat(r.amount),
+      status: r.status,
+      bankDetails: r.bank_details,
+      rejectionReason: r.rejection_reason,
+      processedAt: r.processed_at,
+      createdAt: r.created_at,
+    }));
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[creators] GET /api/wallet/withdrawal-requests error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch withdrawal requests' });
+  }
+};
+
+exports.cancelWalletWithdrawal = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
+  try {
+    const { requestId } = req.params;
+    const { rows: [wr] } = await query(
+      `SELECT * FROM withdrawal_requests WHERE id = $1 AND user_id = $2`,
+      [requestId, String(session)],
+    );
+    if (!wr) return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    if (wr.status !== 'pending') return res.status(400).json({ success: false, message: 'Only pending requests can be cancelled' });
+
+    await WithdrawalRequest.update(requestId, { status: 'cancelled' });
+    return res.json({ success: true, message: 'Withdrawal request cancelled successfully' });
+  } catch (err) {
+    console.error('[creators] PATCH /api/wallet/withdrawal-request/:id/cancel error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to cancel withdrawal request' });
   }
 };
 

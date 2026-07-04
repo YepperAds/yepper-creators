@@ -3,10 +3,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowPathIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { BanknotesIcon } from '@heroicons/react/24/solid';
+import WithdrawModal from '../_components/WithdrawModal';
 
 interface WalletData {
-  balance:  number;
-  currency: string;
+  balance:          number;
+  currency:         string;
+  canWithdraw?:     boolean;
+  nextWithdrawalAt?: string | null;
+}
+
+function formatRemainingTime(ms: number) {
+  const totalMinutes = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 interface Transaction {
@@ -36,6 +50,8 @@ export default function WalletPage() {
   const [txns, setTxns]               = useState<Transaction[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawCountdown, setWithdrawCountdown] = useState('');
 
   const fetchWallet = useCallback(async () => {
     setLoading(true);
@@ -63,8 +79,25 @@ export default function WalletPage() {
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
+  useEffect(() => {
+    if (!wallet?.nextWithdrawalAt) {
+      setWithdrawCountdown('');
+      return;
+    }
+
+    const update = () => {
+      const remainingMs = new Date(wallet.nextWithdrawalAt as string).getTime() - Date.now();
+      setWithdrawCountdown(remainingMs > 0 ? formatRemainingTime(remainingMs) : '');
+    };
+
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [wallet]);
+
   const currency = wallet?.currency ?? 'RWF';
   const balance  = wallet?.balance  ?? 0;
+  const canWithdraw = Boolean(wallet?.canWithdraw) && balance > 0;
 
   return (
     <div>
@@ -108,13 +141,16 @@ export default function WalletPage() {
         </div>
 
         <button
-          disabled
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-sm font-bold opacity-40 cursor-not-allowed"
-          title="Withdrawals coming soon"
+          onClick={() => setWithdrawOpen(true)}
+          disabled={!canWithdraw}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          title={withdrawCountdown ? `Next withdrawal available in ${withdrawCountdown}` : undefined}
         >
           <ArrowUpTrayIcon className="w-4 h-4" />
           Withdraw
-          <span className="ml-1 text-[10px] font-semibold bg-black/10 px-1.5 py-0.5 rounded">Soon</span>
+          {withdrawCountdown && (
+            <span className="ml-1 text-[10px] font-semibold bg-black/10 px-1.5 py-0.5 rounded">{withdrawCountdown}</span>
+          )}
         </button>
       </div>
 
@@ -157,6 +193,14 @@ export default function WalletPage() {
           </div>
         )}
       </div>
+
+      <WithdrawModal
+        open={withdrawOpen}
+        balance={balance}
+        currency={currency}
+        onClose={() => setWithdrawOpen(false)}
+        onSuccess={fetchWallet}
+      />
 
     </div>
   );

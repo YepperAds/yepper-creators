@@ -1369,12 +1369,19 @@ exports.refreshAllAdPostStats = async () => {
 
 // ─── Wallet ──────────────────────────────────────────────────────────────────
 
+// Earnings land in a 'webOwner' wallet (publisher payouts) or 'advertiser' wallet
+// (refund credits); 'creator' is not a wallet owner_type this schema uses.
+// Prefer webOwner (actual earnings) over advertiser (spend/refund tracking only)
+// when a user has both, same precedence as AdPromoter/WalletController.getWallet.
+const WALLET_OWNER_TYPE_PRIORITY = `CASE owner_type WHEN 'webOwner' THEN 0 ELSE 1 END`;
+
 exports.getWallet = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const result = await query(
-      `SELECT id, balance, currency FROM wallets WHERE owner_id = $1 AND owner_type = 'creator' LIMIT 1`,
+      `SELECT balance FROM wallets WHERE owner_id = $1 AND owner_type IN ('webOwner', 'advertiser')
+       ORDER BY ${WALLET_OWNER_TYPE_PRIORITY} LIMIT 1`,
       [String(session)],
     );
     if (result.rowCount === 0) {
@@ -1382,7 +1389,7 @@ exports.getWallet = async (req, res) => {
       return res.json({ success: true, data: { balance: 0, currency: 'RWF' } });
     }
     const w = result.rows[0];
-    return res.json({ success: true, data: { balance: Number(w.balance || 0), currency: w.currency || 'RWF' } });
+    return res.json({ success: true, data: { balance: Number(w.balance || 0), currency: 'RWF' } });
   } catch (err) {
     console.error('[creators] GET /api/wallet error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch wallet' });
@@ -1394,18 +1401,20 @@ exports.getWalletTransactions = async (req, res) => {
   if (!session) return res.status(401).json({ success: false, message: 'Not authenticated' });
   try {
     const walletRes = await query(
-      `SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'creator' LIMIT 1`,
+      `SELECT id FROM wallets WHERE owner_id = $1 AND owner_type IN ('webOwner', 'advertiser')
+       ORDER BY ${WALLET_OWNER_TYPE_PRIORITY} LIMIT 1`,
       [String(session)],
     );
     if (walletRes.rowCount === 0) return res.json({ success: true, data: [] });
 
     const walletId = walletRes.rows[0].id;
     const txRes = await query(
-      `SELECT id, amount, direction, description AS note, created_at
+      `SELECT id, amount, type, description AS note, created_at
        FROM wallet_transactions WHERE wallet_id = $1 ORDER BY created_at DESC LIMIT 50`,
       [walletId],
     );
-    return res.json({ success: true, data: txRes.rows });
+    const data = txRes.rows.map((r) => ({ ...r, direction: r.type === 'debit' ? 'out' : 'in' }));
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[creators] GET /api/wallet/transactions error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch transactions' });

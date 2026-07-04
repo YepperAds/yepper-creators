@@ -48,19 +48,11 @@ export default function WalletPage() {
 
       if (wRes.ok) {
         const json = await wRes.json().catch(() => ({}));
-        const w = json.wallet ?? json.data ?? json;
-        setWallet(w ? { balance: Number(w.balance) || 0, currency: w.currency ?? 'RWF' } : null);
+        setWallet(json.data ?? json);
       }
       if (tRes.ok) {
         const json = await tRes.json().catch(() => ({}));
-        const list = Array.isArray(json.transactions) ? json.transactions : (Array.isArray(json.data) ? json.data : []);
-        setTxns(list.map((t: any) => ({
-          id: t.id,
-          amount: Number(t.amount) || 0,
-          direction: t.type === 'debit' ? 'out' : 'in',
-          created_at: t.created_at,
-          note: t.description,
-        })));
+        setTxns(Array.isArray(json.data) ? json.data : []);
       }
     } catch {
       setError('Could not load wallet data. Please try again.');

@@ -4,6 +4,23 @@ const { Wallet, WalletTransaction } = require('../models/walletModel');
 const WithdrawalRequest = require('../models/WithdrawalModel');
 const { getWithdrawalCooldown } = require('../utils/withdrawalCooldown');
 
+// Postgres rows come back snake_case; the frontend (ported from a Mongo-era client) expects camelCase + `_id`.
+function mapWithdrawalRequest(row) {
+  return {
+    _id: row.id,
+    id: row.id,
+    amount: parseFloat(row.amount),
+    status: row.status,
+    bankDetails: row.bank_details,
+    walletBalanceAtRequest: parseFloat(row.wallet_balance_at_request),
+    adminNotes: row.admin_notes,
+    rejectionReason: row.rejection_reason,
+    processedAt: row.processed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 exports.createWithdrawalRequest = async (req, res) => {
   const client = await getClient();
   try {
@@ -79,7 +96,7 @@ exports.getUserWithdrawalRequests = async (req, res) => {
       [userId, ownerType]
     );
     const total = all.length;
-    const withdrawalRequests = all.slice((page - 1) * limit, page * limit);
+    const withdrawalRequests = all.slice((page - 1) * limit, page * limit).map(mapWithdrawalRequest);
 
     res.status(200).json({ success: true, withdrawalRequests, totalPages: Math.ceil(total / limit), currentPage: page, total });
   } catch (error) {
@@ -129,7 +146,11 @@ exports.getAllWithdrawalRequests = async (req, res) => {
     const total = all.length;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
-    const withdrawalRequests = all.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+    const withdrawalRequests = all.slice((pageNum - 1) * limitNum, pageNum * limitNum).map(row => ({
+      ...mapWithdrawalRequest(row),
+      walletBalance: row.wallet_balance != null ? parseFloat(row.wallet_balance) : null,
+      walletEmail: row.wallet_email,
+    }));
 
     res.status(200).json({ success: true, withdrawalRequests, totalPages: Math.ceil(total / limitNum), currentPage: pageNum, total });
   } catch (error) {
@@ -191,7 +212,7 @@ exports.processWithdrawalRequest = async (req, res) => {
         adId: null,
         amount: -wr.amount,
         type: 'debit',
-        description: `Withdrawal to ${JSON.parse(wr.bank_details || '{}').bankName} - ${JSON.parse(wr.bank_details || '{}').accountNumber}`,
+        description: `Withdrawal to ${wr.bank_details?.bankName} - ${wr.bank_details?.accountNumber}`,
         status: 'completed'
       });
       updateFields.status = 'completed';
@@ -201,7 +222,7 @@ exports.processWithdrawalRequest = async (req, res) => {
     const updated = await WithdrawalRequest.update(requestId, updateFields);
     await client.query('COMMIT');
 
-    res.status(200).json({ success: true, message: `Withdrawal request ${action}d successfully`, withdrawalRequest: updated });
+    res.status(200).json({ success: true, message: `Withdrawal request ${action}d successfully`, withdrawalRequest: mapWithdrawalRequest(updated) });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Process withdrawal error:', error);

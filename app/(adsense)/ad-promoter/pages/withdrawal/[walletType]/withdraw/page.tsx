@@ -181,8 +181,22 @@ const WithdrawalRequest = () => {
     setSubmitting(true);
 
     try {
+      await api.post(
+        `/api/ad-categories/wallet/${walletType}/withdrawal-request`,
+        {
+          amount: parseFloat(formData.amount),
+          bankName: formData.bankName,
+          accountNumber: formData.accountNumber,
+          accountName: formData.accountName,
+          country: formData.country,
+          routingNumber: formData.routingNumber,
+          swiftCode: formData.swiftCode,
+        },
+        { headers: getAuthHeaders() }
+      );
+
       setSuccess('Withdrawal request submitted successfully! You will be notified once it is processed.');
-      
+
       // Reset form
       setFormData({
         amount: '',
@@ -200,7 +214,7 @@ const WithdrawalRequest = () => {
       }, 2000);
 
     } catch (error: unknown) {
-      setError((error as any).response?.data?.error || 'Failed to submit withdrawal request');
+      setError((error as any).response?.error || 'Failed to submit withdrawal request');
     } finally {
       setSubmitting(false);
     }

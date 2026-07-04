@@ -102,7 +102,7 @@ const WithdrawalHistory = () => {
       setSuccessMessage('Withdrawal request cancelled successfully');
       fetchWithdrawals();
     } catch (error: unknown) {
-      setError((error as any).response?.data?.error || 'Failed to cancel withdrawal request');
+      setError((error as any).response?.error || 'Failed to cancel withdrawal request');
     } finally {
       setCancellingId(null);
     }

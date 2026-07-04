@@ -31,6 +31,13 @@ interface Transaction {
   note?:      string;
 }
 
+interface WithdrawalRequestData {
+  id:        string;
+  amount:    number;
+  status:    string;
+  createdAt: string;
+}
+
 function fmt(n: number) {
   return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -52,14 +59,17 @@ export default function WalletPage() {
   const [error, setError]             = useState('');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawCountdown, setWithdrawCountdown] = useState('');
+  const [pendingWithdrawal, setPendingWithdrawal] = useState<WithdrawalRequestData | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchWallet = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [wRes, tRes] = await Promise.all([
-        fetch('/api/proxy/api/wallet',              { credentials: 'include', cache: 'no-store' }),
-        fetch('/api/proxy/api/wallet/transactions', { credentials: 'include', cache: 'no-store' }),
+      const [wRes, tRes, drRes] = await Promise.all([
+        fetch('/api/proxy/api/wallet',                     { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/proxy/api/wallet/transactions',        { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/proxy/api/wallet/withdrawal-requests', { credentials: 'include', cache: 'no-store' }),
       ]);
 
       if (wRes.ok) {
@@ -70,12 +80,33 @@ export default function WalletPage() {
         const json = await tRes.json().catch(() => ({}));
         setTxns(Array.isArray(json.data) ? json.data : []);
       }
+      if (drRes.ok) {
+        const json = await drRes.json().catch(() => ({}));
+        const list: WithdrawalRequestData[] = Array.isArray(json.data) ? json.data : [];
+        setPendingWithdrawal(list.find((w) => w.status === 'pending') ?? null);
+      }
     } catch {
       setError('Could not load wallet data. Please try again.');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const cancelPendingWithdrawal = async () => {
+    if (!pendingWithdrawal) return;
+    setCancelling(true);
+    try {
+      await fetch(`/api/proxy/api/wallet/withdrawal-request/${pendingWithdrawal.id}/cancel`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      await fetchWallet();
+    } catch {
+      setError('Failed to cancel withdrawal request.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
@@ -97,7 +128,7 @@ export default function WalletPage() {
 
   const currency = wallet?.currency ?? 'RWF';
   const balance  = wallet?.balance  ?? 0;
-  const canWithdraw = Boolean(wallet?.canWithdraw) && balance > 0;
+  const canWithdraw = Boolean(wallet?.canWithdraw) && balance > 0 && !pendingWithdrawal;
 
   return (
     <div>
@@ -122,6 +153,22 @@ export default function WalletPage() {
         <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
+      {pendingWithdrawal && (
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <p className="text-sm text-amber-300">
+            Withdrawal of <span className="font-semibold">{fmt(pendingWithdrawal.amount)} {currency}</span> pending since{' '}
+            {new Date(pendingWithdrawal.createdAt).toLocaleString()} — awaiting admin review.
+          </p>
+          <button
+            onClick={cancelPendingWithdrawal}
+            disabled={cancelling}
+            className="ml-4 shrink-0 text-xs font-semibold text-amber-300 hover:text-amber-200 underline disabled:opacity-50"
+          >
+            {cancelling ? 'Cancelling…' : 'Cancel'}
+          </button>
+        </div>
+      )}
+
       {/* Balance card */}
       <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-1)] p-8 mb-6">
         <div className="flex items-center gap-3 mb-6">
@@ -144,7 +191,13 @@ export default function WalletPage() {
           onClick={() => setWithdrawOpen(true)}
           disabled={!canWithdraw}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-          title={withdrawCountdown ? `Next withdrawal available in ${withdrawCountdown}` : undefined}
+          title={
+            pendingWithdrawal
+              ? 'You already have a pending withdrawal request'
+              : withdrawCountdown
+              ? `Next withdrawal available in ${withdrawCountdown}`
+              : undefined
+          }
         >
           <ArrowUpTrayIcon className="w-4 h-4" />
           Withdraw

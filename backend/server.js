@@ -181,6 +181,15 @@ async function startServer() {
     console.warn('⚠️  Migration 20260705_prospect_websites skipped:', err.message?.split('\n')[0]);
   }
 
+  // Seed pricing_rules with the new video ad spaces (Preroll/Midroll/Pause) if missing.
+  try {
+    const { up: createVideoAdSpaces } = require('./migrations/20260705_video_ad_spaces');
+    await createVideoAdSpaces();
+    console.log('✓ video ad-space prices ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260705_video_ad_spaces skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

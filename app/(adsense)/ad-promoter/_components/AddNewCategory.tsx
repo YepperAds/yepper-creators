@@ -18,6 +18,9 @@ import {
   Layout,
   Maximize,
   Search,
+  Play,
+  Film,
+  Pause,
 } from 'lucide-react';
 import { Button, Grid, Input, TextArea } from '@/app/(adsense)/components/components';
 import PricingTiers from './PricingTiers';
@@ -83,6 +86,9 @@ import ProFooter         from '../img/proFooter.png';
 import RightRail         from '../img/rightRail.png';
 import Sidebar           from '../img/sidebar.png';
 import StickySidebar     from '../img/stickySidebar.png';
+import PrerollPic        from '../img/preroll.png';
+import MidrollPic        from '../img/midroll.png';
+import PausePic          from '../img/pauseAd.png';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -252,6 +258,24 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'stickySidebar', description: 'Sidebar ad that stays visible as user scrolls',
       category: 'sidebar', position: 'side', image: StickySidebar.src,
+    },
+    preroll: {
+      name: 'Preroll', icon: <Play className="w-6 h-6" />,
+      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
+      spaceType: 'Preroll', description: 'Video ad that plays before the content starts',
+      category: 'video', position: 'video', image: PrerollPic.src,
+    },
+    midroll: {
+      name: 'Midroll', icon: <Film className="w-6 h-6" />,
+      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
+      spaceType: 'Midroll', description: 'Video ad that plays inside the content (content → ad → content)',
+      category: 'video', position: 'video', image: MidrollPic.src,
+    },
+    pause: {
+      name: 'Pause', icon: <Pause className="w-6 h-6" />,
+      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
+      spaceType: 'Pause', description: 'Ad that appears when the viewer pauses the video',
+      category: 'video', position: 'video', image: PausePic.src,
     },
   }), []);
 
@@ -511,6 +535,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
     { id: 'content',   name: 'Content'    },
     { id: 'special',   name: 'Special'    },
     { id: 'mobile',    name: 'Mobile'     },
+    { id: 'video',     name: 'Video'      },
   ];
 
   return (

@@ -98,6 +98,9 @@ const TIER_PRICES = {
     'Beneath Title': 2100,
     'Pro Footer': 1500,
     'Bottom': 1200,
+    'Preroll': 9000,
+    'Midroll': 7800,
+    'Pause': 5400,
   },
   starter: {
     'Header': 3000,
@@ -115,6 +118,9 @@ const TIER_PRICES = {
     'Beneath Title': 700,
     'Pro Footer': 500,
     'Bottom': 400,
+    'Preroll': 3000,
+    'Midroll': 2600,
+    'Pause': 1800,
   },
   basic: {
     'Header': 15000,
@@ -132,6 +138,9 @@ const TIER_PRICES = {
     'Beneath Title': 3500,
     'Pro Footer': 2500,
     'Bottom': 2000,
+    'Preroll': 15000,
+    'Midroll': 13000,
+    'Pause': 9000,
   },
   standard: {
     'Header': 30000,
@@ -149,6 +158,9 @@ const TIER_PRICES = {
     'Beneath Title': 7000,
     'Pro Footer': 5000,
     'Bottom': 4000,
+    'Preroll': 30000,
+    'Midroll': 26000,
+    'Pause': 18000,
   },
   premium: {
     'Header': 82000,
@@ -166,6 +178,9 @@ const TIER_PRICES = {
     'Beneath Title': 19000,
     'Pro Footer': 14000,
     'Bottom': 11000,
+    'Preroll': 82000,
+    'Midroll': 71000,
+    'Pause': 49000,
   },
   elite: {
     'Header': 220000,
@@ -183,6 +198,9 @@ const TIER_PRICES = {
     'Beneath Title': 51000,
     'Pro Footer': 37000,
     'Bottom': 29000,
+    'Preroll': 220000,
+    'Midroll': 190000,
+    'Pause': 132000,
   },
 };
 
@@ -216,6 +234,12 @@ const SPACE_TYPE_MAP = {
   'proFooter': 'Pro Footer',
   'Bottom': 'Bottom',
   'bottom': 'Bottom',
+  'Preroll': 'Preroll',
+  'preroll': 'Preroll',
+  'Midroll': 'Midroll',
+  'midroll': 'Midroll',
+  'Pause': 'Pause',
+  'pause': 'Pause',
 };
 
 // ── Exported helpers ─────────────────────────────────────────────────────────

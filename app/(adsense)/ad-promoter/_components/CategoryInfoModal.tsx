@@ -19,6 +19,9 @@ import ProFooterContainer from '../_descriptions/proFooter';
 import RightRailContainer from '../_descriptions/rightRail';
 import SidebarContainer from '../_descriptions/sidebar';
 import StickySidebarContainer from '../_descriptions/stickySidebar';
+import PrerollContainer from '../_descriptions/preroll';
+import MidrollContainer from '../_descriptions/midroll';
+import PauseContainer from '../_descriptions/pause';
 
 const CategoryInfoModal = ({  isOpen, onClose, category  }: any) => {
     if (!isOpen) return null;
@@ -40,7 +43,10 @@ const CategoryInfoModal = ({  isOpen, onClose, category  }: any) => {
         'proFooter': ProFooterContainer,
         'rightRail': RightRailContainer,
         'sidebar': SidebarContainer,
-        'stickySidebar': StickySidebarContainer
+        'stickySidebar': StickySidebarContainer,
+        'preroll': PrerollContainer,
+        'midroll': MidrollContainer,
+        'pause': PauseContainer
     };
 
     const CategoryComponent = CategoryComponents[category];

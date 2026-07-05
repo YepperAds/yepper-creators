@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authmiddleware');
 const ctrl = require('../controllers/adminController');
 const pricing = require('../controllers/pricingController');
 const hotDeals = require('../controllers/hotDealsController');
+const prospects = require('../controllers/prospectController');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────
@@ -65,5 +66,11 @@ router.get('/hot-deals/:id',                   adminAuth, hotDeals.adminGetDeal)
 router.put('/hot-deals/:id',                   adminAuth, hotDeals.adminUpdateDeal);
 router.delete('/hot-deals/:id',                adminAuth, hotDeals.adminDeleteDeal);
 router.post('/hot-deals/:id/send-email',       adminAuth, hotDeals.adminSendDealEmail);
+
+router.get('/prospect-websites/meta',   adminAuth, prospects.getMeta);
+router.get('/prospect-websites',        adminAuth, prospects.listProspectWebsites);
+router.post('/prospect-websites',       adminAuth, prospects.createProspectWebsite);
+router.delete('/prospect-websites/:id', adminAuth, prospects.deleteProspectWebsite);
+router.get('/prospect-interests',       adminAuth, prospects.listProspectInterests);
 
 module.exports = router;

@@ -66,6 +66,11 @@ router.get('/category/:categoryId', categoryController.getCategoryById);
 // request 401'd and silently rendered an empty ad-space dropdown.
 router.get('/:websiteId/advertiser', categoryController.getCategoriesByWebsiteForAdvertisers);
 
+// Express interest in a prospect website's ad space(s) — checks the shared
+// creators/advertiser session itself (getSessionUserId), not the `users` JWT
+// this file's authMiddleware expects, so it must stay above that middleware.
+router.post('/:websiteId/express-interest', categoryController.expressInterest);
+
 // ── AUTHENTICATED ────────────────────────────────────────────────────────────
 
 router.use(authMiddleware);

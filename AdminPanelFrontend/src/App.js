@@ -15,6 +15,7 @@ import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import AdminPricing from './pages/AdminPricing';
 import AdminHotDeals from './pages/AdminHotDeals';
 import AdminHotDealBuilder from './pages/AdminHotDealBuilder';
+import AdminProspectWebsites from './pages/AdminProspectWebsites';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,7 @@ function App() {
             <Route path="hot-deals" element={<AdminHotDeals />} />
             <Route path="hot-deals/new" element={<AdminHotDealBuilder />} />
             <Route path="hot-deals/:id" element={<AdminHotDealBuilder />} />
+            <Route path="prospect-websites" element={<AdminProspectWebsites />} />
           </Route>
         </Routes>
       </AdminAuthProvider>

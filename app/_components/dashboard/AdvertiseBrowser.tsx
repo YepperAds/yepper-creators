@@ -115,12 +115,19 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [loadingSpaces, setLoadingSpaces] = useState(false);
   const [spacesError, setSpacesError] = useState('');
   const [collaborateWith, setCollaborateWith] = useState<PublicCreator | null>(null);
+  const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>([]);
+  const [submittingInterest, setSubmittingInterest] = useState(false);
+  const [interestError, setInterestError] = useState('');
+  const [interestSubmitted, setInterestSubmitted] = useState(false);
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
     setAdSpaces([]);
     setSpacesError('');
     setLoadingSpaces(true);
+    setSelectedSpaceIds([]);
+    setInterestError('');
+    setInterestSubmitted(false);
     try {
       const res = await categoryAPI.getByWebsiteAdvertiser(String(website.id));
       const cats = (res.data as { categories?: AdSpace[] })?.categories ?? [];
@@ -129,6 +136,26 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       setSpacesError('Could not load ad spaces for this website.');
     } finally {
       setLoadingSpaces(false);
+    }
+  };
+
+  const toggleSpaceSelected = (categoryId: string) => {
+    setSelectedSpaceIds((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
+    );
+  };
+
+  const submitInterest = async () => {
+    if (!activeWebsite || selectedSpaceIds.length === 0) return;
+    setSubmittingInterest(true);
+    setInterestError('');
+    try {
+      await categoryAPI.expressInterest(String(activeWebsite.id), selectedSpaceIds);
+      setInterestSubmitted(true);
+    } catch {
+      setInterestError('Could not submit your interest. Please try again.');
+    } finally {
+      setSubmittingInterest(false);
     }
   };
 
@@ -168,7 +195,9 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           <ArrowLeftIcon className="w-4 h-4" /> Back to browse
         </button>
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">{activeWebsite.websiteName}</h3>
-        <p className="text-sm text-subtle mb-5">Choose the ad space you want to book.</p>
+        <p className="text-sm text-subtle mb-5">
+          {activeWebsite.isProspect ? 'Select the ad space(s) you\'re interested in.' : 'Choose the ad space you want to book.'}
+        </p>
 
         {loadingSpaces ? (
           <div className="space-y-2">
@@ -178,6 +207,43 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           <p className="text-sm text-coral-text">{spacesError}</p>
         ) : adSpaces.length === 0 ? (
           <p className="text-sm text-muted">No ad spaces available on this website yet.</p>
+        ) : activeWebsite.isProspect ? (
+          interestSubmitted ? (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <p className="text-sm font-bold text-emerald-400">Thanks — we've noted your interest.</p>
+              <p className="text-xs text-muted mt-1">We'll be in touch once this site is live on Yepper.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                {adSpaces.map((space) => (
+                  <label
+                    key={space._id}
+                    className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 cursor-pointer hover:border-coral/40 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSpaceIds.includes(space._id)}
+                      onChange={() => toggleSpaceSelected(space._id)}
+                      className="accent-coral"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                      {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {interestError && <p className="text-sm text-coral-text">{interestError}</p>}
+              <button
+                onClick={submitInterest}
+                disabled={selectedSpaceIds.length === 0 || submittingInterest}
+                className="w-full py-3 rounded-xl bg-coral text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {submittingInterest ? 'Submitting…' : 'Request selected ad space(s)'}
+              </button>
+            </div>
+          )
         ) : (
           <div className="space-y-2">
             {adSpaces.map((space) => (

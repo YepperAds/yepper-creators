@@ -141,6 +141,7 @@ export const websiteAPI = {
 export const categoryAPI = {
   getByWebsite:           (websiteId: string)                 => adsenseHttp.get(`/api/ad-categories/${websiteId}`),
   getByWebsiteAdvertiser: (websiteId: string)                 => adsenseHttp.get(`/api/ad-categories/${websiteId}/advertiser`),
+  expressInterest:        (websiteId: string, categoryIds: string[]) => adsenseHttp.post(`/api/ad-categories/${websiteId}/express-interest`, { categoryIds }),
   getById:                (categoryId: string)                => adsenseHttp.get(`/api/ad-categories/categoriees/${categoryId}`),
   getCategoryLanguage:    (categoryId: string)                => adsenseHttp.get(`/api/ad-categories/category/${categoryId}/language`),
   create:                 (data: unknown)                     => adsenseHttp.post('/api/ad-categories', data),

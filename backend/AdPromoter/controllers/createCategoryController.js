@@ -10,6 +10,7 @@ const WebOwnerBalance = require('../models/WebOwnerBalanceModel');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const Pricing = require('../../models/PricingModel');
 const sendEmailNotification = require('../../controllers/emailService');
+const { getSessionUserId } = require('../../creators/controllers/adSpaceController');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -674,6 +675,41 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
   } catch (error) {
     console.error('Error in getCategoriesByWebsiteForAdvertisers:', error);
     res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
+  }
+};
+
+// ── expressInterest ───────────────────────────────────────────────────────────
+// Lightweight "I want this ad space" signal for admin-added prospect websites —
+// no payment, no booking. Just records who wants what so the admin can go
+// pitch the real site owner. See backend/controllers/prospectController.js.
+exports.expressInterest = async (req, res) => {
+  const { websiteId } = req.params;
+  const { categoryIds } = req.body || {};
+
+  const advertiserId = getSessionUserId(req);
+  if (!advertiserId) return res.status(401).json({ success: false, message: 'Login required' });
+
+  if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'Select at least one ad space' });
+  }
+
+  try {
+    const categories = await AdCategory.findByWebsite(websiteId);
+    const validIds = new Set(categories.map((c) => c.id));
+    const invalid = categoryIds.filter((id) => !validIds.has(id));
+    if (invalid.length) return res.status(400).json({ success: false, message: 'One or more ad spaces are invalid for this website' });
+
+    for (const categoryId of categoryIds) {
+      await query(
+        `INSERT INTO prospect_interests (website_id, category_id, advertiser_id) VALUES ($1, $2, $3)`,
+        [websiteId, categoryId, advertiserId]
+      );
+    }
+
+    res.status(201).json({ success: true });
+  } catch (error) {
+    console.error('Error recording prospect interest:', error);
+    res.status(500).json({ success: false, message: 'Failed to record interest', error: error.message });
   }
 };
 

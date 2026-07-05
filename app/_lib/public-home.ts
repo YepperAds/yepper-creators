@@ -13,6 +13,7 @@ export interface PublicWebsite {
   imageUrl: string | null;
   businessCategories: string[];
   trafficTier: string;
+  isProspect?: boolean;
 }
 
 export interface PublicVideo {

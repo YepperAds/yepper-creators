@@ -30,6 +30,7 @@ function toClient(w) {
     verificationStatus: w.verification_status,
     businessCategories: w.business_categories,
     createdAt: w.created_at,
+    isProspect: w.is_prospect,
   };
 }
 

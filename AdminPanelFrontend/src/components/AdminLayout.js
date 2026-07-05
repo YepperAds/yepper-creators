@@ -10,6 +10,7 @@ const NAV = [
   { to: '/grants',    label: 'Grants',    icon: '🎁' },
   { to: '/pricing',label: 'Pricing',   icon: '💲' },
   { to: '/hot-deals', label: 'Hot Deals', icon: '🔥' },
+  { to: '/prospect-websites', label: 'Prospect Sites', icon: '🎯' },
 ];
 
 export default function AdminLayout() {

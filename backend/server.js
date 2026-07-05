@@ -172,6 +172,15 @@ async function startServer() {
     console.warn('⚠️  Migration 20260628_hot_deals skipped:', err.message?.split('\n')[0]);
   }
 
+  // Create prospect-website support (is_prospect column + prospect_interests table) if missing.
+  try {
+    const { up: createProspectWebsites } = require('./migrations/20260705_prospect_websites');
+    await createProspectWebsites();
+    console.log('✓ prospect website tables ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260705_prospect_websites skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

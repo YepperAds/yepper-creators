@@ -92,7 +92,6 @@ export default function CenterPanel({
           <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
           <DashboardFeed
             websites={websites.length > 0 ? websites : MOCK_WEBSITES}
-            creators={creators.length > 0 ? creators : MOCK_CREATORS}
           />
         </div>
       </div>

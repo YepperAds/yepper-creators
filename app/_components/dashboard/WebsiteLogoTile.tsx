@@ -16,7 +16,7 @@ function siteGradient(seed: string): string {
 export default function WebsiteLogoTile({ website, className }: { website: PublicWebsite; className?: string }) {
   return (
     <div
-      className={`relative rounded-lg overflow-hidden ${className ?? ''}`}
+      className={`rounded-lg overflow-hidden ${className ?? ''}`}
       style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}
     >
       <div className="absolute inset-0 overflow-hidden">

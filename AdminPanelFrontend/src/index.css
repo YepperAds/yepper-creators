@@ -16,6 +16,41 @@ code {
     monospace;
 }
 
+/* ── Clickable affordance — every interactive element should look
+   clickable. Browsers (and Tailwind's preflight, which deliberately
+   matches native behavior) default <button> to cursor:default, not
+   pointer — so without this, most of the admin panel's buttons and
+   toggles show a plain arrow on hover instead. `label:has(input[...])`
+   only targets labels that actually wrap a control — plain field
+   captions stay arrow-cursor since clicking them does nothing. Disabled
+   elements get cursor:not-allowed instead so it's equally clear they're
+   inert. ── */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="link"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+[role="checkbox"]:not([aria-disabled="true"]),
+[role="radio"]:not([aria-disabled="true"]),
+[role="switch"]:not([aria-disabled="true"]),
+a[href],
+label:has(input[type="checkbox"], input[type="radio"], input[type="file"]),
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"],
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
 /* ── Category art shell — ONE consistent claymorphism material, mirrors
    app/globals.css's .category-art on the main site. Every category shares
    this same clay color; a real 3D-rendered image (see CategoryChip.js) is

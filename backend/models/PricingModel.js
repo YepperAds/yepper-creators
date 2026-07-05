@@ -8,7 +8,7 @@ const SPACE_TYPES = [
   'Floating', 'Modal', 'Left Rail', 'Right Rail', 'Sidebar', 'In Feed',
   'Inline Content', 'Beneath Title', 'Pro Footer', 'Bottom',
   // Video-player placements (movie/video-content sites).
-  'Preroll', 'Midroll', 'Pause',
+  'Pre-roll', 'Mid-roll', 'Pause',
 ];
 
 // Ordered tiers (low → high traffic) with their visitor ranges (for the UI).
@@ -32,8 +32,8 @@ const SPACE_ALIASES = {
   'in feed':'In Feed','infeed':'In Feed','inline content':'Inline Content',
   'inlinecontent':'Inline Content','beneath title':'Beneath Title','beneathtitle':'Beneath Title',
   'pro footer':'Pro Footer','profooter':'Pro Footer','bottom':'Bottom',
-  'preroll':'Preroll','pre-roll':'Preroll','pre roll':'Preroll',
-  'midroll':'Midroll','mid-roll':'Midroll','mid roll':'Midroll',
+  'preroll':'Pre-roll','pre-roll':'Pre-roll','pre roll':'Pre-roll',
+  'midroll':'Mid-roll','mid-roll':'Mid-roll','mid roll':'Mid-roll',
   'pause':'Pause',
 };
 function canonicalSpace(s) {

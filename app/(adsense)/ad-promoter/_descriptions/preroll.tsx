@@ -50,7 +50,7 @@ const PrerollContainer = () => {
 
               <h1 className="text-4xl font-bold mb-6 tracking-tight">
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-                  Preroll
+                  Pre-roll
                 </span>
               </h1>
 

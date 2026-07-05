@@ -260,15 +260,15 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       category: 'sidebar', position: 'side', image: StickySidebar.src,
     },
     preroll: {
-      name: 'Preroll', icon: <Play className="w-6 h-6" />,
+      name: 'Pre-roll', icon: <Play className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Preroll', description: 'Video ad that plays before the content starts',
+      spaceType: 'Pre-roll', description: 'Video ad that plays before the content starts',
       category: 'video', position: 'video', image: PrerollPic.src,
     },
     midroll: {
-      name: 'Midroll', icon: <Film className="w-6 h-6" />,
+      name: 'Mid-roll', icon: <Film className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Midroll', description: 'Video ad that plays inside the content (content → ad → content)',
+      spaceType: 'Mid-roll', description: 'Video ad that plays inside the content (content → ad → content)',
       category: 'video', position: 'video', image: MidrollPic.src,
     },
     pause: {

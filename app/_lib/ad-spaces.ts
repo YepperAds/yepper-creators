@@ -20,7 +20,9 @@ const AD_SPACE_IMAGES: Record<string, string> = {
   'pro footer': '/ad-spaces/pro-footer.png',
   'bottom': '/ad-spaces/bottom.png',
   // Video-player placements (creator/YouTube ad spaces).
+  'pre-roll': '/ad-spaces/preroll.png',
   'preroll': '/ad-spaces/preroll.png',
+  'mid-roll': '/ad-spaces/midroll.png',
   'midroll': '/ad-spaces/midroll.png',
   'pause': '/ad-spaces/pause.png',
 };

@@ -418,10 +418,10 @@ const CategoryCreation = () => {
           image: StickySidebar
       },
       preroll: {
-          name: 'Preroll',
+          name: 'Pre-roll',
           icon: <Play className="w-6 h-6" />,
           infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Preroll",
+          spaceType: "Pre-roll",
           description: "Video ad that plays before the content starts",
           visualization: "/api/placeholder/300/120",
           category: "video",
@@ -429,10 +429,10 @@ const CategoryCreation = () => {
           image: PrerollPic
       },
       midroll: {
-          name: 'Midroll',
+          name: 'Mid-roll',
           icon: <Film className="w-6 h-6" />,
           infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Midroll",
+          spaceType: "Mid-roll",
           description: "Video ad that plays inside the content (content → ad → content)",
           visualization: "/api/placeholder/300/120",
           category: "video",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/24/solid';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import VideoEmbed from '@/app/_components/home/VideoEmbed';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
@@ -216,28 +217,38 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
               <p className="text-xs text-muted mt-1">We'll be in touch once this site is live on Yepper.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {adSpaces.map((space) => {
                   const img = getAdSpaceImage(space.spaceType, space.categoryName);
+                  const selected = selectedSpaceIds.includes(space._id);
                   return (
                     <label
                       key={space._id}
-                      className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 cursor-pointer hover:border-coral/40 transition-colors"
+                      className={`group flex flex-col rounded-2xl border-2 overflow-hidden cursor-pointer bg-surface-1 transition-colors ${selected ? 'border-coral' : 'border-border hover:border-coral/40'}`}
                     >
                       <input
                         type="checkbox"
-                        checked={selectedSpaceIds.includes(space._id)}
+                        checked={selected}
                         onChange={() => toggleSpaceSelected(space._id)}
-                        className="accent-coral"
+                        className="sr-only"
                       />
-                      {img && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-surface-3" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                        {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                      <div className="aspect-[4/3] w-full bg-white">
+                        {img ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={img} alt={`${space.categoryName} ad placement preview`} className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-3 p-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                          {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                        </div>
+                        <div className={`shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${selected ? 'bg-coral border-coral' : 'border-border group-hover:border-coral/60'}`}>
+                          {selected && <CheckIcon className="w-4 h-4 text-white" />}
+                        </div>
                       </div>
                     </label>
                   );
@@ -254,7 +265,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
             </div>
           )
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {adSpaces.map((space) => {
               const img = getAdSpaceImage(space.spaceType, space.categoryName);
               return (
@@ -262,18 +273,28 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                   key={space._id}
                   onClick={() => chooseAdSpace(space._id)}
                   disabled={space.isFullyBooked}
-                  className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex flex-col rounded-2xl border-2 border-border overflow-hidden text-left bg-surface-1 hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
                 >
-                  {img && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-surface-3" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                    {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
-                    {space.isFullyBooked && <p className="text-xs text-coral-text mt-0.5">Fully booked</p>}
+                  <div className="relative aspect-[4/3] w-full bg-white">
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={`${space.categoryName} ad placement preview`} className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
+                    )}
+                    {space.isFullyBooked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <p className="text-xs font-bold text-white uppercase tracking-wide">Fully booked</p>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                      {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                    </div>
+                    <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
+                  </div>
                 </button>
               );
             })}

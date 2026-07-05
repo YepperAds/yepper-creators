@@ -9,11 +9,13 @@ import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteLogoTile from './WebsiteLogoTile';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
+import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 interface AdSpace {
   _id: string;
   categoryName: string;
+  spaceType?: string;
   description?: string;
   price: number;
   tier?: string;
@@ -216,23 +218,30 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           ) : (
             <div className="space-y-3">
               <div className="space-y-2">
-                {adSpaces.map((space) => (
-                  <label
-                    key={space._id}
-                    className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 cursor-pointer hover:border-coral/40 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedSpaceIds.includes(space._id)}
-                      onChange={() => toggleSpaceSelected(space._id)}
-                      className="accent-coral"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                      {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
-                    </div>
-                  </label>
-                ))}
+                {adSpaces.map((space) => {
+                  const img = getAdSpaceImage(space.spaceType, space.categoryName);
+                  return (
+                    <label
+                      key={space._id}
+                      className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 cursor-pointer hover:border-coral/40 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSpaceIds.includes(space._id)}
+                        onChange={() => toggleSpaceSelected(space._id)}
+                        className="accent-coral"
+                      />
+                      {img && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-surface-3" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                        {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
               {interestError && <p className="text-sm text-coral-text">{interestError}</p>}
               <button
@@ -246,21 +255,28 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           )
         ) : (
           <div className="space-y-2">
-            {adSpaces.map((space) => (
-              <button
-                key={space._id}
-                onClick={() => chooseAdSpace(space._id)}
-                disabled={space.isFullyBooked}
-                className="w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div>
-                  <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                  {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
-                  {space.isFullyBooked && <p className="text-xs text-coral-text mt-0.5">Fully booked</p>}
-                </div>
-                <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
-              </button>
-            ))}
+            {adSpaces.map((space) => {
+              const img = getAdSpaceImage(space.spaceType, space.categoryName);
+              return (
+                <button
+                  key={space._id}
+                  onClick={() => chooseAdSpace(space._id)}
+                  disabled={space.isFullyBooked}
+                  className="w-full flex items-center gap-3 rounded-xl border border-border bg-surface-1 p-4 text-left hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {img && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={img} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 bg-surface-3" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                    {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                    {space.isFullyBooked && <p className="text-xs text-coral-text mt-0.5">Fully booked</p>}
+                  </div>
+                  <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,20 +1,15 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { User } from '@/app/_types/auth';
 import {
   MagnifyingGlassIcon,
   Squares2X2Icon,
-  MoonIcon,
-  SunIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 export default function TopNav() {
-  const { setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false);
@@ -22,7 +17,6 @@ export default function TopNav() {
 
   useEffect(() => {
     setTimeout(() => {
-      setMounted(true);
       // Fetch session implicitly to get user details
       api.get<{ data: { user: User } }>(AUTH_ENDPOINTS.checkSession).then((res) => {
         if (res.ok && res.data?.data?.user) {
@@ -92,19 +86,6 @@ export default function TopNav() {
         </div>
 
         <div className="w-px h-6 bg-(--color-border) opacity-50" />
-
-        {/* Theme Toggle */}
-        <div className="flex items-center justify-center w-8 h-8">
-          {mounted && (
-            <button
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full hover:bg-(--color-surface-3) text-(--color-subtle) hover:text-(--color-white) transition-colors"
-              title="Toggle Theme"
-            >
-              {resolvedTheme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-            </button>
-          )}
-        </div>
 
         {/* Profile Dropdown */}
         <div className="relative">

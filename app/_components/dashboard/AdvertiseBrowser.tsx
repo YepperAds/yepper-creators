@@ -69,7 +69,7 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
   return (
     <button
       onClick={() => onCollaborate(creator)}
-      className="w-56 shrink-0 text-left rounded-xl bg-surface-1 dark:bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
+      className="w-56 shrink-0 text-left rounded-xl bg-coral/8 border border-coral/15 p-3 hover:border-coral/40 transition-colors"
     >
       <div className="flex items-center gap-2 mb-2">
         {creator.avatar ? (

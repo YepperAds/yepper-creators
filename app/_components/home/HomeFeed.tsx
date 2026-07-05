@@ -29,7 +29,7 @@ function domainOf(link: string): string {
 
 function YoutuberCard({ creator }: { creator: PublicCreator }) {
   return (
-    <div className="rounded-2xl bg-surface-1 dark:bg-coral/8 border border-coral/15 p-4 sm:p-5">
+    <div className="rounded-2xl bg-coral/8 border border-coral/15 p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-coral-text">Youtuber</p>
         <button
@@ -73,12 +73,12 @@ function YoutuberCard({ creator }: { creator: PublicCreator }) {
 
 function WebsiteCard({ website }: { website: PublicWebsite }) {
   return (
-    <div className="rounded-2xl bg-[#0b0b0c] dark:bg-white p-4 sm:p-5">
+    <div className="rounded-2xl bg-[#0b0b0c] p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-bold text-[#fff] dark:text-[#0b0b0c]">Website</p>
+        <p className="text-sm font-bold text-[#fff]">Website</p>
         <button
           onClick={() => startCollaborate('websiteId', website.id)}
-          className="text-xs font-semibold text-[#fff] dark:text-[#0b0b0c] underline underline-offset-2 hover:text-coral dark:hover:text-coral-dark transition-colors"
+          className="text-xs font-semibold text-[#fff] underline underline-offset-2 hover:text-coral transition-colors"
         >
           Advertise on {website.websiteName}
         </button>
@@ -102,7 +102,7 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
 
         <div className="flex flex-col justify-between min-w-0">
           <div>
-            <p className="text-sm font-bold text-[#fff] dark:text-[#0b0b0c] font-(--font-display)">{website.websiteName}</p>
+            <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
             {website.businessCategories?.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {website.businessCategories.map((c) => (
@@ -111,7 +111,7 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
               </div>
             )}
           </div>
-          <p className="text-xs text-[#fff]/50 dark:text-[#0b0b0c]/50">{domainOf(website.websiteLink)}</p>
+          <p className="text-xs text-[#fff]/50">{domainOf(website.websiteLink)}</p>
         </div>
       </div>
     </div>

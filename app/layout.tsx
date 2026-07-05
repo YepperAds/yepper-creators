@@ -24,7 +24,6 @@ export const metadata: Metadata = {
   description: "Yepper — Everything you need, in one place.",
 };
 
-import { ThemeProvider } from "@/app/ThemeProvider";
 import BackendWarmup from "@/app/_components/BackendWarmup";
 import QueryProviders from "@/app/(adsense)/providers";
 
@@ -34,14 +33,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col font-(--font-inter)" suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <QueryProviders>
-            <BackendWarmup />
-            {children}
-          </QueryProviders>
-        </ThemeProvider>
+    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col font-(--font-inter)">
+        <QueryProviders>
+          <BackendWarmup />
+          {children}
+        </QueryProviders>
       </body>
     </html>
   );

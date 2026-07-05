@@ -12,7 +12,7 @@ import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 
-const GLASS_CARD = 'rounded-3xl border border-border/40 bg-surface-1 dark:bg-surface-1/25 backdrop-blur-2xl';
+const GLASS_CARD = 'rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-3 flex-shrink-0" viewBox="0 0 24 24">
@@ -557,7 +557,7 @@ function DirectAdvertise() {
         </div>
       )}
 
-      <div className="border-b border-border/40 bg-surface-1/70 dark:bg-surface-1/25 backdrop-blur-2xl">
+      <div className="border-b border-border/40 bg-surface-1/25 backdrop-blur-2xl">
         <div className="container mx-auto px-6 py-6">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             {[

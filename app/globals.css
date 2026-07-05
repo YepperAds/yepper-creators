@@ -19,7 +19,7 @@
   /* ── Accent — Coral (use sparingly) ──────────────────────── */
   --color-coral:       #E8472B;
   --color-coral-dark:  #C73820;
-  --color-coral-text:  var(--coral-text);  /* coral used as text on a surface — darker in light mode for AA contrast */
+  --color-coral-text:  var(--coral-text);  /* coral used as text on a surface */
 
   /* ── Accent — Blue (use sparingly) ───────────────────────── */
   --color-blue:        #1090C8;   
@@ -35,25 +35,8 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* ── Light Mode (Default) ────────────────────────────────────── */
+/* ── Dark Mode (the only mode) ───────────────────────────────── */
 :root {
-  --bg:         #F3F3F5;   /* Very light gray background like URBN */
-  --surface-1:  #FFFFFF;   /* White cards */
-  --surface-2:  #FAFAFA;   /* Slightly off-white for nested */
-  --surface-3:  #F0F0F0;   /* Hover surfaces */
-  --border:     #E5E5E5;   /* Light borders */
-  --muted:      #707070;   /* Muted text (icons/disables) — was #A3A3A3 (2.8:1 on white, fails AA); now ~4.9:1 */
-  --subtle:     #525252;   /* Secondary text */
-  --text-main:  #111111;   /* Primary text (Note: mapped to --color-white in tailwind for legacy compat) */
-  --coral-text: #C73820;   /* coral-dark — coral text needs the darker shade on white to clear 4.5:1 */
-  --clay-bg:           #F6EAE0;            /* one warm putty tone for every category card — the image tells them apart, not the color */
-  --clay-shadow-dark:  rgba(173, 120, 80, 0.32);
-  --clay-shadow-light: rgba(255, 255, 255, 0.95);
-  color-scheme: light;
-}
-
-/* ── Dark Mode ───────────────────────────────────────────────── */
-.dark {
   --bg:         #000000;
   --surface-1:  #0F0F0F;
   --surface-2:  #1A1A1A;
@@ -119,23 +102,14 @@ body {
      ceilings keep every blob's peak luminance high enough that --subtle/
      --muted text (and the brand logo) stay legible at any point on the mesh. */
   background-image:
-    radial-gradient(at 15% 0%,  rgba(16,144,200,0.30) 0px, transparent 60%),
-    radial-gradient(at 80% 5%,  rgba(16,144,200,0.25) 0px, transparent 55%),
-    radial-gradient(at 60% 35%, rgba(150,90,170,0.19) 0px, transparent 60%),
-    radial-gradient(at 25% 55%, rgba(232,71,43,0.23) 0px, transparent 60%),
-    radial-gradient(at 85% 65%, rgba(232,71,43,0.26) 0px, transparent 55%),
-    radial-gradient(at 50% 95%, rgba(232,71,43,0.30) 0px, transparent 55%);
-  background-attachment: fixed;
-  background-color: var(--color-surface-1);
-}
-.dark .yp-mesh {
-  background-image:
     radial-gradient(at 15% 0%,  rgba(16,144,200,0.55) 0px, transparent 60%),
     radial-gradient(at 80% 5%,  rgba(16,144,200,0.45) 0px, transparent 55%),
     radial-gradient(at 60% 35%, rgba(150,90,170,0.30) 0px, transparent 60%),
     radial-gradient(at 25% 55%, rgba(232,71,43,0.40) 0px, transparent 60%),
     radial-gradient(at 85% 65%, rgba(232,71,43,0.48) 0px, transparent 55%),
     radial-gradient(at 50% 95%, rgba(232,71,43,0.55) 0px, transparent 55%);
+  background-attachment: fixed;
+  background-color: var(--color-surface-1);
 }
 
 /* ── Website-card attention motion — a logo is static, so give the tile

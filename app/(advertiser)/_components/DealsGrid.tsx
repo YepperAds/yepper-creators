@@ -57,7 +57,7 @@ export default function DealsGrid({ deals }: { deals: HotDeal[] }) {
 
               <div className="mt-4 pt-4 border-t border-(--color-border) flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
+                  <p className="text-lg font-bold text-emerald-400">{deal.totalPrice.toLocaleString()} RWF</p>
                   {savings > 0 && (
                     <p className="text-[11px] text-(--color-muted) line-through">{(deal.totalPrice + savings).toLocaleString()} RWF</p>
                   )}

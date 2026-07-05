@@ -13,7 +13,7 @@ export default function HomeHeader() {
 
         <Link
           href="/login"
-          className="inline-flex items-center h-11 px-6 rounded-full bg-[#0b0b0c] dark:bg-white text-[#fff] dark:text-[#0b0b0c] text-sm font-semibold hover:opacity-85 transition-opacity"
+          className="inline-flex items-center h-11 px-6 rounded-full bg-white text-[#0b0b0c] text-sm font-semibold hover:opacity-85 transition-opacity"
         >
           Login
         </Link>

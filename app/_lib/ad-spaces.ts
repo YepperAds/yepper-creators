@@ -37,3 +37,42 @@ export function getAdSpaceImage(spaceType?: string | null, categoryName?: string
   const byCategoryName = categoryName ? AD_SPACE_IMAGES[categoryName.toLowerCase().trim()] : undefined;
   return byCategoryName ?? null;
 }
+
+// Short, plain-language explanations of each placement — a web owner's ad
+// category can carry its own free-text `description`, but plenty are
+// created without one (e.g. admin-added prospect sites just reuse the
+// space-type name), so advertisers need a guaranteed, easy-to-scan fallback
+// no matter who created the listing.
+const AD_SPACE_DESCRIPTIONS: Record<string, string> = {
+  'header': 'Banner across the top of the page',
+  'above the fold': 'Visible before the visitor scrolls',
+  'sticky sidebar': 'Sidebar ad that follows as you scroll',
+  'mobile interstitial': 'Full-screen ad on mobile, between pages',
+  'overlay': 'Ad that pops over the page content',
+  'floating': 'Floats on screen as you scroll',
+  'modal': 'Pop-up ad in its own window',
+  'left rail': 'Ad along the left edge of the page',
+  'right rail': 'Ad along the right edge of the page',
+  'sidebar': 'Ad in the side column',
+  'in feed': 'Blended into the content feed',
+  'inline content': 'Placed inside the article text',
+  'beneath title': 'Just below the page title',
+  'pro footer': 'Premium spot in the footer',
+  'bottom': 'Ad at the bottom of the page',
+  // Video-player placements.
+  'pre-roll': 'Plays before the video starts',
+  'preroll': 'Plays before the video starts',
+  'mid-roll': 'Plays in the middle of the video',
+  'midroll': 'Plays in the middle of the video',
+  'pause': 'Shows up when the viewer pauses',
+};
+
+/** Same lookup strategy as `getAdSpaceImage`, but for a short fallback
+ * description — returns null if nothing matches so callers can fall back
+ * further (e.g. to their own copy) instead of showing a blank string. */
+export function getAdSpaceDescription(spaceType?: string | null, categoryName?: string | null): string | null {
+  const bySpaceType = spaceType ? AD_SPACE_DESCRIPTIONS[spaceType.toLowerCase().trim()] : undefined;
+  if (bySpaceType) return bySpaceType;
+  const byCategoryName = categoryName ? AD_SPACE_DESCRIPTIONS[categoryName.toLowerCase().trim()] : undefined;
+  return byCategoryName ?? null;
+}

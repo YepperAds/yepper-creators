@@ -10,7 +10,7 @@ import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteLogoTile from './WebsiteLogoTile';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
+import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 interface AdSpace {
@@ -221,6 +221,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {adSpaces.map((space) => {
                   const img = getAdSpaceImage(space.spaceType, space.categoryName);
+                  const description = space.description || getAdSpaceDescription(space.spaceType, space.categoryName);
                   const selected = selectedSpaceIds.includes(space._id);
                   return (
                     <label
@@ -244,7 +245,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                       <div className="flex items-center justify-between gap-3 p-4">
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                          {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                          {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
                         </div>
                         <div className={`shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${selected ? 'bg-coral border-coral' : 'border-border group-hover:border-coral/60'}`}>
                           {selected && <CheckIcon className="w-4 h-4 text-white" />}
@@ -268,6 +269,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {adSpaces.map((space) => {
               const img = getAdSpaceImage(space.spaceType, space.categoryName);
+              const description = space.description || getAdSpaceDescription(space.spaceType, space.categoryName);
               return (
                 <button
                   key={space._id}
@@ -291,7 +293,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                   <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                      {space.description && <p className="text-xs text-muted mt-0.5">{space.description}</p>}
+                      {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
                     </div>
                     <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
                   </div>

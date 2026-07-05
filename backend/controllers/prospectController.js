@@ -13,6 +13,7 @@ const Website = require('../AdPromoter/models/CreateWebsiteModel');
 const AdCategory = require('../AdPromoter/models/CreateCategoryModel');
 const Pricing = require('../models/PricingModel');
 const { BUSINESS_CATEGORIES } = require('../creators/utils/businessCategories');
+const { resolveImageUrl } = require('../utils/resolveImageUrl');
 
 const PROSPECT_OWNER_ID = 'admin-prospect';
 
@@ -25,23 +26,25 @@ exports.getMeta = async (req, res) => {
 
 exports.createProspectWebsite = async (req, res) => {
   try {
-    const { websiteName, websiteLink, businessCategories, spaceTypes } = req.body || {};
+    const { websiteName, websiteLink, imageUrl, spaceTypes } = req.body || {};
 
     if (!websiteName || !String(websiteName).trim()) return res.status(400).json({ success: false, message: 'Website name is required' });
     if (!websiteLink || !String(websiteLink).trim()) return res.status(400).json({ success: false, message: 'Website URL is required' });
-    if (!Array.isArray(businessCategories) || businessCategories.length === 0)
-      return res.status(400).json({ success: false, message: 'Select at least one business category' });
     if (!Array.isArray(spaceTypes) || spaceTypes.length === 0)
       return res.status(400).json({ success: false, message: 'Select at least one ad space' });
 
     const invalidSpaces = spaceTypes.filter((s) => !Pricing.SPACE_TYPES.includes(s));
     if (invalidSpaces.length) return res.status(400).json({ success: false, message: `Invalid ad spaces: ${invalidSpaces.join(', ')}` });
 
+    const resolvedImageUrl = await resolveImageUrl(imageUrl).catch(() => null);
+
     const site = await Website.create({
       ownerId: PROSPECT_OWNER_ID,
       websiteName: String(websiteName).trim(),
       websiteLink: String(websiteLink).trim(),
-      businessCategories,
+      imageUrl: resolvedImageUrl,
+      // Admin doesn't pick categories per site — prospects match every advertiser category.
+      businessCategories: ['any'],
       isBusinessCategoriesSelected: true,
       trafficTier: 'unverified',
       verificationStatus: 'verified',

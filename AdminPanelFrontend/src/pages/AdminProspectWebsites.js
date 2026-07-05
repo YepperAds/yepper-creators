@@ -8,8 +8,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminFetch } from '../utils/adminApi';
-import CategoryChip from '../components/CategoryChip';
-import { BUSINESS_CATEGORIES } from '../utils/businessCategoryStyles';
+
+const ALLOWED_ICON_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -23,8 +23,8 @@ export default function AdminProspectWebsites() {
 
   const [websiteName, setWebsiteName] = useState('');
   const [websiteLink, setWebsiteLink] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedSpaces, setSelectedSpaces] = useState([]);
+  const [iconPreview, setIconPreview] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -48,18 +48,25 @@ export default function AdminProspectWebsites() {
 
   useEffect(() => { load(); }, [load]);
 
-  const toggleCategory = (id) => {
-    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
-  };
   const toggleSpace = (type) => {
     setSelectedSpaces((prev) => (prev.includes(type) ? prev.filter((s) => s !== type) : [...prev, type]));
+  };
+
+  const handleIconChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_ICON_TYPES.includes(file.type)) return setFormError('Only JPEG, PNG, GIF, SVG, or WebP images are allowed.');
+    if (file.size > 5 * 1024 * 1024) return setFormError('Image must be smaller than 5MB.');
+    setFormError('');
+    const reader = new FileReader();
+    reader.onloadend = () => setIconPreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   const submit = async (e) => {
     e.preventDefault();
     setFormError('');
     if (!websiteName.trim() || !websiteLink.trim()) return setFormError('Website name and URL are required.');
-    if (selectedCategories.length === 0) return setFormError('Select at least one business category.');
     if (selectedSpaces.length === 0) return setFormError('Select at least one ad space.');
 
     setSaving(true);
@@ -69,14 +76,14 @@ export default function AdminProspectWebsites() {
         body: JSON.stringify({
           websiteName: websiteName.trim(),
           websiteLink: websiteLink.trim(),
-          businessCategories: selectedCategories,
+          imageUrl: iconPreview || '',
           spaceTypes: selectedSpaces,
         }),
       }, adminHeaders);
       setWebsiteName('');
       setWebsiteLink('');
-      setSelectedCategories([]);
       setSelectedSpaces([]);
+      setIconPreview('');
       load();
     } catch (e2) {
       setFormError(e2.message);
@@ -118,11 +125,12 @@ export default function AdminProspectWebsites() {
           </div>
         </div>
 
-        <label style={label}>Business categories</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-          {BUSINESS_CATEGORIES.filter((c) => c.id !== 'other').map((c) => (
-            <CategoryChip key={c.id} id={c.id} selected={selectedCategories.includes(c.id)} onClick={() => toggleCategory(c.id)} />
-          ))}
+        <label style={label}>Website logo (optional)</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          {iconPreview && (
+            <img src={iconPreview} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', border: '1px solid #e2e8f0', background: '#fff' }} />
+          )}
+          <input type="file" accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp" onChange={handleIconChange} style={{ fontSize: 13 }} />
         </div>
 
         <label style={label}>Ad spaces</label>

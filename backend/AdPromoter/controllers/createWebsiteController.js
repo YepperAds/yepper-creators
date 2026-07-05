@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const cloudinary = require('../../config/storage');
 const dns = require('dns').promises;
 const crypto = require('crypto');
+const { resolveImageUrl } = require('../../utils/resolveImageUrl');
 require('dotenv').config();
 
 // NOTE: deliberately whitelisted — `websites` rows also hold gsc_access_token /
@@ -242,23 +243,6 @@ exports.uploadWebsiteImage = [authenticateToken, upload.single('file'), async (r
     res.status(500).json({ message: 'Failed to upload image', error: error.message });
   }
 }];
-
-async function resolveImageUrl(rawUrl) {
-  if (!rawUrl) return '';
-  if (!rawUrl.startsWith('data:')) return rawUrl;
-  const fileName = `website-icon-${Date.now()}`;
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'image', folder: 'yepper_websites', public_id: fileName },
-      (error, result) => {
-        if (error) return reject(new Error(`Cloudinary: ${error.message}`));
-        resolve(result.secure_url);
-      }
-    );
-    const base64Data = rawUrl.replace(/^data:image\/\w+;base64,/, '');
-    uploadStream.end(Buffer.from(base64Data, 'base64'));
-  });
-}
 
 exports.createWebsiteWithCategories = [authenticateToken, async (req, res) => {
   try {

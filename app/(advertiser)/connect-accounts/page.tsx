@@ -81,7 +81,7 @@ const TIER_BADGE: Record<string, string> = {
 };
 
 const PLATFORMS = [
-  { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, statLabel: 'Subscribers' },
+  { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: true, statLabel: 'Subscribers' },
   { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, statLabel: 'Followers' },
   { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, statLabel: 'Followers' },
   { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: true, statLabel: 'Followers' },
@@ -411,7 +411,7 @@ export default function ConnectAccountsPage() {
                   {platform.comingSoon && <span className="rounded bg-(--color-surface-3) px-1.5 py-0.5 text-[9px] font-bold uppercase text-(--color-muted)">Coming soon</span>}
                 </div>
                 <p className="text-[11px] text-(--color-muted)">
-                  {connected ? 'View analysis' : platform.comingSoon ? 'API not available for now' : socialLocked ? 'Locked for web developer flow' : `Connect ${platform.label}`}
+                  {connected ? 'View analysis' : platform.comingSoon ? ' ' : socialLocked ? 'Locked for web developer flow' : `Connect ${platform.label}`}
                 </p>
               </div>
               {!connected && !platform.comingSoon && !socialLocked && <PlusCircleIcon className="w-5 h-5 text-(--color-muted)" />}

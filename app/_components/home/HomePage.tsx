@@ -2,6 +2,7 @@ import HomeHeader from './HomeHeader';
 import HomeFeed from './HomeFeed';
 import HotDealsSection from './HotDealsSection';
 import SystemInfoPanel from './SystemInfoPanel';
+import MarketingSections from './MarketingSections';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
@@ -48,6 +49,8 @@ export default function HomePage({
             <SystemInfoPanel />
           </div>
         </div>
+
+        <MarketingSections />
       </div>
 
       <footer className="border-t border-border py-6">

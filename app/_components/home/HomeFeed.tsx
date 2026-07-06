@@ -1,22 +1,14 @@
 'use client';
 
-import { CheckBadgeIcon } from '@heroicons/react/24/solid';
-import VideoEmbed from './VideoEmbed';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
-import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
+import type { PublicWebsite } from '@/app/_lib/public-home';
 
 // Logged-out visitors can't collaborate yet — send them to log in, then land
-// straight back on the dashboard's advertise panel with this exact
-// website/creator already open, instead of dropping them on a blank feed.
-function startCollaborate(param: 'creatorId' | 'websiteId', id: string) {
+// straight back on the dashboard's advertise panel with this exact website
+// already open, instead of dropping them on a blank feed.
+function startCollaborate(param: 'websiteId', id: string) {
   const from = `/?panel=advertise&${param}=${encodeURIComponent(id)}`;
   window.location.href = `/login?from=${encodeURIComponent(from)}`;
-}
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
 
 function domainOf(link: string): string {
@@ -25,50 +17,6 @@ function domainOf(link: string): string {
   } catch {
     return link;
   }
-}
-
-function YoutuberCard({ creator }: { creator: PublicCreator }) {
-  return (
-    <div className="rounded-2xl bg-coral/8 border border-coral/15 p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-bold text-coral-text">Youtuber</p>
-        <button
-          onClick={() => startCollaborate('creatorId', creator.id)}
-          className="text-xs font-semibold text-white underline underline-offset-2 hover:text-coral-text transition-colors"
-        >
-          Collaborate with {creator.channelName}
-        </button>
-      </div>
-
-      <div className="flex items-center gap-3 mb-4">
-        {creator.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={creator.avatar} alt={creator.name} className="h-11 w-11 rounded-xl object-cover" />
-        ) : (
-          <div className="h-11 w-11 rounded-xl bg-surface-1 border border-border" />
-        )}
-        <div>
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-bold text-white font-(--font-display)">{creator.name}</p>
-            <CheckBadgeIcon className="w-4 h-4 text-blue" />
-          </div>
-          <p className="text-xs text-muted">{formatCount(creator.subscribers)} subscribers</p>
-        </div>
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {(creator.videos || []).slice(0, 4).map((v, i) => (
-          <div key={i} className="w-44 shrink-0">
-            <div className="aspect-video rounded-xl overflow-hidden">
-              <VideoEmbed url={v.url} thumbnail={v.thumbnail} title={v.title} />
-            </div>
-            <p className="mt-1.5 text-xs font-medium text-white truncate">{v.title}</p>
-            <p className="text-[11px] text-muted">{formatCount(v.views)} views</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function WebsiteCard({ website }: { website: PublicWebsite }) {
@@ -118,39 +66,8 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
   );
 }
 
-type FeedItem =
-  | { type: 'creator'; key: string; data: PublicCreator }
-  | { type: 'website'; key: string; data: PublicWebsite };
-
-// Interleaves real creators/websites (roughly 1 website per 3 slots) and
-// stops once both lists are exhausted — each real listing appears exactly
-// once, never repeated to pad out to some fixed feed length.
-function buildFeedItems(creators: PublicCreator[], websites: PublicWebsite[]): FeedItem[] {
-  const items: FeedItem[] = [];
-  let ci = 0;
-  let wi = 0;
-  let i = 0;
-  while (ci < creators.length || wi < websites.length) {
-    const websiteSlot = (i + 1) % 3 === 0;
-    if (websiteSlot && wi < websites.length) {
-      items.push({ type: 'website', key: `w-${i}`, data: websites[wi] });
-      wi++;
-    } else if (ci < creators.length) {
-      items.push({ type: 'creator', key: `c-${i}`, data: creators[ci] });
-      ci++;
-    } else if (wi < websites.length) {
-      items.push({ type: 'website', key: `w-${i}`, data: websites[wi] });
-      wi++;
-    }
-    i++;
-  }
-  return items;
-}
-
-export default function HomeFeed({ websites, creators }: { websites: PublicWebsite[]; creators: PublicCreator[] }) {
-  const items = buildFeedItems(creators, websites);
-
-  if (items.length === 0) {
+export default function HomeFeed({ websites }: { websites: PublicWebsite[] }) {
+  if (websites.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-10 text-center text-muted text-sm">
         No listings yet.
@@ -160,11 +77,7 @@ export default function HomeFeed({ websites, creators }: { websites: PublicWebsi
 
   return (
     <div className="space-y-4">
-      {items.map((item) =>
-        item.type === 'creator'
-          ? <YoutuberCard key={item.key} creator={item.data} />
-          : <WebsiteCard key={item.key} website={item.data} />
-      )}
+      {websites.map((website) => <WebsiteCard key={website.id} website={website} />)}
     </div>
   );
 }

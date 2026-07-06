@@ -41,13 +41,6 @@ const FEATURES = [
   { icon: SparklesIcon, title: 'Hot deals', body: 'Grab limited-time discounted placements from top-performing creators and sites.' },
 ];
 
-const STATS = [
-  { value: '2,400+', label: 'Publishers & creators' },
-  { value: '18K+', label: 'Campaigns booked' },
-  { value: '40+', label: 'Countries reached' },
-  { value: '98%', label: 'Would book again' },
-];
-
 const TESTIMONIALS = [
   {
     quote: 'We booked our first sponsorship in under ten minutes. No calls, no agency fees — just a direct deal with the creator.',
@@ -109,20 +102,6 @@ export default function MarketingSections() {
                 <h3 className="mt-1 text-lg font-bold text-white">{step.title}</h3>
                 <p className="mt-2 text-sm text-subtle leading-relaxed">{step.body}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Stats ────────────────────────────────────────────── */}
-      <section className="rounded-3xl border border-border bg-surface-1 px-6 py-10 sm:px-12">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
-          {STATS.map((stat) => (
-            <div key={stat.label}>
-              <p className="text-3xl sm:text-4xl font-extrabold font-(--font-display) bg-gradient-to-r from-coral to-blue bg-clip-text text-transparent">
-                {stat.value}
-              </p>
-              <p className="mt-1 text-xs sm:text-sm text-subtle">{stat.label}</p>
             </div>
           ))}
         </div>

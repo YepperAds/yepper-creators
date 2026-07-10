@@ -16,7 +16,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   Bars3Icon,
-  LifebuoyIcon,
   MoonIcon,
   SunIcon,
   ComputerDesktopIcon,
@@ -230,17 +229,6 @@ export default function LeftRail() {
               {!collapsed && <span>More</span>}
             </button>
           </div>
-
-          <Link
-            href="/?panel=support"
-            scroll={false}
-            className={`flex items-center rounded-lg text-base font-semibold text-white hover:bg-surface-3 transition-colors ${
-              collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
-            }`}
-          >
-            <LifebuoyIcon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Help Center</span>}
-          </Link>
         </div>
       </aside>
 

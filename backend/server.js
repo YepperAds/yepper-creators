@@ -106,7 +106,12 @@ app.get('/health', (req, res) => res.status(200).json({
 // ─── Error handlers ───────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Error:', { message: err.message, url: req.url, method: req.method });
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    const message = 'File is too large. Please choose a smaller file and try again.';
+    return res.status(400).json({ error: message, message });
+  }
+  const message = err.message || 'Internal Server Error';
+  res.status(err.status || 500).json({ error: message, message });
 });
 
 app.use((req, res) => {

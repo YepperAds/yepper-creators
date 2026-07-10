@@ -172,17 +172,17 @@ function DirectAdvertise() {
 
   const processFile = async (selectedFile: File | null) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'];
-    const maxSize = 50 * 1024 * 1024;
+    const maxSize = 25 * 1024 * 1024; // must match the backend multer limit in WebAdvertiseController.js
 
     if (!selectedFile) return;
-    
+
     if (!validTypes.includes(selectedFile.type)) {
       setError('Invalid file type. Please upload an image, video, or PDF.');
       return;
     }
-    
+
     if (selectedFile.size > maxSize) {
-      setError('File is too large. Maximum size is 50MB.');
+      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB — please choose a smaller file.`);
       return;
     }
 
@@ -363,7 +363,8 @@ function DirectAdvertise() {
       }
       
     } catch (err: unknown) {
-      setAuthError((err as { response?: { message?: string; error?: string } }).response?.message || (err as Error)?.message || 'Failed to create advertisement');
+      const response = (err as { response?: { message?: string; error?: string } }).response;
+      setAuthError(response?.message || response?.error || (err as Error)?.message || 'Failed to create advertisement');
     } finally {
       setIsLoading(false);
     }
@@ -689,7 +690,7 @@ function DirectAdvertise() {
                       <div>
                         <Upload size={32} className="mx-auto mb-3 text-muted" />
                         <p className="text-subtle mb-1">Drop your file here or click to browse</p>
-                        <p className="text-xs text-muted">Images, Videos, or PDFs (Max 50MB)</p>
+                        <p className="text-xs text-muted">Images, Videos, or PDFs (Max 25MB)</p>
                       </div>
                     )}
                   </div>

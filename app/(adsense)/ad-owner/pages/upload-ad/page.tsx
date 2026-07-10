@@ -50,7 +50,7 @@ function Select() {
     if (!selectedFile) return;
 
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime'];
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 25 * 1024 * 1024; // must match the backend multer limit in WebAdvertiseController.js
 
     if (!validTypes.includes(selectedFile.type)) {
       setError('Unsupported file type. Please upload JPEG, PNG, GIF, or MP4.');
@@ -58,7 +58,7 @@ function Select() {
     }
 
     if (selectedFile.size > maxSize) {
-      setError('File is too large. Maximum size is 50MB.');
+      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB — please choose a smaller file.`);
       return;
     }
 
@@ -162,7 +162,7 @@ function Select() {
               <h3 className="text-lg font-semibold text-white mb-3">File Requirements</h3>
               <div className="space-y-1 text-sm text-subtle">
                 <p>• Supported formats: JPEG, PNG, GIF, MP4</p>
-                <p>• Maximum file size: 50MB</p>
+                <p>• Maximum file size: 25MB</p>
                 <p>• Recommended dimensions: 1920x1080 for videos, 1200x630 for images</p>
               </div>
             </div>

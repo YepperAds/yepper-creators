@@ -108,7 +108,7 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
   );
 }
 
-export default function AdvertiseBrowser({ websites, creators, hotDeals, initialDealId }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[]; initialDealId?: string }) {
+export default function AdvertiseBrowser({ websites, creators, hotDeals, initialDealId, onBackToFeed }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[]; initialDealId?: string; onBackToFeed: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categories = buildCategories(websites, creators);
@@ -195,7 +195,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           onClick={() => setActiveWebsite(null)}
           className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
         >
-          <ArrowLeftIcon className="w-4 h-4" /> Back to browse
+          <ArrowLeftIcon className="w-4 h-4" /> Back
         </button>
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">{activeWebsite.websiteName}</h3>
         <p className="text-sm text-subtle mb-5">
@@ -310,6 +310,13 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   // a small video preview row for each creator, logo tiles for websites.
   return (
     <div className="space-y-8">
+      <button
+        onClick={onBackToFeed}
+        className="flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
+      >
+        <ArrowLeftIcon className="w-4 h-4" /> Back
+      </button>
+
       <HotDealsSection
         deals={hotDeals}
         initialDealId={initialDealId}

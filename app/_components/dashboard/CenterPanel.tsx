@@ -94,8 +94,7 @@ export default function CenterPanel({
   } else if (panel === 'advertise') {
     content = (
       <div className="h-full overflow-y-auto py-4">
-        <BackToFeed onClick={backToFeed} />
-        <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} initialDealId={dealId} />
+        <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} initialDealId={dealId} onBackToFeed={backToFeed} />
       </div>
     );
   } else {

@@ -11,15 +11,8 @@ import {
   ExclamationCircleIcon,
   ArrowPathIcon,
   CameraIcon,
-  VideoCameraIcon,
-  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 import PanelHeader from '@/app/_components/dashboard/PanelHeader';
-
-const CREATOR_TYPES: { value: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'Content Creator', label: 'Content Creator', icon: VideoCameraIcon },
-  { value: 'Web Developer',   label: 'Web Developer',   icon: CodeBracketIcon },
-];
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,11 +22,10 @@ export default function ProfilePage() {
 
   // Form state
   const [username, setUsername] = useState('');
-  const [whatTheyDo, setWhatTheyDo] = useState('');
   const [avatar, setAvatar] = useState('');
 
   // Track original values for dirty check
-  const [initialForm, setInitialForm] = useState({ username: '', whatTheyDo: '', avatar: '' });
+  const [initialForm, setInitialForm] = useState({ username: '', avatar: '' });
 
   // Validation state
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
@@ -52,12 +44,10 @@ export default function ProfilePage() {
         
         const vals = {
           username: u.username || '',
-          whatTheyDo: u.what_they_do || '',
           avatar: u.avatar || ''
         };
-        
+
         setUsername(vals.username);
-        setWhatTheyDo(vals.whatTheyDo);
         setAvatar(vals.avatar);
         setInitialForm(vals);
       }
@@ -66,9 +56,8 @@ export default function ProfilePage() {
     fetchUser();
   }, []);
 
-  const isDirty = 
-    username.trim() !== initialForm.username || 
-    whatTheyDo !== initialForm.whatTheyDo || 
+  const isDirty =
+    username.trim() !== initialForm.username ||
     avatar !== initialForm.avatar;
 
   const checkUsername = useCallback(async (value: string) => {
@@ -149,7 +138,6 @@ export default function ProfilePage() {
 
   const handleCancel = () => {
     setUsername(initialForm.username);
-    setWhatTheyDo(initialForm.whatTheyDo);
     setAvatar(initialForm.avatar);
     setUsernameStatus('idle');
     setMessage(null);
@@ -171,7 +159,6 @@ export default function ProfilePage() {
 
     const result = await api.post<{ success: boolean, message: string }>('/api/auth/complete-profile', {
       username: username.trim(),
-      what_they_do: whatTheyDo,
       avatar: avatar // sends the base64 string (backend may accept)
     });
 
@@ -182,7 +169,7 @@ export default function ProfilePage() {
       const savedAvatar = savedUser?.avatar ?? avatar;
       setAvatar(savedAvatar);
       setUser(prev => prev ? { ...prev, avatar: savedAvatar } : prev);
-      setInitialForm({ username: username.trim(), whatTheyDo, avatar: savedAvatar });
+      setInitialForm({ username: username.trim(), avatar: savedAvatar });
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setUsernameStatus('idle');
       // Notify other components (e.g. Navbar) that the session has changed
@@ -320,37 +307,6 @@ export default function ProfilePage() {
                 {usernameStatus === 'taken' && <p className="text-[10px] text-rose-500/80 mt-1">{usernameReason}</p>}
               </div>
 
-            </div>
-          </section>
-
-          {/* Section: Creator Identity */}
-          <section className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-(--color-border) bg-(--color-surface-2)/50">
-              <h3 className="text-sm font-bold text-(--color-white)">Creator Identity</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <label className="text-[11px] font-bold text-(--color-muted) uppercase tracking-wider block mb-2">What best describes you?</label>
-              <div className="grid grid-cols-2 gap-3">
-                {CREATOR_TYPES.map((type) => {
-                  const selected = whatTheyDo === type.value;
-                  const Icon = type.icon;
-                  return (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => setWhatTheyDo(type.value)}
-                      className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-all ${
-                        selected
-                          ? 'border-(--color-white) bg-(--color-white)/5 text-(--color-white)'
-                          : 'border-(--color-border) bg-(--color-surface-2) text-(--color-muted) hover:border-(--color-subtle) hover:text-(--color-subtle)'
-                      }`}
-                    >
-                      <Icon className="w-6 h-6" />
-                      <span className="text-[11px] font-bold leading-tight">{type.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </section>
 

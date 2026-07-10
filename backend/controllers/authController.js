@@ -517,8 +517,8 @@ exports.completeProfile = async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
 
     const { username, what_they_do } = req.body;
-    if (!username || !what_they_do) {
-      return res.status(400).json({ success: false, message: 'username and what_they_do are required' });
+    if (!username) {
+      return res.status(400).json({ success: false, message: 'username is required' });
     }
 
     // Check username availability — exclude the current user so unchanged usernames don't self-conflict
@@ -534,7 +534,7 @@ exports.completeProfile = async (req, res) => {
     // Fetch current values so we can report exactly what changed
     const current = await Creator.findById(userId).catch(() => null);
 
-    const updateFields = { username, what_they_do, ...(avatarValue ? { avatar: avatarValue } : {}) };
+    const updateFields = { username, ...(what_they_do ? { what_they_do } : {}), ...(avatarValue ? { avatar: avatarValue } : {}) };
     const updated = await Creator.update(userId, updateFields);
     if (!updated) return res.status(500).json({ success: false, message: 'Failed to update profile' });
 
@@ -546,7 +546,7 @@ exports.completeProfile = async (req, res) => {
           { field: 'username', old: current.username, new: username }
         ).catch(() => {});
       }
-      if (current.what_they_do !== what_they_do) {
+      if (what_they_do && current.what_they_do !== what_they_do) {
         createNotification(userId, 'profile_updated', 'Role Updated',
           `Your role was updated to ${what_they_do}`,
           { field: 'role', old: current.what_they_do, new: what_they_do }
@@ -559,7 +559,8 @@ exports.completeProfile = async (req, res) => {
         ).catch(() => {});
       }
       // If nothing specific changed (edge case), send a generic one
-      if (current.username === username && current.what_they_do === what_they_do && !avatarValue) {
+      const whatTheyDoChanged = what_they_do && current.what_they_do !== what_they_do;
+      if (current.username === username && !whatTheyDoChanged && !avatarValue) {
         createNotification(userId, 'profile_updated', 'Profile Updated',
           'No changes were detected.',
           {}

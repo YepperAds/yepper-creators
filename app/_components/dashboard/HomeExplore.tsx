@@ -75,7 +75,11 @@ export default function HomeExplore({
         <MoreTab />
       </div>
 
-      <div key={tab} className="flex-1 overflow-y-auto">
+      {/* px-2: the hot-deal card's pulsing glow (box-shadow, see .hotdeal-glow
+          in globals.css) needs a few pixels of clearance before it hits
+          <main>'s own overflow-hidden edge (DashboardHome.tsx), otherwise the
+          glow gets visibly clipped on whichever side sits flush against it. */}
+      <div key={tab} className="flex-1 overflow-y-auto px-2">
         {tab === 'all' ? (
           <>
             <HotDealsSection

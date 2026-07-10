@@ -42,7 +42,7 @@ function apply(resolved: ResolvedTheme) {
 // Inline, synchronous, runs before paint — keeps a returning light-mode user
 // from seeing a flash of the dark-mode default while React hydrates.
 export function ThemeScript() {
-  const code = `(function(){try{var p=window.location.pathname;var always=['/login','/onboarding','/privacy','/terms'];var forced=always.indexOf(p)!==-1||(p==='/'&&document.cookie.indexOf('yepper_token=')===-1);if(forced)return;var s=localStorage.getItem('${STORAGE_KEY}')||'system';var r=s==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):s;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`;
+  const code = `(function(){try{var p=window.location.pathname;var always=['/login','/onboarding','/privacy','/terms'];var forced=always.indexOf(p)!==-1||(p==='/'&&document.cookie.indexOf('yepper_token=')===-1);if(forced)return;var s=localStorage.getItem('${STORAGE_KEY}')||'dark';var r=s==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):s;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`;
   return <script dangerouslySetInnerHTML={{ __html: code }} />;
 }
 
@@ -60,8 +60,8 @@ const ThemeContext = createContext<{
 // screen. Neither value affects markup during hydration, so there's no
 // server/client mismatch to worry about.
 function readStoredTheme(): ThemeChoice {
-  if (typeof window === 'undefined') return 'system';
-  return (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) ?? 'system';
+  if (typeof window === 'undefined') return 'dark';
+  return (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) ?? 'dark';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

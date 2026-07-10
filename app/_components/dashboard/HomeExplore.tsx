@@ -7,9 +7,10 @@ import PageHeader from './PageHeader';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
-type Tab = 'deals' | 'websites';
+type Tab = 'all' | 'deals' | 'websites';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'all',      label: 'All' },
   { id: 'deals',    label: 'Hot Deals' },
   { id: 'websites', label: 'Websites' },
 ];
@@ -57,7 +58,7 @@ export default function HomeExplore({
   hotDeals: HotDeal[];
   dealId?: string;
 }) {
-  const [tab, setTab] = useState<Tab>('deals');
+  const [tab, setTab] = useState<Tab>('all');
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
 
@@ -75,7 +76,20 @@ export default function HomeExplore({
       </div>
 
       <div key={tab} className="flex-1 overflow-y-auto">
-        {tab === 'deals' ? (
+        {tab === 'all' ? (
+          <>
+            <HotDealsSection
+              deals={hotDeals}
+              initialDealId={dealId}
+              websites={displayWebsites}
+              creators={displayCreators}
+            />
+            <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
+              <DashboardFeed websites={displayWebsites} />
+            </div>
+          </>
+        ) : tab === 'deals' ? (
           <HotDealsSection
             deals={hotDeals}
             initialDealId={dealId}

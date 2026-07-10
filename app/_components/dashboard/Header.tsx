@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { UserIcon } from '@heroicons/react/24/outline';
 
+// Just the account avatar, top-right — the logo now lives in the sidebar
+// (LeftRail), so this no longer needs to be a full-width bar.
 export default function Header() {
   const [avatar, setAvatar] = useState<string | null>(null);
 
@@ -16,21 +17,15 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="h-16 shrink-0 border-b border-border bg-surface-1/80 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-20">
-      <Link href="/" className="flex items-center gap-2">
-        <Image src="/logos/yepper-logo.png" alt="Yepper" width={100} height={28} className="h-7 w-auto object-contain" priority />
+    <div className="flex items-center justify-end px-6 pt-5">
+      <Link href="/?panel=profile" scroll={false} className="w-9 h-9 rounded-full bg-surface-2 border border-border flex items-center justify-center overflow-hidden shrink-0">
+        {avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={avatar} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <UserIcon className="w-4 h-4 text-subtle" />
+        )}
       </Link>
-
-      <div className="flex items-center gap-3">
-        <Link href="/?panel=profile" scroll={false} className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center overflow-hidden">
-          {avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <UserIcon className="w-4 h-4 text-subtle" />
-          )}
-        </Link>
-      </div>
-    </header>
+    </div>
   );
 }

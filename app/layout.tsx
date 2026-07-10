@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 
 import BackendWarmup from "@/app/_components/BackendWarmup";
 import QueryProviders from "@/app/(adsense)/providers";
+import { ThemeProvider, ThemeScript } from "@/app/_components/ThemeProvider";
 
 export default function RootLayout({
   children,
@@ -33,12 +34,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-full flex flex-col font-(--font-inter)">
-        <QueryProviders>
-          <BackendWarmup />
-          {children}
-        </QueryProviders>
+        <ThemeProvider>
+          <QueryProviders>
+            <BackendWarmup />
+            {children}
+          </QueryProviders>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -1,14 +1,14 @@
+import Link from 'next/link';
 import HomeHeader from './HomeHeader';
-import HomeFeed from './HomeFeed';
+import Hero from './Hero';
+import WebsiteRow from './WebsiteRow';
 import HotDealsSection from './HotDealsSection';
+import SectionIntro from './SectionIntro';
 import SystemInfoPanel from './SystemInfoPanel';
 import MarketingSections from './MarketingSections';
+import Reveal from '@/app/_components/shared/Reveal';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
-
-// Social links aren't wired yet — no real Yepper account URLs to point to.
-// Swap these `href="#"` once the actual accounts exist.
-const SOCIALS = ['Facebook', 'YouTube', 'Instagram', 'TikTok', 'Pinterest', 'X', 'LinkedIn'];
 
 export default function HomePage({
   websites,
@@ -26,43 +26,65 @@ export default function HomePage({
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
 
   return (
-    <div className="yp-mesh min-h-screen">
+    <div className="bg-[color:var(--mkt-bg)] min-h-screen">
       <HomeHeader />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        <div className="max-w-xl mb-10">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white font-(--font-display) tracking-tight leading-[1.05]">
-            Your audience, their next ad space
-          </h1>
-          <p className="mt-4 text-base text-white">
-            Yepper connects website owners and YouTube creators with advertisers — book ad space directly,
-            no agencies in between.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Hero />
+      </div>
 
-        <HotDealsSection deals={hotDeals} initialDealId={dealId} requireLogin websites={displayWebsites} creators={displayCreators} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-          <HomeFeed websites={displayWebsites} />
-
-          <div className="hidden lg:block sticky top-6">
-            <SystemInfoPanel />
+      <div id="explore" className="scroll-mt-24">
+        {/* Full-bleed color bands — no border, no inset card, just a
+            confident wall of brand color behind each real-content row. */}
+        <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#FDEDE9' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Reveal>
+              <SectionIntro
+                eyebrow="Fastest way in"
+                title="Skip the search. Start with a Hot Deal."
+                body="Every Hot Deal bundles YouTube slots and website ad spaces an admin has already vetted and priced together, at a discount. Instead of piecing together your own media plan from scratch, grab a ready-made bundle and launch today."
+                accent="coral"
+              />
+              <HotDealsSection
+                deals={hotDeals}
+                initialDealId={dealId}
+                requireLogin
+                websites={displayWebsites}
+                creators={displayCreators}
+                variant="light"
+                horizontal
+              />
+            </Reveal>
           </div>
-        </div>
+        </section>
 
+        <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#E8F4FA' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Reveal>
+              <SectionIntro
+                eyebrow="Pick it yourself"
+                title="Or browse verified websites directly"
+                body="Prefer to choose your own placement? Every listed website is manually verified and sorted into a real traffic tier, so you know exactly what audience you're reaching before you book — no cold outreach, no guessing."
+                accent="blue"
+              />
+              <WebsiteRow websites={displayWebsites} />
+            </Reveal>
+          </div>
+        </section>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+        <SystemInfoPanel />
         <MarketingSections />
       </div>
 
-      <footer className="border-t border-border py-6">
+      <footer className="border-t border-[color:var(--mkt-border)] py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {SOCIALS.map((name) => (
-              <span key={name} title={`${name} (not linked yet)`} className="w-8 h-8 rounded-full bg-surface-3 flex items-center justify-center text-[10px] font-bold text-muted">
-                {name[0]}
-              </span>
-            ))}
+          <p className="text-xs text-[color:var(--mkt-ink-muted)]">© {new Date().getFullYear()} Yepper Inc.</p>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className="text-xs text-[color:var(--mkt-ink-muted)] hover:text-[color:var(--mkt-ink)] transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-xs text-[color:var(--mkt-ink-muted)] hover:text-[color:var(--mkt-ink)] transition-colors">Terms of Use</Link>
           </div>
-          <p className="text-xs text-white">© {new Date().getFullYear()} Yepper Inc.</p>
         </div>
       </footer>
     </div>

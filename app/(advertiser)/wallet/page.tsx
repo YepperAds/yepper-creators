@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowPathIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { BanknotesIcon } from '@heroicons/react/24/solid';
 import WithdrawModal from '../_components/WithdrawModal';
+import PanelHeader from '@/app/_components/dashboard/PanelHeader';
 
 interface WalletData {
   balance:          number;
@@ -133,21 +134,21 @@ export default function WalletPage() {
   return (
     <div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-[color:var(--color-white)]">Yepper Wallet</h1>
-          <p className="mt-1 text-sm text-[color:var(--color-muted)]">Your centralized earnings and balance.</p>
-        </div>
-        <button
-          onClick={fetchWallet}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] text-sm font-medium text-[color:var(--color-white)] disabled:opacity-50"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+      <PanelHeader
+        title="Yepper Wallet"
+        subtitle="Your centralized earnings and balance."
+        align="left"
+        action={
+          <button
+            onClick={fetchWallet}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] text-sm font-medium text-[color:var(--color-white)] disabled:opacity-50 shrink-0"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        }
+      />
 
       {error && (
         <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">{error}</div>
@@ -190,7 +191,7 @@ export default function WalletPage() {
         <button
           onClick={() => setWithdrawOpen(true)}
           disabled={!canWithdraw}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-background text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
           title={
             pendingWithdrawal
               ? 'You already have a pending withdrawal request'

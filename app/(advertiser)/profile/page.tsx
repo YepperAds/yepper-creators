@@ -14,6 +14,7 @@ import {
   VideoCameraIcon,
   CodeBracketIcon,
 } from '@heroicons/react/24/outline';
+import PanelHeader from '@/app/_components/dashboard/PanelHeader';
 
 const CREATOR_TYPES: { value: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'Content Creator', label: 'Content Creator', icon: VideoCameraIcon },
@@ -211,20 +212,19 @@ export default function ProfilePage() {
         className="hidden" 
       />
 
-      <div className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-(--color-white)">Profile Settings</h1>
-          <p className="text-sm text-(--color-muted) mt-1">Manage your creator identity and public information.</p>
-        </div>
-        {isDirty && (
-          <button 
+      <PanelHeader
+        title="Profile Settings"
+        subtitle="Manage your creator identity and public information."
+        align="left"
+        action={isDirty && (
+          <button
             onClick={handleCancel}
-            className="text-xs font-bold text-(--color-muted) hover:text-(--color-white) transition-colors uppercase tracking-wider"
+            className="text-xs font-bold text-(--color-muted) hover:text-(--color-white) transition-colors uppercase tracking-wider shrink-0"
           >
             Cancel changes
           </button>
         )}
-      </div>
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         

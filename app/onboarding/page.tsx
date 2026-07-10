@@ -5,55 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { api, AUTH_ENDPOINTS } from '@/app/_lib/api';
 import type { AuthResponse, User, UsernameCheckResponse } from '@/app/_types/auth';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Campaign mosaic — same scrolling panel as the login layout
-// ─────────────────────────────────────────────────────────────────────────────
-
-type MediaType = 'image' | 'gif' | 'video';
-
-const BASE: { src: string; alt: string; type: MediaType }[] = [
-  { src: '/campaigns/images/ad-1.png', alt: 'Campaign 1', type: 'image' },
-  { src: '/campaigns/images/ad-2.png', alt: 'Campaign 2', type: 'image' },
-  { src: '/campaigns/images/ad-3.gif', alt: 'Campaign 3', type: 'gif' },
-  { src: '/campaigns/images/ad-4.png', alt: 'Campaign 4', type: 'image' },
-  { src: '/campaigns/images/ad-5.png', alt: 'Campaign 5', type: 'image' },
-  { src: '/campaigns/images/ad-6.png', alt: 'Campaign 6', type: 'image' },
-  { src: '/campaigns/videos/ad-7.mp4', alt: 'Campaign 7', type: 'video' },
-  { src: '/campaigns/videos/ad-8.mp4', alt: 'Campaign 8', type: 'video' },
-];
-const CAMPAIGNS = [
-  ...BASE.map((c, i) => ({ ...c, id: i + 1 })),
-  ...BASE.map((c, i) => ({ ...c, id: i + 9 })),
-];
-
-function CampaignTile({ src, alt, type }: { src: string; alt: string; type: MediaType }) {
-  return (
-    <div className="relative w-full flex-shrink-0 overflow-hidden rounded-[5px] bg-[#111]" style={{ aspectRatio: '4/3' }}>
-      {type === 'video' ? (
-        <video src={src} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-      ) : type === 'gif' ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt} className="w-full h-full object-cover" />
-      ) : (
-        <Image src={src} alt={alt} fill sizes="12vw" className="object-cover" />
-      )}
-    </div>
-  );
-}
-
-function ScrollColumn({ items, speed, offsetTop = 0 }: { items: typeof CAMPAIGNS; speed: number; offsetTop?: number }) {
-  const doubled = [...items, ...items];
-  return (
-    <div className="flex-1 overflow-hidden">
-      <div style={{ marginTop: `-${offsetTop}px`, animation: `scroll-up ${speed}s linear infinite` }}>
-        <div className="flex flex-col gap-2">
-          {doubled.map((c, i) => <CampaignTile key={`${c.id}-${i}`} src={c.src} alt={c.alt} type={c.type} />)}
-        </div>
-      </div>
-    </div>
-  );
-}
+import CampaignMosaic from '@/app/_components/auth/CampaignMosaic';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "What best describes you?" options
@@ -217,12 +169,8 @@ export default function OnboardingPage() {
     );
   }
 
-  const colA = CAMPAIGNS.filter((_, i) => i % 3 === 0);
-  const colB = CAMPAIGNS.filter((_, i) => i % 3 === 1);
-  const colC = CAMPAIGNS.filter((_, i) => i % 3 === 2);
-
   return (
-    <div className="h-screen overflow-hidden flex bg-black dark">
+    <div className="h-screen overflow-hidden flex bg-black">
 
       {/* ══ LEFT — form panel ══════════════════════════════════════════════════ */}
       <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
@@ -353,14 +301,14 @@ export default function OnboardingPage() {
                   <button
                     type="submit"
                     disabled={saving || usernameStatus === 'checking'}
-                    className="w-full mt-1 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-black
-                      transition-all hover:bg-zinc-100 active:scale-[0.98]
+                    className="w-full mt-1 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-background
+                      transition-all hover:opacity-90 active:scale-[0.98]
                       disabled:opacity-50 disabled:cursor-not-allowed
                       flex items-center justify-center gap-2"
                   >
                     {saving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-background/25 border-t-background rounded-full animate-spin" />
                         Saving…
                       </>
                     ) : (
@@ -384,22 +332,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* ══ RIGHT — scrolling campaign mosaic ═══════════════════════════════════ */}
-      <div
-        className="hidden lg:flex flex-1 relative h-screen overflow-hidden"
-        style={{ background: '#0C0C0C' }}
-        aria-hidden="true"
-      >
-        <div className="absolute top-5 inset-x-0 z-20 flex justify-center pointer-events-none">
-          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#333' }}>
-            Campaigns powered by Yepper
-          </span>
-        </div>
-        <div className="flex gap-2 w-full h-full px-3 pt-10">
-          <ScrollColumn items={colA} speed={25} />
-          <ScrollColumn items={colB} speed={32} offsetTop={80} />
-          <ScrollColumn items={colC} speed={28} offsetTop={40} />
-        </div>
-      </div>
+      <CampaignMosaic />
 
     </div>
   );

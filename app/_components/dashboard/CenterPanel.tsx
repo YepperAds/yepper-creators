@@ -2,16 +2,16 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import DashboardFeed from './DashboardFeed';
 import AdvertiseBrowser from './AdvertiseBrowser';
-import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
+import HomeExplore from './HomeExplore';
 import AddWebsiteForm from '@/app/(adsense)/ad-promoter/pages/add-website/AddWebsiteForm';
 import AnalyticsPage from '@/app/(advertiser)/analytics/page';
 import WalletPage from '@/app/(advertiser)/wallet/page';
 import ProfilePage from '@/app/(advertiser)/profile/page';
 import NotificationsPage from '@/app/(advertiser)/notifications/page';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
-import HotDealsSection from '@/app/_components/home/HotDealsSection';
+import SupportPage from '@/app/(advertiser)/support/page';
+import DealsGrid from '@/app/(advertiser)/_components/DealsGrid';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 // Solid pill, not just bare text on the mesh backdrop — the panels using
@@ -22,7 +22,7 @@ function BackToFeed({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
+      className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-2 rounded-full px-3 py-1.5 border border-border transition-colors"
     >
       <ArrowLeftIcon className="w-4 h-4" /> Back to feed
     </button>
@@ -32,7 +32,20 @@ function BackToFeed({ onClick }: { onClick: () => void }) {
 // Every panel that renders in the center column shares this exact card
 // treatment (width, margins, padding) with the default feed's "Contents on
 // Yepper" card below, so no panel ever looks narrower/smaller than another.
-const PANEL_CARD = 'rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6';
+const PANEL_CARD = 'rounded-3xl border border-border bg-surface-2 p-4 sm:p-6';
+
+// These older panels don't manage their own header/scroll region (see
+// PageHeader.tsx for the ones that do — HomeExplore, DealsGrid,
+// NotificationsPage) — <main> itself no longer scrolls (each page owns its
+// scroll now), so they need this wrapper to stay reachable at all.
+function LegacyPanel({ onBack, children }: { onBack: () => void; children: React.ReactNode }) {
+  return (
+    <div className="h-full overflow-y-auto py-4">
+      <BackToFeed onClick={onBack} />
+      <div className={PANEL_CARD}>{children}</div>
+    </div>
+  );
+}
 
 // The `useSearchParams()` boundary — this is the only part of the dashboard
 // that needs to be wrapped in <Suspense> by the parent. `panel` drives which
@@ -56,46 +69,37 @@ export default function CenterPanel({
   let content: React.ReactNode;
   if (panel === 'add-website') {
     content = (
-      <AddWebsiteForm
-        embedded
-        onCreated={(websiteId: string) => router.replace(`/?panel=analytics&websiteId=${websiteId}`, { scroll: false })}
-        onCancel={backToFeed}
-      />
+      <div className="h-full overflow-y-auto py-4">
+        <AddWebsiteForm
+          embedded
+          onCreated={(websiteId: string) => router.replace(`/?panel=analytics&websiteId=${websiteId}`, { scroll: false })}
+          onCancel={backToFeed}
+        />
+      </div>
     );
   } else if (panel === 'analytics') {
-    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><AnalyticsPage /></div></div>;
+    content = <LegacyPanel onBack={backToFeed}><AnalyticsPage /></LegacyPanel>;
   } else if (panel === 'wallet') {
-    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><WalletPage /></div></div>;
+    content = <LegacyPanel onBack={backToFeed}><WalletPage /></LegacyPanel>;
   } else if (panel === 'profile') {
-    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><ProfilePage /></div></div>;
+    content = <LegacyPanel onBack={backToFeed}><ProfilePage /></LegacyPanel>;
   } else if (panel === 'notifications') {
-    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><NotificationsPage /></div></div>;
+    content = <NotificationsPage onBack={backToFeed} />;
   } else if (panel === 'connect-accounts') {
-    content = <div><BackToFeed onClick={backToFeed} /><div className={PANEL_CARD}><ConnectAccountsPage /></div></div>;
+    content = <LegacyPanel onBack={backToFeed}><ConnectAccountsPage /></LegacyPanel>;
+  } else if (panel === 'support') {
+    content = <LegacyPanel onBack={backToFeed}><SupportPage /></LegacyPanel>;
+  } else if (panel === 'deals') {
+    content = <DealsGrid deals={hotDeals} onBack={backToFeed} />;
   } else if (panel === 'advertise') {
     content = (
-      <div>
+      <div className="h-full overflow-y-auto py-4">
         <BackToFeed onClick={backToFeed} />
         <AdvertiseBrowser websites={websites} creators={creators} hotDeals={hotDeals} initialDealId={dealId} />
       </div>
     );
   } else {
-    content = (
-      <div>
-        <HotDealsSection
-          deals={hotDeals}
-          initialDealId={dealId}
-          websites={websites.length > 0 ? websites : MOCK_WEBSITES}
-          creators={creators.length > 0 ? creators : MOCK_CREATORS}
-        />
-        <div className="rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl p-4 sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
-          <DashboardFeed
-            websites={websites.length > 0 ? websites : MOCK_WEBSITES}
-          />
-        </div>
-      </div>
-    );
+    content = <HomeExplore websites={websites} creators={creators} hotDeals={hotDeals} dealId={dealId} />;
   }
 
   return content;

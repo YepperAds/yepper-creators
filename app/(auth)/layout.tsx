@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import AuthGuard from '@/app/_components/auth/AuthGuard';
+import CampaignMosaic from '@/app/_components/auth/CampaignMosaic';
 
 export const metadata: Metadata = {
   title: {
@@ -12,12 +13,13 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="yp-mesh relative flex-1 flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
-        {/* The logo's own blue+orange ink can blend into the mesh's blue/orange
-            blobs depending on scroll position — a solid backing plate keeps it
-            crisp regardless of what's behind it. */}
-        <div className="mb-8 rounded-xl bg-surface-1 shadow-sm px-3 py-2">
+    <div className="h-screen overflow-hidden flex bg-black">
+
+      {/* ══ LEFT — auth panel ══════════════════════════════════════════════════ */}
+      <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
+
+        {/* Logo */}
+        <div className="absolute top-8 left-8 xl:left-12 z-10 w-32">
           <Image
             src="/logos/yepper-logo.png"
             alt="Yepper"
@@ -28,12 +30,23 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           />
         </div>
 
-        <div className="w-full max-w-[380px] rounded-2xl border border-border bg-surface-1 p-8 shadow-sm">
-          <AuthGuard>{children}</AuthGuard>
+        <div className="flex flex-1 items-center justify-center px-8 py-24">
+          <div className="w-full max-w-[380px]">
+            <AuthGuard>{children}</AuthGuard>
+          </div>
         </div>
 
-        <p className="mt-8 text-xs text-white">© {new Date().getFullYear()} Yepper Inc.</p>
+        {/* Footer */}
+        <div className="absolute bottom-6 left-8 xl:left-12">
+          <p className="text-[11px]" style={{ color: '#333' }}>
+            © {new Date().getFullYear()} Yepper Inc.
+          </p>
+        </div>
       </div>
+
+      {/* ══ RIGHT — scrolling campaign mosaic ═══════════════════════════════════ */}
+      <CampaignMosaic />
+
     </div>
   );
 }

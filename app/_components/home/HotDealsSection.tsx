@@ -39,12 +39,19 @@ export default function HotDealsSection({
   requireLogin,
   websites = [],
   creators = [],
+  variant = 'dark',
+  horizontal = false,
 }: {
   deals: HotDeal[];
   initialDealId?: string;
   requireLogin?: boolean;
   websites?: PublicWebsite[];
   creators?: PublicCreator[];
+  /** 'light' is for the marketing site, which (unlike the dashboard) never
+   * follows the adaptive dark/light tokens — see ThemeProvider's
+   * isForceDarkRoute — so its heading needs fixed literal colors instead. */
+  variant?: 'dark' | 'light';
+  horizontal?: boolean;
 }) {
   const [active, setActive] = useState<HotDeal | null>(
     () => (initialDealId ? deals.find((d) => d.id === initialDealId) ?? null : null),
@@ -75,11 +82,11 @@ export default function HotDealsSection({
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-3">
         <FireIcon className="w-5 h-5 text-coral" />
-        <h2 className="text-lg font-bold text-white font-(--font-display)">Hot Deals</h2>
+        <h2 className={`text-lg font-bold font-(--font-display) ${variant === 'light' ? 'text-[color:var(--mkt-ink)]' : 'text-white'}`}>Hot Deals</h2>
         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-coral/15 text-coral-text">Trending</span>
       </div>
 
-      <div className="space-y-3">
+      <div className={horizontal ? 'flex gap-4 overflow-x-auto yp-scroll-row pb-2 -mx-4 px-4 sm:mx-0 sm:px-0' : 'space-y-3'}>
         {deals.map((deal) => {
           const category = getBusinessCategory(deal.businessCategory);
           const savings = deal.items.reduce((s, i) => s + (i.systemPrice - i.dealPrice), 0);
@@ -87,7 +94,12 @@ export default function HotDealsSection({
           const pctOff = savings > 0 ? Math.round((savings / originalPrice) * 100) : 0;
 
           return (
-            <div key={deal.id} className="hotdeal-glow relative overflow-hidden rounded-2xl max-w-sm">
+            <div
+              key={deal.id}
+              className={`hotdeal-glow relative overflow-hidden rounded-2xl ${
+                horizontal ? 'w-[400px] shrink-0 shadow-[0_10px_32px_rgba(0,0,0,0.14)] hover:-translate-y-1 transition-transform duration-200' : 'max-w-sm'
+              }`}
+            >
               {/* Corner sale ribbon — clipped to a triangle by the card's own
                   overflow-hidden, the classic e-commerce "you're saving real
                   money" cue that a plain price line doesn't give you. */}

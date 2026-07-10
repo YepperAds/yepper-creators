@@ -30,7 +30,7 @@ export default function LoginForm() {
         onClick={handleGoogleLogin}
         disabled={googleLoading}
         className="w-full flex items-center justify-center gap-3 rounded-full border border-border
-          bg-background hover:bg-surface-3 text-white text-sm font-medium
+          bg-surface-2 hover:bg-surface-3 text-white text-sm font-medium
           py-2.5 px-4 transition-colors disabled:opacity-60"
       >
         {googleLoading
@@ -43,8 +43,8 @@ export default function LoginForm() {
       {process.env.NODE_ENV !== 'production' && (
         <a
           href="/api/auth/dev-login"
-          className="w-full flex items-center justify-center gap-2 rounded-full border border-dashed border-amber-300
-            bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium
+          className="w-full flex items-center justify-center gap-2 rounded-full border border-dashed border-amber-500/40
+            bg-amber-500/10 hover:bg-amber-500/15 text-amber-400 text-xs font-medium
             py-2.5 px-4 transition-colors"
         >
           Continue as Local Dev (testing only)

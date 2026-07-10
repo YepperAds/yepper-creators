@@ -1,193 +1,135 @@
 import Link from 'next/link';
 import {
-  MagnifyingGlassIcon,
-  HandRaisedIcon,
-  ArrowTrendingUpIcon,
   BoltIcon,
   ShieldCheckIcon,
   ChartBarIcon,
-  UserGroupIcon,
   CurrencyDollarIcon,
+  UserGroupIcon,
   SparklesIcon,
 } from '@heroicons/react/24/solid';
+import Reveal from '@/app/_components/shared/Reveal';
 
 const STEPS = [
   {
-    label: 'Discover',
+    number: '01',
     title: 'Find the right audience',
-    body: 'Browse verified websites and YouTube channels by category, traffic, and niche — no cold outreach, no guesswork.',
-    image: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=900&q=80&auto=format&fit=crop',
+    body: 'Browse verified websites and YouTube channels by category, traffic tier, and niche — no cold outreach, no guesswork.',
   },
   {
-    label: 'Connect',
+    number: '02',
     title: 'Book ad space directly',
-    body: 'Message creators and publishers, agree on placement and price, and lock in your slot in minutes — no agency middlemen.',
-    image: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=900&q=80&auto=format&fit=crop',
+    body: 'Agree on placement and price with the publisher or creator, and lock in your slot in minutes — no agency in between.',
   },
   {
-    label: 'Grow',
+    number: '03',
     title: 'Track real results',
-    body: 'Watch clicks, impressions, and performance roll in on a live dashboard, and double down on what converts.',
-    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=900&q=80&auto=format&fit=crop',
+    body: 'Watch clicks, impressions, and spend roll in on your dashboard, and double down on what converts.',
   },
 ];
 
+// Alternating tint keeps six identical cards from reading as one gray
+// wall — coral and blue are Yepper's own two brand colors, used the way
+// the reference decks mixed dark/light/tinted cards for rhythm.
 const FEATURES = [
-  { icon: BoltIcon, title: 'Instant booking', body: 'Reserve ad space in a few clicks — no back-and-forth emails or waiting on approvals.' },
-  { icon: ShieldCheckIcon, title: 'Verified partners', body: 'Every website and channel is reviewed, so you always know exactly where your ad runs.' },
-  { icon: ChartBarIcon, title: 'Live analytics', body: 'Real-time impressions, clicks, and spend tracking built right into your dashboard.' },
-  { icon: CurrencyDollarIcon, title: 'Transparent pricing', body: 'See the price upfront. No hidden fees, no agency markups, no surprises.' },
-  { icon: UserGroupIcon, title: 'Direct relationships', body: 'Work straight with the publisher or creator — build partnerships that last beyond one campaign.' },
-  { icon: SparklesIcon, title: 'Hot deals', body: 'Grab limited-time discounted placements from top-performing creators and sites.' },
-];
+  { icon: BoltIcon, title: 'Instant booking', body: 'Reserve ad space in a few clicks — no back-and-forth emails or waiting on approvals.', tint: 'coral' },
+  { icon: ShieldCheckIcon, title: 'Verified partners', body: 'Every website and channel goes through a verification check before it’s listed.', tint: 'blue' },
+  { icon: ChartBarIcon, title: 'Live analytics', body: 'Real-time impressions, clicks, and spend tracking built into your dashboard.', tint: 'blue' },
+  { icon: CurrencyDollarIcon, title: 'Transparent pricing', body: 'The listed price is what you pay. No hidden fees, no agency markups.', tint: 'coral' },
+  { icon: UserGroupIcon, title: 'Direct relationships', body: 'Work straight with the publisher or creator, campaign after campaign.', tint: 'coral' },
+  { icon: SparklesIcon, title: 'Hot deals', body: 'Admin-curated bundles at a fixed price, when a publisher wants to move space fast.', tint: 'blue' },
+] as const;
 
-const TESTIMONIALS = [
-  {
-    quote: 'We booked our first sponsorship in under ten minutes. No calls, no agency fees — just a direct deal with the creator.',
-    name: 'Amara Chen',
-    role: 'Growth Lead, Fluro',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80&auto=format&fit=crop&crop=faces',
-  },
-  {
-    quote: "Yepper turned my blog's spare ad space into steady monthly income. I set my price, advertisers book it, done.",
-    name: 'Marcus Webb',
-    role: 'Publisher, dailygearreview.com',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80&auto=format&fit=crop&crop=faces',
-  },
-  {
-    quote: 'The analytics dashboard alone is worth it — I finally see exactly what each placement is doing for my funnel.',
-    name: 'Priya Nair',
-    role: 'Founder, Loopwear',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80&auto=format&fit=crop&crop=faces',
-  },
-];
+const TINTS = {
+  coral: { bg: '#FDEDE9', border: '#F5C7BA', icon: 'text-coral' },
+  blue:  { bg: '#E8F4FA', border: '#BFE1F0', icon: 'text-blue' },
+};
 
 export default function MarketingSections() {
   return (
     <div className="mt-24 space-y-24">
       {/* ── How it works ─────────────────────────────────────── */}
-      <section>
-        <div className="max-w-xl mx-auto text-center mb-12">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-2 border border-border text-xs font-semibold text-coral">
-            <MagnifyingGlassIcon className="w-3.5 h-3.5" /> How it works
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white font-(--font-display) tracking-tight">
-            From discovery to results, in three steps
-          </h2>
-          <p className="mt-3 text-sm text-subtle">
-            Yepper strips out the agencies and the guesswork — book real ad space, straight from the source.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {STEPS.map((step, i) => (
-            <div
-              key={step.label}
-              className="group rounded-3xl overflow-hidden bg-surface-1 border border-border hover:-translate-y-1 transition-transform duration-200"
-            >
-              <div className="relative h-40 overflow-hidden">
-                <img
-                  src={step.image}
-                  alt={step.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                <span className="absolute top-3 left-3 w-7 h-7 rounded-full bg-coral text-white text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-              </div>
-              <div className="p-5">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-coral">{step.label}</span>
-                <h3 className="mt-1 text-lg font-bold text-white">{step.title}</h3>
-                <p className="mt-2 text-sm text-subtle leading-relaxed">{step.body}</p>
-              </div>
+      <section id="how-it-works" className="yp-full-bleed scroll-mt-24 py-20" style={{ backgroundColor: '#F7F6F3' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Reveal>
+            <div className="max-w-lg mb-12">
+              <h2 className="text-4xl sm:text-5xl font-bold text-[color:var(--mkt-ink)] font-(--font-display) tracking-tight leading-[1.05]">
+                From discovery to results, in three steps
+              </h2>
+              <p className="mt-3 text-base text-[color:var(--mkt-ink-muted)]">
+                Yepper strips out the agencies and the guesswork — book real ad space, straight from the source.
+              </p>
             </div>
-          ))}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[color:var(--mkt-border)] rounded-3xl overflow-hidden">
+              {STEPS.map((step) => (
+                <div key={step.number} className="bg-white p-6 sm:p-8">
+                  <span className="text-xs font-bold text-coral font-(--font-display)">{step.number}</span>
+                  <h3 className="mt-3 text-lg font-bold text-[color:var(--mkt-ink)]">{step.title}</h3>
+                  <p className="mt-2 text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">{step.body}</p>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── Feature grid ─────────────────────────────────────── */}
-      <section>
-        <div className="max-w-xl mx-auto text-center mb-12">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-2 border border-border text-xs font-semibold text-blue">
-            <BoltIcon className="w-3.5 h-3.5" /> Why Yepper
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white font-(--font-display) tracking-tight">
-            Everything you need, nothing you don&apos;t
-          </h2>
-        </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal>
+          <div className="max-w-lg mb-12">
+            <h2 className="text-4xl sm:text-5xl font-bold text-[color:var(--mkt-ink)] font-(--font-display) tracking-tight leading-[1.05]">
+              Built for both sides of the deal
+            </h2>
+            <p className="mt-3 text-base text-[color:var(--mkt-ink-muted)]">
+              Whether you&apos;re booking a campaign or listing your audience, the mechanics stay the same.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURES.map((feature) => (
-            <div
-              key={feature.title}
-              className="rounded-2xl bg-surface-1 border border-border p-6 hover:border-coral/40 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-xl bg-surface-3 flex items-center justify-center mb-4">
-                <feature.icon className="w-5 h-5 text-coral" />
-              </div>
-              <h3 className="text-base font-bold text-white">{feature.title}</h3>
-              <p className="mt-2 text-sm text-subtle leading-relaxed">{feature.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Testimonials ─────────────────────────────────────── */}
-      <section>
-        <div className="max-w-xl mx-auto text-center mb-12">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-2 border border-border text-xs font-semibold text-coral">
-            <ArrowTrendingUpIcon className="w-3.5 h-3.5" /> Loved by both sides of the deal
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-bold text-white font-(--font-display) tracking-tight">
-            Publishers, creators, and advertisers agree
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {TESTIMONIALS.map((t) => (
-            <div key={t.name} className="rounded-2xl bg-surface-1 border border-border p-6 flex flex-col">
-              <p className="text-sm text-subtle leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
-              <div className="mt-5 flex items-center gap-3">
-                <img
-                  src={t.avatar}
-                  alt={t.name}
-                  loading="lazy"
-                  className="w-10 h-10 rounded-full object-cover border border-border"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-white">{t.name}</p>
-                  <p className="text-xs text-muted">{t.role}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {FEATURES.map((feature) => {
+              const tint = TINTS[feature.tint];
+              return (
+                <div
+                  key={feature.title}
+                  className="rounded-2xl p-6 border"
+                  style={{ backgroundColor: tint.bg, borderColor: tint.border }}
+                >
+                  <feature.icon className={`w-6 h-6 ${tint.icon} mb-4`} />
+                  <h3 className="text-base font-bold text-[color:var(--mkt-ink)]">{feature.title}</h3>
+                  <p className="mt-2 text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">{feature.body}</p>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        </Reveal>
       </section>
 
       {/* ── Final CTA ────────────────────────────────────────── */}
-      <section className="yp-mesh rounded-3xl border border-border px-6 py-14 sm:px-16 text-center">
-        <h2 className="text-3xl sm:text-4xl font-bold text-white font-(--font-display) tracking-tight max-w-xl mx-auto">
-          Ready to put your ad space — or your budget — to work?
-        </h2>
-        <p className="mt-3 text-sm sm:text-base text-white/85 max-w-md mx-auto">
-          Join thousands of publishers, creators, and advertisers already trading ad space directly on Yepper.
-        </p>
-        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-          <Link
-            href="/login"
-            className="inline-flex items-center h-11 px-7 rounded-full bg-white text-[#0b0b0c] text-sm font-semibold hover:opacity-85 transition-opacity"
-          >
-            Get started free
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center h-11 px-7 rounded-full border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-[2rem] yp-brand-gradient px-6 py-16 sm:px-16 sm:py-24 text-center">
+            <h2 className="text-4xl sm:text-6xl font-bold text-white font-(--font-display) tracking-tight leading-[1.05] max-w-2xl mx-auto">
+              Put your ad space, or your budget, to work
+            </h2>
+            <p className="mt-4 text-base sm:text-lg text-white/85 max-w-md mx-auto">
+              Book directly with a publisher or creator — no agency, no waiting on quotes.
+            </p>
+            <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">
+              <Link
+                href="/login"
+                className="inline-flex items-center h-12 px-7 rounded-full bg-white text-[color:var(--mkt-ink)] text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Get started free
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center h-12 px-7 rounded-full border border-white/40 text-white text-sm font-semibold hover:bg-white/10 transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
+        </Reveal>
       </section>
     </div>
   );

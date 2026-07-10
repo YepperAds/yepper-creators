@@ -51,8 +51,8 @@ export default function ForgotPasswordForm() {
         {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
       </div>
       <button type="submit" disabled={loading}
-        className="w-full py-2.5 rounded-lg bg-white text-black text-sm font-semibold hover:bg-zinc-100 transition-colors disabled:opacity-60">
-        {loading ? <span className="inline-block w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" /> : 'Send Reset Link'}
+        className="w-full py-2.5 rounded-lg bg-white text-background text-sm font-semibold hover:opacity-90 transition-colors disabled:opacity-60">
+        {loading ? <span className="inline-block w-4 h-4 border-2 border-zinc-400 border-t-background rounded-full animate-spin" /> : 'Send Reset Link'}
       </button>
       <Link href="/login" className="text-center text-xs text-zinc-500 hover:text-white transition-colors">Back to login</Link>
     </form>

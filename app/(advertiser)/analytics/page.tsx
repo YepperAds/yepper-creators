@@ -22,6 +22,7 @@ import {
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
 import WebsiteAdAudienceSnapshot from '@/app/(adsense)/ad-promoter/_components/WebsiteAdAudienceSnapshot';
+import PanelHeader from '@/app/_components/dashboard/PanelHeader';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -449,6 +450,8 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
 
+      <PanelHeader title="Analytics" subtitle="Performance across your ads, websites, and YouTube channels." align="left" />
+
       {/* Tab bar */}
       <div className="flex items-center gap-1 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-1 w-fit">
         {([
@@ -460,7 +463,7 @@ export default function AnalyticsPage() {
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              tab === id ? 'bg-white text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+              tab === id ? 'bg-white text-background' : 'text-(--color-muted) hover:text-(--color-white)'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -481,7 +484,7 @@ export default function AnalyticsPage() {
             key={id}
             onClick={() => setAdsSubTab(id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              adsSubTab === id ? 'bg-white text-black' : 'text-(--color-muted) hover:text-(--color-white)'
+              adsSubTab === id ? 'bg-white text-background' : 'text-(--color-muted) hover:text-(--color-white)'
             }`}
           >
             {label}

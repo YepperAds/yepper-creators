@@ -523,7 +523,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                     <p className="text-sm text-muted mb-6 max-w-xs">Create an ad space first, then customize how ads appear.</p>
                                     <button
                                         onClick={() => { setActiveTab('spaces'); handleOpenCategoriesForm(); }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-colors"
+                                        className="flex items-center gap-2 px-4 py-2 bg-white text-background text-sm font-semibold hover:opacity-90 transition-colors"
                                     >
                                         <Plus size={13} /> Create Ad Space
                                     </button>
@@ -573,7 +573,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                         </div>
                         <div className="p-4 border-t border-border flex justify-end gap-2">
                             <button onClick={() => setIsLanguageModalOpen(false)} className="px-4 py-2 text-sm border border-border text-white hover:bg-surface-2 transition-colors">Cancel</button>
-                            <button onClick={handleSaveLanguage} className="px-4 py-2 text-sm bg-white text-black font-medium hover:bg-zinc-200 transition-colors">Save</button>
+                            <button onClick={handleSaveLanguage} className="px-4 py-2 text-sm bg-white text-background font-medium hover:opacity-90 transition-colors">Save</button>
                         </div>
                     </div>
                 </div>

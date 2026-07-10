@@ -11,6 +11,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import WebsiteDetails from '@/app/(adsense)/ad-promoter/pages/website/[websiteId]/page';
+import PanelHeader from '@/app/_components/dashboard/PanelHeader';
 
 interface Website {
   id:          string | number;
@@ -149,19 +150,20 @@ export default function WebsitesList({
         </div>
       )}
 
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[color:var(--color-white)]">Connected Websites</h1>
-          <p className="mt-1 text-sm text-[color:var(--color-muted)]">Manage websites on your Yepper account.</p>
-        </div>
-        <Link
-          href={addWebsiteHref}
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-zinc-100 transition-colors shrink-0"
-        >
-          <PlusCircleIcon className="w-4 h-4" />
-          Add Website
-        </Link>
-      </div>
+      <PanelHeader
+        title="Connected Websites"
+        subtitle="Manage websites on your Yepper account."
+        align="left"
+        action={
+          <Link
+            href={addWebsiteHref}
+            className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-background hover:opacity-90 transition-colors shrink-0"
+          >
+            <PlusCircleIcon className="w-4 h-4" />
+            Add Website
+          </Link>
+        }
+      />
 
       {error && (
         <div className="mb-6 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
@@ -194,7 +196,7 @@ export default function WebsitesList({
           </p>
           <Link
             href={addWebsiteHref}
-            className="flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-zinc-100 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 transition-colors"
           >
             <PlusCircleIcon className="w-4 h-4" />
             Connect a Website

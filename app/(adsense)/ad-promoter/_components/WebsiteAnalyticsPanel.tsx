@@ -92,7 +92,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
         <div className="flex items-center gap-2">
           {[7, 30, 90].map(d => (
             <button key={d} onClick={() => setAnalyticsRange(d)}
-              className={`px-4 py-2 text-sm border border-border font-medium transition-colors ${analyticsRange === d ? 'bg-white text-black' : 'bg-surface-1 text-white hover:bg-surface-2'}`}>
+              className={`px-4 py-2 text-sm border border-border font-medium transition-colors ${analyticsRange === d ? 'bg-white text-background' : 'bg-surface-1 text-white hover:bg-surface-2'}`}>
               {d}d
             </button>
           ))}
@@ -299,10 +299,10 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
             <button
               onClick={handleConnectGsc}
               disabled={gscConnecting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-black text-sm font-medium hover:bg-zinc-200 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-background text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-60"
             >
               {gscConnecting
-                ? <><div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full" />Connecting…</>
+                ? <><div className="animate-spin w-4 h-4 border-2 border-background border-t-transparent rounded-full" />Connecting…</>
                 : 'Connect with Google'}
             </button>
             <p className="text-xs text-muted mt-3">Your website must be verified in Google Search Console first.</p>

@@ -9,7 +9,7 @@ function CenterPanelSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="h-24 rounded-2xl bg-background animate-pulse" />
+        <div key={i} className="h-24 rounded-2xl bg-surface-2 animate-pulse" />
       ))}
     </div>
   );
@@ -25,18 +25,25 @@ export default function DashboardHome({
   hotDeals: HotDeal[];
 }) {
   return (
-    <div className="yp-mesh min-h-screen font-(--font-inter)">
-      <Header />
-      <div className="max-w-[1600px] mx-auto flex">
-        <Suspense fallback={<div className="w-64 shrink-0" />}>
-          <LeftRail />
-        </Suspense>
-        <main className="flex-1 min-w-0 py-4 px-2">
-          <Suspense fallback={<CenterPanelSkeleton />}>
-            <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
-          </Suspense>
-        </main>
-        <RightRail />
+    <div className="h-screen flex bg-background font-(--font-inter)">
+      <Suspense fallback={<div className="w-64 shrink-0 h-screen bg-background" />}>
+        <LeftRail />
+      </Suspense>
+
+      {/* Fixed-height shell — only the page rendered inside <main> scrolls
+          (each page manages its own header/tabs/scroll-body, see
+          PageHeader.tsx), so the sidebar, top header, and right rail never
+          move when the page's content does. */}
+      <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex-1 min-h-0 flex max-w-[1400px] w-full mx-auto">
+          <main className="flex-1 min-w-0 h-full overflow-hidden flex flex-col px-4 sm:px-6">
+            <Suspense fallback={<CenterPanelSkeleton />}>
+              <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
+            </Suspense>
+          </main>
+          <RightRail />
+        </div>
       </div>
     </div>
   );

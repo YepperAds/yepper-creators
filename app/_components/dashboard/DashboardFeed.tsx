@@ -19,36 +19,35 @@ function domainOf(link: string): string {
 // flow instead of letting them pick a space.
 function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (website: PublicWebsite) => void }) {
   return (
-    <div className="rounded-2xl bg-[#0b0b0c] p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-bold text-[#fff]">Website</p>
+    <div className="rounded-2xl border border-border bg-surface-2 p-4 sm:p-5 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <p className="text-sm font-bold text-white">Website</p>
+      </div>
+
+      <button onClick={() => onOpen(website)} className="relative block w-full aspect-[4/3] shrink-0 text-left mb-4">
+        <WebsiteLogoTile website={website} className="absolute inset-0" />
+        <span className="absolute bottom-1.5 right-1.5 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-[#fff]">Choose ad space</span>
+      </button>
+
+      <div className="flex flex-col justify-between min-w-0 flex-1">
+        <div>
+          <p className="text-sm font-bold text-white font-(--font-display)">{website.websiteName}</p>
+          {website.businessCategories?.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {website.businessCategories.map((c) => (
+                <CategoryCard key={c} id={c} size="badge" />
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted mt-1.5">{domainOf(website.websiteLink)}</p>
+        </div>
+
         <button
           onClick={() => onOpen(website)}
-          className="text-xs font-semibold text-[#fff] underline underline-offset-2 hover:text-coral transition-colors"
+          className="mt-3 text-xs font-semibold text-subtle underline underline-offset-2 hover:text-coral-text transition-colors text-left"
         >
           Advertise on {website.websiteName}
         </button>
-      </div>
-
-      <div className="flex gap-4">
-        <button onClick={() => onOpen(website)} className="relative block w-32 sm:w-40 aspect-[4/3] shrink-0 text-left">
-          <WebsiteLogoTile website={website} className="absolute inset-0" />
-          <span className="absolute bottom-1.5 right-1.5 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-[#fff]">Choose ad space</span>
-        </button>
-
-        <div className="flex flex-col justify-between min-w-0">
-          <div>
-            <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
-            {website.businessCategories?.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {website.businessCategories.map((c) => (
-                  <CategoryCard key={c} id={c} size="badge" />
-                ))}
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-[#fff]/50">{domainOf(website.websiteLink)}</p>
-        </div>
       </div>
     </div>
   );
@@ -67,7 +66,7 @@ export default function DashboardFeed({ websites }: { websites: PublicWebsite[] 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {websites.map((website) => (
         <WebsiteCard key={website.id} website={website} onOpen={openWebsite} />
       ))}

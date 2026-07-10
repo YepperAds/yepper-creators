@@ -10,6 +10,7 @@ import {
   MegaphoneIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
+import { useTheme, type ThemeChoice } from '@/app/_components/ThemeProvider';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings Modal — Google Meet style two-panel layout
@@ -45,7 +46,7 @@ function Toggle({ label, description, defaultOn = false }: { label: string; desc
         onClick={() => setOn(!on)}
         className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${on ? 'bg-(--color-subtle)' : 'bg-(--color-surface-3)'}`}
       >
-        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[#fff] shadow transition-transform duration-200 ${on ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
     </div>
   );
@@ -63,6 +64,32 @@ function SelectRow({ label, options, defaultValue }: { label: string; options: s
         className="bg-(--color-surface-3) border border-(--color-border) text-(--color-white) text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-(--color-subtle) transition-all"
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ── Color scheme row — the only row here backed by a real system, everything
+// else on this panel (accent color, compact sidebar, ...) is still a stub. ──
+const THEME_LABELS: Record<ThemeChoice, string> = {
+  system: 'System default',
+  dark:   'Dark',
+  light:  'Light',
+};
+
+function ColorSchemeRow() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-(--color-border) last:border-0">
+      <p className="text-sm font-medium text-(--color-white)">Color scheme</p>
+      <select
+        value={theme}
+        onChange={e => setTheme(e.target.value as ThemeChoice)}
+        className="bg-(--color-surface-3) border border-(--color-border) text-(--color-white) text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-(--color-subtle) transition-all"
+      >
+        {(Object.keys(THEME_LABELS) as ThemeChoice[]).map(id => (
+          <option key={id} value={id}>{THEME_LABELS[id]}</option>
+        ))}
       </select>
     </div>
   );
@@ -88,7 +115,7 @@ function AppearancePanel() {
   return (
     <div>
       <h3 className="text-xs font-bold text-(--color-muted) uppercase tracking-wider mb-3">Theme</h3>
-      <SelectRow label="Color scheme" options={['System default', 'Dark', 'Light']} defaultValue="System default" />
+      <ColorSchemeRow />
       <SelectRow label="Accent color" options={['Default', 'Blue', 'Purple', 'Rose', 'Amber']} defaultValue="Default" />
 
       <h3 className="text-xs font-bold text-(--color-muted) uppercase tracking-wider mb-3 mt-6">Layout</h3>

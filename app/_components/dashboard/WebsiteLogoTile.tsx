@@ -34,17 +34,17 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
       {/* Browser chrome — real logo top-left (favicon position) + real
           domain (address-bar position), so the tile is unmistakably "a
           website" rather than a generic colored square. */}
-      <div className="h-6 shrink-0 flex items-center gap-1.5 px-1.5 bg-[#f1f5f9] border-b border-black/10">
-        <span className="flex items-center justify-center w-3.5 h-3.5 rounded-[3px] overflow-hidden bg-[#fff] ring-1 ring-black/10 shrink-0">
+      <div className="h-9 shrink-0 flex items-center gap-2 px-2 bg-[#f1f5f9] border-b border-black/10">
+        <span className="flex items-center justify-center w-6 h-6 rounded-[5px] overflow-hidden bg-[#fff] ring-1 ring-black/10 shrink-0">
           {website.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={website.imageUrl} alt="" className="w-full h-full object-contain" />
           ) : (
-            <GlobeAltIcon className="w-full h-full text-slate-400 p-px" />
+            <GlobeAltIcon className="w-full h-full text-slate-400 p-0.5" />
           )}
         </span>
-        <span className="flex-1 min-w-0 h-3.5 rounded-full bg-[#fff] ring-1 ring-black/10 flex items-center px-2">
-          <span className="text-[9px] font-medium text-slate-500 truncate leading-none">{domainOf(website.websiteLink)}</span>
+        <span className="flex-1 min-w-0 h-5 rounded-full bg-[#fff] ring-1 ring-black/10 flex items-center px-2.5">
+          <span className="text-[11px] font-medium text-slate-500 truncate leading-none">{domainOf(website.websiteLink)}</span>
         </span>
       </div>
 

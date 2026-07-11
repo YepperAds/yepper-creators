@@ -102,7 +102,7 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
 function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onClick: () => void }) {
   return (
     <button onClick={onClick} className="w-28 shrink-0 text-center group">
-      <WebsiteLogoTile website={website} className="relative w-28 h-28 group-hover:opacity-90 transition-opacity" />
+      <WebsiteLogoTile website={website} className="relative w-28 h-28 rounded-lg overflow-hidden border border-border group-hover:opacity-90 transition-opacity" />
       <p className="mt-1.5 text-xs font-semibold text-white truncate">{website.websiteName}</p>
     </button>
   );

@@ -5,14 +5,6 @@ import WebsiteLogoTile from './WebsiteLogoTile';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
-function domainOf(link: string): string {
-  try {
-    return new URL(link).hostname.replace(/^www\./, '');
-  } catch {
-    return link;
-  }
-}
-
 // Clicking through takes the advertiser straight into the ad-space chooser
 // for this exact website (AdvertiseBrowser reads `websiteId` off the URL and
 // auto-opens it) — not out to the site's real URL, which just abandoned the
@@ -24,7 +16,7 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
         <p className="text-sm font-bold text-white">Website</p>
       </div>
 
-      <button onClick={() => onOpen(website)} className="relative block w-full aspect-[4/3] shrink-0 text-left mb-4">
+      <button onClick={() => onOpen(website)} className="relative block w-full aspect-[4/3] shrink-0 text-left mb-4 rounded-lg overflow-hidden border border-border">
         <WebsiteLogoTile website={website} className="absolute inset-0" />
         <span className="absolute bottom-1.5 right-1.5 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-[#fff]">Choose ad space</span>
       </button>
@@ -39,7 +31,6 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
               ))}
             </div>
           )}
-          <p className="text-xs text-muted mt-1.5">{domainOf(website.websiteLink)}</p>
         </div>
 
         <button

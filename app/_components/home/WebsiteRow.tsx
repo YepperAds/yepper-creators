@@ -3,21 +3,18 @@
 import { ShieldCheckIcon } from '@heroicons/react/24/solid';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
+import WebsiteLogoTile from '@/app/_components/dashboard/WebsiteLogoTile';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
 // Compact horizontal-scroll card — a lighter-weight sibling of the
 // dashboard's HomeFeed/WebsiteCard (that one's a wide row, built for a
 // vertical feed; this one's a fixed-width tile, built for a scroll row).
-// Marketing-only, so fixed literal colors — see HotDealsSection's variant
-// prop for why.
-
-function domainOf(link: string): string {
-  try {
-    return new URL(link).hostname.replace(/^www\./, '');
-  } catch {
-    return link;
-  }
-}
+// Shares WebsiteLogoTile's browser-chrome preview (real logo top-left, real
+// domain in the address bar) so a site looks the same whether you're
+// logged in or just browsing the marketing homepage — WebsiteLogoTile only
+// ever uses literal colors, never dashboard --color-* tokens, so it's safe
+// to reuse here. Marketing-only, so the rest of this card is fixed literal
+// colors too — see HotDealsSection's variant prop for why.
 
 function startCollaborate(id: string) {
   const from = `/?panel=advertise&websiteId=${encodeURIComponent(id)}`;
@@ -30,20 +27,14 @@ function WebsiteTile({ website }: { website: PublicWebsite }) {
       onClick={() => startCollaborate(website.id)}
       className="group w-[320px] shrink-0 text-left rounded-3xl bg-white overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-200"
     >
-      <div className="relative aspect-[4/3] bg-[color:var(--mkt-surface)]">
-        {website.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={website.imageUrl} alt={website.websiteName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[color:var(--mkt-ink-muted)] text-xs">No preview</div>
-        )}
-        <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[color:var(--mkt-ink)] shadow-sm">
+      <div className="relative aspect-[4/3]">
+        <WebsiteLogoTile website={website} className="absolute inset-0" />
+        <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[color:var(--mkt-ink)] shadow-sm">
           <ShieldCheckIcon className="w-3.5 h-3.5 text-blue" /> Verified
         </span>
       </div>
       <div className="p-5">
         <p className="text-base font-bold text-[color:var(--mkt-ink)] font-(--font-display) truncate">{website.websiteName}</p>
-        <p className="text-xs text-[color:var(--mkt-ink-muted)] mt-0.5 truncate">{domainOf(website.websiteLink)}</p>
         {website.businessCategories?.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1">
             {website.businessCategories.slice(0, 2).map((c) => (

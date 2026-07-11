@@ -48,9 +48,32 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
         </span>
       </div>
 
-      {/* Page body */}
-      <div className="relative flex-1 overflow-hidden" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
-        <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-[#fff]/45 to-transparent" />
+      {/* Page body — a little wireframe (nav + hero + content grid), not just
+          a flat color block, so the tile reads as an actual page layout. */}
+      <div className="relative flex-1 overflow-hidden bg-[#f8fafc]">
+        {/* Mini nav bar, tinted in the site's brand gradient */}
+        <div className="h-[22%] flex items-center gap-[6%] px-[10%]" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
+          <span className="w-[12%] aspect-square rounded-full bg-[#fff]/85 shrink-0" />
+          <span className="ml-auto flex items-center gap-[6%]">
+            <span className="w-[16%] h-1 rounded-full bg-[#fff]/70" />
+            <span className="w-[16%] h-1 rounded-full bg-[#fff]/70" />
+          </span>
+        </div>
+
+        {/* Content skeleton — fixed (not %) heights: this wrapper's own
+            height is auto (sized to content), so percentage heights on its
+            children would resolve to nothing per the CSS spec. */}
+        <div className="p-[10%] space-y-1.5">
+          <div className="h-1.5 w-3/4 rounded-full bg-slate-300" />
+          <div className="h-1 w-1/2 rounded-full bg-slate-200" />
+          <div className="flex gap-[6%] pt-1.5">
+            <div className="flex-1 aspect-square rounded-md bg-slate-200" />
+            <div className="flex-1 aspect-square rounded-md bg-slate-200" />
+            <div className="flex-1 aspect-square rounded-md bg-slate-200" />
+          </div>
+        </div>
+
+        <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-[#fff]/50 to-transparent" />
       </div>
     </div>
   );

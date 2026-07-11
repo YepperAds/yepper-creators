@@ -90,7 +90,7 @@ export default function CenterPanel({
   } else if (panel === 'support') {
     content = <LegacyPanel onBack={backToFeed}><SupportPage /></LegacyPanel>;
   } else if (panel === 'deals') {
-    content = <DealsGrid deals={hotDeals} onBack={backToFeed} />;
+    content = <DealsGrid deals={hotDeals} websites={websites} creators={creators} onBack={backToFeed} />;
   } else if (panel === 'advertise') {
     content = (
       <div className="h-full overflow-y-auto py-4">

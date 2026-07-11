@@ -33,20 +33,6 @@ function TabPill({ active, onClick, children }: { active: boolean; onClick?: () 
   );
 }
 
-// "More" is a real tab visually (matches the reference layout) but has
-// nothing behind it yet — a hover tooltip says so instead of the tab
-// silently doing nothing.
-function MoreTab() {
-  return (
-    <div className="group/more relative">
-      <TabPill active={false}>More</TabPill>
-      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-surface-3 text-white text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/more:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
-        More coming soon
-      </div>
-    </div>
-  );
-}
-
 export default function HomeExplore({
   websites,
   creators,
@@ -72,7 +58,6 @@ export default function HomeExplore({
             {t.label}
           </TabPill>
         ))}
-        <MoreTab />
       </div>
 
       {/* px-2: the hot-deal card's pulsing glow (box-shadow, see .hotdeal-glow

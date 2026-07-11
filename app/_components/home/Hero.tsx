@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheckIcon, BoltIcon, ChartBarIcon, SparklesIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/solid';
+import { ShieldCheckIcon, BoltIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { getBusinessCategory } from '@/app/_lib/business-categories';
 
 const FEATURED_CATEGORY = getBusinessCategory('travel-tourism');
@@ -8,14 +8,6 @@ const FEATURED_CATEGORY = getBusinessCategory('travel-tourism');
 export default function Hero() {
   return (
     <section className="relative pt-8 pb-16 sm:pb-20">
-      {/* Scattered accent badges, decorative only */}
-      <div aria-hidden className="hidden md:flex absolute -top-2 left-0 w-11 h-11 rounded-full bg-white border border-[color:var(--mkt-border)] items-center justify-center shadow-[0_6px_16px_rgba(0,0,0,0.1)] z-10">
-        <SparklesIcon className="w-5 h-5 text-coral" />
-      </div>
-      <div aria-hidden className="hidden md:flex absolute top-10 right-2 w-11 h-11 rounded-full bg-white border border-[color:var(--mkt-border)] items-center justify-center shadow-[0_6px_16px_rgba(0,0,0,0.1)] z-10">
-        <ArrowTrendingUpIcon className="w-5 h-5 text-blue" />
-      </div>
-
       {/* ── Gradient panel ───────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-[2rem] yp-brand-gradient px-6 sm:px-12 py-20 sm:py-28 text-center">
         <div aria-hidden className="yp-dot-grid absolute top-6 right-8 w-28 h-28 opacity-30" />

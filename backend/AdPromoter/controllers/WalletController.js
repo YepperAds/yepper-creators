@@ -1,7 +1,7 @@
 // controllers/WalletController.js  (PostgreSQL)
 const { Wallet, WalletTransaction } = require('../models/walletModel');
 const Creator = require('../../creators/models/Creator');
-const { getWithdrawalCooldown } = require('../utils/withdrawalCooldown');
+const { getWithdrawalCooldown, getEarningsHold } = require('../utils/withdrawalCooldown');
 
 exports.getWallet = async (req, res) => {
   try {
@@ -72,7 +72,14 @@ exports.getWalletBalance = async (req, res) => {
       });
     }
 
-    const { canWithdraw, nextWithdrawalAt } = await getWithdrawalCooldown(wallet.id);
+    const [cooldown, hold] = await Promise.all([
+      getWithdrawalCooldown(wallet.id),
+      getEarningsHold(wallet.id),
+    ]);
+    const canWithdraw = cooldown.canWithdraw && hold.maturedBalance > 0;
+    const nextWithdrawalAt = !cooldown.canWithdraw
+      ? cooldown.nextWithdrawalAt
+      : (hold.maturedBalance <= 0 ? hold.availableAt : null);
 
     res.status(200).json({
       success: true,

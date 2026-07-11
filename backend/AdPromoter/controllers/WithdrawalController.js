@@ -2,7 +2,7 @@
 const { query, getClient } = require('../../config/db');
 const { Wallet, WalletTransaction } = require('../models/walletModel');
 const WithdrawalRequest = require('../models/WithdrawalModel');
-const { getWithdrawalCooldown } = require('../utils/withdrawalCooldown');
+const { getWithdrawalCooldown, getEarningsHold } = require('../utils/withdrawalCooldown');
 
 // Postgres rows come back snake_case; the frontend (ported from a Mongo-era client) expects camelCase + `_id`.
 function mapWithdrawalRequest(row) {
@@ -47,6 +47,19 @@ exports.createWithdrawalRequest = async (req, res) => {
     if (!canWithdraw) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Withdrawal cooldown in effect', nextWithdrawalAt });
+    }
+
+    // Earnings only become withdrawable EARNINGS_HOLD_DAYS after they were
+    // credited — the balance check above doesn't know how recently that
+    // money actually landed in the wallet.
+    const { maturedBalance, availableAt } = await getEarningsHold(wallet.id);
+    if (Number(amount) > maturedBalance) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Recent earnings are still in their 14-day holding period',
+        maturedBalance,
+        nextWithdrawalAt: availableAt,
+      });
     }
 
     // Check for existing pending request

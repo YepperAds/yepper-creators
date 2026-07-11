@@ -9,7 +9,7 @@ const Creator   = require('../models/Creator');
 const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
 const sendEmailNotification = require('../../controllers/emailService');
 const WithdrawalRequest = require('../../AdPromoter/models/WithdrawalModel');
-const { getWithdrawalCooldown } = require('../../AdPromoter/utils/withdrawalCooldown');
+const { getWithdrawalCooldown, getEarningsHold } = require('../../AdPromoter/utils/withdrawalCooldown');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
 
@@ -1394,15 +1394,24 @@ exports.getWallet = async (req, res) => {
     // Only the webOwner (earnings) wallet is withdrawable — the advertiser
     // wallet only tracks spend/refunds, same rule as AdPromoter/WalletController.
     const withdrawable = w.owner_type === 'webOwner';
-    const { canWithdraw, nextWithdrawalAt } = withdrawable
-      ? await getWithdrawalCooldown(w.id)
-      : { canWithdraw: false, nextWithdrawalAt: null };
+    let canWithdraw = false;
+    let nextWithdrawalAt = null;
+    if (withdrawable) {
+      const [cooldown, hold] = await Promise.all([
+        getWithdrawalCooldown(w.id),
+        getEarningsHold(w.id),
+      ]);
+      canWithdraw = cooldown.canWithdraw && hold.maturedBalance > 0;
+      nextWithdrawalAt = !cooldown.canWithdraw
+        ? cooldown.nextWithdrawalAt
+        : (hold.maturedBalance <= 0 ? hold.availableAt : null);
+    }
     return res.json({
       success: true,
       data: {
         balance: Number(w.balance || 0),
         currency: 'RWF',
-        canWithdraw: withdrawable && canWithdraw,
+        canWithdraw,
         nextWithdrawalAt,
       },
     });
@@ -1469,6 +1478,20 @@ exports.createWalletWithdrawal = async (req, res) => {
     if (!canWithdraw) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, message: 'Withdrawal cooldown in effect', nextWithdrawalAt });
+    }
+
+    // Earnings only become withdrawable EARNINGS_HOLD_DAYS after they were
+    // credited — a raw balance check above isn't enough, since it doesn't
+    // know how recently that money actually landed in the wallet.
+    const { maturedBalance, availableAt } = await getEarningsHold(wallet.id);
+    if (Number(amount) > maturedBalance) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Recent earnings are still in their 14-day holding period',
+        maturedBalance,
+        nextWithdrawalAt: availableAt,
+      });
     }
 
     const { rows: existing } = await client.query(

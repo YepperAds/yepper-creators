@@ -9,7 +9,6 @@ import {
   ChartBarIcon as OutlineChart,
   LinkIcon as OutlineLink,
   BellIcon as OutlineBell,
-  Cog6ToothIcon as OutlineCog,
   QuestionMarkCircleIcon as OutlineQuestion,
   UserIcon as OutlineUser,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
@@ -23,7 +22,6 @@ import {
   ChartBarIcon as SolidChart,
   LinkIcon as SolidLink,
   BellIcon as SolidBell,
-  Cog6ToothIcon as SolidCog,
   QuestionMarkCircleIcon as SolidQuestion,
   UserIcon as SolidUser,
   ChevronLeftIcon,
@@ -35,13 +33,11 @@ import {
 
 import { api, AUTH_ENDPOINTS, BASE_URL } from '@/app/_lib/api';
 import { useState, useEffect } from 'react';
-import SettingsModal from './SettingsModal';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -163,12 +159,6 @@ export default function Sidebar() {
     {
       items: [
         { label: 'Notifications', href: '/?panel=notifications', icon: OutlineBell,     activeIcon: SolidBell },
-        {
-          label:      'Settings',
-          icon:       OutlineCog,
-          activeIcon: SolidCog,
-          action:     () => setSettingsOpen(true),
-        },
         {
           label:      'Help & Support',
           icon:       OutlineQuestion,
@@ -342,8 +332,6 @@ export default function Sidebar() {
       </div>
 
     </aside>
-
-    <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

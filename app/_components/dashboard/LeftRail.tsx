@@ -10,7 +10,6 @@ import {
   ChartBarIcon as OutlineChart,
   UserIcon as OutlineUser,
   BellIcon as OutlineBell,
-  Cog6ToothIcon as OutlineCog,
   BanknotesIcon as OutlineBanknotes,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
   ChevronLeftIcon,
@@ -30,7 +29,6 @@ import {
   BellIcon as SolidBell,
   BanknotesIcon as SolidBanknotes,
 } from '@heroicons/react/24/solid';
-import SettingsModal from '@/app/(advertiser)/_components/SettingsModal';
 import { useTheme, type ThemeChoice } from '@/app/_components/ThemeProvider';
 import SidebarToggleIcon from './SidebarToggleIcon';
 
@@ -107,7 +105,6 @@ export default function LeftRail() {
   const { theme, setTheme } = useTheme();
 
   const [loggingOut, setLoggingOut] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
@@ -127,7 +124,6 @@ export default function LeftRail() {
   const hrefFor = (panel: string | null) => (panel ? `/?panel=${panel}` : '/');
 
   return (
-    <>
       <aside
         className={`h-screen shrink-0 bg-background flex flex-col pt-6 pb-6 transition-all duration-300 ease-in-out ${
           collapsed ? 'w-20' : 'w-64'
@@ -181,18 +177,19 @@ export default function LeftRail() {
               >
                 {!showAppearance ? (
                   <>
-                    <MenuRow icon={OutlineCog} label="Settings" onClick={() => { setSettingsOpen(true); closeMore(); }} />
                     <MenuRow
                       icon={MoonIcon}
                       label="Switch appearance"
                       onClick={() => setShowAppearance(true)}
                       trailing={<ChevronRightIcon className="w-3.5 h-3.5 opacity-60" />}
                     />
+                    {/* Report a problem — hidden for now, not commented out of
+                        existence: re-enable by uncommenting this MenuRow.
                     <MenuRow
                       icon={ExclamationTriangleIcon}
                       label="Report a problem"
                       onClick={() => { window.location.href = 'mailto:support@yepper.cc'; closeMore(); }}
-                    />
+                    /> */}
                     <div className="h-px bg-border my-1 mx-1" />
                     <MenuRow icon={OutlineLogout} label={loggingOut ? 'Signing out…' : 'Log out'} onClick={handleLogout} />
                   </>
@@ -231,8 +228,5 @@ export default function LeftRail() {
           </div>
         </div>
       </aside>
-
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </>
   );
 }

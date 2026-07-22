@@ -295,7 +295,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                       <p className="text-sm font-bold text-white">{space.categoryName}</p>
                       {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
                     </div>
-                    <p className="text-sm font-bold text-coral-text shrink-0">${space.price}</p>
+                    <p className="text-sm font-bold text-coral-text shrink-0">RWF {space.price}</p>
                   </div>
                 </button>
               );

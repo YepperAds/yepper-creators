@@ -206,7 +206,7 @@ const UpdateAdSelections = () => {
                                                     <div className="font-medium">{category.categoryName}</div>
                                                     <div className="text-sm text-subtle">{category.spaceType}</div>
                                                     <div className="text-sm font-semibold text-white mt-1">
-                                                        ${category.price}/month
+                                                        RWF {category.price}/month
                                                     </div>
                                                 </div>
                                             </label>
@@ -233,7 +233,7 @@ const UpdateAdSelections = () => {
                             </div>
                             <div className="flex justify-between text-lg pt-2 border-t border-border">
                                 <span className="font-semibold">Total:</span>
-                                <span className="font-bold">${getTotalPrice()}/month</span>
+                                <span className="font-bold">RWF {getTotalPrice()}/month</span>
                             </div>
                         </div>
                         <Button

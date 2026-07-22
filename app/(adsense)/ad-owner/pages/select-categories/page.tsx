@@ -371,11 +371,11 @@ const SelectCategoriesForExistingAd = () => {
       let parts = [];
       
       if (paidFromWallet > 0) {
-        parts.push(`$${paidFromWallet.toFixed(2)} from wallet`);
+        parts.push(`RWF ${paidFromWallet.toFixed(2)} from wallet`);
       }
       
       if (actualRefundAmount > 0 && !isReassignment) {
-        parts.push(`$${actualRefundAmount.toFixed(2)} from refunds`);
+        parts.push(`RWF ${actualRefundAmount.toFixed(2)} from refunds`);
       }
       
       if (parts.length > 0) {
@@ -391,14 +391,14 @@ const SelectCategoriesForExistingAd = () => {
       let parts = [];
       
       if (paidFromWallet > 0) {
-        parts.push(`$${paidFromWallet.toFixed(2)} from wallet`);
+        parts.push(`RWF ${paidFromWallet.toFixed(2)} from wallet`);
       }
       
       if (actualRefundAmount > 0 && !isReassignment) {
-        parts.push(`$${actualRefundAmount.toFixed(2)} from refunds`);
+        parts.push(`RWF ${actualRefundAmount.toFixed(2)} from refunds`);
       }
       
-      let text = `Pay $${needsExternalPayment.toFixed(2)} with Card`;
+      let text = `Pay RWF ${needsExternalPayment.toFixed(2)} with Card`;
       if (parts.length > 0) {
         text += ` (${parts.join(', ')} applied)`;
       }
@@ -468,7 +468,7 @@ const SelectCategoriesForExistingAd = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <Text>Total Cost:</Text>
-                <Text className="text-lg font-semibold">${paymentBreakdown.totalCost?.toFixed(2)}</Text>
+                <Text className="text-lg font-semibold">RWF {paymentBreakdown.totalCost?.toFixed(2)}</Text>
               </div>
               
               <div className="flex justify-between items-center">
@@ -476,14 +476,14 @@ const SelectCategoriesForExistingAd = () => {
                   <Wallet size={16} className="text-white" />
                   <Text>Your Wallet Balance:</Text>
                 </div>
-                <Text className="text-white font-medium">${paymentBreakdown.walletBalance?.toFixed(2)}</Text>
+                <Text className="text-white font-medium">RWF {paymentBreakdown.walletBalance?.toFixed(2)}</Text>
               </div>
               
               <div className="border-t pt-3">
                 {paymentBreakdown.paidFromWallet > 0 && (
                   <div className="flex justify-between items-center text-white">
                     <Text>Paid from Wallet:</Text>
-                    <Text className="font-medium">-${paymentBreakdown.paidFromWallet?.toFixed(2)}</Text>
+                    <Text className="font-medium">-RWF {paymentBreakdown.paidFromWallet?.toFixed(2)}</Text>
                   </div>
                 )}
                 
@@ -494,8 +494,8 @@ const SelectCategoriesForExistingAd = () => {
                   <div className="flex items-center gap-2">
                     <Text>
                       {paymentBreakdown.needsExternalPayment > 0 
-                        ? `$${paymentBreakdown.needsExternalPayment?.toFixed(2)}`
-                        : `$${paymentBreakdown.totalCost?.toFixed(2)}`
+                        ? `RWF ${paymentBreakdown.needsExternalPayment?.toFixed(2)}`
+                        : `RWF ${paymentBreakdown.totalCost?.toFixed(2)}`
                       }
                     </Text>
                   </div>
@@ -513,7 +513,7 @@ const SelectCategoriesForExistingAd = () => {
                     <Heading level={4} className="mb-1">{selection.websiteName}</Heading>
                     <Text variant="muted" className="mb-2">{selection.categoryName}</Text>
                     <div className="flex items-center gap-2">
-                      <Text className="text-lg font-semibold">${selection.price.toFixed(2)}</Text>
+                      <Text className="text-lg font-semibold">RWF {selection.price.toFixed(2)}</Text>
                     </div>
                   </div>
                 </div>
@@ -661,7 +661,7 @@ const SelectCategoriesForExistingAd = () => {
                                 <div className="flex items-center gap-6">
                                   <div className="flex items-center justify-center gap-2">
                                     <span className="text-lg font-semibold text-white">
-                                      ${category.price}
+                                      RWF {category.price}
                                     </span>
                                   </div>
                                   

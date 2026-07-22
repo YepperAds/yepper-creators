@@ -691,7 +691,7 @@ const CategoryCreation = () => {
                     </span>
                     {completedCategories.includes(category) && categoryData[category]?.price && (
                       <span className="text-sm font-bold text-white">
-                        ${categoryData[category].price}/mo
+                        RWF {categoryData[category].price}/mo
                       </span>
                     )}
                   </div>

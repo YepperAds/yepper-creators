@@ -634,7 +634,7 @@ function DirectAdvertise() {
                 <div className="space-y-2">
                   <div className="flex gap-2 text-sm">
                     <span className="text-subtle">Price:</span>
-                    <span className="font-semibold">${categoryInfo?.price}</span>
+                    <span className="font-semibold">RWF {categoryInfo?.price}</span>
                   </div>
                   <div className="flex gap-2 text-sm">
                     <span className="text-subtle">Tier:</span>
@@ -931,7 +931,7 @@ function DirectAdvertise() {
                         </div>
                         <div className="border-t border-border/40 pt-3 flex justify-between font-semibold text-base">
                           <span>Total:</span>
-                          <span>${categoryInfo?.price}</span>
+                          <span>RWF {categoryInfo?.price}</span>
                         </div>
                       </div>
                     </div>

@@ -143,7 +143,7 @@ function AdModalData({
                         <div className="border border-border p-6">
                             <h3 className="text-lg font-bold text-white mb-4">Payment</h3>
                             <div className="text-3xl font-bold text-subtle mb-2">
-                                {formatCurrency ? formatCurrency(adModalData.paymentAmount) : `$${adModalData.paymentAmount || 0}`}
+                                {formatCurrency ? formatCurrency(adModalData.paymentAmount) : `RWF ${adModalData.paymentAmount || 0}`}
                             </div>
                         </div>
 

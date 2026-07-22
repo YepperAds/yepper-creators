@@ -263,7 +263,7 @@ function AvailableAdsForWebOwners() {
               <option value="">Select a category...</option>
               {categories.map((category: any) => (
                 <option key={category._id} value={category._id}>
-                  {category.categoryName} - ${category.price}
+                  {category.categoryName} - RWF {category.price}
                 </option>
               ))}
             </select>

@@ -92,7 +92,7 @@ function availableSlotHtml(adCategory, categoryId) {
         <div class="sp-content">
           <div class="sp-text-content">
             <h3 class="sp-business-name">Available Advertising Space</h3>
-            <p class="sp-description">Price: $${adCategory.price}/mo</p>
+            <p class="sp-description">Price: RWF ${adCategory.price}/mo</p>
             <button class="sp-cta" type="button">Advertise Here</button>
           </div>
         </div>

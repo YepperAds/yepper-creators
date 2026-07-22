@@ -741,7 +741,7 @@ exports.serveAdEmbed = async (req, res) => {
       bodyHtml = `
         <div class="${prefix}-empty">
           <p class="${prefix}-empty-title">Available Advertising Space</p>
-          <p class="${prefix}-empty-price">Price: $${categoryPrice}/mo</p>
+          <p class="${prefix}-empty-price">Price: RWF ${categoryPrice}/mo</p>
           <a class="${prefix}-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
         </div>`;
     } else {
@@ -773,7 +773,7 @@ exports.serveAdEmbed = async (req, res) => {
           inner: `
             <div class="${prefix}-text" style="width:100%;text-align:center;justify-content:center;">
               <p class="${prefix}-title">Available Advertising Space</p>
-              <p class="${prefix}-desc">Price: $${categoryPrice}/mo</p>
+              <p class="${prefix}-desc">Price: RWF ${categoryPrice}/mo</p>
               <span class="${prefix}-cta">Advertise Here</span>
             </div>`,
           credit: '',

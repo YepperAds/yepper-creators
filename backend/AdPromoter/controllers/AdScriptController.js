@@ -460,7 +460,7 @@ exports.serveAdScript = async (req, res) => {
     host.innerHTML=
       '<div class="'+_px+'-empty">'+
         '<p class="'+_px+'-empty-title">'+lang.title+'</p>'+
-        '<p class="'+_px+'-empty-price">'+lang.price+': $'+_p+'/mo</p>'+
+        '<p class="'+_px+'-empty-price">'+lang.price+': RWF'+_p+'/month</p>'+
         '<a class="'+_px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_w+'&categoryId='+_i+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
       '</div>';
     addDismissButton(host);
@@ -741,7 +741,7 @@ exports.serveAdEmbed = async (req, res) => {
       bodyHtml = `
         <div class="${prefix}-empty">
           <p class="${prefix}-empty-title">Available Advertising Space</p>
-          <p class="${prefix}-empty-price">Price: RWF ${categoryPrice}/mo</p>
+          <p class="${prefix}-empty-price">Price: RWF ${categoryPrice}/month</p>
           <a class="${prefix}-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
         </div>`;
     } else {
@@ -773,7 +773,7 @@ exports.serveAdEmbed = async (req, res) => {
           inner: `
             <div class="${prefix}-text" style="width:100%;text-align:center;justify-content:center;">
               <p class="${prefix}-title">Available Advertising Space</p>
-              <p class="${prefix}-desc">Price: RWF ${categoryPrice}/mo</p>
+              <p class="${prefix}-desc">Price: RWF ${categoryPrice}/month</p>
               <span class="${prefix}-cta">Advertise Here</span>
             </div>`,
           credit: '',

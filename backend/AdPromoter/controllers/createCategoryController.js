@@ -572,7 +572,7 @@ exports.sendCategoryInvite = async (req, res) => {
                 <tr><td style="background:#fff;padding:20px;">
                   <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#999;">${safeWebsiteName}${safeSpaceType ? ` · ${safeSpaceType}` : ''}</p>
                   <p style="margin:0 0 10px;font-size:17px;font-weight:800;color:#111;">${safeSpaceName}</p>
-                  <p style="margin:0 0 16px;font-size:14px;color:#555;">Price: <strong style="color:#111;">RWF ${price}/mo</strong></p>
+                  <p style="margin:0 0 16px;font-size:14px;color:#555;">Price: <strong style="color:#111;">RWF ${price}/month</strong></p>
                   <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;">Advertise Here →</a>
                 </td></tr>
               </table>

@@ -133,6 +133,8 @@ export const websiteAPI = {
   uploadScreenshot:     (id: string, formData: FormData) =>
     adsenseHttp.post(`/api/createWebsite/upload/${id}`, formData),
   updateName:           (id: string, data: unknown) => adsenseHttp.patch(`/api/createWebsite/${id}/name`, data),
+  updatePages:          (id: string, pages: { label: string; path: string }[]) =>
+    adsenseHttp.patch(`/api/createWebsite/${id}/pages`, { pages }),
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -149,6 +151,8 @@ export const categoryAPI = {
   resetUserCount:         (categoryId: string, data: unknown) => adsenseHttp.put(`/api/ad-categories/${categoryId}/reset-user-count`, data),
   updateLanguage:         (categoryId: string, data: unknown) => adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/language`, data),
   updatePlacementMode:    (categoryId: string, data: unknown) => adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/placement-mode`, data),
+  updateTargetPath:       (categoryId: string, targetPath: string | null) =>
+    adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/target-path`, { targetPath }),
   duplicate:              (categoryId: string, data: unknown) => adsenseHttp.post(`/api/ad-categories/${categoryId}/duplicate`, data),
   delete:                 (categoryId: string)                => adsenseHttp.delete(`/api/ad-categories/${categoryId}`),
   sendInvite:             (categoryId: string, data: unknown)  => adsenseHttp.post(`/api/ad-categories/${categoryId}/send-invite`, data),

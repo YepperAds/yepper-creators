@@ -24,6 +24,7 @@ import {
     CheckCircle,
 } from 'lucide-react';
 import { MasterIntegration } from '../../../_components/codeDisplay';
+import WebsitePagesPanel from '../../../_components/WebsitePagesPanel';
 import AddNewCategory from '../../../_components/AddNewCategory';
 import { Button, Card, CardContent, Heading, Text, Input, Badge, Grid, Container } from '@/app/(adsense)/components/components';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
@@ -351,6 +352,12 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 </div>
                             )}
 
+                            {/* Registered pages — lets ad spaces target a specific one */}
+                            <WebsitePagesPanel
+                                website={website}
+                                onPagesChange={(pages) => setWebsite({ ...website, pages })}
+                            />
+
                             {/* Scripts + ad space list */}
                             <MasterIntegration
                                 website={website}
@@ -358,8 +365,8 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 onAddSpace={handleOpenCategoriesForm}
                                 onDeleteCategory={handleDeleteCategory}
                                 onSendInvite={handleSendInvite}
-                                onPlacementModeChange={(categoryId, mode) =>
-                                    setCategories(categories.map(c => c._id === categoryId ? { ...c, placementMode: mode } : c))
+                                onTargetPathChange={(categoryId, targetPath) =>
+                                    setCategories(categories.map(c => c._id === categoryId ? { ...c, targetPath } : c))
                                 }
                                 onDuplicated={fetchWebsiteData}
                                 earningsSummary={earningsSummary}
@@ -655,6 +662,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 onSubmitSuccess={handleCloseCategoriesForm}
                                 monthlyTraffic={analytics?.grantDisplay ? analytics.grantDisplay.grantedTraffic : website?.monthlyTraffic}
                                 gscData={analytics?.grantDisplay ? undefined : gscData}
+                                websitePages={website?.pages || []}
                             />
                         </div>
                     </div>

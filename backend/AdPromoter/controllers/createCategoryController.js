@@ -33,6 +33,7 @@ function catToClient(c) {
     customAttributes: typeof c.custom_attributes === 'string' ? JSON.parse(c.custom_attributes) : (c.custom_attributes || {}),
     placementMode: c.placement_mode,
     placeholderDiv: c.placeholder_div,
+    targetPath: c.target_path,
     webOwnerEmail: c.web_owner_email,
     defaultLanguage: c.default_language,
     customization: typeof c.customization === 'string' ? JSON.parse(c.customization) : (c.customization || null),
@@ -165,7 +166,7 @@ exports.createCategory = async (req, res) => {
 
     const {
       websiteId, categoryName, description, price, customAttributes,
-      spaceType, placementMode, userCount, instructions, visitorRange, tier
+      spaceType, placementMode, userCount, instructions, visitorRange, tier, targetPath
     } = req.body;
 
     const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
@@ -203,7 +204,12 @@ exports.createCategory = async (req, res) => {
       description,
       price: finalPrice,
       spaceType,
-      placementMode: placementMode || 'auto',
+      // A specific targetPath is what actually scopes this to one page (the
+      // site-wide script matches it against location.pathname) — placementMode
+      // is now just a derived label kept for backward compatibility with the
+      // older manual/placeholder-div flow.
+      placementMode: targetPath ? 'manual' : (placementMode || 'auto'),
+      targetPath: targetPath || null,
       userCount: parseInt(userCount, 10) || 0,
       instructions,
       customAttributes: customAttributes || {},
@@ -788,6 +794,40 @@ exports.updateCategoryPlacementMode = async (req, res) => {
   }
 };
 
+// ── updateCategoryTargetPath ──────────────────────────────────────────────────
+// Scopes an existing ad space to one of the website's registered pages (see
+// Website.pages) — or back to every page with targetPath: null. The site-wide
+// script matches this against location.pathname itself, so this is the whole
+// "which page does this appear on" control — no snippet to re-paste.
+exports.updateCategoryTargetPath = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
+    const { categoryId } = req.params;
+    const { targetPath } = req.body;
+
+    if (targetPath !== null && typeof targetPath !== 'string') {
+      return res.status(400).json({ message: 'targetPath must be a string path or null' });
+    }
+
+    const category = await AdCategory.findById(categoryId);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
+    if (category.owner_id?.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updated = await AdCategory.update(categoryId, {
+      targetPath: targetPath || null,
+      placementMode: targetPath ? 'manual' : 'auto',
+    });
+    res.status(200).json(catToClient(updated));
+  } catch (error) {
+    console.error('Error updating category target path:', error);
+    res.status(500).json({ message: 'Error updating category target path', error: error.message });
+  }
+};
+
 // ── duplicateCategory ─────────────────────────────────────────────────────────
 // Clones a category's config into a brand-new one with its own id, own
 // iframe/script, and empty inventory (no selected_ads carried over) — for
@@ -800,7 +840,11 @@ exports.duplicateCategory = async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
     const { categoryId } = req.params;
-    const { categoryName } = req.body;
+    // pageLabel/targetPath come from picking one of the website's registered
+    // pages (see Website.pages) — targetPath is what the site-wide script
+    // actually matches against location.pathname; pageLabel just names the
+    // duplicate. categoryName is kept as a fallback for older callers.
+    const { categoryName, pageLabel, targetPath } = req.body;
 
     const source = await AdCategory.findById(categoryId);
     if (!source) return res.status(404).json({ message: 'Category not found' });
@@ -810,7 +854,8 @@ exports.duplicateCategory = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const name = (categoryName || '').trim() || `${source.category_name} (copy)`;
+    const label = (pageLabel || categoryName || '').trim();
+    const name = label ? `${source.category_name} — ${label}` : `${source.category_name} (copy)`;
 
     // Floating/ModalPic specifically default to the site-wide bundle (see
     // AUTO_RELIABLE in SiteScriptController.js) — a duplicate left in 'auto'
@@ -828,7 +873,8 @@ exports.duplicateCategory = async (req, res) => {
       description: source.description,
       price: source.price,
       spaceType: source.space_type,
-      placementMode: isPageScopedType ? 'manual' : (source.placement_mode || 'auto'),
+      placementMode: (targetPath || isPageScopedType) ? 'manual' : (source.placement_mode || 'auto'),
+      targetPath: targetPath || null,
       userCount: source.user_count,
       instructions: source.instructions,
       customAttributes: typeof source.custom_attributes === 'string' ? JSON.parse(source.custom_attributes) : (source.custom_attributes || {}),

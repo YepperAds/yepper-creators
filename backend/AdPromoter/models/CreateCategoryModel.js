@@ -6,14 +6,15 @@ const AdCategory = {
     const { rows } = await query(
       `INSERT INTO ad_categories (owner_id, website_id, category_name, description, price, space_type,
         user_count, instructions, default_language, custom_attributes, placement_mode, placeholder_div,
-        api_codes, web_owner_email, visitor_range_min, visitor_range_max, tier, customization)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+        api_codes, web_owner_email, visitor_range_min, visitor_range_max, tier, customization, target_path)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
       [data.ownerId, data.websiteId, data.categoryName, data.description||null, data.price,
        data.spaceType, data.userCount||0, data.instructions||null, data.defaultLanguage||'english',
        JSON.stringify(data.customAttributes||{}), data.placementMode||'auto',
        data.placeholderDiv||null, JSON.stringify(data.apiCodes||{}),
        data.webOwnerEmail, data.visitorRange?.min, data.visitorRange?.max,
-       data.tier, data.customization ? JSON.stringify(data.customization) : null]
+       data.tier, data.customization ? JSON.stringify(data.customization) : null,
+       data.targetPath || null]
     );
     return rows[0];
   },

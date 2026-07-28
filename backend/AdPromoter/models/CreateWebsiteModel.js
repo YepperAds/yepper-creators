@@ -6,13 +6,14 @@ const Website = {
     const { rows } = await query(
       `INSERT INTO websites (owner_id, website_name, website_link, image_url, business_categories,
         is_business_categories_selected, monthly_traffic, traffic_tier, site_script,
-        verification_token, verification_status, gsc_access_token, gsc_refresh_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        verification_token, verification_status, gsc_access_token, gsc_refresh_token, pages)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [String(data.ownerId), data.websiteName, data.websiteLink, data.imageUrl||null,
        data.businessCategories||[], data.isBusinessCategoriesSelected||false,
        data.monthlyTraffic||0, data.trafficTier||'unverified', data.siteScript||null,
        data.verificationToken||null, data.verificationStatus||'pending',
-       data.gscAccessToken||null, data.gscRefreshToken||null]
+       data.gscAccessToken||null, data.gscRefreshToken||null,
+       JSON.stringify(data.pages||[])]
     );
     return rows[0];
   },
@@ -36,9 +37,21 @@ const Website = {
     const keys = Object.keys(fields);
     if (!keys.length) return this.findById(id);
     const setClauses = keys.map((k,i) => `${toSnake(k)} = $${i+2}`).join(', ');
+    // JSON columns (e.g. pages) need an explicit stringify — pg's default JS
+    // array/object binding assumes a native Postgres array/composite type,
+    // which errors against a jsonb column. business_categories (a genuine
+    // TEXT[] column) is the only array-valued field passed through here today
+    // and isn't affected: plain string arrays serialize fine either way, but
+    // to be safe only jsonb-destined values (plain objects, or arrays of
+    // objects) get stringified — a TEXT[] of strings passes through as-is.
+    const vals = keys.map(k => {
+      const v = fields[k];
+      const isJsonb = v !== null && typeof v === 'object' && !(Array.isArray(v) && v.every(el => typeof el !== 'object'));
+      return isJsonb ? JSON.stringify(v) : v;
+    });
     const { rows } = await query(
       `UPDATE websites SET ${setClauses} WHERE id = $1 RETURNING *`,
-      [id, ...keys.map(k=>fields[k])]
+      [id, ...vals]
     );
     return rows[0] || null;
   },

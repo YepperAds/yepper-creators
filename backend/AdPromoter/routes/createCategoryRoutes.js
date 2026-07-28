@@ -183,6 +183,7 @@ router.put('/categoriees/:categoryId/customization', async (req, res) => {
 
 router.patch('/category/:categoryId/language', categoryController.updateCategoryLanguage);
 router.patch('/category/:categoryId/placement-mode', categoryController.updateCategoryPlacementMode);
+router.patch('/category/:categoryId/target-path', categoryController.updateCategoryTargetPath);
 router.post('/:categoryId/duplicate', categoryController.duplicateCategory);
 router.get('/pending/:ownerId', categoryController.getPendingAds);
 router.put('/approve/:adId/website/:websiteId', categoryController.approveAdForWebsite);

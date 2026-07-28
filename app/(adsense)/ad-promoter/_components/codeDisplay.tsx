@@ -17,21 +17,14 @@ import { categoryAPI } from '@/app/_lib/adsense-api';
 // now goes through the iframe / Precise-Placement track instead.
 const AUTO_RELIABLE = ['floating', 'modalpic'];
 
-// Floating/Modal categories the owner explicitly set to "specific pages
-// only" (see AddNewCategory.tsx's placement-mode toggle) skip the site-wide
-// bundle (SiteScriptController excludes 'manual' from it) and instead get a
-// <div data-yepper-space="id"> placeholder here — a real markup element, so
-// it's paste-safe in JSX exactly like the iframe. The site-wide script (which
-// only ever needs installing once) already scans for these divs on every
-// route change and renders whichever category they reference there, complete
-// with correct position:fixed/overlay CSS — no per-space script, no iframe,
-// and no "which HTML file is this" question for SPA/component-based sites,
-// since the div lives inside that page's own component and is discovered
-// (and torn down again on navigation, along with everything else in that
-// component) by the one script already running globally.
+// Floating/Modal categories scoped to one of the website's registered pages
+// (see WebsitePagesPanel.tsx / AddNewCategory.tsx's page picker) via
+// target_path. The site-wide script (installed exactly once, globally)
+// matches target_path against location.pathname itself and shows/hides the
+// ad accordingly — no placeholder div, no per-space script, nothing to paste
+// on that page at all. A null target_path keeps today's "every page" default.
 const isPageScoped = (cat) =>
-  AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) &&
-  (cat.placementMode || 'auto') === 'manual';
+  AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && !!cat.targetPath;
 
 // ── Plain <script> tag ──────────────────────────────────────────────────────
 // A tag, not code — dropped directly in a page's markup/JSX return, exactly
@@ -45,26 +38,14 @@ function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
 }
 
-// ── Placeholder div — for Floating/Modal spaces scoped to specific pages ────
-// A real markup element (like the iframe below), not an injection — paste it
-// directly in whichever page's JSX/template you want that ad to show on. The
-// site-wide script (already installed once, globally) scans for these on
-// every route change and renders the referenced category right there, with
-// correct position:fixed/overlay CSS built in — no second script to add, no
-// "which HTML file" question, and it disappears on its own when the page
-// unmounts since the div (and whatever the script appended inside it) leaves
-// the DOM together with the rest of that page.
-function buildPlaceholderDiv(categoryId) {
-  return `<div data-yepper-space="${categoryId}"></div>`;
-}
-
 // ── Iframe embed sizing per spaceType ──────────────────────────────────────────
 // Standard ad-unit sizes (industry-standard, same ones AdSense/Carbon Ads
 // use) keyed by spaceType — picked so the box reads naturally wherever that
 // type usually sits (a 728x90 leaderboard for header/in-feed/above-the-fold, a
 // narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
 // attributes freely; this is just a sane default. Floating/Modal aren't here —
-// they use buildPlaceholderDiv instead, see AUTO_RELIABLE below.
+// they're pure dashboard configuration (a target page, or "All Pages"), no
+// snippet at all — see AUTO_RELIABLE below.
 function recommendedEmbedSize(spaceType) {
   const sizes = {
     'sidebar':         { w: 300, h: 250 },
@@ -143,23 +124,25 @@ const CodeBlock = ({ code }) => (
 );
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onPlacementModeChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onTargetPathChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateLabel, setDuplicateLabel] = useState('');
+  const [duplicatePagePath, setDuplicatePagePath] = useState('');
   const [duplicateSubmitting, setDuplicateSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
 
-  const handleTogglePlacement = async (cat: any) => {
-    const next = isPageScoped(cat) ? 'auto' : 'manual';
+  const websitePages = website?.pages || [];
+
+  const handleTargetPathChange = async (cat: any, targetPath: string | null) => {
     setTogglingId(cat._id);
     try {
-      await categoryAPI.updatePlacementMode(cat._id, { placementMode: next });
-      onPlacementModeChange?.(cat._id, next);
+      await categoryAPI.updateTargetPath(cat._id, targetPath);
+      onTargetPathChange?.(cat._id, targetPath);
     } catch (e) {
-      alert('Failed to update placement — please try again.');
+      alert('Failed to update target page — please try again.');
     } finally {
       setTogglingId(null);
     }
@@ -168,16 +151,32 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const startDuplicate = (cat: any) => {
     setDuplicatingId(cat._id);
     setDuplicateLabel('');
+    setDuplicatePagePath('');
     setDuplicateError('');
   };
 
   const submitDuplicate = async (cat: any) => {
-    const label = duplicateLabel.trim();
-    if (!label) { setDuplicateError('Give this copy a page label, e.g. "Home page".'); return; }
+    const usePagePicker = AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && websitePages.length > 0;
+    let payload: { pageLabel: string; targetPath: string | null };
+
+    if (usePagePicker) {
+      if (!duplicatePagePath) { setDuplicateError('Pick which page this copy is for.'); return; }
+      if (duplicatePagePath === '__all__') {
+        payload = { pageLabel: 'All Pages', targetPath: null };
+      } else {
+        const page = websitePages.find((p: any) => p.path === duplicatePagePath);
+        payload = { pageLabel: page?.label || duplicatePagePath, targetPath: duplicatePagePath };
+      }
+    } else {
+      const label = duplicateLabel.trim();
+      if (!label) { setDuplicateError('Give this copy a page label, e.g. "Home page".'); return; }
+      payload = { pageLabel: label, targetPath: null };
+    }
+
     setDuplicateSubmitting(true);
     setDuplicateError('');
     try {
-      await categoryAPI.duplicate(cat._id, { categoryName: `${cat.categoryName || cat.spaceType} — ${label}` });
+      await categoryAPI.duplicate(cat._id, payload);
       setDuplicatingId(null);
       onDuplicated?.();
     } catch (e: any) {
@@ -199,19 +198,11 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
 
   // Spaces the main site script can't reliably auto-place — get an iframe
   // embed instead (see buildIframeEmbed). Floating/Modal are never in here:
-  // they're either in the site-wide bundle (auto) or get a placeholder div
-  // below (manual) — never an iframe.
+  // they're pure dashboard configuration (see the target-page control on
+  // each row below), so they never need a snippet of their own.
   const iframeCategories = categories.filter(
     (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
   );
-
-  // Floating/Modal spaces the owner explicitly scoped to specific pages —
-  // a data-yepper-space div the already-installed site-wide script finds and
-  // renders there (with the right position:fixed/overlay CSS) instead of
-  // loading it everywhere.
-  const placeholderCategories = categories.filter(isPageScoped);
-
-  const embedCategories = [...iframeCategories, ...placeholderCategories];
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
@@ -293,21 +284,25 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
                             <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
                             {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && (
-                              <button
-                                type="button"
-                                onClick={() => handleTogglePlacement(cat)}
+                              <select
+                                value={cat.targetPath || ''}
+                                onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
                                 disabled={togglingId === cat._id}
-                                title={isPageScoped(cat)
-                                  ? 'Switch back to showing on every page'
-                                  : 'Switch to showing only on pages you choose'}
-                                className={`text-xs px-1.5 py-0.5 rounded border transition-colors disabled:opacity-50 ${
+                                title="Which page this ad shows on"
+                                className={`text-xs pl-1.5 pr-1 py-0.5 rounded border bg-zinc-950 disabled:opacity-50 ${
                                   isPageScoped(cat)
-                                    ? 'text-purple-400 bg-purple-950 border-purple-800 hover:bg-purple-900'
-                                    : 'text-blue-400 bg-blue-950 border-blue-800 hover:bg-blue-900'
+                                    ? 'text-purple-400 border-purple-800'
+                                    : 'text-blue-400 border-blue-800'
                                 }`}
                               >
-                                {togglingId === cat._id ? 'updating…' : isPageScoped(cat) ? 'page-specific' : 'auto — every page'}
-                              </button>
+                                <option value="">All Pages — every page</option>
+                                {websitePages.map((p: any) => (
+                                  <option key={p.path} value={p.path}>{p.label}</option>
+                                ))}
+                                {cat.targetPath && !websitePages.some((p: any) => p.path === cat.targetPath) && (
+                                  <option value={cat.targetPath}>{cat.targetPath}</option>
+                                )}
+                              </select>
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
@@ -352,14 +347,29 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       {duplicatingId === cat._id && (
                         <div className="px-5 pb-3 -mt-1 flex items-start gap-2">
                           <div className="flex-1">
-                            <input
-                              autoFocus
-                              value={duplicateLabel}
-                              onChange={(e) => setDuplicateLabel(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') submitDuplicate(cat); if (e.key === 'Escape') setDuplicatingId(null); }}
-                              placeholder='Which page is this copy for? e.g. "Home page"'
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-blue-600"
-                            />
+                            {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && websitePages.length > 0 ? (
+                              <select
+                                autoFocus
+                                value={duplicatePagePath}
+                                onChange={(e) => setDuplicatePagePath(e.target.value)}
+                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-600"
+                              >
+                                <option value="" disabled>Which page is this copy for?</option>
+                                <option value="__all__">All Pages</option>
+                                {websitePages.map((p: any) => (
+                                  <option key={p.path} value={p.path}>{p.label} ({p.path})</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                autoFocus
+                                value={duplicateLabel}
+                                onChange={(e) => setDuplicateLabel(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') submitDuplicate(cat); if (e.key === 'Escape') setDuplicatingId(null); }}
+                                placeholder='Which page is this copy for? e.g. "Home page"'
+                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-blue-600"
+                              />
+                            )}
                             {duplicateError && <p className="text-xs text-red-400 mt-1">{duplicateError}</p>}
                             {!duplicateError && (
                               <p className="text-xs text-zinc-600 mt-1">
@@ -389,8 +399,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 </div>
               </div>
 
-              {/* Specific-page spaces (accordion) — iframe or script per space */}
-              {embedCategories.length > 0 && (
+              {/* Precise-Placement Spaces (accordion) — iframe per space */}
+              {iframeCategories.length > 0 && (
                 <div className="border-t border-zinc-700">
                   <button
                     onClick={() => setShowManual(o => !o)}
@@ -398,8 +408,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                   >
                     <div className="flex items-center gap-2">
                       <MousePointer className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm font-semibold text-zinc-100">Specific-Page Spaces</span>
-                      <span className="text-xs text-zinc-500 ml-1">— one snippet per space, paste only where it goes</span>
+                      <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
+                      <span className="text-xs text-zinc-500 ml-1">— iframe embed, paste exactly where you want the ad</span>
                     </div>
                     {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
                   </button>
@@ -429,23 +439,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             </div>
                           );
                         })}
-                        {placeholderCategories.map((cat: any, idx: any) => (
-                          <div key={cat._id} className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-zinc-500 font-mono">{iframeCategories.length + idx + 1}.</span>
-                              <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
-                              <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
-                            </div>
-                            <p className="text-xs text-zinc-500 leading-relaxed">
-                              A placeholder, not a script — no second script tag needed anywhere. Drop this
-                              <code className="text-zinc-400"> &lt;div&gt;</code> directly in whichever page's markup/JSX you want this
-                              ad to show ({cat.spaceType?.toLowerCase() === 'floating' ? 'it floats itself into the corner' : 'it opens itself as a popup'}
-                              automatically). The main script above — installed once, site-wide — finds it there and renders the ad,
-                              and it goes away on its own when you navigate off that page.
-                            </p>
-                            <CodeBlock code={buildPlaceholderDiv(cat._id)} />
-                          </div>
-                        ))}
                       </div>
                     </div>
                   )}

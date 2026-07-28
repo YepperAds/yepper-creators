@@ -195,6 +195,15 @@ async function startServer() {
     console.warn('⚠️  Migration 20260705_video_ad_spaces skipped:', err.message?.split('\n')[0]);
   }
 
+  // Add websites.pages + ad_categories.target_path for page-aware ad placement.
+  try {
+    const { up: addPagesAndTargetPath } = require('./migrations/20260728_website_pages_and_target_path');
+    await addPagesAndTargetPath();
+    console.log('✓ website pages / target_path ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260728_website_pages_and_target_path skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

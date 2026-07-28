@@ -151,6 +151,11 @@ CREATE TABLE IF NOT EXISTS websites (
   granted_traffic_display INTEGER NOT NULL DEFAULT 0,
   granted_views_display INTEGER NOT NULL DEFAULT 0,
   granted_tier_display TEXT,
+  -- Registered pages/URLs the owner advertises on, e.g.
+  -- [{"label":"Home","path":"/"},{"label":"Blog","path":"/blog"}] — lets ad
+  -- spaces target a specific page (see ad_categories.target_path) instead of
+  -- always showing everywhere.
+  pages JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -174,6 +179,10 @@ CREATE TABLE IF NOT EXISTS ad_categories (
   custom_attributes JSONB NOT NULL DEFAULT '{}',
   placement_mode TEXT NOT NULL DEFAULT 'auto',
   placeholder_div TEXT,
+  -- One of the website's registered pages.path (see websites.pages) this
+  -- space is scoped to, or NULL for "every page" (today's default). The
+  -- site-wide script matches this against location.pathname itself.
+  target_path TEXT,
   selected_ads TEXT[] NOT NULL DEFAULT '{}',
   web_owner_email TEXT,
   visitor_range_min INTEGER NOT NULL DEFAULT 0,

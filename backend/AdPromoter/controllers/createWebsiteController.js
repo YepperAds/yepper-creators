@@ -32,6 +32,7 @@ function toClient(w) {
     businessCategories: w.business_categories,
     createdAt: w.created_at,
     isProspect: w.is_prospect,
+    pages: typeof w.pages === 'string' ? JSON.parse(w.pages) : (w.pages || []),
   };
 }
 
@@ -353,6 +354,35 @@ exports.updateWebsiteName = async (req, res) => {
   } catch (error) {
     console.error('Error updating website name:', error);
     res.status(500).json({ message: 'Failed to update website name', error: error.message });
+  }
+};
+
+// PATCH /api/createWebsite/:websiteId/pages
+// Registers the real pages/URLs of this site (label + path) so ad spaces can
+// later target one of them by path instead of always showing everywhere —
+// see AdCategory.target_path and SiteScriptController's path matching.
+exports.updateWebsitePages = async (req, res) => {
+  try {
+    const { websiteId } = req.params;
+    const { pages } = req.body;
+    const userId = req.user?.id?.toString();
+
+    if (!Array.isArray(pages)) {
+      return res.status(400).json({ message: 'pages must be an array of { label, path }' });
+    }
+    const cleaned = pages
+      .map((p) => ({ label: String(p?.label || '').trim(), path: String(p?.path || '').trim() }))
+      .filter((p) => p.label && p.path);
+
+    const website = await Website.findById(websiteId);
+    if (!website) return res.status(404).json({ message: 'Website not found' });
+    if (website.owner_id?.toString() !== userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    const updated = await Website.update(websiteId, { pages: cleaned });
+    res.status(200).json(toClient(updated));
+  } catch (error) {
+    console.error('Error updating website pages:', error);
+    res.status(500).json({ message: 'Failed to update website pages', error: error.message });
   }
 };
 

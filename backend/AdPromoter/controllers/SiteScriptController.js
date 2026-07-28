@@ -84,18 +84,15 @@ exports.serveSiteScript = async (req, res) => {
 
     if (!allCategories.length) return res.status(200).send('// No ad spaces configured yet');
 
-    // Floating/ModalPic spaces set to "specific pages only" opt out of the
-    // site-wide bundle entirely — the owner instead pastes a page-scoped
-    // placeholder div (see codeDisplay.tsx) only on the pages they want.
-    // Leaving them in here too would render the ad twice on any page that has
-    // both. This must NOT be what gates whether the script runs at all —
-    // a website whose only category is manual-mode still needs the rest of
-    // this script (the data-yepper-space div-discovery loop in
-    // placeAllSpaces) to actually find and render it, so the early-exit above
-    // checks allCategories, not this filtered list.
-    const categories = allCategories.filter(
-      (cat) => (cat.placement_mode || cat.placementMode || 'auto') !== 'manual'
-    );
+    // Every category ships in the bundle now, auto or page-scoped alike — a
+    // category with a target_path is filtered client-side by matching it
+    // against location.pathname (see placeAllSpaces' path check below), not
+    // by being excluded from this list. That's what lets Floating/Modal be
+    // scoped to one page with zero snippet on that page: the one site-wide
+    // script (already installed everywhere) simply skips rendering it when
+    // the current path doesn't match, and removes it again if you navigate
+    // away from a matching page without a full reload.
+    const categories = allCategories;
 
     // ── Domain verification ──────────────────────────────────────
     const registeredDomain = website.website_link||website.websiteLink
@@ -135,6 +132,7 @@ exports.serveSiteScript = async (req, res) => {
       px:            'yw' + ((cat.id||cat._id).toString()).slice(-6),
       wrap:          neutralClass(((cat.id||cat._id).toString())),
       css:           placementCSS((cat.space_type||cat.spaceType) || 'inline content', 'yw' + ((cat.id||cat._id).toString()).slice(-6)),
+      targetPath:    cat.target_path || cat.targetPath || null,
     }));
 
     const spacesJSON = JSON.stringify(spaces);
@@ -479,6 +477,12 @@ exports.serveSiteScript = async (req, res) => {
 
   /* ── Load and render one space ────────────────────────── */
   function loadSpace(sp){
+    /* A space with a targetPath only exists on that one page — this is the
+       whole mechanism, no placeholder div or per-page snippet required.
+       removeStaleSpaces() (called from placeAllSpaces) handles the reverse:
+       taking an already-placed one back down once you navigate off its page. */
+    if(sp.targetPath && sp.targetPath!==location.pathname) return;
+
     var ck='?z='+sp.id+'&r='+Math.random().toString(36).slice(2);
 
     fetch(_c+'/ads/customization/'+sp.id+ck,{cache:'no-store'})
@@ -549,6 +553,7 @@ exports.serveSiteScript = async (req, res) => {
      (re)loaded here. Safe to call repeatedly: already-live spaces are
      skipped with no extra fetch. */
   function placeAllSpaces(){
+    removeStaleSpaces();
     _spaces.forEach(function(sp){
       if(D.querySelector('[data-yid="'+sp.id+'"]'))return;
       loadSpace(sp);
@@ -560,6 +565,18 @@ exports.serveSiteScript = async (req, res) => {
       if(D.querySelector('[data-yid="'+id+'"]'))continue;
       loadSpaceById(id);
     }
+  }
+
+  /* ── Take down a page-scoped space once you navigate off its page ── */
+  /* loadSpace()'s targetPath guard only stops a *new* placement — once a
+     space is live, nothing else removes it on its own. Every-page spaces
+     (targetPath null) are left alone entirely here. */
+  function removeStaleSpaces(){
+    _spaces.forEach(function(sp){
+      if(!sp.targetPath || sp.targetPath===location.pathname) return;
+      var host=D.querySelector('[data-yid="'+sp.id+'"]');
+      if(host && host.parentNode) host.parentNode.removeChild(host);
+    });
   }
 
   /* ── Analytics pageview ping ──────────────────────────── */

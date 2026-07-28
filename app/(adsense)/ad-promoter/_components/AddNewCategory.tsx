@@ -47,16 +47,17 @@ interface CategoryDataEntry {
   visitorRange?: { min: number; max: number };
   userCount?: string;
   instructions?: string;
-  placementMode?: 'auto' | 'manual';
+  targetPath?: string | null;
 }
 
 // Only these two are truly position-independent (position:fixed, appended
 // straight to the page) — every other spaceType already ships as a
 // precise-placement iframe the owner pastes exactly where they want it (see
 // codeDisplay.tsx). Floating/Modal instead default to a single site-wide
-// script that fires on every page, so they're the only types that need this
-// auto (every page) vs manual (page-specific script — see codeDisplay.tsx's
-// scriptCategories) choice.
+// script that fires on every page, so they're the only types where it's
+// worth picking a specific registered page (or "All Pages") — the site-wide
+// script matches that page's path against location.pathname itself, no
+// snippet to paste on that page at all.
 const PAGE_SCOPED_TYPES = ['floating', 'modalpic'];
 
 interface CategoryDetail {
@@ -77,6 +78,7 @@ interface AddNewCategoryProps {
   gscData?: GscData;
   onSuccess?: () => void;
   onCancel?: () => void;
+  websitePages?: { label: string; path: string }[];
 }
 
 // ─── Image imports ────────────────────────────────────────────────────────────
@@ -109,6 +111,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
   gscData,
   onSuccess,
   onCancel,
+  websitePages = [],
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -360,8 +363,8 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
         webOwnerEmail: (user as any)?.email,
         visitorRange: categoryData[category]?.visitorRange || { min: 0, max: 10000 },
         tier: categoryData[category]?.tier || 'starter',
-        placementMode: PAGE_SCOPED_TYPES.includes((categoryDetails[category]?.spaceType || '').toLowerCase())
-          ? (categoryData[category]?.placementMode || 'auto')
+        targetPath: PAGE_SCOPED_TYPES.includes((categoryDetails[category]?.spaceType || '').toLowerCase())
+          ? (categoryData[category]?.targetPath || null)
           : undefined,
       }));
 
@@ -464,32 +467,23 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                         <label className="block text-sm font-medium text-subtle mb-1.5">
                           Where should this ad appear?
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateCategoryData(activeCategory, 'placementMode', 'auto')}
-                            className={`text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
-                              (categoryData[activeCategory]?.placementMode || 'auto') === 'auto'
-                                ? 'border-white bg-surface-2 text-white'
-                                : 'border-border bg-surface-1 text-muted hover:bg-surface-2'
-                            }`}
+                        {websitePages.length > 0 ? (
+                          <select
+                            value={categoryData[activeCategory]?.targetPath || ''}
+                            onChange={(e) => updateCategoryData(activeCategory, 'targetPath', e.target.value || null)}
+                            className="w-full bg-surface-1 border border-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-white/40"
                           >
-                            <span className="font-semibold block mb-0.5">Every page</span>
-                            <span className="text-muted">Shows automatically wherever the site script is installed</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateCategoryData(activeCategory, 'placementMode', 'manual')}
-                            className={`text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
-                              categoryData[activeCategory]?.placementMode === 'manual'
-                                ? 'border-white bg-surface-2 text-white'
-                                : 'border-border bg-surface-1 text-muted hover:bg-surface-2'
-                            }`}
-                          >
-                            <span className="font-semibold block mb-0.5">Specific pages only</span>
-                            <span className="text-muted">Get a snippet to paste only on the pages you choose</span>
-                          </button>
-                        </div>
+                            <option value="">All Pages — shows on every page</option>
+                            {websitePages.map((p) => (
+                              <option key={p.path} value={p.path}>{p.label} ({p.path})</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="text-xs text-muted rounded-xl border border-dashed border-border bg-surface-1 px-3 py-2.5">
+                            Defaults to <strong className="text-subtle">All Pages</strong>. Register your site's pages
+                            (in the Website Pages panel above the ad space list) to target this at one specific page instead.
+                          </p>
+                        )}
                       </div>
                     )}
 

@@ -26,8 +26,12 @@ const isPageScoped = (cat) =>
   AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) &&
   (cat.placementMode || 'auto') === 'manual';
 
-// ── Main site script ──────────────────────────────────────────────────────────
-function buildSiteScript(src) {
+// ── Plain <script> tag ──────────────────────────────────────────────────────────
+// Used for both the main site-wide script and Floating/Modal's page-scoped
+// script — identical shape either way, just a different src. No attribute on
+// a <script> tag needs to differ between JSX and plain HTML, so this is the
+// one snippet type that's genuinely paste-anywhere with zero conversion.
+function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
 }
 
@@ -36,7 +40,11 @@ function buildSiteScript(src) {
 // use) keyed by spaceType — picked so the box reads naturally wherever that
 // type usually sits (a 728x90 leaderboard for header/in-feed/above-the-fold, a
 // narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
-// attributes freely; this is just a sane default.
+// attributes freely; this is just a sane default. Floating/Modal aren't here —
+// they need real position:fixed/overlay behavior, which an in-flow iframe
+// box can't give them without a hand-written style attribute (and that's
+// exactly the JSX-vs-HTML trap this whole approach avoids elsewhere), so
+// those two use buildScriptTag instead — see AUTO_RELIABLE below.
 function recommendedEmbedSize(spaceType) {
   const sizes = {
     'sidebar':         { w: 300, h: 250 },
@@ -50,26 +58,8 @@ function recommendedEmbedSize(spaceType) {
     'header':          { w: 728, h: 90 },
     'bottom':          { w: 728, h: 90 },
     'profooter':       { w: 728, h: 90 },
-    // Floating renders in a fixed corner box; ModalPic's iframe is stretched
-    // to the full viewport by recommendedEmbedStyle() so its own dark
-    // backdrop (baked into serveAdEmbed's response) has room to show —
-    // width/height here are just its containing box, not the visible card.
-    'floating':        { w: 320, h: 400 },
-    'modalpic':        { w: '100%', h: '100%' },
   };
   return sizes[(spaceType || '').toLowerCase()] || { w: 300, h: 250 };
-}
-
-// Floating/Modal are the only spaceTypes that need the iframe *element itself*
-// pinned to the viewport — every other type is placed in-flow exactly where
-// the owner drops it. Deliberately a plain style string (not the style={{}}
-// object JSX would want) to match buildIframeTag's paste-anywhere contract;
-// the accompanying UI copy tells JSX users to convert it.
-function recommendedEmbedStyle(spaceType) {
-  const st = (spaceType || '').toLowerCase();
-  if (st === 'floating') return 'position:fixed;bottom:24px;right:24px;z-index:9999;';
-  if (st === 'modalpic') return 'position:fixed;inset:0;z-index:99999;';
-  return '';
 }
 
 // Iframe embed — for spaceTypes the main site script can't reliably auto-place
@@ -86,14 +76,13 @@ function recommendedEmbedStyle(spaceType) {
 // attribute names are case-insensitive so it's valid HTML as-is, and React
 // recognizes the exact spelling `frameBorder` as a known DOM prop, so it's also
 // valid JSX with no warnings — one snippet, paste-safe everywhere.
-function buildIframeTag(src, w, h, style) {
-  const styleAttr = style ? ` style="${style}"` : '';
-  return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"${styleAttr}></iframe>`;
+function buildIframeTag(src, w, h) {
+  return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"></iframe>`;
 }
 
 function buildIframeEmbed(src, spaceType) {
   const { w, h } = recommendedEmbedSize(spaceType);
-  return buildIframeTag(src, w, h, recommendedEmbedStyle(spaceType));
+  return buildIframeTag(src, w, h);
 }
 
 // ── Copy button ───────────────────────────────────────────────────────────────
@@ -186,14 +175,23 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   };
   const rawSrc = extractSrc(website?.site_script) || `${BACKEND}/api/p/site/${website?.id}`;
 
-  const mainCode = buildSiteScript(rawSrc);
+  const mainCode = buildScriptTag(rawSrc);
 
-  // Spaces the main site script can't reliably auto-place, plus Floating/Modal
-  // spaces the owner explicitly scoped to specific pages — these get an
-  // iframe embed instead of a data-yepper-space div (see buildIframeEmbed).
-  const embedCategories = categories.filter(
-    (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) || isPageScoped(cat)
+  // Spaces the main site script can't reliably auto-place — get an iframe
+  // embed instead (see buildIframeEmbed). Floating/Modal are never in here:
+  // they're either in the site-wide bundle (auto) or get their own
+  // page-scoped script tag below (manual) — never an iframe.
+  const iframeCategories = categories.filter(
+    (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
   );
+
+  // Floating/Modal spaces the owner explicitly scoped to specific pages —
+  // same script the per-category "auto" version already uses (position:fixed,
+  // genie animation, dismiss button all built in), just pasted only on the
+  // pages where the owner wants it instead of loaded site-wide.
+  const scriptCategories = categories.filter(isPageScoped);
+
+  const embedCategories = [...iframeCategories, ...scriptCategories];
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
@@ -365,7 +363,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 </div>
               </div>
 
-              {/* Precise-placement spaces (accordion) — iframe embeds */}
+              {/* Specific-page spaces (accordion) — iframe or script per space */}
               {embedCategories.length > 0 && (
                 <div className="border-t border-zinc-700">
                   <button
@@ -374,26 +372,22 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                   >
                     <div className="flex items-center gap-2">
                       <MousePointer className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
-                      <span className="text-xs text-zinc-500 ml-1">— iframe embed, paste exactly where you want the ad</span>
+                      <span className="text-sm font-semibold text-zinc-100">Specific-Page Spaces</span>
+                      <span className="text-xs text-zinc-500 ml-1">— one snippet per space, paste only where it goes</span>
                     </div>
                     {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
                   </button>
                   {showManual && (
                     <div className="px-5 pb-5 space-y-4">
                       <p className="text-xs text-zinc-500 leading-relaxed">
-                        These spaces (sidebar, in-feed, inline content, etc.) can't be reliably auto-placed by the main
-                        script, so they use a self-contained <strong className="text-zinc-300">iframe</strong> instead —
-                        no script needed, and it can't be wiped out by React/Vue re-renders the way an injected div can.
-                        Paste the matching tag exactly where you want that ad to appear. Each tag is tied to one space's
-                        inventory, so pasting the <em>same</em> tag on two different pages shows the same currently-sold
-                        ad on both at once — use <strong className="text-zinc-300">Duplicate</strong> on the space above
-                        if a second page needs its own, separately-sold ad instead.
+                        Each space below gets its own tag, tied to its own inventory — pasting the <em>same</em> tag on two
+                        different pages shows the same currently-sold ad on both at once. If a second page needs its own,
+                        separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> on the space above
+                        instead of copying this tag twice.
                       </p>
                       <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
-                        {embedCategories.map((cat: any, idx: any) => {
+                        {iframeCategories.map((cat: any, idx: any) => {
                           const embedSrc = `${BACKEND}/api/p/embed/${cat._id}`;
-                          const pageScoped = isPageScoped(cat);
                           return (
                             <div key={cat._id} className="flex flex-col gap-2">
                               <div className="flex items-center gap-2">
@@ -401,17 +395,31 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                                 <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
                                 <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
                               </div>
-                              {pageScoped && (
-                                <p className="text-xs text-zinc-500 leading-relaxed">
-                                  Pinned to the {cat.spaceType?.toLowerCase() === 'floating' ? 'corner' : 'screen'} automatically —
-                                  paste this anywhere on the pages where you want it to show, and leave it off the rest.
-                                  If you're pasting into JSX, move the <code className="text-zinc-400">style="..."</code> string
-                                  into a style object. Want it on another page too, with its own ads? Don't paste this same
-                                  snippet there — use <strong className="text-zinc-300">Duplicate</strong> above instead, so
-                                  that page gets its own independently-sold inventory rather than mirroring this one.
-                                </p>
-                              )}
+                              <p className="text-xs text-zinc-500 leading-relaxed">
+                                An <strong className="text-zinc-300">iframe</strong> — drop it exactly where you want the ad box
+                                to sit on the page, sized to fit that spot.
+                              </p>
                               <CodeBlock code={buildIframeEmbed(embedSrc, cat.spaceType)} />
+                            </div>
+                          );
+                        })}
+                        {scriptCategories.map((cat: any, idx: any) => {
+                          const unitSrc = `${BACKEND}/api/p/unit/${cat._id}`;
+                          return (
+                            <div key={cat._id} className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-500 font-mono">{iframeCategories.length + idx + 1}.</span>
+                                <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
+                                <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
+                              </div>
+                              <p className="text-xs text-zinc-500 leading-relaxed">
+                                A <strong className="text-zinc-300">script</strong>, not an iframe — it positions itself
+                                automatically ({cat.spaceType?.toLowerCase() === 'floating' ? 'floating corner' : 'popup overlay'}),
+                                so there's no CSS to get right. Drop it anywhere in the page — in the &lt;head&gt;, before
+                                &lt;/body&gt;, wherever your framework puts third-party scripts — only on the pages where you
+                                want this ad to show.
+                              </p>
+                              <CodeBlock code={buildScriptTag(unitSrc)} />
                             </div>
                           );
                         })}

@@ -736,37 +736,6 @@ exports.serveAdEmbed = async (req, res) => {
     const { slots, fontImports } = resolveAllSlots(adCategory.customization, adCategory.user_count);
     const cardCss = buildEmbedCardCss(prefix, slots, fontImports);
 
-    // Floating/ModalPic embeds are pasted with the iframe itself already
-    // position:fixed on the host page (see codeDisplay.tsx's recommendedEmbedStyle)
-    // — a corner box for Floating, a full-viewport overlay for ModalPic. The
-    // iframe's own document just fills that box: transparent behind a corner
-    // card for Floating, a dark backdrop centering the card for ModalPic. The
-    // dismiss button can only hide this document's own content (not remove the
-    // iframe element itself — cross-origin, no access to the parent page).
-    const spaceType = (adCategory.space_type || '').toLowerCase();
-    const isFloating = spaceType === 'floating';
-    const isModal = spaceType === 'modalpic';
-    const pageScopedCss = isFloating
-      // Negative offsets (as the per-category script's own dismiss button
-      // uses) would anchor against the iframe's own initial containing block
-      // and risk clipping at its edge, so this sits just inside the corner
-      // instead of straddling it.
-      ? `html,body{background:transparent!important;}
-         .${prefix}-dismiss{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:#000;color:#fff;font-size:14px;line-height:22px;text-align:center;border:none;cursor:pointer;z-index:2;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.3);}`
-      : isModal
-      // The iframe itself is stretched full-viewport by the host page (see
-      // recommendedEmbedStyle) to act as the dark backdrop — without this
-      // override the card would inherit that same 100%/100% and cover the
-      // whole screen, leaving no backdrop visible around it.
-      ? `html,body{background:rgba(0,0,0,0.6)!important;height:100%;}
-         body{display:flex;align-items:center;justify-content:center;}
-         .${prefix}-wrap{width:min(400px,90vw)!important;height:min(500px,80vh)!important;}
-         .${prefix}-dismiss{position:fixed;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;}`
-      : '';
-    const dismissHtml = (isFloating || isModal)
-      ? `<button class="${prefix}-dismiss" onclick="document.body.style.display='none'">×</button>`
-      : '';
-
     let bodyHtml;
     if (!ads.length) {
       bodyHtml = `
@@ -824,11 +793,10 @@ exports.serveAdEmbed = async (req, res) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>${cardCss}${pageScopedCss}</style>
+<style>${cardCss}</style>
 </head>
 <body>
 ${bodyHtml}
-${dismissHtml}
 <script>
 (function(){
   var items=Array.prototype.slice.call(document.querySelectorAll('.${prefix}-ad'));

@@ -55,7 +55,8 @@ interface CategoryDataEntry {
 // precise-placement iframe the owner pastes exactly where they want it (see
 // codeDisplay.tsx). Floating/Modal instead default to a single site-wide
 // script that fires on every page, so they're the only types that need this
-// auto (every page) vs manual (page-specific iframe) choice.
+// auto (every page) vs manual (page-specific script — see codeDisplay.tsx's
+// scriptCategories) choice.
 const PAGE_SCOPED_TYPES = ['floating', 'modalpic'];
 
 interface CategoryDetail {

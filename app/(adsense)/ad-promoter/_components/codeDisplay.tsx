@@ -33,29 +33,16 @@ const isPageScoped = (cat) =>
   AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) &&
   (cat.placementMode || 'auto') === 'manual';
 
-// ── Script tag — two flavors ─────────────────────────────────────────────────
-// A raw `<script src="...">` line only means anything inside an actual HTML
-// document. A .js/.jsx/.tsx file has no "just paste this line anywhere" spot —
-// it's source code, not markup, so the tag needs to be *injected* by real code
-// instead: created in a lifecycle hook (React's useEffect, Vue's onMounted,
-// Angular's ngOnInit — same document.createElement body underneath all of
-// them) inside the root layout/component that renders on every page, torn
-// back down on cleanup. This is only for the ONE main site-wide script — it's
-// installed exactly once, ever, regardless of how many ad spaces exist.
+// ── Plain <script> tag ──────────────────────────────────────────────────────
+// A tag, not code — dropped directly in a page's markup/JSX return, exactly
+// where the iframe below also gets dropped. React/Vue/Angular all mount a
+// <script> written in a template/JSX the same way any other DOM node mounts:
+// via a real createElement+insert, which the browser executes normally (unlike
+// innerHTML-inserted scripts, which don't run) — no lifecycle hook required.
+// Usually goes in the root layout/head so it loads once, site-wide (e.g.
+// public/index.html's <head>, or a framework's root layout component).
 function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
-}
-
-function buildScriptTagJs(src) {
-  return [
-    `useEffect(() => {`,
-    `  const s = document.createElement('script');`,
-    `  s.src = '${src}';`,
-    `  s.async = true;`,
-    `  document.body.appendChild(s);`,
-    `  return () => { try { document.body.removeChild(s); } catch (e) {} };`,
-    `}, []);`,
-  ].join('\n');
 }
 
 // ── Placeholder div — for Floating/Modal spaces scoped to specific pages ────
@@ -160,12 +147,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [open, setOpen]           = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  // Controls the ONE main site-wide script snippet: a raw <script> tag (plain
-  // HTML sites) or a lifecycle-hook injection (React/Vue/Angular/Next — a
-  // .jsx/.tsx file has nowhere to "just paste a line" the way an .html file
-  // does). Every other snippet in this panel (iframe or placeholder div) is
-  // real markup, valid in JSX as-is, so this switch has nothing to do there.
-  const [siteKind, setSiteKind] = useState<'html' | 'component'>('html');
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateLabel, setDuplicateLabel] = useState('');
   const [duplicateSubmitting, setDuplicateSubmitting] = useState(false);
@@ -214,7 +195,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   };
   const rawSrc = extractSrc(website?.site_script) || `${BACKEND}/api/p/site/${website?.id}`;
 
-  const mainCode = siteKind === 'component' ? buildScriptTagJs(rawSrc) : buildScriptTag(rawSrc);
+  const mainCode = buildScriptTag(rawSrc);
 
   // Spaces the main site script can't reliably auto-place — get an iframe
   // embed instead (see buildIframeEmbed). Floating/Modal are never in here:
@@ -257,38 +238,15 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
       {open && (
         <div className="border-t border-zinc-700">
 
-          {/* Site-type switch — controls every script snippet below (main +
-              any page-scoped Floating/Modal ones) */}
-          <div className="px-5 pt-5 flex items-center gap-3">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">My site is</span>
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setSiteKind('html')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${siteKind === 'html' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-              >
-                Plain HTML
-              </button>
-              <button
-                type="button"
-                onClick={() => setSiteKind('component')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-zinc-700 ${siteKind === 'component' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-              >
-                React / Vue / Next / Angular
-              </button>
-            </div>
-          </div>
-
           {/* Main script */}
           <div className="p-5 space-y-2">
             <CodeBlock code={mainCode} />
-            {siteKind === 'component' && (
-              <p className="text-xs text-zinc-500 leading-relaxed">
-                Paste this inside the root layout/component that renders on every page (e.g. <code className="text-zinc-400">app/layout.tsx</code>,
-                <code className="text-zinc-400"> App.vue</code>, <code className="text-zinc-400">app.component.ts</code>) — shown here as
-                React's <code className="text-zinc-400">useEffect</code>; Vue/Angular use the same body inside <code className="text-zinc-400">onMounted</code>/<code className="text-zinc-400">ngOnInit</code>.
-              </p>
-            )}
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              A tag, not code — paste it once in your site's root HTML (e.g. <code className="text-zinc-400">public/index.html</code>'s
+              <code className="text-zinc-400"> &lt;head&gt;</code>) or your framework's root layout/head
+              (<code className="text-zinc-400">app/layout.tsx</code>, <code className="text-zinc-400">App.vue</code>,
+              <code className="text-zinc-400"> index.html</code> for Angular) — same tag either way, no hooks or lifecycle code needed.
+            </p>
           </div>
 
           {/* Ad spaces list */}

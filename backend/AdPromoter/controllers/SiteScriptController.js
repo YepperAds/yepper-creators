@@ -82,15 +82,20 @@ exports.serveSiteScript = async (req, res) => {
 
     if (!website) return res.status(404).send('// Website not found');
 
+    if (!allCategories.length) return res.status(200).send('// No ad spaces configured yet');
+
     // Floating/ModalPic spaces set to "specific pages only" opt out of the
     // site-wide bundle entirely — the owner instead pastes a page-scoped
-    // iframe embed (see codeDisplay.tsx) only on the pages they want. Leaving
-    // them in here too would render the ad twice on any page that has both.
+    // placeholder div (see codeDisplay.tsx) only on the pages they want.
+    // Leaving them in here too would render the ad twice on any page that has
+    // both. This must NOT be what gates whether the script runs at all —
+    // a website whose only category is manual-mode still needs the rest of
+    // this script (the data-yepper-space div-discovery loop in
+    // placeAllSpaces) to actually find and render it, so the early-exit above
+    // checks allCategories, not this filtered list.
     const categories = allCategories.filter(
       (cat) => (cat.placement_mode || cat.placementMode || 'auto') !== 'manual'
     );
-
-    if (!categories.length) return res.status(200).send('// No ad spaces configured yet');
 
     // ── Domain verification ──────────────────────────────────────
     const registeredDomain = website.website_link||website.websiteLink

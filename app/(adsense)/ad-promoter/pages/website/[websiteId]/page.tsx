@@ -358,6 +358,10 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 onAddSpace={handleOpenCategoriesForm}
                                 onDeleteCategory={handleDeleteCategory}
                                 onSendInvite={handleSendInvite}
+                                onPlacementModeChange={(categoryId, mode) =>
+                                    setCategories(categories.map(c => c._id === categoryId ? { ...c, placementMode: mode } : c))
+                                }
+                                onDuplicated={fetchWebsiteData}
                                 earningsSummary={earningsSummary}
                                 scriptInstalled={!!earningsSummary?.scriptInstalled}
                             />

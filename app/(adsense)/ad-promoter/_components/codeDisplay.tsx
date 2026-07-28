@@ -4,8 +4,9 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code, MousePointer,
-  Trash2, X, ChevronDown, ChevronRight, Mail,
+  Trash2, X, ChevronDown, ChevronRight, Mail, Files,
 } from 'lucide-react';
+import { categoryAPI } from '@/app/_lib/adsense-api';
 
 // Only Floating and Modal are truly position-independent (position:fixed,
 // appended straight to <body> — they never depend on the page's DOM
@@ -133,9 +134,49 @@ const CodeBlock = ({ code }) => (
 );
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onPlacementModeChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
   const [showManual, setShowManual] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [duplicateLabel, setDuplicateLabel] = useState('');
+  const [duplicateSubmitting, setDuplicateSubmitting] = useState(false);
+  const [duplicateError, setDuplicateError] = useState('');
+
+  const handleTogglePlacement = async (cat: any) => {
+    const next = isPageScoped(cat) ? 'auto' : 'manual';
+    setTogglingId(cat._id);
+    try {
+      await categoryAPI.updatePlacementMode(cat._id, { placementMode: next });
+      onPlacementModeChange?.(cat._id, next);
+    } catch (e) {
+      alert('Failed to update placement — please try again.');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const startDuplicate = (cat: any) => {
+    setDuplicatingId(cat._id);
+    setDuplicateLabel('');
+    setDuplicateError('');
+  };
+
+  const submitDuplicate = async (cat: any) => {
+    const label = duplicateLabel.trim();
+    if (!label) { setDuplicateError('Give this copy a page label, e.g. "Home page".'); return; }
+    setDuplicateSubmitting(true);
+    setDuplicateError('');
+    try {
+      await categoryAPI.duplicate(cat._id, { categoryName: `${cat.categoryName || cat.spaceType} — ${label}` });
+      setDuplicatingId(null);
+      onDuplicated?.();
+    } catch (e: any) {
+      setDuplicateError(e?.response?.message || 'Failed to duplicate ad space.');
+    } finally {
+      setDuplicateSubmitting(false);
+    }
+  };
 
   const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
   const extractSrc = (val) => {
@@ -220,18 +261,29 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                   {categories.map((cat: any, idx: any) => {
                     const earning = earningsSummary?.categories?.find(e => e.categoryId?.toString() === cat._id?.toString());
                     return (
-                      <div key={cat._id} className="px-5 py-3 flex items-center gap-3">
+                      <div key={cat._id}>
+                      <div className="px-5 py-3 flex items-center gap-3">
                         <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
                             <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
                             {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && (
-                              isPageScoped(cat) ? (
-                                <span className="text-xs text-purple-400 bg-purple-950 px-1.5 py-0.5 rounded border border-purple-800">page-specific</span>
-                              ) : (
-                                <span className="text-xs text-blue-400 bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">auto — every page</span>
-                              )
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePlacement(cat)}
+                                disabled={togglingId === cat._id}
+                                title={isPageScoped(cat)
+                                  ? 'Switch back to showing on every page'
+                                  : 'Switch to showing only on pages you choose'}
+                                className={`text-xs px-1.5 py-0.5 rounded border transition-colors disabled:opacity-50 ${
+                                  isPageScoped(cat)
+                                    ? 'text-purple-400 bg-purple-950 border-purple-800 hover:bg-purple-900'
+                                    : 'text-blue-400 bg-blue-950 border-blue-800 hover:bg-blue-900'
+                                }`}
+                              >
+                                {togglingId === cat._id ? 'updating…' : isPageScoped(cat) ? 'page-specific' : 'auto — every page'}
+                              </button>
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
@@ -244,6 +296,14 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
                           </div>
                         </div>
+                        <button
+                          onClick={() => startDuplicate(cat)}
+                          title="Duplicate this ad space for another page — gives that page its own independently-sold ads instead of mirroring this one's"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
+                        >
+                          <Files className="w-3 h-3" />
+                          <span>Duplicate</span>
+                        </button>
                         {onSendInvite && (
                           <button
                             onClick={() => onSendInvite(cat)}
@@ -264,6 +324,41 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span>Delete</span>
                           </button>
                         )}
+                      </div>
+                      {duplicatingId === cat._id && (
+                        <div className="px-5 pb-3 -mt-1 flex items-start gap-2">
+                          <div className="flex-1">
+                            <input
+                              autoFocus
+                              value={duplicateLabel}
+                              onChange={(e) => setDuplicateLabel(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') submitDuplicate(cat); if (e.key === 'Escape') setDuplicatingId(null); }}
+                              placeholder='Which page is this copy for? e.g. "Home page"'
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-blue-600"
+                            />
+                            {duplicateError && <p className="text-xs text-red-400 mt-1">{duplicateError}</p>}
+                            {!duplicateError && (
+                              <p className="text-xs text-zinc-600 mt-1">
+                                Creates a separate ad space with its own iframe and its own inventory — advertisers who buy
+                                this one won't automatically show up on {cat.categoryName || cat.spaceType} too.
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => submitDuplicate(cat)}
+                            disabled={duplicateSubmitting}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 shrink-0"
+                          >
+                            {duplicateSubmitting ? 'Creating…' : 'Create'}
+                          </button>
+                          <button
+                            onClick={() => setDuplicatingId(null)}
+                            className="px-2 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-300 shrink-0"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                       </div>
                     );
                   })}
@@ -290,7 +385,10 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         These spaces (sidebar, in-feed, inline content, etc.) can't be reliably auto-placed by the main
                         script, so they use a self-contained <strong className="text-zinc-300">iframe</strong> instead —
                         no script needed, and it can't be wiped out by React/Vue re-renders the way an injected div can.
-                        Paste the matching tag exactly where you want that ad to appear.
+                        Paste the matching tag exactly where you want that ad to appear. Each tag is tied to one space's
+                        inventory, so pasting the <em>same</em> tag on two different pages shows the same currently-sold
+                        ad on both at once — use <strong className="text-zinc-300">Duplicate</strong> on the space above
+                        if a second page needs its own, separately-sold ad instead.
                       </p>
                       <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
                         {embedCategories.map((cat: any, idx: any) => {
@@ -308,7 +406,9 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                                   Pinned to the {cat.spaceType?.toLowerCase() === 'floating' ? 'corner' : 'screen'} automatically —
                                   paste this anywhere on the pages where you want it to show, and leave it off the rest.
                                   If you're pasting into JSX, move the <code className="text-zinc-400">style="..."</code> string
-                                  into a style object.
+                                  into a style object. Want it on another page too, with its own ads? Don't paste this same
+                                  snippet there — use <strong className="text-zinc-300">Duplicate</strong> above instead, so
+                                  that page gets its own independently-sold inventory rather than mirroring this one.
                                 </p>
                               )}
                               <CodeBlock code={buildIframeEmbed(embedSrc, cat.spaceType)} />

@@ -45,6 +45,52 @@ const generateScriptTag = (categoryId) => {
   return { script: `<script src="${src}" async></script>` };
 };
 
+// Shared by createCategory and duplicateCategory — every category gets the
+// same per-framework snippet set keyed off its own id, whether it was typed
+// in from scratch or cloned from another space.
+function buildApiCodes(category) {
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+  const adSrc = `${backendUrl}/api/ads/script/${category.id}`;
+
+  return {
+    HTML: [
+      `<!-- Yepper Ad: ${category.category_name} — Auto-Placement -->`,
+      `<script src="${adSrc}" async></script>`,
+    ].join('\n'),
+    JavaScript: [
+      `useEffect(() => {`,
+      `  const s = document.createElement('script');`,
+      `  s.src = '${adSrc}'; s.async = true;`,
+      `  document.body.appendChild(s);`,
+      `  return () => { try { document.body.removeChild(s); } catch(e){} };`,
+      `}, []);`,
+    ].join('\n'),
+    PHP: [`<script src="${adSrc}" async></script>`].join('\n'),
+    Python: [`ad_tag = '<script src="${adSrc}" async></script>'`].join('\n'),
+    HTML_manual: [
+      `<div data-yepper-space="${category.id}"></div>`,
+      `<script src="${adSrc}" async></script>`,
+    ].join('\n'),
+    JavaScript_manual: [
+      `// <div data-yepper-space="${category.id}"></div>`,
+      `useEffect(() => {`,
+      `  const s = document.createElement('script');`,
+      `  s.src = '${adSrc}'; s.async = true;`,
+      `  document.body.appendChild(s);`,
+      `  return () => { try { document.body.removeChild(s); } catch(e){} };`,
+      `}, []);`,
+    ].join('\n'),
+    PHP_manual: [
+      `<div data-yepper-space="${category.id}"></div>`,
+      `<script src="${adSrc}" async></script>`,
+    ].join('\n'),
+    Python_manual: [
+      `placement_div = '<div data-yepper-space="${category.id}"></div>'`,
+      `ad_script = '<script src="${adSrc}" async></script>'`,
+    ].join('\n'),
+  };
+}
+
 // ── Internal refund helper (PG transactions via pg client) ────────────────────
 async function processInternalRefund({ client, payment, webOwnerId, advertiserId, amount, adId, categoryId, rejectionReason }) {
   const isSelfRejection = webOwnerId === advertiserId;
@@ -166,48 +212,7 @@ exports.createCategory = async (req, res) => {
       tier,
     });
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    const adSrc = `${backendUrl}/api/ads/script/${savedCategory.id}`;
-
-    const apiCodes = {
-      HTML: [
-        `<!-- Yepper Ad: ${savedCategory.category_name} — Auto-Placement -->`,
-        `<script src="${adSrc}" async></script>`,
-      ].join('\n'),
-      JavaScript: [
-        `useEffect(() => {`,
-        `  const s = document.createElement('script');`,
-        `  s.src = '${adSrc}'; s.async = true;`,
-        `  document.body.appendChild(s);`,
-        `  return () => { try { document.body.removeChild(s); } catch(e){} };`,
-        `}, []);`,
-      ].join('\n'),
-      PHP: [`<script src="${adSrc}" async></script>`].join('\n'),
-      Python: [`ad_tag = '<script src="${adSrc}" async></script>'`].join('\n'),
-      HTML_manual: [
-        `<div data-yepper-space="${savedCategory.id}"></div>`,
-        `<script src="${adSrc}" async></script>`,
-      ].join('\n'),
-      JavaScript_manual: [
-        `// <div data-yepper-space="${savedCategory.id}"></div>`,
-        `useEffect(() => {`,
-        `  const s = document.createElement('script');`,
-        `  s.src = '${adSrc}'; s.async = true;`,
-        `  document.body.appendChild(s);`,
-        `  return () => { try { document.body.removeChild(s); } catch(e){} };`,
-        `}, []);`,
-      ].join('\n'),
-      PHP_manual: [
-        `<div data-yepper-space="${savedCategory.id}"></div>`,
-        `<script src="${adSrc}" async></script>`,
-      ].join('\n'),
-      Python_manual: [
-        `placement_div = '<div data-yepper-space="${savedCategory.id}"></div>'`,
-        `ad_script = '<script src="${adSrc}" async></script>'`,
-      ].join('\n'),
-    };
-
-    const finalCategory = await AdCategory.update(savedCategory.id, { apiCodes });
+    const finalCategory = await AdCategory.update(savedCategory.id, { apiCodes: buildApiCodes(savedCategory) });
 
     try { await generateSiteScript(websiteId); } catch(e) { console.error('Site script regen:', e.message); }
 
@@ -748,6 +753,109 @@ exports.updateCategoryLanguage = async (req, res) => {
   } catch (error) {
     console.error('Error updating category language:', error);
     res.status(500).json({ message: 'Error updating category language', error: error.message });
+  }
+};
+
+// ── updateCategoryPlacementMode ───────────────────────────────────────────────
+// Only meaningful for Floating/ModalPic (see AUTO_RELIABLE in
+// SiteScriptController.js / codeDisplay.tsx) — 'auto' bundles into the
+// site-wide script and shows on every page; 'manual' opts out of that bundle
+// and instead gets a page-scoped iframe embed the owner pastes only where
+// they want it (see codeDisplay.tsx's Precise-Placement section).
+exports.updateCategoryPlacementMode = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
+    const { categoryId } = req.params;
+    const { placementMode } = req.body;
+
+    if (!['auto', 'manual'].includes(placementMode)) {
+      return res.status(400).json({ message: 'placementMode must be "auto" or "manual"' });
+    }
+
+    const category = await AdCategory.findById(categoryId);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
+    if (category.owner_id?.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updated = await AdCategory.update(categoryId, { placementMode });
+    res.status(200).json(catToClient(updated));
+  } catch (error) {
+    console.error('Error updating category placement mode:', error);
+    res.status(500).json({ message: 'Error updating category placement mode', error: error.message });
+  }
+};
+
+// ── duplicateCategory ─────────────────────────────────────────────────────────
+// Clones a category's config into a brand-new one with its own id, own
+// iframe/script, and empty inventory (no selected_ads carried over) — for
+// when an owner wants the *same kind* of slot on a second page with its own
+// independently-sold ads. Reusing one category's iframe/script on two pages
+// doesn't do that: it's the same underlying inventory, so whatever's sold
+// into it renders identically — and simultaneously — on every page it's
+// pasted on. Duplicating gives the second page its own bookable space instead.
+exports.duplicateCategory = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
+    const { categoryId } = req.params;
+    const { categoryName } = req.body;
+
+    const source = await AdCategory.findById(categoryId);
+    if (!source) return res.status(404).json({ message: 'Category not found' });
+
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
+    if (source.owner_id?.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const name = (categoryName || '').trim() || `${source.category_name} (copy)`;
+
+    // Floating/ModalPic specifically default to the site-wide bundle (see
+    // AUTO_RELIABLE in SiteScriptController.js) — a duplicate left in 'auto'
+    // would join that bundle alongside the original and show on every page
+    // twice. A duplicate only exists to serve a *different* page, so it
+    // always starts page-scoped for these two types regardless of the
+    // source's own mode; every other spaceType already ships as its own
+    // independent iframe and placementMode has no bearing on it either way.
+    const isPageScopedType = ['floating', 'modalpic'].includes((source.space_type || '').toLowerCase());
+
+    const savedCategory = await AdCategory.create({
+      ownerId: source.owner_id,
+      websiteId: source.website_id,
+      categoryName: name,
+      description: source.description,
+      price: source.price,
+      spaceType: source.space_type,
+      placementMode: isPageScopedType ? 'manual' : (source.placement_mode || 'auto'),
+      userCount: source.user_count,
+      instructions: source.instructions,
+      customAttributes: typeof source.custom_attributes === 'string' ? JSON.parse(source.custom_attributes) : (source.custom_attributes || {}),
+      webOwnerEmail: source.web_owner_email,
+      visitorRange: { min: source.visitor_range_min, max: source.visitor_range_max },
+      tier: source.tier,
+      defaultLanguage: source.default_language,
+      customization: typeof source.customization === 'string' ? JSON.parse(source.customization) : source.customization,
+    });
+
+    const finalCategory = await AdCategory.update(savedCategory.id, { apiCodes: buildApiCodes(savedCategory) });
+
+    try { await generateSiteScript(source.website_id); } catch(e) { console.error('Site script regen:', e.message); }
+
+    res.status(201).json({ success: true, message: 'Ad space duplicated successfully', category: catToClient(finalCategory) });
+  } catch (error) {
+    console.error('Error duplicating category:', error);
+
+    // Unique constraint on (owner_id, website_id, category_name) — hit if the
+    // default "X (copy)" name (or a repeated custom label) is already taken.
+    if (error.code === '23505') {
+      return res.status(409).json({
+        message: 'An ad space with that name already exists for this website. Give this copy a different label.',
+      });
+    }
+
+    res.status(500).json({ message: 'Failed to duplicate ad space', error: error.message });
   }
 };
 

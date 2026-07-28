@@ -599,12 +599,36 @@ exports.serveSiteScript = async (req, res) => {
     }catch(e){}
   }
 
+  /* ── DOM watcher ───────────────────────────────────────── */
+  /* This script loads async and can finish downloading (and run its first
+     placeAllSpaces()) before a client-rendered SPA's own JS bundle has even
+     mounted — there's no "route change" event on that very first paint for
+     hookSpaNavigation to catch, so a data-yepper-space div added by the
+     framework's initial render could be missed entirely and never retried.
+     A MutationObserver sidesteps guessing that race: it re-scans whenever
+     the DOM actually changes, whatever the cause (slow initial mount, a
+     later-opened modal, anything) — debounced so a burst of mutations
+     collapses into one rescan instead of one per node. placeAllSpaces()
+     itself is idempotent (skips anything already placed), so calling it
+     often is cheap. */
+  function hookDomWatcher(){
+    try{
+      var t;
+      var mo=new MutationObserver(function(){
+        clearTimeout(t);
+        t=setTimeout(placeAllSpaces,50);
+      });
+      mo.observe(D.documentElement,{childList:true,subtree:true});
+    }catch(e){}
+  }
+
   /* ── Init ──────────────────────────────────────────────── */
   function init(){
     injectAnimCSS();
     placeAllSpaces();
     firePageview();
     hookSpaNavigation();
+    hookDomWatcher();
   }
 
   D.readyState==='loading'

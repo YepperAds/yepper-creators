@@ -66,12 +66,21 @@ exports.serveSiteScript = async (req, res) => {
     return res.status(400).send('// Invalid website ID format');
   }
 
-    const [website, categories] = await Promise.all([
+    const [website, allCategories] = await Promise.all([
       Website.findById(websiteId),
       AdCategory.findByWebsite(websiteId),
     ]);
 
     if (!website) return res.status(404).send('// Website not found');
+
+    // Floating/ModalPic spaces set to "specific pages only" opt out of the
+    // site-wide bundle entirely — the owner instead pastes a page-scoped
+    // iframe embed (see codeDisplay.tsx) only on the pages they want. Leaving
+    // them in here too would render the ad twice on any page that has both.
+    const categories = allCategories.filter(
+      (cat) => (cat.placement_mode || cat.placementMode || 'auto') !== 'manual'
+    );
+
     if (!categories.length) return res.status(200).send('// No ad spaces configured yet');
 
     // ── Domain verification ──────────────────────────────────────

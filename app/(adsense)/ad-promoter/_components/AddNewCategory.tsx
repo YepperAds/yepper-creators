@@ -47,7 +47,16 @@ interface CategoryDataEntry {
   visitorRange?: { min: number; max: number };
   userCount?: string;
   instructions?: string;
+  placementMode?: 'auto' | 'manual';
 }
+
+// Only these two are truly position-independent (position:fixed, appended
+// straight to the page) — every other spaceType already ships as a
+// precise-placement iframe the owner pastes exactly where they want it (see
+// codeDisplay.tsx). Floating/Modal instead default to a single site-wide
+// script that fires on every page, so they're the only types that need this
+// auto (every page) vs manual (page-specific iframe) choice.
+const PAGE_SCOPED_TYPES = ['floating', 'modalpic'];
 
 interface CategoryDetail {
   name: string;
@@ -350,6 +359,9 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
         webOwnerEmail: (user as any)?.email,
         visitorRange: categoryData[category]?.visitorRange || { min: 0, max: 10000 },
         tier: categoryData[category]?.tier || 'starter',
+        placementMode: PAGE_SCOPED_TYPES.includes((categoryDetails[category]?.spaceType || '').toLowerCase())
+          ? (categoryData[category]?.placementMode || 'auto')
+          : undefined,
       }));
 
     if (categoriesToSubmit.length === 0) {
@@ -446,6 +458,40 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                   />
 
                   <div className="space-y-5">
+                    {PAGE_SCOPED_TYPES.includes((details.spaceType || '').toLowerCase()) && (
+                      <div>
+                        <label className="block text-sm font-medium text-subtle mb-1.5">
+                          Where should this ad appear?
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateCategoryData(activeCategory, 'placementMode', 'auto')}
+                            className={`text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
+                              (categoryData[activeCategory]?.placementMode || 'auto') === 'auto'
+                                ? 'border-white bg-surface-2 text-white'
+                                : 'border-border bg-surface-1 text-muted hover:bg-surface-2'
+                            }`}
+                          >
+                            <span className="font-semibold block mb-0.5">Every page</span>
+                            <span className="text-muted">Shows automatically wherever the site script is installed</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateCategoryData(activeCategory, 'placementMode', 'manual')}
+                            className={`text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
+                              categoryData[activeCategory]?.placementMode === 'manual'
+                                ? 'border-white bg-surface-2 text-white'
+                                : 'border-border bg-surface-1 text-muted hover:bg-surface-2'
+                            }`}
+                          >
+                            <span className="font-semibold block mb-0.5">Specific pages only</span>
+                            <span className="text-muted">Get a snippet to paste only on the pages you choose</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-subtle mb-1.5">
                         Number of ads for this space

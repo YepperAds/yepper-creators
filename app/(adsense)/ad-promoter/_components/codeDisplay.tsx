@@ -16,6 +16,15 @@ import {
 // now goes through the iframe / Precise-Placement track instead.
 const AUTO_RELIABLE = ['floating', 'modalpic'];
 
+// Floating/Modal categories the owner explicitly set to "specific pages
+// only" (see AddNewCategory.tsx's placement-mode toggle) skip the site-wide
+// bundle and get an iframe embed here instead — same Precise-Placement track
+// as Sidebar/Header, just pasted only on the pages where the owner wants that
+// floating/modal ad instead of every page.
+const isPageScoped = (cat) =>
+  AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) &&
+  (cat.placementMode || 'auto') === 'manual';
+
 // ── Main site script ──────────────────────────────────────────────────────────
 function buildSiteScript(src) {
   return `<script src="${src}" async></script>`;
@@ -40,8 +49,26 @@ function recommendedEmbedSize(spaceType) {
     'header':          { w: 728, h: 90 },
     'bottom':          { w: 728, h: 90 },
     'profooter':       { w: 728, h: 90 },
+    // Floating renders in a fixed corner box; ModalPic's iframe is stretched
+    // to the full viewport by recommendedEmbedStyle() so its own dark
+    // backdrop (baked into serveAdEmbed's response) has room to show —
+    // width/height here are just its containing box, not the visible card.
+    'floating':        { w: 320, h: 400 },
+    'modalpic':        { w: '100%', h: '100%' },
   };
   return sizes[(spaceType || '').toLowerCase()] || { w: 300, h: 250 };
+}
+
+// Floating/Modal are the only spaceTypes that need the iframe *element itself*
+// pinned to the viewport — every other type is placed in-flow exactly where
+// the owner drops it. Deliberately a plain style string (not the style={{}}
+// object JSX would want) to match buildIframeTag's paste-anywhere contract;
+// the accompanying UI copy tells JSX users to convert it.
+function recommendedEmbedStyle(spaceType) {
+  const st = (spaceType || '').toLowerCase();
+  if (st === 'floating') return 'position:fixed;bottom:24px;right:24px;z-index:9999;';
+  if (st === 'modalpic') return 'position:fixed;inset:0;z-index:99999;';
+  return '';
 }
 
 // Iframe embed — for spaceTypes the main site script can't reliably auto-place
@@ -58,13 +85,14 @@ function recommendedEmbedSize(spaceType) {
 // attribute names are case-insensitive so it's valid HTML as-is, and React
 // recognizes the exact spelling `frameBorder` as a known DOM prop, so it's also
 // valid JSX with no warnings — one snippet, paste-safe everywhere.
-function buildIframeTag(src, w, h) {
-  return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"></iframe>`;
+function buildIframeTag(src, w, h, style) {
+  const styleAttr = style ? ` style="${style}"` : '';
+  return `<iframe src="${src}" width="${w}" height="${h}" frameBorder="0" loading="lazy" title="Advertisement"${styleAttr}></iframe>`;
 }
 
 function buildIframeEmbed(src, spaceType) {
   const { w, h } = recommendedEmbedSize(spaceType);
-  return buildIframeTag(src, w, h);
+  return buildIframeTag(src, w, h, recommendedEmbedStyle(spaceType));
 }
 
 // ── Copy button ───────────────────────────────────────────────────────────────
@@ -119,10 +147,11 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
 
   const mainCode = buildSiteScript(rawSrc);
 
-  // Spaces the main site script can't reliably auto-place — these get an
+  // Spaces the main site script can't reliably auto-place, plus Floating/Modal
+  // spaces the owner explicitly scoped to specific pages — these get an
   // iframe embed instead of a data-yepper-space div (see buildIframeEmbed).
   const embedCategories = categories.filter(
-    (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
+    (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) || isPageScoped(cat)
   );
 
   return (
@@ -198,7 +227,11 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
                             <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
                             {AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && (
-                              <span className="text-xs text-blue-400 bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">auto</span>
+                              isPageScoped(cat) ? (
+                                <span className="text-xs text-purple-400 bg-purple-950 px-1.5 py-0.5 rounded border border-purple-800">page-specific</span>
+                              ) : (
+                                <span className="text-xs text-blue-400 bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">auto — every page</span>
+                              )
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
@@ -262,6 +295,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
                         {embedCategories.map((cat: any, idx: any) => {
                           const embedSrc = `${BACKEND}/api/p/embed/${cat._id}`;
+                          const pageScoped = isPageScoped(cat);
                           return (
                             <div key={cat._id} className="flex flex-col gap-2">
                               <div className="flex items-center gap-2">
@@ -269,6 +303,14 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                                 <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
                                 <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
                               </div>
+                              {pageScoped && (
+                                <p className="text-xs text-zinc-500 leading-relaxed">
+                                  Pinned to the {cat.spaceType?.toLowerCase() === 'floating' ? 'corner' : 'screen'} automatically —
+                                  paste this anywhere on the pages where you want it to show, and leave it off the rest.
+                                  If you're pasting into JSX, move the <code className="text-zinc-400">style="..."</code> string
+                                  into a style object.
+                                </p>
+                              )}
                               <CodeBlock code={buildIframeEmbed(embedSrc, cat.spaceType)} />
                             </div>
                           );

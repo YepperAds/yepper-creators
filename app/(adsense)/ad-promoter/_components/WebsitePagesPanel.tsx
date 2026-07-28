@@ -21,9 +21,22 @@ export default function WebsitePagesPanel({ website, onPagesChange }) {
 
   const addRow = () => {
     const l = label.trim();
-    let p = path.trim();
-    if (!l || !p) { setError('Give the page both a label and a path.'); return; }
-    if (!p.startsWith('/')) p = `/${p}`;
+    const raw = path.trim();
+    if (!l || !raw) { setError('Give the page both a label and a path.'); return; }
+
+    // The script compares this against location.pathname, which is never a
+    // full URL — so a pasted "https://example.com/sign-in" has to be reduced
+    // to "/sign-in" (via URL parsing, not string-prepending) or the mismatch
+    // check silently fails to match on every real page load.
+    let p;
+    if (/^https?:\/\//i.test(raw)) {
+      try { p = new URL(raw).pathname || '/'; }
+      catch { setError("That doesn't look like a valid URL."); return; }
+    } else {
+      p = raw.startsWith('/') ? raw : `/${raw}`;
+    }
+    if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+
     if (pages.some((pg) => pg.path === p)) { setError('That path is already registered.'); return; }
     setPages([...pages, { label: l, path: p }]);
     setLabel(''); setPath(''); setError('');
@@ -100,7 +113,7 @@ export default function WebsitePagesPanel({ website, onPagesChange }) {
             <input
               value={path}
               onChange={(e) => setPath(e.target.value)}
-              placeholder="Path, e.g. /blog"
+              placeholder="Path, e.g. /blog (full URL is fine too)"
               onKeyDown={(e) => { if (e.key === 'Enter') addRow(); }}
               className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-blue-600 font-mono"
             />

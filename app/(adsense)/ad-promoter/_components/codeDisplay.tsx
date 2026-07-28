@@ -19,20 +19,56 @@ const AUTO_RELIABLE = ['floating', 'modalpic'];
 
 // Floating/Modal categories the owner explicitly set to "specific pages
 // only" (see AddNewCategory.tsx's placement-mode toggle) skip the site-wide
-// bundle and get an iframe embed here instead — same Precise-Placement track
-// as Sidebar/Header, just pasted only on the pages where the owner wants that
-// floating/modal ad instead of every page.
+// bundle (SiteScriptController excludes 'manual' from it) and instead get a
+// <div data-yepper-space="id"> placeholder here — a real markup element, so
+// it's paste-safe in JSX exactly like the iframe. The site-wide script (which
+// only ever needs installing once) already scans for these divs on every
+// route change and renders whichever category they reference there, complete
+// with correct position:fixed/overlay CSS — no per-space script, no iframe,
+// and no "which HTML file is this" question for SPA/component-based sites,
+// since the div lives inside that page's own component and is discovered
+// (and torn down again on navigation, along with everything else in that
+// component) by the one script already running globally.
 const isPageScoped = (cat) =>
   AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) &&
   (cat.placementMode || 'auto') === 'manual';
 
-// ── Plain <script> tag ──────────────────────────────────────────────────────────
-// Used for both the main site-wide script and Floating/Modal's page-scoped
-// script — identical shape either way, just a different src. No attribute on
-// a <script> tag needs to differ between JSX and plain HTML, so this is the
-// one snippet type that's genuinely paste-anywhere with zero conversion.
+// ── Script tag — two flavors ─────────────────────────────────────────────────
+// A raw `<script src="...">` line only means anything inside an actual HTML
+// document. A .js/.jsx/.tsx file has no "just paste this line anywhere" spot —
+// it's source code, not markup, so the tag needs to be *injected* by real code
+// instead: created in a lifecycle hook (React's useEffect, Vue's onMounted,
+// Angular's ngOnInit — same document.createElement body underneath all of
+// them) inside the root layout/component that renders on every page, torn
+// back down on cleanup. This is only for the ONE main site-wide script — it's
+// installed exactly once, ever, regardless of how many ad spaces exist.
 function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
+}
+
+function buildScriptTagJs(src) {
+  return [
+    `useEffect(() => {`,
+    `  const s = document.createElement('script');`,
+    `  s.src = '${src}';`,
+    `  s.async = true;`,
+    `  document.body.appendChild(s);`,
+    `  return () => { try { document.body.removeChild(s); } catch (e) {} };`,
+    `}, []);`,
+  ].join('\n');
+}
+
+// ── Placeholder div — for Floating/Modal spaces scoped to specific pages ────
+// A real markup element (like the iframe below), not an injection — paste it
+// directly in whichever page's JSX/template you want that ad to show on. The
+// site-wide script (already installed once, globally) scans for these on
+// every route change and renders the referenced category right there, with
+// correct position:fixed/overlay CSS built in — no second script to add, no
+// "which HTML file" question, and it disappears on its own when the page
+// unmounts since the div (and whatever the script appended inside it) leaves
+// the DOM together with the rest of that page.
+function buildPlaceholderDiv(categoryId) {
+  return `<div data-yepper-space="${categoryId}"></div>`;
 }
 
 // ── Iframe embed sizing per spaceType ──────────────────────────────────────────
@@ -41,10 +77,7 @@ function buildScriptTag(src) {
 // type usually sits (a 728x90 leaderboard for header/in-feed/above-the-fold, a
 // narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
 // attributes freely; this is just a sane default. Floating/Modal aren't here —
-// they need real position:fixed/overlay behavior, which an in-flow iframe
-// box can't give them without a hand-written style attribute (and that's
-// exactly the JSX-vs-HTML trap this whole approach avoids elsewhere), so
-// those two use buildScriptTag instead — see AUTO_RELIABLE below.
+// they use buildPlaceholderDiv instead, see AUTO_RELIABLE below.
 function recommendedEmbedSize(spaceType) {
   const sizes = {
     'sidebar':         { w: 300, h: 250 },
@@ -127,6 +160,12 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [open, setOpen]           = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // Controls the ONE main site-wide script snippet: a raw <script> tag (plain
+  // HTML sites) or a lifecycle-hook injection (React/Vue/Angular/Next — a
+  // .jsx/.tsx file has nowhere to "just paste a line" the way an .html file
+  // does). Every other snippet in this panel (iframe or placeholder div) is
+  // real markup, valid in JSX as-is, so this switch has nothing to do there.
+  const [siteKind, setSiteKind] = useState<'html' | 'component'>('html');
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateLabel, setDuplicateLabel] = useState('');
   const [duplicateSubmitting, setDuplicateSubmitting] = useState(false);
@@ -175,23 +214,23 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   };
   const rawSrc = extractSrc(website?.site_script) || `${BACKEND}/api/p/site/${website?.id}`;
 
-  const mainCode = buildScriptTag(rawSrc);
+  const mainCode = siteKind === 'component' ? buildScriptTagJs(rawSrc) : buildScriptTag(rawSrc);
 
   // Spaces the main site script can't reliably auto-place — get an iframe
   // embed instead (see buildIframeEmbed). Floating/Modal are never in here:
-  // they're either in the site-wide bundle (auto) or get their own
-  // page-scoped script tag below (manual) — never an iframe.
+  // they're either in the site-wide bundle (auto) or get a placeholder div
+  // below (manual) — never an iframe.
   const iframeCategories = categories.filter(
     (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
   );
 
   // Floating/Modal spaces the owner explicitly scoped to specific pages —
-  // same script the per-category "auto" version already uses (position:fixed,
-  // genie animation, dismiss button all built in), just pasted only on the
-  // pages where the owner wants it instead of loaded site-wide.
-  const scriptCategories = categories.filter(isPageScoped);
+  // a data-yepper-space div the already-installed site-wide script finds and
+  // renders there (with the right position:fixed/overlay CSS) instead of
+  // loading it everywhere.
+  const placeholderCategories = categories.filter(isPageScoped);
 
-  const embedCategories = [...iframeCategories, ...scriptCategories];
+  const embedCategories = [...iframeCategories, ...placeholderCategories];
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
@@ -218,9 +257,38 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
       {open && (
         <div className="border-t border-zinc-700">
 
+          {/* Site-type switch — controls every script snippet below (main +
+              any page-scoped Floating/Modal ones) */}
+          <div className="px-5 pt-5 flex items-center gap-3">
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">My site is</span>
+            <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setSiteKind('html')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${siteKind === 'html' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                Plain HTML
+              </button>
+              <button
+                type="button"
+                onClick={() => setSiteKind('component')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-zinc-700 ${siteKind === 'component' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                React / Vue / Next / Angular
+              </button>
+            </div>
+          </div>
+
           {/* Main script */}
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-2">
             <CodeBlock code={mainCode} />
+            {siteKind === 'component' && (
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Paste this inside the root layout/component that renders on every page (e.g. <code className="text-zinc-400">app/layout.tsx</code>,
+                <code className="text-zinc-400"> App.vue</code>, <code className="text-zinc-400">app.component.ts</code>) — shown here as
+                React's <code className="text-zinc-400">useEffect</code>; Vue/Angular use the same body inside <code className="text-zinc-400">onMounted</code>/<code className="text-zinc-400">ngOnInit</code>.
+              </p>
+            )}
           </div>
 
           {/* Ad spaces list */}
@@ -337,7 +405,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             {duplicateError && <p className="text-xs text-red-400 mt-1">{duplicateError}</p>}
                             {!duplicateError && (
                               <p className="text-xs text-zinc-600 mt-1">
-                                Creates a separate ad space with its own iframe and its own inventory — advertisers who buy
+                                Creates a separate ad space with its own tag and its own inventory — advertisers who buy
                                 this one won't automatically show up on {cat.categoryName || cat.spaceType} too.
                               </p>
                             )}
@@ -397,32 +465,29 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                               </div>
                               <p className="text-xs text-zinc-500 leading-relaxed">
                                 An <strong className="text-zinc-300">iframe</strong> — drop it exactly where you want the ad box
-                                to sit on the page, sized to fit that spot.
+                                to sit in your page's markup (works as-is in JSX too, no conversion needed).
                               </p>
                               <CodeBlock code={buildIframeEmbed(embedSrc, cat.spaceType)} />
                             </div>
                           );
                         })}
-                        {scriptCategories.map((cat: any, idx: any) => {
-                          const unitSrc = `${BACKEND}/api/p/unit/${cat._id}`;
-                          return (
-                            <div key={cat._id} className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-500 font-mono">{iframeCategories.length + idx + 1}.</span>
-                                <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
-                                <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
-                              </div>
-                              <p className="text-xs text-zinc-500 leading-relaxed">
-                                A <strong className="text-zinc-300">script</strong>, not an iframe — it positions itself
-                                automatically ({cat.spaceType?.toLowerCase() === 'floating' ? 'floating corner' : 'popup overlay'}),
-                                so there's no CSS to get right. Drop it anywhere in the page — in the &lt;head&gt;, before
-                                &lt;/body&gt;, wherever your framework puts third-party scripts — only on the pages where you
-                                want this ad to show.
-                              </p>
-                              <CodeBlock code={buildScriptTag(unitSrc)} />
+                        {placeholderCategories.map((cat: any, idx: any) => (
+                          <div key={cat._id} className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-zinc-500 font-mono">{iframeCategories.length + idx + 1}.</span>
+                              <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
+                              <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
                             </div>
-                          );
-                        })}
+                            <p className="text-xs text-zinc-500 leading-relaxed">
+                              A placeholder, not a script — no second script tag needed anywhere. Drop this
+                              <code className="text-zinc-400"> &lt;div&gt;</code> directly in whichever page's markup/JSX you want this
+                              ad to show ({cat.spaceType?.toLowerCase() === 'floating' ? 'it floats itself into the corner' : 'it opens itself as a popup'}
+                              automatically). The main script above — installed once, site-wide — finds it there and renders the ad,
+                              and it goes away on its own when you navigate off that page.
+                            </p>
+                            <CodeBlock code={buildPlaceholderDiv(cat._id)} />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

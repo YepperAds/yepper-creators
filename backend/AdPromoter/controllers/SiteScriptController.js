@@ -25,27 +25,36 @@ function neutralClass(id) {
 // with two ads: one from this guess, one from the iframe they placed.
 const AUTO_RELIABLE = ['floating', 'modalpic'];
 
-// CSS per spaceType (scoped to each category prefix)
+// CSS per spaceType, keyed with a {{PX}} placeholder instead of an
+// interpolated prefix — this same table gets used twice: once here in Node to
+// precompute each pre-baked category's css (placementCSS below), and once
+// embedded verbatim into the generated client script so loadSpaceById() can
+// render correct positioning CSS for a category discovered later via a
+// data-yepper-space div that wasn't in the pre-baked list (manual-mode
+// Floating/ModalPic — see the placement_mode filter above). One table, no
+// hand-duplicated copy to drift out of sync between server and client.
+const PLACEMENT_CSS_TEMPLATES = {
+  base:                  `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
+  header:                `.{{PX}}-host{width:100%;top:0;left:0;z-index:900;max-height:120px;}`,
+  'above the fold':      `.{{PX}}-host{width:100%;margin:0 0 16px 0;}`,
+  'beneath title':       `.{{PX}}-host{width:100%;margin:12px 0 20px 0;}`,
+  'in feed':             `.{{PX}}-host{width:100%;margin:16px 0;border-radius:12px;overflow:hidden;}`,
+  'inline content':      `.{{PX}}-host{float:right;width:300px;margin:0 0 12px 20px;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;margin:12px 0;}}`,
+  sidebar:               `.{{PX}}-host{width:100%;margin:0 0 16px 0;max-width:300px;}`,
+  'left rail':           `.{{PX}}-host{width:160px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;position:static;}}`,
+  rightrail:             `.{{PX}}-host{width:160px;position:sticky;top:80px;margin-left:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;position:static;}}`,
+  stickysidebar:         `.{{PX}}-host{position:sticky;top:80px;width:100%;max-width:300px;z-index:100;}`,
+  floating:              `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:320px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
+  bottom:                `.{{PX}}-host{width:100%;margin:24px 0 0 0;}`,
+  profooter:             `.{{PX}}-host{width:100%;padding:16px 0;border-top:1px solid rgba(0,0,0,0.08);margin-top:24px;}`,
+  overlay:               `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);}`,
+  modalpic:              `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}`,
+  'mobile interstitial': `.{{PX}}-host{position:fixed;bottom:0;left:0;right:0;z-index:9999;width:100%;}@media(min-width:769px){.{{PX}}-host{display:none;}}`,
+};
+
 function placementCSS(spaceType, px) {
-  const base = `.${px}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`;
-  const map = {
-    'header':              `.${px}-host{width:100%;top:0;left:0;z-index:900;max-height:120px;}`,
-    'above the fold':      `.${px}-host{width:100%;margin:0 0 16px 0;}`,
-    'beneath title':       `.${px}-host{width:100%;margin:12px 0 20px 0;}`,
-    'in feed':             `.${px}-host{width:100%;margin:16px 0;border-radius:12px;overflow:hidden;}`,
-    'inline content':      `.${px}-host{float:right;width:300px;margin:0 0 12px 20px;}@media(max-width:600px){.${px}-host{float:none;width:100%;margin:12px 0;}}`,
-    'sidebar':             `.${px}-host{width:100%;margin:0 0 16px 0;max-width:300px;}`,
-    'left rail':           `.${px}-host{width:160px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.${px}-host{width:100%;position:static;}}`,
-    'rightrail':           `.${px}-host{width:160px;position:sticky;top:80px;margin-left:16px;}@media(max-width:768px){.${px}-host{width:100%;position:static;}}`,
-    'stickysidebar':       `.${px}-host{position:sticky;top:80px;width:100%;max-width:300px;z-index:100;}`,
-    'floating':            `.${px}-host{position:fixed;bottom:24px;right:24px;width:320px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.${px}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
-    'bottom':              `.${px}-host{width:100%;margin:24px 0 0 0;}`,
-    'profooter':           `.${px}-host{width:100%;padding:16px 0;border-top:1px solid rgba(0,0,0,0.08);margin-top:24px;}`,
-    'overlay':             `.${px}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);}`,
-    'modalpic':            `.${px}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}`,
-    'mobile interstitial': `.${px}-host{position:fixed;bottom:0;left:0;right:0;z-index:9999;width:100%;}@media(min-width:769px){.${px}-host{display:none;}}`,
-  };
-  return base + (map[spaceType.toLowerCase()] || '');
+  const fill = (tpl) => (tpl || '').split('{{PX}}').join(px);
+  return fill(PLACEMENT_CSS_TEMPLATES.base) + fill(PLACEMENT_CSS_TEMPLATES[spaceType.toLowerCase()]);
 }
 
 function extractDomain(url) {
@@ -124,6 +133,7 @@ exports.serveSiteScript = async (req, res) => {
     }));
 
     const spacesJSON = JSON.stringify(spaces);
+    const placementTemplatesJSON = JSON.stringify(PLACEMENT_CSS_TEMPLATES);
 
     // Analytics tracking snippet — fires once per page load, fire-and-forget
     const trackingSnippet = `
@@ -167,9 +177,19 @@ exports.serveSiteScript = async (req, res) => {
       _c="${CAT_BASE}",
       _f="${FRONTEND}",
       _spaces=${spacesJSON},
+      _pcssT=${placementTemplatesJSON},
       _rotAd=7000,
       _rotEmpty=3000,
       _pageLoadTs=Date.now();
+
+  /* ── Positioning CSS for a category discovered via a data-yepper-space
+     div that wasn't in the pre-baked _spaces list (manual-mode Floating/
+     ModalPic) — same template table the server used to precompute _spaces'
+     own css, just filled in here instead of on the server. */
+  function placementCSS(st,px){
+    function fill(tpl){ return (tpl||'').split('{{PX}}').join(px); }
+    return fill(_pcssT.base)+fill(_pcssT[(st||'').toLowerCase()]);
+  }
 
   /* ── Genie show/hide animation for floating ads ───────── */
   function injectAnimCSS(){
@@ -503,14 +523,14 @@ exports.serveSiteScript = async (req, res) => {
           lang:      (cat&&(cat.default_language||cat.defaultLanguage))||'english',
           px:        px,
           wrap:      wrap,
-          css:       '.'+px+'-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}'
+          css:       placementCSS(st, px)
         };
         loadSpace(sp);
       })
       .catch(function(){
         /* Fallback: render with minimal config so the div isn't empty */
         var px='yw'+categoryId.slice(-6);
-        var sp={id:categoryId,name:'ad space',spaceType:'inline content',mode:'manual',price:0,lang:'english',px:px,wrap:'content-widget',css:'.'+px+'-host{display:block;width:100%;}'};
+        var sp={id:categoryId,name:'ad space',spaceType:'inline content',mode:'manual',price:0,lang:'english',px:px,wrap:'content-widget',css:placementCSS('inline content', px)};
         loadSpace(sp);
       });
   }

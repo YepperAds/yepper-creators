@@ -62,4 +62,25 @@ async function notifyDomainMismatch(ownerId, websiteId, verifiedDomain, foundDom
   );
 }
 
-module.exports = { addSseClient, removeSseClient, broadcastUnreadCount, createNotification, notifyDomainMismatch };
+// Throttle repeat "page mismatch" alerts the same way — a div left on the
+// wrong page fires on every pageview there, so only notify once per
+// (category, actualPath) per day.
+const pageMismatchThrottle = new Map(); // `${categoryId}:${actualPath}` → last-notified ms
+
+async function notifyPageMismatch(ownerId, categoryId, categoryName, expectedPath, actualPath) {
+  const key = `${categoryId}:${actualPath}`;
+  const last = pageMismatchThrottle.get(key);
+  const now = Date.now();
+  if (last && now - last < 24 * 60 * 60 * 1000) return;
+  pageMismatchThrottle.set(key, now);
+
+  await createNotification(
+    ownerId,
+    'page_mismatch',
+    'Ad space placeholder found on the wrong page',
+    `"${categoryName}" is set to show on "${expectedPath}", but its placeholder div was just found on "${actualPath}" instead. The ad was not shown there. Move the div to the right page, or change the space's target page in the dashboard.`,
+    { categoryId, expectedPath, actualPath },
+  );
+}
+
+module.exports = { addSseClient, removeSseClient, broadcastUnreadCount, createNotification, notifyDomainMismatch, notifyPageMismatch };

@@ -17,14 +17,6 @@ function neutralClass(id) {
   return WRAPPERS[parseInt(id.slice(-2), 16) % WRAPPERS.length];
 }
 
-// Only Floating and Modal are truly position-independent (position:fixed,
-// appended straight to <body>). Everything else now ships as a
-// precise-placement iframe instead (see AdScriptController.serveAdEmbed /
-// codeDisplay.tsx) — the script must NOT also try to auto-guess a spot for
-// those via querySelector('header')/('footer')/etc., or the owner ends up
-// with two ads: one from this guess, one from the iframe they placed.
-const AUTO_RELIABLE = ['floating', 'modalpic'];
-
 // CSS per spaceType, keyed with a {{PX}} placeholder instead of an
 // interpolated prefix — this same table gets used twice: once here in Node to
 // precompute each pre-baked category's css (placementCSS below), and once
@@ -325,34 +317,29 @@ exports.serveSiteScript = async (req, res) => {
   }
 
   /* ── Find or create host for a space ─────────────────── */
-  var _AUTO=${JSON.stringify(AUTO_RELIABLE)};
   function getHost(sp){
     var existing=D.querySelector('[data-yid="'+sp.id+'"]');
     if(existing)return existing;
+
+    /* A placeholder div is required for every spaceType now, Floating/Modal
+       included — no body-append fallback. This is what makes the target-page
+       picker a real verification signal instead of a guess: the div's own
+       page is checked against it (see loadSpace's targetPath check below), so
+       "the system knows" whether the two agree, rather than the script
+       silently deciding where to put things on its own. */
+    var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
+    if(!ph)return null;
 
     var host=D.createElement('div');
     host.className=sp.px+'-host '+sp.wrap;
     host.setAttribute('data-yid',sp.id);
 
-    /* An explicit placeholder div always wins, for any spaceType — this is
-       what makes data-yepper-space work as a manual-placement option too. */
-    var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
-    if(ph){ph.appendChild(host);return host;}
-
-    /* No placeholder: only Floating/Modal auto-place (position:fixed,
-       independent of the page's DOM). Everything else (Header, Overlay,
-       Mobile Interstitial, Bottom, proFooter, sidebar, etc.) ships as a
-       precise-placement iframe — skip here so it doesn't also get a guessed
-       duplicate inserted next to the iframe the owner already placed. */
-    var st=sp.spaceType.toLowerCase();
-    if(_AUTO.indexOf(st)===-1){return null;}
-
-    if(st==='floating'){
+    if(sp.spaceType.toLowerCase()==='floating'){
       host.style.transformOrigin='bottom right';
       host.classList.add('yw-genie-pre');
     }
 
-    D.body.appendChild(host);
+    ph.appendChild(host);
     return host;
   }
 
@@ -475,13 +462,31 @@ exports.serveSiteScript = async (req, res) => {
     }
   }
 
+  /* ── Report a placeholder div sitting on the wrong page ── */
+  /* Fires only when the div actually exists but its page doesn't match the
+     target picked in the dashboard — i.e. the owner (or a stale Duplicate)
+     put it somewhere it wasn't configured for. Silent otherwise: no div on
+     this page at all is the normal, expected case for every other route. */
+  function reportPageMismatch(sp){
+    try{
+      var payload=JSON.stringify({categoryId:sp.id,expectedPath:sp.targetPath,actualPath:location.pathname});
+      var url=_b+'/page-mismatch';
+      if(navigator.sendBeacon){navigator.sendBeacon(url,new Blob([payload],{type:'application/json'}));}
+      else{fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:payload,mode:'cors',credentials:'omit'}).catch(function(){});}
+    }catch(e){}
+  }
+
   /* ── Load and render one space ────────────────────────── */
   function loadSpace(sp){
-    /* A space with a targetPath only exists on that one page — this is the
-       whole mechanism, no placeholder div or per-page snippet required.
-       removeStaleSpaces() (called from placeAllSpaces) handles the reverse:
-       taking an already-placed one back down once you navigate off its page. */
-    if(sp.targetPath && sp.targetPath!==location.pathname) return;
+    /* A placeholder div is required for every space now — no auto-placement.
+       No div on this page at all: nothing to do, perfectly normal (most
+       pages don't have most spaces). A div that IS here but doesn't match
+       this space's configured target page: don't render it, and tell the
+       owner, since that's a real placement mistake rather than "not this
+       page" — see reportPageMismatch. */
+    var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
+    if(!ph)return;
+    if(sp.targetPath&&sp.targetPath!==location.pathname){reportPageMismatch(sp);return;}
 
     var ck='?z='+sp.id+'&r='+Math.random().toString(36).slice(2);
 
@@ -524,15 +529,16 @@ exports.serveSiteScript = async (req, res) => {
         var wrappers=['content-widget','page-module','site-section','layout-block','view-unit','frame-item'];
         var wrap=wrappers[parseInt(categoryId.slice(-2),16)%wrappers.length];
         var sp={
-          id:        categoryId,
-          name:      (cat&&(cat.category_name||cat.categoryName))||'ad space',
-          spaceType: st,
-          mode:      'manual',
-          price:     (cat&&cat.price)||0,
-          lang:      (cat&&(cat.default_language||cat.defaultLanguage))||'english',
-          px:        px,
-          wrap:      wrap,
-          css:       placementCSS(st, px)
+          id:         categoryId,
+          name:       (cat&&(cat.category_name||cat.categoryName))||'ad space',
+          spaceType:  st,
+          mode:       'manual',
+          price:      (cat&&cat.price)||0,
+          lang:       (cat&&(cat.default_language||cat.defaultLanguage))||'english',
+          px:         px,
+          wrap:       wrap,
+          css:        placementCSS(st, px),
+          targetPath: (cat&&(cat.target_path||cat.targetPath))||null
         };
         loadSpace(sp);
       })
@@ -553,7 +559,6 @@ exports.serveSiteScript = async (req, res) => {
      (re)loaded here. Safe to call repeatedly: already-live spaces are
      skipped with no extra fetch. */
   function placeAllSpaces(){
-    removeStaleSpaces();
     _spaces.forEach(function(sp){
       if(D.querySelector('[data-yid="'+sp.id+'"]'))return;
       loadSpace(sp);
@@ -566,18 +571,10 @@ exports.serveSiteScript = async (req, res) => {
       loadSpaceById(id);
     }
   }
-
-  /* ── Take down a page-scoped space once you navigate off its page ── */
-  /* loadSpace()'s targetPath guard only stops a *new* placement — once a
-     space is live, nothing else removes it on its own. Every-page spaces
-     (targetPath null) are left alone entirely here. */
-  function removeStaleSpaces(){
-    _spaces.forEach(function(sp){
-      if(!sp.targetPath || sp.targetPath===location.pathname) return;
-      var host=D.querySelector('[data-yid="'+sp.id+'"]');
-      if(host && host.parentNode) host.parentNode.removeChild(host);
-    });
-  }
+  /* No separate teardown needed: every space now only ever renders inside a
+     placeholder div the owner placed, so navigating off that div's page
+     removes the div — and the host rendered inside it — the same way the
+     framework removes anything else on that page. */
 
   /* ── Analytics pageview ping ──────────────────────────── */
   function firePageview(){

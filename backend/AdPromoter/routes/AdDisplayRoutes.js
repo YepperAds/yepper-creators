@@ -22,5 +22,6 @@ router.get('/unit/:scriptId',  AdScriptController.serveAdScript);      // per-sp
 router.get('/site/:websiteId', SiteScriptController.serveSiteScript);  // site-wide script
 router.post('/ev/:adId',       adDisplayController.incrementView);     // view event
 router.post('/ec/:adId',       adDisplayController.incrementClick);    // click event
+router.post('/page-mismatch',  adDisplayController.reportPageMismatch); // placeholder div found on the wrong page
 
 module.exports = router;

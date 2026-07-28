@@ -17,12 +17,16 @@ import { categoryAPI } from '@/app/_lib/adsense-api';
 // now goes through the iframe / Precise-Placement track instead.
 const AUTO_RELIABLE = ['floating', 'modalpic'];
 
-// Floating/Modal categories scoped to one of the website's registered pages
-// (see WebsitePagesPanel.tsx / AddNewCategory.tsx's page picker) via
-// target_path. The site-wide script (installed exactly once, globally)
-// matches target_path against location.pathname itself and shows/hides the
-// ad accordingly — no placeholder div, no per-space script, nothing to paste
-// on that page at all. A null target_path keeps today's "every page" default.
+// Floating/Modal categories the owner scoped to one of the website's
+// registered pages (see WebsitePagesPanel.tsx / AddNewCategory.tsx's page
+// picker) via target_path — vs. "All Pages" (target_path null). Either way a
+// <div data-yepper-space="id"> placeholder is required (see buildPlaceholderDiv):
+// "All Pages" means pasting it once in the root layout, a specific page means
+// pasting it on just that page. The target page picked here isn't a placement
+// mechanism by itself — it's what the site-wide script checks the div's own
+// page against, so a div left on (or moved to) the wrong page gets flagged
+// instead of silently doing nothing or, worse, silently rendering somewhere
+// unintended (see the mismatch notification wired up server-side).
 const isPageScoped = (cat) =>
   AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase()) && !!cat.targetPath;
 
@@ -38,14 +42,24 @@ function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
 }
 
+// ── Placeholder div — required for every Floating/Modal space ──────────────
+// A real markup element (like the iframe below), not an injection — paste it
+// directly in whichever page's JSX/template the ad should render on. The
+// site-wide script (installed once, globally) scans for these on every route
+// change; if the div's page doesn't match the space's configured target page,
+// it deliberately does NOT render and reports the mismatch back instead —
+// see reportPageMismatch in SiteScriptController.js.
+function buildPlaceholderDiv(categoryId) {
+  return `<div data-yepper-space="${categoryId}"></div>`;
+}
+
 // ── Iframe embed sizing per spaceType ──────────────────────────────────────────
 // Standard ad-unit sizes (industry-standard, same ones AdSense/Carbon Ads
 // use) keyed by spaceType — picked so the box reads naturally wherever that
 // type usually sits (a 728x90 leaderboard for header/in-feed/above-the-fold, a
 // narrow 160x600 skyscraper for rails, etc). Owners can resize the iframe
 // attributes freely; this is just a sane default. Floating/Modal aren't here —
-// they're pure dashboard configuration (a target page, or "All Pages"), no
-// snippet at all — see AUTO_RELIABLE below.
+// they use buildPlaceholderDiv instead, see AUTO_RELIABLE below.
 function recommendedEmbedSize(spaceType) {
   const sizes = {
     'sidebar':         { w: 300, h: 250 },
@@ -197,12 +211,20 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const mainCode = buildScriptTag(rawSrc);
 
   // Spaces the main site script can't reliably auto-place — get an iframe
-  // embed instead (see buildIframeEmbed). Floating/Modal are never in here:
-  // they're pure dashboard configuration (see the target-page control on
-  // each row below), so they never need a snippet of their own.
+  // embed instead (see buildIframeEmbed).
   const iframeCategories = categories.filter(
     (cat: any) => !AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
   );
+
+  // Floating/Modal always need their own placeholder div — whether they're
+  // scoped to one page or left on "All Pages" just changes where that div
+  // gets pasted (one page's component vs. the root layout), not whether one
+  // exists at all.
+  const placeholderCategories = categories.filter(
+    (cat: any) => AUTO_RELIABLE.includes((cat.spaceType || '').toLowerCase())
+  );
+
+  const embedCategories = [...iframeCategories, ...placeholderCategories];
 
   return (
     <div className="mb-8 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden">
@@ -399,8 +421,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 </div>
               </div>
 
-              {/* Precise-Placement Spaces (accordion) — iframe per space */}
-              {iframeCategories.length > 0 && (
+              {/* Precise-Placement Spaces (accordion) — iframe or placeholder div per space */}
+              {embedCategories.length > 0 && (
                 <div className="border-t border-zinc-700">
                   <button
                     onClick={() => setShowManual(o => !o)}
@@ -409,7 +431,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     <div className="flex items-center gap-2">
                       <MousePointer className="w-4 h-4 text-purple-400" />
                       <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
-                      <span className="text-xs text-zinc-500 ml-1">— iframe embed, paste exactly where you want the ad</span>
+                      <span className="text-xs text-zinc-500 ml-1">— one tag per space, paste exactly where it goes</span>
                     </div>
                     {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
                   </button>
@@ -439,6 +461,26 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             </div>
                           );
                         })}
+                        {placeholderCategories.map((cat: any, idx: any) => (
+                          <div key={cat._id} className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-zinc-500 font-mono">{iframeCategories.length + idx + 1}.</span>
+                              <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
+                              <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
+                            </div>
+                            <p className="text-xs text-zinc-500 leading-relaxed">
+                              A <strong className="text-zinc-300">div</strong> placeholder — it positions itself
+                              automatically ({cat.spaceType?.toLowerCase() === 'floating' ? 'floating corner' : 'popup overlay'}),
+                              so there's no CSS to write. {cat.targetPath
+                                ? <>Paste it on the <strong className="text-zinc-300">{cat.targetPath}</strong> page — the dropdown above
+                                    is set to that page, and the ad won't show (and you'll get notified) if this div ends up
+                                    somewhere else.</>
+                                : <>Set to <strong className="text-zinc-300">All Pages</strong> — paste it once in your root
+                                    layout so it's on every page, same as the main script above.</>}
+                            </p>
+                            <CodeBlock code={buildPlaceholderDiv(cat._id)} />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

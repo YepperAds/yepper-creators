@@ -484,6 +484,10 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                             (in the Website Pages panel above the ad space list) to target this at one specific page instead.
                           </p>
                         )}
+                        <p className="text-xs text-muted mt-1.5">
+                          You'll still paste a small placeholder div on that page (see Integration Codes after saving) —
+                          this just tells the system which page to expect it on, so it can flag it if it ends up elsewhere.
+                        </p>
                       </div>
                     )}
 

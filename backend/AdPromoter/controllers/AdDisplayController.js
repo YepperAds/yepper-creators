@@ -3,7 +3,7 @@ const { query } = require('../../config/db');
 const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
-const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
+const { notifyDomainMismatch, notifyPageMismatch } = require('../../creators/utils/notificationUtils');
 const { truncateWords } = require('../utils/adCustomization');
 
 function extractDomain(url) {
@@ -293,5 +293,30 @@ exports.incrementClick = async (req, res) => {
   } catch (error) {
     console.error('Error incrementing click:', error);
     return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// The site-wide script calls this when a category's data-yepper-space div
+// exists on a page but that page's path doesn't match the space's configured
+// target_path (see SiteScriptController.js's reportPageMismatch) — a real
+// placement mistake (wrong page, or a stale Duplicate), not a normal "not
+// this page" case, so the owner gets notified instead of it failing silently.
+exports.reportPageMismatch = async (req, res) => {
+  try {
+    const { categoryId, expectedPath, actualPath } = req.body || {};
+    if (!categoryId || typeof expectedPath !== 'string' || typeof actualPath !== 'string') {
+      return res.status(400).json({ success: false, message: 'categoryId, expectedPath and actualPath are required' });
+    }
+
+    const category = await AdCategory.findById(categoryId);
+    if (category) {
+      notifyPageMismatch(
+        category.owner_id, categoryId, category.category_name, expectedPath, actualPath,
+      ).catch(() => {});
+    }
+    res.status(200).json({ success: true });
+  } catch (error) {
+    // Beacon-fired, best-effort — never let this surface as a real error.
+    res.status(200).json({ success: false });
   }
 };

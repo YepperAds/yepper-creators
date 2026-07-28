@@ -31,6 +31,7 @@ router.get('/space/:categoryId', async (req, res) => {
       price: category.price,
       defaultLanguage: category.default_language,
       placementMode: category.placement_mode,
+      targetPath: category.target_path,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch space' });

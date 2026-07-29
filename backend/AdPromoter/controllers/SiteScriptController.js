@@ -25,20 +25,27 @@ function neutralClass(id) {
 // data-yepper-space div that wasn't in the pre-baked list (manual-mode
 // Floating/ModalPic — see the placement_mode filter above). One table, no
 // hand-duplicated copy to drift out of sync between server and client.
+// Banner-shaped slots (header/in-feed/above-the-fold/etc.) get a 728px cap,
+// matching the standard leaderboard convention these used to ship as an
+// iframe with (width="728" height="90") — a div has no such attribute to
+// fall back on, so without this it just stretches to 100% of the page,
+// however wide that happens to be.
+const BANNER_MAX_WIDTH = 728;
+
 const PLACEMENT_CSS_TEMPLATES = {
   base:                  `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
-  header:                `.{{PX}}-host{width:100%;top:0;left:0;z-index:900;max-height:120px;}`,
-  'above the fold':      `.{{PX}}-host{width:100%;margin:0 0 16px 0;}`,
-  'beneath title':       `.{{PX}}-host{width:100%;margin:12px 0 20px 0;}`,
-  'in feed':             `.{{PX}}-host{width:100%;margin:16px 0;border-radius:12px;overflow:hidden;}`,
+  header:                `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:0 auto;top:0;left:0;z-index:900;}`,
+  'above the fold':      `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:0 auto 16px;}`,
+  'beneath title':       `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:12px auto 20px;}`,
+  'in feed':             `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:16px auto;border-radius:12px;overflow:hidden;}`,
   'inline content':      `.{{PX}}-host{float:right;width:300px;margin:0 0 12px 20px;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;margin:12px 0;}}`,
   sidebar:               `.{{PX}}-host{width:100%;margin:0 0 16px 0;max-width:300px;}`,
   'left rail':           `.{{PX}}-host{width:160px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;position:static;}}`,
   rightrail:             `.{{PX}}-host{width:160px;position:sticky;top:80px;margin-left:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;position:static;}}`,
   stickysidebar:         `.{{PX}}-host{position:sticky;top:80px;width:100%;max-width:300px;z-index:100;}`,
   floating:              `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:320px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
-  bottom:                `.{{PX}}-host{width:100%;margin:24px 0 0 0;}`,
-  profooter:             `.{{PX}}-host{width:100%;padding:16px 0;border-top:1px solid rgba(0,0,0,0.08);margin-top:24px;}`,
+  bottom:                `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:24px auto 0;}`,
+  profooter:             `.{{PX}}-host{width:100%;max-width:${BANNER_MAX_WIDTH}px;margin:24px auto 0;}`,
   overlay:               `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);}`,
   modalpic:              `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}`,
   'mobile interstitial': `.{{PX}}-host{position:fixed;bottom:0;left:0;right:0;z-index:9999;width:100%;}@media(min-width:769px){.{{PX}}-host{display:none;}}`,
@@ -301,10 +308,10 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
-      .\${sp.px}-empty{padding:20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
-      .\${sp.px}-empty-title{font-size:15px;font-weight:600;margin:0 0 6px;}
-      .\${sp.px}-empty-price{font-size:13px;color:#555;margin:0 0 14px;}
-      .\${sp.px}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
+      .\${sp.px}-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
+      .\${sp.px}-empty-title{font-size:14px;font-weight:600;margin:0;}
+      .\${sp.px}-empty-price{font-size:12px;color:#555;margin:0;}
+      .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
     \`;
 
     /* Floating's host has a fixed width baked into placementCSS() so it looks

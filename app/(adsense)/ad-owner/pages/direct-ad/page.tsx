@@ -45,7 +45,38 @@ function DirectAdvertise() {
   const [adId, setAdId] = useState<string | null>(null);
   const [paymentDone, setPaymentDone] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [selectedPages, setSelectedPages] = useState<string[]>([]);
   const fileInputRef = useRef(null);
+
+  // "All Pages" ad spaces (categoryInfo.targetPath === null) on a site with
+  // 2+ registered pages let the advertiser pick which pages to show on —
+  // picking more than one doubles the price. A single-page-locked ad space
+  // or a site with fewer than 2 registered pages skips this entirely.
+  const websitePages = Array.isArray(websiteInfo?.pages) ? websiteInfo.pages : [];
+  const pageSelectionEligible = !categoryInfo?.targetPath && websitePages.length >= 2;
+  const basePrice = parseFloat(categoryInfo?.price || 0);
+  const displayPrice = pageSelectionEligible && selectedPages.length >= 2 ? basePrice * 2 : basePrice;
+
+  useEffect(() => {
+    if (pageSelectionEligible) {
+      setSelectedPages(websitePages.map((p: any) => p.path));
+    } else {
+      setSelectedPages([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryInfo, websiteInfo]);
+
+  const togglePage = (path: string) => {
+    setSelectedPages((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    );
+  };
+
+  const toggleAllPages = () => {
+    setSelectedPages((prev) =>
+      prev.length === websitePages.length ? [] : websitePages.map((p: any) => p.path)
+    );
+  };
 
   const [businessData, setBusinessData] = useState({
     businessName: '',
@@ -371,12 +402,20 @@ function DirectAdvertise() {
   };
 
   const handlePayment = async () => {
+    if (pageSelectionEligible && selectedPages.length === 0) {
+      setError('Select at least one page for this ad to appear on.');
+      return;
+    }
     try {
       setIsLoading(true);
 
       const paymentResponse = await api.post(`/api/web-advertise/payment/initiate`, {
         adId: adId,
-        selections: [{ websiteId: websiteId, categoryId: categoryId }]
+        selections: [{
+          websiteId: websiteId,
+          categoryId: categoryId,
+          selectedPages: pageSelectionEligible ? selectedPages : null,
+        }]
       }, {
         headers: { 'Authorization': `Bearer ${getToken() || ''}` }
       });
@@ -931,14 +970,60 @@ function DirectAdvertise() {
                         </div>
                         <div className="border-t border-border/40 pt-3 flex justify-between font-semibold text-base">
                           <span>Total:</span>
-                          <span>RWF {categoryInfo?.price}</span>
+                          <span>
+                            RWF {displayPrice}
+                            {pageSelectionEligible && selectedPages.length >= 2 && (
+                              <span className="ml-2 text-xs font-normal text-subtle">
+                                (doubled — {selectedPages.length} pages)
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     </div>
 
+                    {pageSelectionEligible && (
+                      <div className="rounded-2xl border border-border bg-surface-2 p-6">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-semibold">Where should this ad appear?</h3>
+                          <button
+                            type="button"
+                            onClick={toggleAllPages}
+                            className="text-xs font-medium text-coral hover:underline"
+                          >
+                            {selectedPages.length === websitePages.length ? 'Clear all' : 'Select all pages'}
+                          </button>
+                        </div>
+                        <p className="text-xs text-subtle mb-4">
+                          This ad space shows on every page of {websiteInfo?.websiteName}. Choose one page to
+                          pay the base price, or 2+ pages (including all of them) to double it.
+                        </p>
+                        <div className="space-y-2">
+                          {websitePages.map((p: any) => (
+                            <label
+                              key={p.path}
+                              className="flex items-center gap-3 rounded-xl border border-border/40 bg-surface-1 px-4 py-2.5 cursor-pointer hover:border-border"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedPages.includes(p.path)}
+                                onChange={() => togglePage(p.path)}
+                                className="accent-coral"
+                              />
+                              <span className="text-sm font-medium">{p.label}</span>
+                              <span className="text-xs text-muted font-mono">{p.path}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {selectedPages.length === 0 && (
+                          <p className="text-xs text-error mt-3">Select at least one page.</p>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       onClick={handlePayment}
-                      disabled={isLoading}
+                      disabled={isLoading || (pageSelectionEligible && selectedPages.length === 0)}
                       className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? 'Processing...' : 'Proceed to Payment'}

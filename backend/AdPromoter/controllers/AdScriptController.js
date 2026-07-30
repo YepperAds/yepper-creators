@@ -604,7 +604,7 @@ exports.serveAdScript = async (req, res) => {
         var host=getHost();
         if(!host)return; /* not auto-reliable and no placeholder — skip, the iframe is the intended path */
 
-        fetch(_b+'/feed?categoryId='+_i+'&r='+Date.now(),{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+_i+'&path='+encodeURIComponent(location.pathname)+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,data);})
           .catch(function(){emptyState(host);});
@@ -613,7 +613,7 @@ exports.serveAdScript = async (req, res) => {
         injectStyles({slots:[],fontImports:[]});
         var host=getHost();
         if(!host)return;
-        fetch(_b+'/feed?categoryId='+_i,{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+_i+'&path='+encodeURIComponent(location.pathname),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,data);})
           .catch(function(){emptyState(host);});

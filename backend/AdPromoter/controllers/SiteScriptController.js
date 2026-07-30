@@ -513,7 +513,7 @@ exports.serveSiteScript = async (req, res) => {
         var host=getHost(sp);
         if(!host)return; /* manual with no placeholder — skip */
 
-        fetch(_b+'/feed?categoryId='+sp.id+'&r='+Date.now(),{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname)+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,sp,data);})
           .catch(function(){renderAds(host,sp,null);});
@@ -522,7 +522,7 @@ exports.serveSiteScript = async (req, res) => {
         injectStyles(sp,{slots:[],fontImports:[]});
         var host=getHost(sp);
         if(!host)return;
-        fetch(_b+'/feed?categoryId='+sp.id,{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,sp,data);})
           .catch(function(){renderAds(host,sp,null);});

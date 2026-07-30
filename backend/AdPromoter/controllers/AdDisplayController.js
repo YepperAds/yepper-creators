@@ -25,6 +25,29 @@ function escapeHtml(s) {
 }
 exports.escapeHtml = escapeHtml;
 
+// Narrows an already-fetched `import_ads` row list down to the ones whose
+// advertiser actually paid to show on `path` for this specific category.
+// Each ad's own website_selections[].pagesByCategory[categoryId] records the
+// pages that purchase covered (see PaymentController.verifyPayment) — absent/
+// null means "every page" (either a single-page-locked ad space, a site with
+// fewer than 2 registered pages, or an ad bought before this feature
+// existed), so those always pass through unfiltered.
+function filterAdsByPage(ads, websiteId, categoryId, path) {
+  if (!path) return ads;
+  return ads.filter((ad) => {
+    let selections;
+    try {
+      selections = Array.isArray(ad.website_selections)
+        ? ad.website_selections
+        : JSON.parse(ad.website_selections || '[]');
+    } catch { return true; }
+    const sel = selections.find((s) => s.websiteId === websiteId && Array.isArray(s.categories) && s.categories.includes(categoryId));
+    const selectedPages = sel?.pagesByCategory?.[categoryId];
+    if (!Array.isArray(selectedPages)) return true;
+    return selectedPages.includes(path);
+  });
+}
+
 // Shared by displayAd (JSON, used by the injected script) and the iframe
 // embed endpoint (AdScriptController.serveAdEmbed) — both need the exact
 // same "is this category allowed to show ads on this referer, and which
@@ -75,7 +98,8 @@ async function resolveCategoryAndAds(categoryId, req) {
     [selectedAds, adCategory.website_id?.toString(), categoryId]
   );
 
-  const adsToShow = ads.slice(0, adCategory.user_count || ads.length);
+  const pageFiltered = filterAdsByPage(ads, adCategory.website_id?.toString(), categoryId, req?.query?.path);
+  const adsToShow = pageFiltered.slice(0, adCategory.user_count || pageFiltered.length);
   return { adCategory, website, ads: adsToShow, blocked: false };
 }
 exports.resolveCategoryAndAds = resolveCategoryAndAds;
@@ -147,7 +171,7 @@ exports.displayAd = async (req, res) => {
 
 exports.searchAd = async (req, res) => {
   try {
-    const { categoryId, searchTerm } = req.query;
+    const { categoryId, searchTerm, path } = req.query;
     if (!categoryId) return res.json({ message: 'Missing categoryId' });
 
     const adCategory = await AdCategory.findById(categoryId);
@@ -159,7 +183,7 @@ exports.searchAd = async (req, res) => {
 
     const term = `%${(searchTerm || '').toLowerCase()}%`;
 
-    const { rows: ads } = await query(
+    const { rows: rawAds } = await query(
       `SELECT * FROM import_ads
        WHERE id = ANY($1::uuid[])
          AND EXISTS (
@@ -180,6 +204,7 @@ exports.searchAd = async (req, res) => {
       [selectedAds, adCategory.website_id?.toString(), categoryId, term]
     );
 
+    const ads = filterAdsByPage(rawAds, adCategory.website_id?.toString(), categoryId, path);
     if (!ads.length) return res.json({ message: 'No Ads Found' });
 
     const ad = ads[0];

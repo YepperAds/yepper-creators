@@ -154,19 +154,44 @@ exports.initiatePayment = async (req, res) => {
         return res.status(404).json({ error: `Category or website not found for: ${categoryId}` });
       }
 
-      totalAmount += parseFloat(category.price);
+      // "All Pages" ad spaces (target_path IS NULL) on a site with 2+
+      // registered pages let the advertiser pick which of those pages the ad
+      // actually shows on. Picking more than one page doubles the price —
+      // a single-page-locked ad space (target_path set) or a site with fewer
+      // than 2 registered pages always charges the plain base price.
+      const websitePages = Array.isArray(website.pages)
+        ? website.pages
+        : (typeof website.pages === 'string' ? JSON.parse(website.pages || '[]') : []);
+      const pageSelectionEligible = category.target_path == null && websitePages.length >= 2;
+
+      let selectedPages = null;
+      let priceMultiplier = 1;
+      if (pageSelectionEligible) {
+        const validPaths = new Set(websitePages.map((p) => p.path));
+        const requested = Array.isArray(selection.selectedPages)
+          ? [...new Set(selection.selectedPages.filter((p) => validPaths.has(p)))]
+          : [];
+        selectedPages = requested.length > 0 ? requested : websitePages.map((p) => p.path);
+        priceMultiplier = selectedPages.length >= 2 ? 2 : 1;
+      }
+
+      const basePrice = parseFloat(category.price);
+      const finalPrice = basePrice * priceMultiplier;
+
+      totalAmount += finalPrice;
       validatedSelections.push({
         websiteId,
         categoryId,
         webOwnerId: website.owner_id,
-        price: parseFloat(category.price),
+        price: finalPrice,
         categoryName: category.category_name,
         websiteName: website.website_name,
+        selectedPages,
       });
       categoryDetails.push({
         categoryName: category.category_name,
         websiteName: website.website_name,
-        price: parseFloat(category.price),
+        price: finalPrice,
         webOwnerId: website.owner_id,
       });
     }
@@ -198,6 +223,7 @@ exports.initiatePayment = async (req, res) => {
           isGroupPayment: true,
           categoryName: selection.categoryName,
           websiteName: selection.websiteName,
+          selectedPages: selection.selectedPages,
         },
       });
     }
@@ -277,11 +303,20 @@ exports.verifyPayment = async (req, res) => {
               Array.isArray(sel.categories) && sel.categories.includes(payment.category_id)
           );
 
+          // Keyed by categoryId since one website_selections entry can cover
+          // several categories bought on the same site — selectedPages only
+          // applies to the specific "All Pages" ad space this payment is for.
+          const selectedPagesForThisCategory = payment.metadata?.selectedPages || null;
+
           if (selIdx !== -1) {
             Object.assign(websiteSelections[selIdx], {
               status: 'active', approved: true, approvedAt: new Date().toISOString(),
               publishedAt: new Date().toISOString(), paymentId: payment.id,
               rejectionDeadline: rejectionDeadline.toISOString(),
+              pagesByCategory: {
+                ...(websiteSelections[selIdx].pagesByCategory || {}),
+                [payment.category_id]: selectedPagesForThisCategory,
+              },
             });
           } else {
             websiteSelections.push({
@@ -289,6 +324,7 @@ exports.verifyPayment = async (req, res) => {
               approved: true, approvedAt: new Date().toISOString(),
               publishedAt: new Date().toISOString(), paymentId: payment.id,
               status: 'active', rejectionDeadline: rejectionDeadline.toISOString(),
+              pagesByCategory: { [payment.category_id]: selectedPagesForThisCategory },
             });
           }
 

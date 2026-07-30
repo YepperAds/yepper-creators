@@ -238,7 +238,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
 .ad-image {
   width: ${settings.imagePosition === 'left' ? settings.imageWidthPercent + '%' : settings.topImageWidthPercent + '%'};
   height: ${settings.imagePosition === 'left' ? '100%' : settings.imageHeight + 'px'};
-  ${settings.imagePosition === 'left' ? '' : 'margin: 0 auto;\n  '}object-fit: contain;
+  ${settings.imagePosition === 'left' ? '' : 'margin: 0 auto;\n  '}object-fit: cover;
   border-radius: 8px;
 }`;
   };

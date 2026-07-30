@@ -260,6 +260,13 @@ exports.serveSiteScript = async (req, res) => {
     return TR[{fr:'french',rw:'kinyarwanda',sw:'kiswahili',zh:'chinese',es:'spanish'}[ul]||'english'];
   }
 
+  /* ── Escape a name before dropping it into innerHTML ──── */
+  function escHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
   /* ── Inject styles for a space ───────────────────────── */
   /* Each ad slot in this space is styled independently — slot 0's
      template/color/font never bleeds into slot 1. \`data\` is the resolved
@@ -304,11 +311,12 @@ exports.serveSiteScript = async (req, res) => {
     });
 
     el.textContent=sp.css+fontCss+rulesCss+\`
-      .\${sp.px}-img{width:100%;height:100%;object-fit:contain;display:block;transition:transform 0.3s;}
+      .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
       .\${sp.px}-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
+      .\${sp.px}-empty-name{flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:0;}
       .\${sp.px}-empty-title{font-size:14px;font-weight:600;margin:0;}
       .\${sp.px}-empty-price{font-size:12px;color:#555;margin:0;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
@@ -387,6 +395,7 @@ exports.serveSiteScript = async (req, res) => {
     if(!data||!data.html){
       host.innerHTML=
         '<div class="'+sp.px+'-empty">'+
+          '<p class="'+sp.px+'-empty-name">'+escHtml(sp.name)+'</p>'+
           '<p class="'+sp.px+'-empty-title">'+lang.title+'</p>'+
           '<p class="'+sp.px+'-empty-price">'+lang.price+': $'+sp.price+'/mo</p>'+
           '<a class="'+sp.px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_wid+'&categoryId='+sp.id+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
@@ -408,7 +417,7 @@ exports.serveSiteScript = async (req, res) => {
       .replace(/sp-description/g,sp.px+'-desc')
       .replace(/sp-cta/g,sp.px+'-cta');
 
-    host.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a></div>'+html;
+    host.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(sp.name)+'</div>'+html;
 
     var items=Array.from(host.querySelectorAll('.'+sp.px+'-ad'));
     if(!items.length){renderAds(host,sp,null);return;}

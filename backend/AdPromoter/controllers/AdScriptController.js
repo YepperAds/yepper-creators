@@ -49,24 +49,28 @@ function placementStyles(spaceType, prefix) {
     'Header': `
       .${prefix}-host {
         width: 100%;
+        max-width: 728px;
+        margin: 0 auto;
         top: 0; left: 0;
         z-index: 900;
-        max-height: 120px;
       }`,
     'Above The Fold': `
       .${prefix}-host {
         width: 100%;
-        margin: 0 0 16px 0;
+        max-width: 728px;
+        margin: 0 auto 16px;
       }`,
     'Beneath Title': `
       .${prefix}-host {
         width: 100%;
-        margin: 12px 0 20px 0;
+        max-width: 728px;
+        margin: 12px auto 20px;
       }`,
     'In Feed': `
       .${prefix}-host {
         width: 100%;
-        margin: 16px 0;
+        max-width: 728px;
+        margin: 16px auto;
         border-radius: 12px;
         overflow: hidden;
       }`,
@@ -129,14 +133,14 @@ function placementStyles(spaceType, prefix) {
     'Bottom': `
       .${prefix}-host {
         width: 100%;
-        margin: 24px 0 0 0;
+        max-width: 728px;
+        margin: 24px auto 0;
       }`,
     'proFooter': `
       .${prefix}-host {
         width: 100%;
-        padding: 16px 0;
-        border-top: 1px solid rgba(0,0,0,0.08);
-        margin-top: 24px;
+        max-width: 728px;
+        margin: 24px auto 0;
       }`,
     'overlay': `
       .${prefix}-host {
@@ -218,11 +222,11 @@ exports.serveAdScript = async (req, res) => {
     const CAT_BASE  = `${BACKEND}/api/c`;
 
     const categoryPrice   = adCategory.price;
-    const defaultLanguage = adCategory.defaultLanguage || 'english';
+    const defaultLanguage = adCategory.default_language || 'english';
     const websiteId       = adCategory.websiteId.id;
     const websiteName     = adCategory.websiteId.website_name || 'This website';
-    const categoryName    = adCategory.categoryName || 'ad space';
-    const spaceType       = adCategory.spaceType || 'Inline Content';
+    const categoryName    = adCategory.category_name || 'ad space';
+    const spaceType       = adCategory.space_type || 'Inline Content';
 
     // Evasion: neutral wrapper alias based on category id
     const wrapAlias = neutralClass(scriptId);
@@ -256,6 +260,7 @@ exports.serveAdScript = async (req, res) => {
       _tAd=7000,
       _tEmpty=3000,
       _sp="${spaceType}",
+      _name=${JSON.stringify(categoryName)},
       _px="${prefix}",
       _wa="${wrapAlias}",
       _pageLoadTs=Date.now();
@@ -393,14 +398,15 @@ exports.serveAdScript = async (req, res) => {
     }
 
     el.textContent=placementCss+fontCss+rulesCss+hostOverride+\`
-      .\${_px}-img{width:100%;height:100%;object-fit:contain;display:block;transition:transform 0.3s ease;}
+      .\${_px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease;}
       .\${_px}-ad:hover .\${_px}-img{transform:scale(1.03);}
       .\${_px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
-      .\${_px}-empty{padding:20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
-      .\${_px}-empty-title{font-size:15px;font-weight:600;margin:0 0 6px;}
-      .\${_px}-empty-price{font-size:13px;color:#555;margin:0 0 14px;}
-      .\${_px}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;}
+      .\${_px}-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
+      .\${_px}-empty-name{flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:0;}
+      .\${_px}-empty-title{font-size:14px;font-weight:600;margin:0;}
+      .\${_px}-empty-price{font-size:12px;color:#555;margin:0;}
+      .\${_px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;}
       .\${_px}-empty-cta:hover{background:#e84118;}
     \`;
   }
@@ -455,10 +461,17 @@ exports.serveAdScript = async (req, res) => {
     return TR[l];
   }
 
+  function escHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
   function emptyState(host){
     var lang=getLang();
     host.innerHTML=
       '<div class="'+_px+'-empty">'+
+        '<p class="'+_px+'-empty-name">'+escHtml(_name)+'</p>'+
         '<p class="'+_px+'-empty-title">'+lang.title+'</p>'+
         '<p class="'+_px+'-empty-price">'+lang.price+': RWF'+_p+'/month</p>'+
         '<a class="'+_px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_w+'&categoryId='+_i+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
@@ -490,7 +503,7 @@ exports.serveAdScript = async (req, res) => {
   }
 
   function credit(){
-    return '<div class="'+_px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a></div>';
+    return '<div class="'+_px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(_name)+'</div>';
   }
 
   /* ── 4. Render ads ─────────────────────────────────────── */
@@ -668,10 +681,11 @@ function buildEmbedCardCss(prefix, slots, fontImports) {
     html,body{margin:0;padding:0;height:100%;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
     .${prefix}-ad{display:block;width:100%;height:100%;text-decoration:none;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);position:relative;color:inherit;box-sizing:border-box;}
-    .${prefix}-img{width:100%;height:100%;object-fit:contain;display:block;}
+    .${prefix}-img{width:100%;height:100%;object-fit:cover;display:block;}
     .${prefix}-credit{position:absolute;bottom:2px;right:6px;font-size:8px;color:rgba(0,0,0,0.35);}
     .${prefix}-credit a{color:inherit;text-decoration:none;}
     .${prefix}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-radius:12px;padding:10px;box-sizing:border-box;}
+    .${prefix}-empty-name{font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:0 0 4px;}
     .${prefix}-empty-title{font-size:13px;font-weight:600;margin:0 0 4px;}
     .${prefix}-empty-price{font-size:11px;color:#555;margin:0 0 10px;}
     .${prefix}-empty-cta{display:inline-flex;align-items:center;background:#000;color:#fff;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;}
@@ -733,6 +747,7 @@ exports.serveAdEmbed = async (req, res) => {
     const prefix = 'ye' + categoryId.slice(-6);
     const websiteId = adCategory.website_id;
     const categoryPrice = adCategory.price;
+    const categoryName = escapeHtml(adCategory.category_name || 'Ad Space');
     const { slots, fontImports } = resolveAllSlots(adCategory.customization, adCategory.user_count);
     const cardCss = buildEmbedCardCss(prefix, slots, fontImports);
 
@@ -740,6 +755,7 @@ exports.serveAdEmbed = async (req, res) => {
     if (!ads.length) {
       bodyHtml = `
         <div class="${prefix}-empty">
+          <p class="${prefix}-empty-name">${categoryName}</p>
           <p class="${prefix}-empty-title">Available Advertising Space</p>
           <p class="${prefix}-empty-price">Price: RWF ${categoryPrice}/month</p>
           <a class="${prefix}-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${websiteId}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
@@ -760,7 +776,7 @@ exports.serveAdEmbed = async (req, res) => {
               <p class="${prefix}-desc">${description}</p>
               <span class="${prefix}-cta">Visit Website</span>
             </div>`,
-          credit: `<span class="${prefix}-credit">Ad by Yepper</span>`,
+          credit: `<span class="${prefix}-credit">Ad by Yepper · ${categoryName}</span>`,
         };
       });
 

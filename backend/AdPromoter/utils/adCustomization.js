@@ -23,8 +23,10 @@ const SYSTEM_DEFAULT = {
   // resolution/aspect ratio) must never be able to blow the card out of
   // proportion. imageHeight applies when imagePosition is 'top' (the image
   // sits above the text); imageWidthPercent when it's 'left' (image beside
-  // the text). object-fit:cover crops to whichever box this defines.
-  imageHeight: 160,
+  // the text). object-fit:cover crops to whichever box this defines — a
+  // shorter default here keeps an unconfigured card compact instead of
+  // stretching a "header"-shaped wide box into an unnecessarily tall one.
+  imageHeight: 120,
   imageWidthPercent: 40,
   // Width of the image box when imagePosition is 'top', as a percent of the
   // card's own width (the image is centered within that width). Defaults to

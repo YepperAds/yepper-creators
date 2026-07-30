@@ -345,3 +345,24 @@ exports.reportPageMismatch = async (req, res) => {
     res.status(200).json({ success: false });
   }
 };
+
+// The site-wide script calls this for "All Pages" (no target_path) spaces
+// whenever it actually finds the category's data-yepper-space div on a page
+// — i.e. real evidence the owner pasted the placement there. Accumulated
+// into ad_categories.detected_pages, this is what the advertiser-facing
+// "which pages do you want this on" checkout picker is built from, instead
+// of the owner's self-reported (and possibly stale/aspirational) websites.pages
+// list — an owner can register 6 pages but only ever have pasted the div on 1.
+exports.reportSpaceSeen = async (req, res) => {
+  try {
+    const { categoryId, path } = req.body || {};
+    if (!categoryId || typeof path !== 'string' || !path) {
+      return res.status(400).json({ success: false, message: 'categoryId and path are required' });
+    }
+    await AdCategory.recordDetectedPage(categoryId, path);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    // Beacon-fired, best-effort — never let this surface as a real error.
+    res.status(200).json({ success: false });
+  }
+};

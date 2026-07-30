@@ -154,24 +154,27 @@ exports.initiatePayment = async (req, res) => {
         return res.status(404).json({ error: `Category or website not found for: ${categoryId}` });
       }
 
-      // "All Pages" ad spaces (target_path IS NULL) on a site with 2+
-      // registered pages let the advertiser pick which of those pages the ad
-      // actually shows on. Picking more than one page doubles the price —
-      // a single-page-locked ad space (target_path set) or a site with fewer
-      // than 2 registered pages always charges the plain base price.
-      const websitePages = Array.isArray(website.pages)
-        ? website.pages
-        : (typeof website.pages === 'string' ? JSON.parse(website.pages || '[]') : []);
-      const pageSelectionEligible = category.target_path == null && websitePages.length >= 2;
+      // "All Pages" ad spaces (target_path IS NULL) let the advertiser pick
+      // which pages the ad actually shows on — but only from pages where the
+      // site-wide script has actually detected the category's placeholder
+      // div (ad_categories.detected_pages, populated by the reportSpaceSeen
+      // beacon), NOT the owner's self-reported websites.pages list. An owner
+      // can register 6 pages but only ever have pasted the div on 1 — the
+      // advertiser shouldn't be asked (or charged more) for pages the ad can
+      // never actually render on. Picking 2+ real placements doubles the price.
+      const detectedPages = Array.isArray(category.detected_pages)
+        ? category.detected_pages
+        : (typeof category.detected_pages === 'string' ? JSON.parse(category.detected_pages || '[]') : []);
+      const pageSelectionEligible = category.target_path == null && detectedPages.length >= 2;
 
       let selectedPages = null;
       let priceMultiplier = 1;
       if (pageSelectionEligible) {
-        const validPaths = new Set(websitePages.map((p) => p.path));
+        const validPaths = new Set(detectedPages);
         const requested = Array.isArray(selection.selectedPages)
           ? [...new Set(selection.selectedPages.filter((p) => validPaths.has(p)))]
           : [];
-        selectedPages = requested.length > 0 ? requested : websitePages.map((p) => p.path);
+        selectedPages = requested.length > 0 ? requested : detectedPages;
         priceMultiplier = selectedPages.length >= 2 ? 2 : 1;
       }
 

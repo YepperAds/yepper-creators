@@ -34,6 +34,7 @@ function catToClient(c) {
     placementMode: c.placement_mode,
     placeholderDiv: c.placeholder_div,
     targetPath: c.target_path,
+    detectedPages: typeof c.detected_pages === 'string' ? JSON.parse(c.detected_pages) : (c.detected_pages || []),
     webOwnerEmail: c.web_owner_email,
     defaultLanguage: c.default_language,
     customization: typeof c.customization === 'string' ? JSON.parse(c.customization) : (c.customization || null),

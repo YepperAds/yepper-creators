@@ -41,6 +41,15 @@ const AdCategory = {
     return rows[0] || null;
   },
   async delete(id) { await query(`DELETE FROM ad_categories WHERE id = $1`, [id]); },
+  // Best-effort, idempotent — the WHERE clause makes repeat beacons for a
+  // path already on file a no-op instead of growing the array unbounded.
+  async recordDetectedPage(id, path) {
+    await query(
+      `UPDATE ad_categories SET detected_pages = detected_pages || to_jsonb($2::text)
+       WHERE id = $1 AND NOT (detected_pages @> to_jsonb($2::text))`,
+      [id, path]
+    );
+  },
 };
 function toSnake(s){ return s.replace(/[A-Z]/g,c=>`_${c.toLowerCase()}`); }
 module.exports = AdCategory;

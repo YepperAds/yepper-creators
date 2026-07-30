@@ -492,6 +492,21 @@ exports.serveSiteScript = async (req, res) => {
     }catch(e){}
   }
 
+  /* ── Report a placeholder div actually found on this page (All Pages
+     spaces only — a single-page space already knows its one page via
+     targetPath). This is what populates the advertiser-facing "which pages
+     do you want this on" checkout picker with real placements instead of
+     the owner's self-reported websites.pages list. Server-side dedupe makes
+     repeat calls for an already-known path a cheap no-op. ── */
+  function reportSpaceSeen(sp){
+    try{
+      var payload=JSON.stringify({categoryId:sp.id,path:location.pathname});
+      var url=_b+'/space-seen';
+      if(navigator.sendBeacon){navigator.sendBeacon(url,new Blob([payload],{type:'application/json'}));}
+      else{fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:payload,mode:'cors',credentials:'omit'}).catch(function(){});}
+    }catch(e){}
+  }
+
   /* ── Load and render one space ────────────────────────── */
   function loadSpace(sp){
     /* A placeholder div is required for every space now — no auto-placement.
@@ -503,6 +518,7 @@ exports.serveSiteScript = async (req, res) => {
     var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
     if(!ph)return;
     if(sp.targetPath&&sp.targetPath!==location.pathname){reportPageMismatch(sp);return;}
+    if(!sp.targetPath)reportSpaceSeen(sp);
 
     var ck='?z='+sp.id+'&r='+Math.random().toString(36).slice(2);
 

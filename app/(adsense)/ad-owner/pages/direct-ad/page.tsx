@@ -209,6 +209,40 @@ function DirectAdvertise() {
     fetchData();
   }, [websiteId, categoryId]);
 
+  // Must match the tolerance in isImageSizeAcceptable, backend/AdPromoter/utils/adSpaceLayout.js —
+  // this is a UX-only pre-check, the backend call in createAdAndProceed() is the authoritative gate.
+  const checkImageDimensions = (selectedFile: File): Promise<{ ok: boolean; message?: string }> => {
+    return new Promise((resolve) => {
+      const expected = categoryInfo?.recommendedSize as { width: number; height: number } | undefined;
+      if (!expected) { resolve({ ok: true }); return; }
+
+      const url = URL.createObjectURL(selectedFile);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const { naturalWidth: w, naturalHeight: h } = img;
+        if (!w || !h) { resolve({ ok: true }); return; }
+
+        const targetRatio = expected.width / expected.height;
+        const actualRatio = w / h;
+        const ratioDelta = Math.abs(actualRatio - targetRatio) / targetRatio;
+        const tooSmall = w < expected.width * 0.5 || h < expected.height * 0.5;
+        const wrongShape = ratioDelta > 0.15;
+
+        if (!tooSmall && !wrongShape) { resolve({ ok: true }); return; }
+
+        resolve({
+          ok: false,
+          message: wrongShape
+            ? `This image is ${w}×${h}, but this ad space needs something close to ${expected.width}×${expected.height} (a ${targetRatio.toFixed(2)}:1 shape). Please upload a differently-sized image.`
+            : `This image is only ${w}×${h}, which is too small for this ad space. Please upload something closer to ${expected.width}×${expected.height} or larger.`,
+        });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve({ ok: true }); };
+      img.src = url;
+    });
+  };
+
   const processFile = async (selectedFile: File | null) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'];
     const maxSize = 25 * 1024 * 1024; // must match the backend multer limit in WebAdvertiseController.js
@@ -223,6 +257,14 @@ function DirectAdvertise() {
     if (selectedFile.size > maxSize) {
       setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB — please choose a smaller file.`);
       return;
+    }
+
+    if (selectedFile.type.startsWith('image/')) {
+      const dimCheck = await checkImageDimensions(selectedFile);
+      if (!dimCheck.ok) {
+        setError(dimCheck.message || 'This image doesn\'t fit this ad space.');
+        return;
+      }
     }
 
     setFile(null);
@@ -703,6 +745,12 @@ function DirectAdvertise() {
                   <label className="block text-sm font-medium text-subtle mb-2">
                     Upload Ad Media <span className="text-red-500">*</span>
                   </label>
+                  {categoryInfo?.recommendedSize && (
+                    <p className="text-xs text-muted mb-2">
+                      Recommended size: {(categoryInfo.recommendedSize as any).width}×{(categoryInfo.recommendedSize as any).height}px
+                      — images that don't roughly match this shape will be rejected.
+                    </p>
+                  )}
                   <div
                     onDrop={handleDrop}
                     onDragOver={(e) => e.preventDefault()}

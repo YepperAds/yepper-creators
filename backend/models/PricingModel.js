@@ -42,7 +42,7 @@ function canonicalSpace(s) {
 }
 
 const Pricing = {
-  SPACE_TYPES, TIERS, canonicalSpace,
+  SPACE_TYPES, TIERS, canonicalSpace, SPACE_ALIASES,
 
   // → { margin_percent: Number }
   async getSettings() {

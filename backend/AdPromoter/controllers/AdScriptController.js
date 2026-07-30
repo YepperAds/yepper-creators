@@ -5,6 +5,7 @@
 
 const AdCategory = require('../models/CreateCategoryModel');
 const { notifyDomainMismatch } = require('../../creators/utils/notificationUtils');
+const { placementCSS } = require('../utils/adSpaceLayout');
 
 // Only Floating and Modal are truly position-independent (position:fixed,
 // appended straight to <body>). Everything else now ships as a
@@ -34,148 +35,12 @@ function neutralClass(scriptId) {
 }
 
 // ── Position CSS per spaceType ────────────────────────────────
+// Delegates to the shared table in utils/adSpaceLayout.js (also used by
+// SiteScriptController.js) instead of keeping its own hand-copied variant —
+// this file previously drifted out of sync with the site-wide script's
+// version of the same sizing rules.
 function placementStyles(spaceType, prefix) {
-  const base = `
-    .${prefix}-host {
-      display: block;
-      width: 100%;
-      box-sizing: border-box;
-      position: relative;
-      overflow: visible;
-    }
-  `;
-
-  const variants = {
-    'Header': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 0 auto;
-        top: 0; left: 0;
-        z-index: 900;
-      }`,
-    'Above The Fold': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 0 auto 16px;
-      }`,
-    'Beneath Title': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 12px auto 20px;
-      }`,
-    'In Feed': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 16px auto;
-        border-radius: 12px;
-        overflow: hidden;
-      }`,
-    'Inline Content': `
-      .${prefix}-host {
-        float: right;
-        width: 300px;
-        margin: 0 0 12px 20px;
-        clear: right;
-      }
-      @media (max-width: 600px) {
-        .${prefix}-host { float: none; width: 100%; margin: 12px 0; }
-      }`,
-    'Sidebar': `
-      .${prefix}-host {
-        width: 100%;
-        margin: 0 0 16px 0;
-        max-width: 300px;
-      }`,
-    'Left Rail': `
-      .${prefix}-host {
-        width: 160px;
-        position: sticky;
-        top: 80px;
-        margin-right: 16px;
-      }
-      @media (max-width: 768px) {
-        .${prefix}-host { width: 100%; position: static; }
-      }`,
-    'rightRail': `
-      .${prefix}-host {
-        width: 160px;
-        position: sticky;
-        top: 80px;
-        margin-left: 16px;
-      }
-      @media (max-width: 768px) {
-        .${prefix}-host { width: 100%; position: static; }
-      }`,
-    'stickySidebar': `
-      .${prefix}-host {
-        position: sticky;
-        top: 80px;
-        width: 100%;
-        max-width: 300px;
-        z-index: 100;
-      }`,
-    'Floating': `
-      .${prefix}-host {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 320px;
-        z-index: 9999;
-        filter: drop-shadow(0 8px 24px rgba(0,0,0,0.18));
-      }
-      @media (max-width: 480px) {
-        .${prefix}-host { width: calc(100% - 32px); left: 16px; right: 16px; bottom: 16px; }
-      }`,
-    'Bottom': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 24px auto 0;
-      }`,
-    'proFooter': `
-      .${prefix}-host {
-        width: 100%;
-        max-width: 728px;
-        margin: 24px auto 0;
-      }`,
-    'overlay': `
-      .${prefix}-host {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(2px);
-      }`,
-    'modalPic': `
-      .${prefix}-host {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0,0,0,0.6);
-      }`,
-    'Mobile Interstitial': `
-      .${prefix}-host {
-        position: fixed;
-        bottom: 0; left: 0; right: 0;
-        z-index: 9999;
-        width: 100%;
-      }
-      @media (min-width: 769px) {
-        .${prefix}-host { display: none; }
-      }`,
-  };
-
-  return base + (variants[spaceType] || '');
+  return placementCSS(spaceType, prefix);
 }
 
 // ─────────────────────────────────────────────────────────────

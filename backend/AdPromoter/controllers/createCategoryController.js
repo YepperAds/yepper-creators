@@ -9,6 +9,7 @@ const Website = require('../models/CreateWebsiteModel');
 const WebOwnerBalance = require('../models/WebOwnerBalanceModel');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const Pricing = require('../../models/PricingModel');
+const { getDimensions } = require('../utils/adSpaceLayout');
 const sendEmailNotification = require('../../controllers/emailService');
 const { getSessionUserId } = require('../../creators/controllers/adSpaceController');
 
@@ -35,6 +36,7 @@ function catToClient(c) {
     placeholderDiv: c.placeholder_div,
     targetPath: c.target_path,
     detectedPages: typeof c.detected_pages === 'string' ? JSON.parse(c.detected_pages) : (c.detected_pages || []),
+    recommendedSize: getDimensions(c.space_type),
     webOwnerEmail: c.web_owner_email,
     defaultLanguage: c.default_language,
     customization: typeof c.customization === 'string' ? JSON.parse(c.customization) : (c.customization || null),

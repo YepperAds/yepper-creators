@@ -1439,11 +1439,13 @@
 // WebAdvertiseController.js (PostgreSQL)
 const multer = require('multer');
 const path = require('path');
+const { imageSize } = require('image-size');
 const cloudinary = require('../../config/storage');
 const ImportAd = require('../models/WebAdvertiseModel');
 const AdCategory = require('../../AdPromoter/models/CreateCategoryModel');
 const Payment = require('../models/PaymentModel');
 const { getClient } = require('../../config/db');
+const { isImageSizeAcceptable } = require('../../AdPromoter/utils/adSpaceLayout');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1608,7 +1610,58 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
 
     console.log('Parsed arrays:', { websitesArray, categoriesArray });
 
-    // File upload
+    // Only fetch categories if selections exist — moved ahead of the file
+    // upload block so the target ad space's space_type is known before we
+    // touch Cloudinary (needed for the image-dimension check below: reject
+    // a wrongly-shaped creative before spending an upload on it, not after).
+    let categories = [];
+    let websiteSelections = [];
+    if (categoriesArray.length > 0) {
+      console.log('Fetching categories...');
+      try {
+        categories = (await Promise.all(categoriesArray.map(id => AdCategory.findById(id)))).filter(Boolean);
+        if (categories.length === 0) {
+          return res.status(404).json({
+            error: 'Categories Not Found',
+            message: 'No valid categories found for the provided IDs',
+          });
+        }
+        console.log(`Found ${categories.length} categories`);
+      } catch (categoryError) {
+        console.error('Category fetch error:', categoryError);
+        return res.status(500).json({ error: 'Database Error', message: 'Failed to fetch categories' });
+      }
+
+      // Only meaningful when buying exactly one ad space at a time (the live
+      // direct-ad flow always sends one) — a bulk purchase across categories
+      // with different recommended sizes has no single "right" shape to check.
+      if (categories.length === 1 && req.file && req.file.mimetype.startsWith('image')) {
+        try {
+          const { width, height } = imageSize(req.file.buffer);
+          const check = isImageSizeAcceptable(categories[0].space_type, width, height);
+          if (!check.ok) {
+            return res.status(400).json({ error: 'Image Size Mismatch', message: check.message });
+          }
+        } catch (dimError) {
+          // Unreadable buffer (corrupt/unsupported encoding) — let it through,
+          // Cloudinary's own upload will reject a genuinely broken file.
+          console.warn('Could not read image dimensions for size check:', dimError.message);
+        }
+      }
+
+      websiteSelections = buildWebsiteSelections(websitesArray, categoriesArray, categories);
+      console.log('Valid website selections:', websiteSelections);
+
+      if (websiteSelections.length === 0 && websitesArray.length > 0) {
+        return res.status(400).json({
+          error: 'Invalid Selection',
+          message: 'No valid website and category combinations found. Please ensure the selected categories belong to the selected websites.',
+        });
+      }
+    }
+
+    // File upload — runs after the size check above so a rejected image
+    // never reaches Cloudinary.
     let imageUrl = '', videoUrl = '', pdfUrl = '';
     if (req.file) {
       const resourceType = req.file.mimetype.startsWith('video') ? 'video'
@@ -1630,36 +1683,6 @@ exports.createImportAd = [upload.single('file'), async (req, res) => {
       if (req.file.mimetype.startsWith('image')) imageUrl = publicUrl;
       else if (req.file.mimetype.startsWith('video')) videoUrl = publicUrl;
       else if (req.file.mimetype === 'application/pdf') pdfUrl = publicUrl;
-    }
-
-    // Only fetch categories if selections exist
-    let categories = [];
-    let websiteSelections = [];
-    if (categoriesArray.length > 0) {
-      console.log('Fetching categories...');
-      try {
-        categories = (await Promise.all(categoriesArray.map(id => AdCategory.findById(id)))).filter(Boolean);
-        if (categories.length === 0) {
-          return res.status(404).json({
-            error: 'Categories Not Found',
-            message: 'No valid categories found for the provided IDs',
-          });
-        }
-        console.log(`Found ${categories.length} categories`);
-      } catch (categoryError) {
-        console.error('Category fetch error:', categoryError);
-        return res.status(500).json({ error: 'Database Error', message: 'Failed to fetch categories' });
-      }
-
-      websiteSelections = buildWebsiteSelections(websitesArray, categoriesArray, categories);
-      console.log('Valid website selections:', websiteSelections);
-
-      if (websiteSelections.length === 0 && websitesArray.length > 0) {
-        return res.status(400).json({
-          error: 'Invalid Selection',
-          message: 'No valid website and category combinations found. Please ensure the selected categories belong to the selected websites.',
-        });
-      }
     }
 
     // Authenticated user — authMiddleware already embeds email/id from the JWT, no DB lookup needed

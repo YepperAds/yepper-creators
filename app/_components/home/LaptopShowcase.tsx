@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { motion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, useInView, type Variants } from 'framer-motion';
 import SectionIntro from './SectionIntro';
 
 // Real, editorial-grade food photography (Unsplash) standing in for a
@@ -15,6 +16,8 @@ const CARD_PHOTOS = [
   { src: 'https://images.unsplash.com/photo-1502741384106-56538427cde9?q=80&w=600&auto=format&fit=crop', caption: 'A well-stocked pantry' },
 ];
 const AD_PHOTO = 'https://images.unsplash.com/photo-1757801333069-f7b3cabaec4a?q=80&w=500&auto=format&fit=crop';
+const AD_NAME = 'Cold-Pressed Olive Oil';
+const AD_BRAND = 'Olivera';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -33,33 +36,131 @@ const rise: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease } },
 };
 
-const adIn: Variants = {
-  hidden: { opacity: 0, scale: 0.7, y: 18, rotate: -8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    rotate: -3,
-    transition: { type: 'spring', stiffness: 280, damping: 20, delay: 0.55 },
-  },
-};
+// The same real Yepper ad-space types as app/_lib/ad-spaces.ts — one
+// creative, three placements, cycling to show it's the same booked ad
+// showing up wherever the publisher sold the space.
+const PLACEMENTS = ['floating', 'header', 'modal'] as const;
+type Placement = (typeof PLACEMENTS)[number];
+const CYCLE_MS = 3200;
+
+function FloatingAd() {
+  return (
+    <motion.div
+      key="floating"
+      initial={{ opacity: 0, scale: 0.7, y: 18, rotate: -8 }}
+      animate={{ opacity: 1, scale: 1, y: 0, rotate: -3 }}
+      exit={{ opacity: 0, scale: 0.85, y: 8, transition: { duration: 0.2, ease: 'easeIn' } }}
+      transition={{ type: 'spring', stiffness: 280, damping: 20 }}
+      className="absolute -right-3 bottom-10 sm:-right-8 sm:bottom-16 w-32 sm:w-44 z-10"
+    >
+      <div className="yp-float rounded-xl sm:rounded-2xl bg-white p-2 sm:p-2.5 shadow-[0_18px_40px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
+        <div className="relative rounded-lg overflow-hidden aspect-[4/3]">
+          <Image src={AD_PHOTO} alt="" fill sizes="180px" className="object-cover" />
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[7px] sm:text-[8px] font-bold text-white uppercase tracking-wide">
+            Floating ad
+          </span>
+        </div>
+        <div className="pt-1.5 sm:pt-2 px-0.5">
+          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{AD_NAME}</p>
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-[8px] sm:text-[9px] text-black/45">{AD_BRAND}</span>
+            <span className="text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function HeaderAd() {
+  return (
+    <motion.div
+      key="header"
+      initial={{ opacity: 0, y: -14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10, transition: { duration: 0.2, ease: 'easeIn' } }}
+      transition={{ duration: 0.32, ease }}
+      className="absolute inset-x-3 sm:inset-x-5 top-[30px] sm:top-[34px] z-20 flex items-center gap-1.5 sm:gap-2.5 pl-1.5 pr-2 sm:pl-2 sm:pr-3 py-1.5 rounded-md bg-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
+    >
+      <span className="shrink-0 px-1.5 py-0.5 rounded bg-black/70 text-[6px] sm:text-[7px] font-bold text-white uppercase tracking-wide">
+        Header ad
+      </span>
+      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded overflow-hidden shrink-0">
+        <Image src={AD_PHOTO} alt="" fill sizes="40px" className="object-cover" />
+      </div>
+      <p className="min-w-0 flex-1 text-[8px] sm:text-[10px] font-bold text-[#1F1B16] truncate">
+        {AD_NAME} <span className="font-medium text-black/45">— {AD_BRAND}</span>
+      </p>
+      <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+    </motion.div>
+  );
+}
+
+function ModalAd() {
+  return (
+    <motion.div
+      key="modal"
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black/45"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.18 } }}
+      transition={{ duration: 0.28 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.18 } }}
+        transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+        className="relative w-[70%] sm:w-[52%] rounded-lg sm:rounded-xl bg-white shadow-2xl overflow-hidden"
+      >
+        <span className="absolute top-1 right-1 z-10 flex items-center justify-center w-4 h-4 rounded-full bg-black/55 text-white text-[8px] leading-none">
+          &times;
+        </span>
+        <div className="relative aspect-[4/3]">
+          <Image src={AD_PHOTO} alt="" fill sizes="220px" className="object-cover" />
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/60 text-[6px] sm:text-[7px] font-bold text-white uppercase tracking-wide">
+            Modal ad
+          </span>
+        </div>
+        <div className="p-2 sm:p-2.5">
+          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{AD_NAME}</p>
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-[8px] sm:text-[9px] text-black/45">{AD_BRAND}</span>
+            <span className="text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function LaptopShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(containerRef, { once: true, amount: 0.25 });
+
+  const [placementIndex, setPlacementIndex] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    const id = setInterval(() => setPlacementIndex((n) => (n + 1) % PLACEMENTS.length), CYCLE_MS);
+    return () => clearInterval(id);
+  }, [inView]);
+  const placement: Placement | null = inView ? PLACEMENTS[placementIndex] : null;
+
   return (
     <section className="relative pt-4 pb-4 sm:pb-8">
       <SectionIntro
         eyebrow="See it live"
         title="This is what your ad looks like."
-        body="Not a banner farm. A real placement on a real page — the same page a publisher's actual readers see."
+        body="Same booked ad, three real placements — floating, header, and modal — on the same page a publisher's actual readers see."
         accent="blue"
       />
 
       <motion.div
+        ref={containerRef}
         className="relative mx-auto max-w-3xl px-2 pb-10 sm:pb-14"
         style={{ perspective: 1400 }}
         initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.25 }}
+        animate={inView ? 'visible' : 'hidden'}
       >
         <motion.div variants={laptopIn} className="relative">
           {/* ── Screen ─────────────────────────────────────────────── */}
@@ -131,6 +232,13 @@ export default function LaptopShowcase() {
                     </div>
                   ))}
                 </motion.div>
+
+                {/* Header + modal placements live inside the page body, same
+                    stacking context as the content they sit over. */}
+                <AnimatePresence>
+                  {placement === 'header' && <HeaderAd />}
+                  {placement === 'modal' && <ModalAd />}
+                </AnimatePresence>
               </div>
             </motion.div>
           </div>
@@ -146,27 +254,9 @@ export default function LaptopShowcase() {
           </div>
           <div aria-hidden className="mx-auto mt-3 h-4 sm:h-6 w-[70%] rounded-full bg-black/25 blur-xl" />
 
-          {/* ── Floating ad, popped off the corner of the browser ──── */}
-          <motion.div
-            variants={adIn}
-            className="absolute -right-3 bottom-10 sm:-right-8 sm:bottom-16 w-32 sm:w-44 z-10"
-          >
-            <div className="yp-float rounded-xl sm:rounded-2xl bg-white p-2 sm:p-2.5 shadow-[0_18px_40px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
-              <div className="relative rounded-lg overflow-hidden aspect-[4/3]">
-                <Image src={AD_PHOTO} alt="" fill sizes="180px" className="object-cover" />
-                <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[7px] sm:text-[8px] font-bold text-white uppercase tracking-wide">
-                  Ad
-                </span>
-              </div>
-              <div className="pt-1.5 sm:pt-2 px-0.5">
-                <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">Cold-Pressed Olive Oil</p>
-                <div className="mt-1.5 flex items-center justify-between">
-                  <span className="text-[8px] sm:text-[9px] text-black/45">Olivera</span>
-                  <span className="text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          {/* Floating placement pops off the laptop's own corner, outside
+              the screen bezel — it's meant to float over the whole page. */}
+          <AnimatePresence>{placement === 'floating' && <FloatingAd />}</AnimatePresence>
         </motion.div>
       </motion.div>
     </section>

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import HomeHeader from './HomeHeader';
 import Hero from './Hero';
-import LaptopShowcase from './LaptopShowcase';
 import WebsiteRow from './WebsiteRow';
 import HotDealsSection from './HotDealsSection';
 import SectionIntro from './SectionIntro';
@@ -32,7 +31,6 @@ export default function HomePage({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Hero />
-        <LaptopShowcase />
       </div>
 
       <div id="explore" className="scroll-mt-24">

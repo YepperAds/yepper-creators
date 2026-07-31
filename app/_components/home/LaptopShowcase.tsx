@@ -171,15 +171,14 @@ export default function LaptopShowcase() {
   const placement: Placement | null = inView ? PLACEMENTS[placementIndex] : null;
 
   return (
-    <section className="relative -mt-16 sm:-mt-24 pb-10 sm:pb-14">
-      <motion.div
-        ref={containerRef}
-        className="relative mx-auto max-w-3xl px-3 sm:px-8"
-        style={{ perspective: 1400 }}
-        initial="hidden"
-        animate={inView ? 'visible' : 'hidden'}
-      >
-        <motion.div variants={laptopIn} className="relative">
+    <motion.div
+      ref={containerRef}
+      className="relative w-full max-w-md mx-auto"
+      style={{ perspective: 1400 }}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+    >
+      <motion.div variants={laptopIn} className="relative">
           {/* ── Screen ─────────────────────────────────────────────── */}
           <div
             className="relative rounded-[22px] bg-[#141416] p-2.5 sm:p-3.5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.35)]"
@@ -277,6 +276,6 @@ export default function LaptopShowcase() {
           <AnimatePresence>{placement === 'floating' && <FloatingAd />}</AnimatePresence>
         </motion.div>
       </motion.div>
-    </section>
+    </motion.div>
   );
 }

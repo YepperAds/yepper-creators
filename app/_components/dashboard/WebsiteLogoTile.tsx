@@ -2,12 +2,10 @@ import { GlobeAltIcon } from '@heroicons/react/24/solid';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
 // A flat gradient alone doesn't read as "a website", so each tile is framed
-// as a little browser window: a chrome bar up top carrying the site's real
-// logo (favicon position, top-left) and its real domain (address-bar
-// position), sat above a brand-colored page body. Gradient is deterministic
-// per site (stable across renders, not random) so the same site always gets
-// the same look; the light-sweep animation is the non-video equivalent of
-// the YouTube cards' autoplay loop, so the "page" isn't just sitting static.
+// as a little browser window: a chrome bar up top carrying the real domain
+// (address-bar position), sat above a brand-colored page body with the
+// site's real logo in it. Gradient is deterministic per site (stable across
+// renders, not random) so the same site always gets the same look.
 function siteGradient(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
@@ -47,8 +45,8 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
         {/* Mini nav bar, tinted in the site's brand gradient: the site's own
             logo sits in the circle at real size instead of an empty dot, so
             it's the one unmistakable "this is that site" cue on the card. */}
-        <div className="h-[34%] flex items-center gap-[6%] px-[10%]" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
-          <span className="flex items-center justify-center w-[26%] aspect-square rounded-full bg-[#fff] ring-2 ring-[#fff]/40 shrink-0 overflow-hidden">
+        <div className="h-[26%] flex items-center gap-[6%] px-[10%]" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
+          <span className="flex items-center justify-center w-[16%] aspect-square rounded-full bg-[#fff] ring-2 ring-[#fff]/40 shrink-0 overflow-hidden">
             {website.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={website.imageUrl} alt="" className="w-full h-full object-contain" />
@@ -74,8 +72,6 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
             <div className="flex-1 aspect-square rounded-md bg-slate-200" />
           </div>
         </div>
-
-        <div className="yp-shimmer absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-[#fff]/50 to-transparent" />
       </div>
     </div>
   );

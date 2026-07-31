@@ -5,19 +5,16 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useInView, type Variants } from 'framer-motion';
 import SectionIntro from './SectionIntro';
 
-// Real, editorial-grade food photography (Unsplash) standing in for a
-// publisher's actual site — the point of this section is "here's what your
-// ad looks like sitting on a real page," so the mock page has to look like
-// somewhere a person would actually stop and read, not a gray wireframe.
+// Real, editorial-grade photography (Unsplash) standing in for a publisher's
+// actual site — the point of this section is "here's what your ad looks
+// like sitting on a real page," so the mock page has to look like somewhere
+// a person would actually stop and read, not a gray wireframe.
 const HERO_PHOTO = 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1400&auto=format&fit=crop';
 const CARD_PHOTOS = [
-  { src: 'https://images.unsplash.com/photo-1694458557352-4b8ca744dea7?q=80&w=600&auto=format&fit=crop', caption: 'Golden pancake stack' },
-  { src: 'https://images.unsplash.com/photo-1564844536308-75c540dbf14e?q=80&w=600&auto=format&fit=crop', caption: 'Midnight chocolate cake' },
-  { src: 'https://images.unsplash.com/photo-1502741384106-56538427cde9?q=80&w=600&auto=format&fit=crop', caption: 'A well-stocked pantry' },
+  { src: 'https://images.unsplash.com/photo-1694458557352-4b8ca744dea7?q=80&w=600&auto=format&fit=crop', caption: 'Weekend brunch spots trending across the city' },
+  { src: 'https://images.unsplash.com/photo-1564844536308-75c540dbf14e?q=80&w=600&auto=format&fit=crop', caption: 'Local bakery wins national award' },
+  { src: 'https://images.unsplash.com/photo-1502741384106-56538427cde9?q=80&w=600&auto=format&fit=crop', caption: 'Tariffs squeeze specialty grocers nationwide' },
 ];
-const AD_PHOTO = 'https://images.unsplash.com/photo-1757801333069-f7b3cabaec4a?q=80&w=500&auto=format&fit=crop';
-const AD_NAME = 'Cold-Pressed Olive Oil';
-const AD_BRAND = 'Olivera';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -36,14 +33,40 @@ const rise: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease } },
 };
 
-// The same real Yepper ad-space types as app/_lib/ad-spaces.ts — one
-// creative, three placements, cycling to show it's the same booked ad
-// showing up wherever the publisher sold the space.
+// Three real Yepper ad-space types (see app/_lib/ad-spaces.ts) — one
+// publisher page, three different advertisers, each booked into a
+// different placement, cycling to show the variety of ads a single page
+// can carry at once.
+const ADS = {
+  floating: {
+    label: 'Floating ad',
+    photo: 'https://images.unsplash.com/photo-1748944079305-8d2a86e7ad32?q=80&w=500&auto=format&fit=crop',
+    name: 'Precision Manufacturing',
+    brand: 'Ironline Industrial',
+    cta: 'Get a quote →',
+  },
+  header: {
+    label: 'Header ad',
+    photo: 'https://images.unsplash.com/photo-1757889692998-d851b95f912e?q=80&w=500&auto=format&fit=crop',
+    name: 'Poolside Suites, Ocean View',
+    brand: 'The Meridian Hotel',
+    cta: 'Reserve now →',
+  },
+  modal: {
+    label: 'Modal ad',
+    photo: 'https://images.unsplash.com/photo-1764591696226-ea4e8d655bc7?q=80&w=500&auto=format&fit=crop',
+    name: 'Business Banking, Simplified',
+    brand: 'Crestline Bank',
+    cta: 'Open an account →',
+  },
+} as const;
+
 const PLACEMENTS = ['floating', 'header', 'modal'] as const;
 type Placement = (typeof PLACEMENTS)[number];
 const CYCLE_MS = 3200;
 
 function FloatingAd() {
+  const ad = ADS.floating;
   return (
     <motion.div
       key="floating"
@@ -55,16 +78,16 @@ function FloatingAd() {
     >
       <div className="yp-float rounded-xl sm:rounded-2xl bg-white p-2 sm:p-2.5 shadow-[0_18px_40px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
         <div className="relative rounded-lg overflow-hidden aspect-[4/3]">
-          <Image src={AD_PHOTO} alt="" fill sizes="180px" className="object-cover" />
+          <Image src={ad.photo} alt="" fill sizes="180px" className="object-cover" />
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[7px] sm:text-[8px] font-bold text-white uppercase tracking-wide">
-            Floating ad
+            {ad.label}
           </span>
         </div>
         <div className="pt-1.5 sm:pt-2 px-0.5">
-          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{AD_NAME}</p>
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-[8px] sm:text-[9px] text-black/45">{AD_BRAND}</span>
-            <span className="text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{ad.name}</p>
+          <div className="mt-1.5 flex items-center justify-between gap-1">
+            <span className="text-[8px] sm:text-[9px] text-black/45 truncate">{ad.brand}</span>
+            <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">{ad.cta}</span>
           </div>
         </div>
       </div>
@@ -73,6 +96,7 @@ function FloatingAd() {
 }
 
 function HeaderAd() {
+  const ad = ADS.header;
   return (
     <motion.div
       key="header"
@@ -83,20 +107,21 @@ function HeaderAd() {
       className="absolute inset-x-3 sm:inset-x-5 top-[30px] sm:top-[34px] z-20 flex items-center gap-1.5 sm:gap-2.5 pl-1.5 pr-2 sm:pl-2 sm:pr-3 py-1.5 rounded-md bg-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
     >
       <span className="shrink-0 px-1.5 py-0.5 rounded bg-black/70 text-[6px] sm:text-[7px] font-bold text-white uppercase tracking-wide">
-        Header ad
+        {ad.label}
       </span>
       <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded overflow-hidden shrink-0">
-        <Image src={AD_PHOTO} alt="" fill sizes="40px" className="object-cover" />
+        <Image src={ad.photo} alt="" fill sizes="40px" className="object-cover" />
       </div>
       <p className="min-w-0 flex-1 text-[8px] sm:text-[10px] font-bold text-[#1F1B16] truncate">
-        {AD_NAME} <span className="font-medium text-black/45">— {AD_BRAND}</span>
+        {ad.name} <span className="font-medium text-black/45">— {ad.brand}</span>
       </p>
-      <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+      <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">{ad.cta}</span>
     </motion.div>
   );
 }
 
 function ModalAd() {
+  const ad = ADS.modal;
   return (
     <motion.div
       key="modal"
@@ -117,16 +142,16 @@ function ModalAd() {
           &times;
         </span>
         <div className="relative aspect-[4/3]">
-          <Image src={AD_PHOTO} alt="" fill sizes="220px" className="object-cover" />
+          <Image src={ad.photo} alt="" fill sizes="220px" className="object-cover" />
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/60 text-[6px] sm:text-[7px] font-bold text-white uppercase tracking-wide">
-            Modal ad
+            {ad.label}
           </span>
         </div>
         <div className="p-2 sm:p-2.5">
-          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{AD_NAME}</p>
-          <div className="mt-1 flex items-center justify-between">
-            <span className="text-[8px] sm:text-[9px] text-black/45">{AD_BRAND}</span>
-            <span className="text-[8px] sm:text-[10px] font-bold text-coral">Shop now →</span>
+          <p className="text-[9px] sm:text-[11px] font-bold text-[#1F1B16] leading-tight truncate">{ad.name}</p>
+          <div className="mt-1 flex items-center justify-between gap-1">
+            <span className="text-[8px] sm:text-[9px] text-black/45 truncate">{ad.brand}</span>
+            <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">{ad.cta}</span>
           </div>
         </div>
       </motion.div>
@@ -151,7 +176,7 @@ export default function LaptopShowcase() {
       <SectionIntro
         eyebrow="See it live"
         title="This is what your ad looks like."
-        body="Same booked ad, three real placements — floating, header, and modal — on the same page a publisher's actual readers see."
+        body="Three advertisers, three real placements — floating, header, and modal — all on the same page a publisher's actual readers see."
         accent="blue"
       />
 
@@ -180,7 +205,7 @@ export default function LaptopShowcase() {
                 <span className="w-2 h-2 rounded-full bg-[#fbbf24]" />
                 <span className="w-2 h-2 rounded-full bg-[#4ade80]" />
                 <span className="ml-2 flex-1 max-w-[220px] h-4 rounded-full bg-white border border-black/5 flex items-center px-2.5 text-[9px] sm:text-[10px] text-black/40 truncate">
-                  thymeandtable.com
+                  newswebsite.com
                 </span>
               </motion.div>
 
@@ -189,16 +214,16 @@ export default function LaptopShowcase() {
                 {/* Masthead nav */}
                 <motion.div variants={rise} className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5">
                   <span className="text-[11px] sm:text-sm font-bold font-(--font-display) text-[#1F1B16] tracking-tight">
-                    Thyme &amp; Table
+                    News Website
                   </span>
                   <div className="hidden sm:flex items-center gap-3 text-[9px] text-black/45 font-medium">
-                    <span>Recipes</span>
-                    <span>Baking</span>
-                    <span>Journal</span>
+                    <span>World</span>
+                    <span>Business</span>
+                    <span>Markets</span>
                   </div>
                 </motion.div>
 
-                {/* Hero photo with baked-in title */}
+                {/* Hero photo with baked-in headline */}
                 <motion.div variants={rise} className="relative mx-3 sm:mx-5 rounded-lg overflow-hidden aspect-[16/7]">
                   <Image
                     src={HERO_PHOTO}
@@ -211,16 +236,17 @@ export default function LaptopShowcase() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-4">
                     <p className="text-white font-(--font-display) font-bold text-[13px] sm:text-xl leading-tight [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
-                      Recipes worth the mess.
+                      Grocery prices climb as supply chains tighten.
                     </p>
-                    <p className="hidden sm:block text-white/80 text-[10px] mt-0.5">Slow weekends, fast weeknights.</p>
+                    <p className="hidden sm:block text-white/80 text-[10px] mt-0.5">What it means for shoppers this quarter.</p>
                   </div>
                 </motion.div>
 
-                {/* Recipe card row — fixed-height strip (not aspect-driven) so it
-                    reliably fits inside the screen's 16:10 box regardless of
-                    viewport width; captions sit on the image, same treatment
-                    as the hero, instead of taking their own line. */}
+                {/* More-stories row — fixed-height strip (not aspect-driven)
+                    so it reliably fits inside the screen's 16:10 box
+                    regardless of viewport width; captions sit on the image,
+                    same treatment as the hero, instead of taking their own
+                    line. */}
                 <motion.div variants={rise} className="hidden sm:flex gap-2 px-5 pt-3">
                   {CARD_PHOTOS.map((c) => (
                     <div key={c.caption} className="relative flex-1 h-14 sm:h-16 rounded-md overflow-hidden">

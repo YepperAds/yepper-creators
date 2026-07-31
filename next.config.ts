@@ -4,6 +4,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https' as const, hostname: 'images.unsplash.com' },
+    ],
+  },
   experimental: {
     cpus: 1,
   },

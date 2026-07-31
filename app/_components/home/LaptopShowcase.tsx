@@ -179,102 +179,101 @@ export default function LaptopShowcase() {
       animate={inView ? 'visible' : 'hidden'}
     >
       <motion.div variants={laptopIn} className="relative">
-          {/* ── Screen ─────────────────────────────────────────────── */}
-          <div
-            className="relative rounded-[22px] bg-[#141416] p-2.5 sm:p-3.5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.35)]"
-            style={{ transform: 'rotateX(6deg)', transformOrigin: '50% 100%' }}
-          >
-            <div aria-hidden className="absolute left-1/2 top-1.5 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#3a3a3d]" />
+        {/* ── Screen ─────────────────────────────────────────────── */}
+        <div
+          className="relative rounded-[22px] bg-[#141416] p-2.5 sm:p-3.5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.35)]"
+          style={{ transform: 'rotateX(6deg)', transformOrigin: '50% 100%' }}
+        >
+          <div aria-hidden className="absolute left-1/2 top-1.5 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#3a3a3d]" />
 
-            <motion.div
-              variants={screenStagger}
-              className="relative rounded-[10px] overflow-hidden bg-white aspect-[16/10]"
-            >
-              {/* Browser chrome */}
-              <motion.div variants={rise} className="h-7 sm:h-8 flex items-center gap-2 px-3 bg-[#F3F2EE] border-b border-black/5">
-                <span className="w-2 h-2 rounded-full bg-[#f87171]" />
-                <span className="w-2 h-2 rounded-full bg-[#fbbf24]" />
-                <span className="w-2 h-2 rounded-full bg-[#4ade80]" />
-                <span className="ml-2 flex-1 max-w-[220px] h-4 rounded-full bg-white border border-black/5 flex items-center px-2.5 text-[9px] sm:text-[10px] text-black/40 truncate">
-                  newswebsite.com
+          <motion.div
+            variants={screenStagger}
+            className="relative rounded-[10px] overflow-hidden bg-white aspect-[16/10]"
+          >
+            {/* Browser chrome */}
+            <motion.div variants={rise} className="h-7 sm:h-8 flex items-center gap-2 px-3 bg-[#F3F2EE] border-b border-black/5">
+              <span className="w-2 h-2 rounded-full bg-[#f87171]" />
+              <span className="w-2 h-2 rounded-full bg-[#fbbf24]" />
+              <span className="w-2 h-2 rounded-full bg-[#4ade80]" />
+              <span className="ml-2 flex-1 max-w-[220px] h-4 rounded-full bg-white border border-black/5 flex items-center px-2.5 text-[9px] sm:text-[10px] text-black/40 truncate">
+                newswebsite.com
+              </span>
+            </motion.div>
+
+            {/* Mock site body */}
+            <div className="relative h-[calc(100%-1.75rem)] sm:h-[calc(100%-2rem)] overflow-hidden">
+              {/* Masthead nav */}
+              <motion.div variants={rise} className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5">
+                <span className="text-[11px] sm:text-sm font-bold font-(--font-display) text-[#1F1B16] tracking-tight">
+                  News Website
                 </span>
+                <div className="hidden sm:flex items-center gap-3 text-[9px] text-black/45 font-medium">
+                  <span>World</span>
+                  <span>Business</span>
+                  <span>Markets</span>
+                </div>
               </motion.div>
 
-              {/* Mock site body */}
-              <div className="relative h-[calc(100%-1.75rem)] sm:h-[calc(100%-2rem)] overflow-hidden">
-                {/* Masthead nav */}
-                <motion.div variants={rise} className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5">
-                  <span className="text-[11px] sm:text-sm font-bold font-(--font-display) text-[#1F1B16] tracking-tight">
-                    News Website
-                  </span>
-                  <div className="hidden sm:flex items-center gap-3 text-[9px] text-black/45 font-medium">
-                    <span>World</span>
-                    <span>Business</span>
-                    <span>Markets</span>
-                  </div>
-                </motion.div>
+              {/* Hero photo with baked-in headline */}
+              <motion.div variants={rise} className="relative mx-3 sm:mx-5 rounded-lg overflow-hidden aspect-[16/7]">
+                <Image
+                  src={HERO_PHOTO}
+                  alt=""
+                  fill
+                  sizes="(min-width: 640px) 620px, 90vw"
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-4">
+                  <p className="text-white font-(--font-display) font-bold text-[13px] sm:text-xl leading-tight [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
+                    Grocery prices climb as supply chains tighten.
+                  </p>
+                  <p className="hidden sm:block text-white/80 text-[10px] mt-0.5">What it means for shoppers this quarter.</p>
+                </div>
+              </motion.div>
 
-                {/* Hero photo with baked-in headline */}
-                <motion.div variants={rise} className="relative mx-3 sm:mx-5 rounded-lg overflow-hidden aspect-[16/7]">
-                  <Image
-                    src={HERO_PHOTO}
-                    alt=""
-                    fill
-                    sizes="(min-width: 640px) 620px, 90vw"
-                    className="object-cover"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-4">
-                    <p className="text-white font-(--font-display) font-bold text-[13px] sm:text-xl leading-tight [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
-                      Grocery prices climb as supply chains tighten.
+              {/* More-stories row — fixed-height strip (not aspect-driven)
+                  so it reliably fits inside the screen's 16:10 box
+                  regardless of viewport width; captions sit on the image,
+                  same treatment as the hero, instead of taking their own
+                  line. */}
+              <motion.div variants={rise} className="hidden sm:flex gap-2 px-5 pt-3">
+                {CARD_PHOTOS.map((c) => (
+                  <div key={c.caption} className="relative flex-1 h-14 sm:h-16 rounded-md overflow-hidden">
+                    <Image src={c.src} alt="" fill sizes="180px" className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+                    <p className="absolute bottom-1 left-1.5 right-1.5 text-[7px] sm:text-[8px] font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
+                      {c.caption}
                     </p>
-                    <p className="hidden sm:block text-white/80 text-[10px] mt-0.5">What it means for shoppers this quarter.</p>
                   </div>
-                </motion.div>
+                ))}
+              </motion.div>
 
-                {/* More-stories row — fixed-height strip (not aspect-driven)
-                    so it reliably fits inside the screen's 16:10 box
-                    regardless of viewport width; captions sit on the image,
-                    same treatment as the hero, instead of taking their own
-                    line. */}
-                <motion.div variants={rise} className="hidden sm:flex gap-2 px-5 pt-3">
-                  {CARD_PHOTOS.map((c) => (
-                    <div key={c.caption} className="relative flex-1 h-14 sm:h-16 rounded-md overflow-hidden">
-                      <Image src={c.src} alt="" fill sizes="180px" className="object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
-                      <p className="absolute bottom-1 left-1.5 right-1.5 text-[7px] sm:text-[8px] font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
-                        {c.caption}
-                      </p>
-                    </div>
-                  ))}
-                </motion.div>
+              {/* Header + modal placements live inside the page body, same
+                  stacking context as the content they sit over. */}
+              <AnimatePresence>
+                {placement === 'header' && <HeaderAd />}
+                {placement === 'modal' && <ModalAd />}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
 
-                {/* Header + modal placements live inside the page body, same
-                    stacking context as the content they sit over. */}
-                <AnimatePresence>
-                  {placement === 'header' && <HeaderAd />}
-                  {placement === 'modal' && <ModalAd />}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          </div>
+        {/* ── Hinge + base ───────────────────────────────────────── */}
+        <div aria-hidden className="h-1 sm:h-1.5 bg-gradient-to-b from-[#0c0c0d] to-[#2a2a2d]" />
+        <div
+          aria-hidden
+          className="relative h-3 sm:h-4 bg-gradient-to-b from-[#d8d8dc] to-[#a9a9ae]"
+          style={{ clipPath: 'polygon(-4% 0%, 104% 0%, 96% 100%, 4% 100%)' }}
+        >
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 w-14 sm:w-20 h-1 sm:h-1.5 rounded-b-md bg-black/15" />
+        </div>
+        <div aria-hidden className="mx-auto mt-3 h-4 sm:h-6 w-[70%] rounded-full bg-black/25 blur-xl" />
 
-          {/* ── Hinge + base ───────────────────────────────────────── */}
-          <div aria-hidden className="h-1 sm:h-1.5 bg-gradient-to-b from-[#0c0c0d] to-[#2a2a2d]" />
-          <div
-            aria-hidden
-            className="relative h-3 sm:h-4 bg-gradient-to-b from-[#d8d8dc] to-[#a9a9ae]"
-            style={{ clipPath: 'polygon(-4% 0%, 104% 0%, 96% 100%, 4% 100%)' }}
-          >
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 w-14 sm:w-20 h-1 sm:h-1.5 rounded-b-md bg-black/15" />
-          </div>
-          <div aria-hidden className="mx-auto mt-3 h-4 sm:h-6 w-[70%] rounded-full bg-black/25 blur-xl" />
-
-          {/* Floating placement pops off the laptop's own corner, outside
-              the screen bezel — it's meant to float over the whole page. */}
-          <AnimatePresence>{placement === 'floating' && <FloatingAd />}</AnimatePresence>
-        </motion.div>
+        {/* Floating placement pops off the laptop's own corner, outside
+            the screen bezel — it's meant to float over the whole page. */}
+        <AnimatePresence>{placement === 'floating' && <FloatingAd />}</AnimatePresence>
       </motion.div>
     </motion.div>
   );

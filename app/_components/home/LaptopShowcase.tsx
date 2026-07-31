@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence, useInView, type Variants } from 'framer-motion';
-import SectionIntro from './SectionIntro';
 
 // Real, editorial-grade photography (Unsplash) standing in for a publisher's
 // actual site — the point of this section is "here's what your ad looks
@@ -172,17 +171,10 @@ export default function LaptopShowcase() {
   const placement: Placement | null = inView ? PLACEMENTS[placementIndex] : null;
 
   return (
-    <section className="relative pt-4 pb-4 sm:pb-8">
-      <SectionIntro
-        eyebrow="See it live"
-        title="This is what your ad looks like."
-        body="Three advertisers, three real placements — floating, header, and modal — all on the same page a publisher's actual readers see."
-        accent="blue"
-      />
-
+    <section className="relative -mt-16 sm:-mt-24 pb-10 sm:pb-14">
       <motion.div
         ref={containerRef}
-        className="relative mx-auto max-w-3xl px-2 pb-10 sm:pb-14"
+        className="relative mx-auto max-w-3xl px-3 sm:px-8"
         style={{ perspective: 1400 }}
         initial="hidden"
         animate={inView ? 'visible' : 'hidden'}

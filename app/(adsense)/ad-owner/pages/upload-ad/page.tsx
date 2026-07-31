@@ -58,7 +58,7 @@ function Select() {
     }
 
     if (selectedFile.size > maxSize) {
-      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB — please choose a smaller file.`);
+      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB. Please choose a smaller file.`);
       return;
     }
 

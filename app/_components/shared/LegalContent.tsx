@@ -1,5 +1,5 @@
 // Source of truth for Privacy Policy / Terms of Use copy, rendered by the
-// dedicated /privacy and /terms routes — see LegalDoc.tsx.
+// dedicated /privacy and /terms routes; see LegalDoc.tsx.
 
 export interface LegalSection {
   title: string;
@@ -10,9 +10,9 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'Information we collect',
     points: [
-      'Account details from Google sign-in — your name, email, and profile photo.',
+      'Account details from Google sign-in: your name, email, and profile photo.',
       'The websites and YouTube channels you connect to your account.',
-      'Usage data needed to run the marketplace — bookings, payments, and ad performance.',
+      'Usage data needed to run the marketplace: bookings, payments, and ad performance.',
     ],
   },
   {
@@ -28,7 +28,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     points: [
       'Google, for sign-in.',
       'YouTube’s API, to read public channel and video stats for connected creators.',
-      'A third-party payment processor — we never store full card details ourselves.',
+      'A third-party payment processor; we never store full card details ourselves.',
     ],
   },
   {

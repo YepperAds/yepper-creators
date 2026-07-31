@@ -1,9 +1,6 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // Next.js API Route: POST /api/auth/register
-// ─────────────────────────────────────────────────────────────────────────────
-// Proxies registration to backend-adsense. No cookie is set here —
-// the user must verify their email first, then log in normally.
-// ─────────────────────────────────────────────────────────────────────────────
+// Proxies registration to backend-adsense. No cookie is set here.
+// The user must verify their email first, then log in normally.
 
 import { NextRequest, NextResponse } from 'next/server';
 

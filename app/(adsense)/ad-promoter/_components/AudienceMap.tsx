@@ -11,7 +11,7 @@ export interface MapPoint {
   timestamp?: string;
 }
 
-// Shared dark-themed Leaflet map for "where did the audience come from" —
+// Shared dark-themed Leaflet map for "where did the audience come from",
 // used both by the full per-website Analytics panel and the compact
 // audience snapshot embedded in an individual ad's expanded card. Loads
 // Leaflet from a CDN on first use; CARTO's free dark basemap needs no API

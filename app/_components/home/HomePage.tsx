@@ -21,7 +21,7 @@ export default function HomePage({
   hotDeals: HotDeal[];
   dealId?: string;
 }) {
-  // Placeholder content while the network is thin — see app/_lib/mock-home-data.ts
+  // Placeholder content while the network is thin, see app/_lib/mock-home-data.ts
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
 
@@ -34,7 +34,7 @@ export default function HomePage({
       </div>
 
       <div id="explore" className="scroll-mt-24">
-        {/* Full-bleed color bands — no border, no inset card, just a
+        {/* Full-bleed color bands: no border, no inset card, just a
             confident wall of brand color behind each real-content row. */}
         {hotDeals.length > 0 && (
           <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#FDEDE9' }}>
@@ -66,7 +66,7 @@ export default function HomePage({
               <SectionIntro
                 eyebrow="Pick it yourself"
                 title="Or browse verified websites directly"
-                body="Prefer to choose your own placement? Every listed website is manually verified and sorted into a real traffic tier, so you know exactly what audience you're reaching before you book — no cold outreach, no guessing."
+                body="Prefer to choose your own placement? Every listed website is manually verified and sorted into a real traffic tier, so you know exactly what audience you're reaching before you book. No cold outreach, no guessing."
                 accent="blue"
               />
               <WebsiteRow websites={displayWebsites} />

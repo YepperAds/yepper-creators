@@ -77,7 +77,7 @@ function NavRow({
 }
 
 // Plain row shared by the "More" popover's main list and its "Switch
-// appearance" submenu — same padding/hover treatment either way.
+// appearance" submenu, same padding/hover treatment either way.
 function MenuRow({
   icon: Icon, label, onClick, trailing,
 }: {
@@ -129,7 +129,7 @@ export default function LeftRail() {
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
-        {/* ── Logo + collapse toggle ── */}
+        {/* Logo + collapse toggle */}
         <div className={`px-4 mb-8 flex ${collapsed ? 'flex-col gap-6 items-center' : 'items-center justify-between'}`}>
           <Link href="/" className="flex items-center shrink-0 min-h-[28px]">
             <Image
@@ -150,8 +150,8 @@ export default function LeftRail() {
           </button>
         </div>
 
-        {/* ── Navigation — one flat list, centered in the space between the
-            logo and the More/Help Center block pinned at the bottom ── */}
+        {/* Navigation: one flat list, centered in the space between the
+            logo and the More/Help Center block pinned at the bottom */}
         <nav className={`flex-1 flex flex-col justify-center gap-1 ${collapsed ? 'px-2' : 'px-3'} overflow-y-auto`}>
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.panel);
@@ -162,7 +162,7 @@ export default function LeftRail() {
           })}
         </nav>
 
-        {/* ── More (popover) + Help Center ── */}
+        {/* More (popover) + Help Center */}
         <div className={`pt-2 mt-auto ${collapsed ? 'px-2' : 'px-3'} flex flex-col gap-1 relative`}>
           {moreOpen && (
             <div className="fixed inset-0 z-40" onClick={closeMore} />
@@ -183,7 +183,7 @@ export default function LeftRail() {
                       onClick={() => setShowAppearance(true)}
                       trailing={<ChevronRightIcon className="w-3.5 h-3.5 opacity-60" />}
                     />
-                    {/* Report a problem — hidden for now, not commented out of
+                    {/* Report a problem, hidden for now, not commented out of
                         existence: re-enable by uncommenting this MenuRow.
                     <MenuRow
                       icon={ExclamationTriangleIcon}

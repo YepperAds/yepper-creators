@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Public homepage data — server-side only.
+// Public homepage data: server-side only.
 // Calls the backend directly (no auth needed, nothing to forward) for the
 // logged-out landing page: all websites + all creators with YouTube videos.
 // ─────────────────────────────────────────────────────────────────────────────

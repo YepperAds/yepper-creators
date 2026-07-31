@@ -6,15 +6,15 @@ import CategoryCard from '@/app/_components/shared/CategoryCard';
 import WebsiteLogoTile from '@/app/_components/dashboard/WebsiteLogoTile';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
-// Compact horizontal-scroll card — a lighter-weight sibling of the
+// Compact horizontal-scroll card: a lighter-weight sibling of the
 // dashboard's HomeFeed/WebsiteCard (that one's a wide row, built for a
 // vertical feed; this one's a fixed-width tile, built for a scroll row).
 // Shares WebsiteLogoTile's browser-chrome preview (real logo top-left, real
 // domain in the address bar) so a site looks the same whether you're
-// logged in or just browsing the marketing homepage — WebsiteLogoTile only
+// logged in or just browsing the marketing homepage. WebsiteLogoTile only
 // ever uses literal colors, never dashboard --color-* tokens, so it's safe
 // to reuse here. Marketing-only, so the rest of this card is fixed literal
-// colors too — see HotDealsSection's variant prop for why.
+// colors too; see HotDealsSection's variant prop for why.
 
 function startCollaborate(id: string) {
   const from = `/?panel=advertise&websiteId=${encodeURIComponent(id)}`;

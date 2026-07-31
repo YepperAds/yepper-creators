@@ -36,7 +36,7 @@ function Websites() {
       const response = await api.get(`/api/websites/${userId}`);
       return (response.data as any);
     },
-    // token check removed — requests go through the Next.js proxy which reads
+    // token check removed, requests go through the Next.js proxy which reads
     // the httpOnly yepper_session cookie; no readable token is needed here.
     enabled: !!(user?._id || user?.id),
   });

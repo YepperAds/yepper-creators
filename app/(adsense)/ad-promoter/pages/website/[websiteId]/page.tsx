@@ -72,7 +72,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const [walletBalance, setWalletBalance] = useState(0);
     const [customizationModal, setCustomizationModal] = useState({ isOpen: false, categoryId: null });
 
-    // Still fetched (just no longer displayed here) — AddNewCategory below
+    // Still fetched (just no longer displayed here), AddNewCategory below
     // uses `analytics.grantDisplay` and `gscData` to price a new ad space by
     // real traffic. The full visual breakdown now lives in the dashboard's
     // main Analytics page (see WebsiteAnalyticsPanel).
@@ -327,7 +327,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                     <div className="flex-1 min-w-0">
                                         <p className={`text-sm font-semibold mb-0.5 ${earningsSummary?.unverifiedSurchargeActive ? 'text-red-300' : 'text-amber-300'}`}>
                                             {earningsSummary?.unverifiedSurchargeActive
-                                                ? 'Unverified Site — Ad Prices at 4× Rate'
+                                                ? 'Unverified Site: Ad Prices at 4× Rate'
                                                 : 'Connect Google Search Console to Verify Your Site'}
                                         </p>
                                         <p className={`text-xs ${earningsSummary?.unverifiedSurchargeActive ? 'text-red-400/80' : 'text-amber-400/70'}`}>
@@ -346,13 +346,13 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 <div className="border border-emerald-400/30 bg-emerald-400/5 p-4 flex items-center gap-3">
                                     <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
                                     <div>
-                                        <p className="text-sm font-bold text-emerald-300">Site Verified — Standard Pricing Active</p>
+                                        <p className="text-sm font-bold text-emerald-300">Site Verified: Standard Pricing Active</p>
                                         <p className="text-xs text-emerald-400/70 mt-0.5">Your script is installed and your site is verified. Ad spaces use tier-based pricing from your real traffic.</p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Registered pages — lets ad spaces target a specific one */}
+                            {/* Registered pages: lets ad spaces target a specific one */}
                             <WebsitePagesPanel
                                 website={website}
                                 onPagesChange={(pages) => setWebsite({ ...website, pages })}
@@ -645,7 +645,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                 />
             )}
 
-            {/* Add ad space — centered dialog, portaled to <body> so it's never
+            {/* Add ad space: centered dialog, portaled to <body> so it's never
                 constrained by an ancestor inside the embedded dashboard layout */}
             {categoriesForm && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">

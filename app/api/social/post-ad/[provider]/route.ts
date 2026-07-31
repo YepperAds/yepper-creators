@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
       {
         method:  'POST',
         headers: { 'Content-Type': contentType, 'cookie': cookieHeader },
-        // @ts-ignore — readable stream body with duplex streaming
+        // @ts-ignore: readable stream body with duplex streaming
         body:    req.body,
         duplex:  'half',
       } as RequestInit,

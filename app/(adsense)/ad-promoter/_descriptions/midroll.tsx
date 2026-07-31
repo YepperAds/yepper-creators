@@ -55,7 +55,7 @@ const MidrollContainer = () => {
               </h1>
 
               <p className="text-[#fff]/70 leading-relaxed mb-8">
-                A video ad that interrupts the content partway through — the viewer is already invested in finishing, so attention and completion rates run higher than a preroll shown before they've committed to watching.
+                A video ad that interrupts the content partway through. The viewer is already invested in finishing, so attention and completion rates run higher than a preroll shown before they've committed to watching.
               </p>
             </div>
 

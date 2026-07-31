@@ -4,7 +4,7 @@
 // These types just describe that shape for consumers on the frontend.
 //
 // Ad type (corner badge vs L-bar) is the creator's own fixed channel-wide
-// choice, not a separate advertiser pick — price is just tier + duration +
+// choice, not a separate advertiser pick; price is just tier + duration +
 // whichever format the creator already picked.
 
 export type DurationBand = '5–15s' | '15–30s';

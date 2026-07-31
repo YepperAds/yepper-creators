@@ -17,7 +17,7 @@ async function forward(req: NextRequest, params: { path: string[] }) {
 
     const method = req.method || 'GET';
 
-    // Build headers to forward — preserve most but override Host
+    // Build headers to forward, preserve most but override Host
     const headers: Record<string, string> = {};
     for (const [k, v] of req.headers) {
       if (k.toLowerCase() === 'host') continue;
@@ -28,7 +28,7 @@ async function forward(req: NextRequest, params: { path: string[] }) {
     const cookieToken = req.cookies.get('yepper_session')?.value ?? req.cookies.get('yepper_token')?.value;
     if (cookieToken) headers['authorization'] = `Bearer ${cookieToken}`;
 
-    // Forward body — use arrayBuffer for all body types so binary (FormData/images) is preserved
+    // Forward body: use arrayBuffer for all body types so binary (FormData/images) is preserved
     let body: BodyInit | undefined;
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
       body = await req.arrayBuffer().catch(() => undefined);
@@ -38,7 +38,7 @@ async function forward(req: NextRequest, params: { path: string[] }) {
       method,
       headers,
       body,
-      // @ts-ignore — duplex required in Node 18+ when sending a body
+      // @ts-ignore: duplex required in Node 18+ when sending a body
       duplex: body !== undefined ? 'half' : undefined,
     });
 

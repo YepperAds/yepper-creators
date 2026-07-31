@@ -157,7 +157,7 @@ const Navbar = () => {
                   </Button>
                 </Link>
 
-                {/* Register removed — Google-only signup via login page */}
+                {/* Register removed: Google-only signup via login page */}
               </div>
             )}
             

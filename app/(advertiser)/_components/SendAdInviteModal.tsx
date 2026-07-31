@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EnvelopeIcon, ExclamationTriangleIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 // Lets a creator email one specific person a direct link into claiming an ad
-// slot on their own channel — clicking it (see sendAdSpaceInvite in
+// slot on their own channel: clicking it (see sendAdSpaceInvite in
 // adSpaceController.js) sends them to /login?from=/?panel=advertise&creatorId=
 // which lands them right back on this channel's "Collaborate" claim modal.
 export default function SendAdInviteModal({
@@ -80,7 +80,7 @@ export default function SendAdInviteModal({
           ) : (
             <>
               <p className="text-sm text-(--color-muted) mb-5">
-                Email a recipient a direct link to claim an ad slot on {channelName} — they log in (or sign up) and land right back here to advertise.
+                Email a recipient a direct link to claim an ad slot on {channelName}; they log in (or sign up) and land right back here to advertise.
               </p>
 
               {error && (

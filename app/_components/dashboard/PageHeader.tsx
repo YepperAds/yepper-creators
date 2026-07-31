@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
-// Quiet, centered page label — not a bold title block, just enough to
+// Quiet, centered page label, not a bold title block, just enough to
 // orient you. `shrink-0` so it never compresses when the scrollable body
 // below needs the space; same background as the page so it reads as part
 // of the page, not a boxed header bar.

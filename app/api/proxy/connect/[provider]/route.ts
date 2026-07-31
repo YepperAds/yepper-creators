@@ -28,7 +28,7 @@ export async function GET(
     );
   }
 
-  // External backend removed — return a harmless local URL so the UI remains unchanged.
+  // External backend removed. Return a harmless local URL so the UI remains unchanged.
   // The client expects `{ success: true, url }` so we provide `#` which keeps the user
   // on the same page while preserving the UI flow.
   const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';

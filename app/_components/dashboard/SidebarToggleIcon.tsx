@@ -1,4 +1,4 @@
-// Sidebar-collapse glyph — a panel outline with a divider near the left
+// Sidebar-collapse glyph: a panel outline with a divider near the left
 // edge, the standard "toggle sidebar" icon (VS Code, Notion, Linear, ...).
 // Heroicons doesn't have this shape, so it's hand-drawn; same icon either
 // way the sidebar is currently collapsed, it doesn't flip direction.

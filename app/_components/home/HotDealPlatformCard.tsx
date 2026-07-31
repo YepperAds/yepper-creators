@@ -18,7 +18,7 @@ function getDomain(link: string): string {
 }
 
 // A real channel + one of their actual videos (reuses VideoEmbed, same
-// autoplay-loop tile used in HomeFeed.tsx) — not a static screenshot, so a
+// autoplay-loop tile used in HomeFeed.tsx), not a static screenshot, so a
 // hot deal's YouTube slot shows off real content instead of a placeholder.
 // The red ring + play sticker just dress the frame up to match the
 // cartoonish website tile next to it; the avatar/video themselves are real.
@@ -55,10 +55,10 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   );
 }
 
-// A cartoon "where the ad shows up" sticker — a sunny sky with drifting
+// A cartoon "where the ad shows up" sticker: a sunny sky with drifting
 // clouds behind a cartoon browser window (traffic-light dots + address bar
 // + content lines, so it unmistakably reads as "a website" instead of a
-// generic storefront scene) and a starburst "AD" sticker nudging over it —
+// generic storefront scene) and a starburst "AD" sticker nudging over it,
 // deliberately illustrated rather than a realistic screenshot, since the
 // point is a fun, promo-poster read ("your ad pops up on real sites"), not a
 // literal screenshot of any one site.
@@ -81,7 +81,7 @@ function WebsitePlatformCard({ website }: { website: PublicWebsite }) {
         {/* Sparkle accent */}
         <span className="yp-sparkle absolute top-0.5 right-7 w-1 h-1 rounded-full bg-[#fff]" />
 
-        {/* Cartoon browser window — traffic-light dots + address pill +
+        {/* Cartoon browser window: traffic-light dots + address pill +
             content lines are the unmistakable "this is a website" cue */}
         <div className="absolute inset-x-1.5 bottom-1.5 top-4 rounded-md bg-[#fff] shadow-md overflow-hidden">
           <div className="h-2 bg-[#e2e8f0] flex items-center gap-0.5 px-1">
@@ -122,7 +122,7 @@ function renderTile(
 
 // Slides slowly (only once there are enough tiles that sliding is actually
 // useful) so a deal bundling many platforms doesn't need a wide/scroll
-// gesture just to see what's included — see .yp-marquee in globals.css.
+// gesture just to see what's included (see .yp-marquee in globals.css).
 export default function PlatformCarousel({
   items,
   creators,

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useInView, type Variants } from 'framer-motion';
 
 // Real, editorial-grade photography (Unsplash) standing in for a publisher's
-// actual site — the point of this section is "here's what your ad looks
+// actual site. The point of this section is "here's what your ad looks
 // like sitting on a real page," so the mock page has to look like somewhere
 // a person would actually stop and read, not a gray wireframe.
 const HERO_PHOTO = 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1400&auto=format&fit=crop';
@@ -32,7 +32,7 @@ const rise: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease } },
 };
 
-// Three real Yepper ad-space types (see app/_lib/ad-spaces.ts) — one
+// Three real Yepper ad-space types (see app/_lib/ad-spaces.ts): one
 // publisher page, three different advertisers, each booked into a
 // different placement, cycling to show the variety of ads a single page
 // can carry at once.
@@ -112,7 +112,7 @@ function HeaderAd() {
         <Image src={ad.photo} alt="" fill sizes="40px" className="object-cover" />
       </div>
       <p className="min-w-0 flex-1 text-[8px] sm:text-[10px] font-bold text-[#1F1B16] truncate">
-        {ad.name} <span className="font-medium text-black/45">— {ad.brand}</span>
+        {ad.name} <span className="font-medium text-black/45">· {ad.brand}</span>
       </p>
       <span className="shrink-0 text-[8px] sm:text-[10px] font-bold text-coral">{ad.cta}</span>
     </motion.div>
@@ -233,7 +233,7 @@ export default function LaptopShowcase() {
                 </div>
               </motion.div>
 
-              {/* More-stories row — fixed-height strip (not aspect-driven)
+              {/* More-stories row: fixed-height strip (not aspect-driven)
                   so it reliably fits inside the screen's 16:10 box
                   regardless of viewport width; captions sit on the image,
                   same treatment as the hero, instead of taking their own
@@ -272,7 +272,7 @@ export default function LaptopShowcase() {
         <div aria-hidden className="mx-auto mt-3 h-4 sm:h-6 w-[70%] rounded-full bg-black/25 blur-xl" />
 
         {/* Floating placement pops off the laptop's own corner, outside
-            the screen bezel — it's meant to float over the whole page. */}
+            the screen bezel; it's meant to float over the whole page. */}
         <AnimatePresence>{placement === 'floating' && <FloatingAd />}</AnimatePresence>
       </motion.div>
     </motion.div>

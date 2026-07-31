@@ -46,7 +46,7 @@ function YoutubePaymentCallbackContent() {
 
         if (json.success) {
           setStatus('success');
-          setMessage(json.message || 'Payment successful — ad slot claimed!');
+          setMessage(json.message || 'Payment successful: ad slot claimed!');
           setTimeout(() => router.push('/'), 3000);
         } else {
           setStatus('failed');

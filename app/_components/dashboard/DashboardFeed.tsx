@@ -7,7 +7,7 @@ import type { PublicWebsite } from '@/app/_lib/public-home';
 
 // Clicking through takes the advertiser straight into the ad-space chooser
 // for this exact website (AdvertiseBrowser reads `websiteId` off the URL and
-// auto-opens it) — not out to the site's real URL, which just abandoned the
+// auto-opens it), not out to the site's real URL, which just abandoned the
 // flow instead of letting them pick a space.
 function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (website: PublicWebsite) => void }) {
   return (

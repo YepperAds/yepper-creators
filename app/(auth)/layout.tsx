@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="h-screen overflow-hidden flex bg-black">
 
-      {/* ══ LEFT — auth panel ══════════════════════════════════════════════════ */}
+      {/* LEFT: auth panel */}
       <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
 
         {/* Logo */}
@@ -44,7 +44,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      {/* ══ RIGHT — scrolling campaign mosaic ═══════════════════════════════════ */}
+      {/* RIGHT: scrolling campaign mosaic */}
       <CampaignMosaic />
 
     </div>

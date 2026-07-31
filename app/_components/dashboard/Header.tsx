@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { UserIcon } from '@heroicons/react/24/outline';
 
-// Just the account avatar, top-right — the logo now lives in the sidebar
+// Just the account avatar, top-right. The logo now lives in the sidebar
 // (LeftRail), so this no longer needs to be a full-width bar.
 export default function Header() {
   const [avatar, setAvatar] = useState<string | null>(null);

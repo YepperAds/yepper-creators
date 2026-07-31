@@ -1,17 +1,14 @@
 'use client';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ProtectedRoute — Unified auth guard
-// ─────────────────────────────────────────────────────────────────────────────
+// ProtectedRoute: Unified auth guard
 // MIGRATION from yepper-creators original:
 //   [CHANGED] Auth source: now checks /auth/session which reads the JWT cookie
-//             from the adsense backend — one source of truth for the whole app.
-//   [REMOVED] Creators-specific onboarding redirect (username / what_they_do)
-//             — the adsense user model doesn't have these fields. Onboarding
+//             from the adsense backend: one source of truth for the whole app.
+//   [REMOVED] Creators-specific onboarding redirect (username / what_they_do).
+//             The adsense user model doesn't have these fields. Onboarding
 //             can be added back per-section with a section-level check.
 //   [KEPT]    Spinner while checking, retry UI on network error, redirect on
-//             confirmed auth failure — same UX behaviour as before.
-// ─────────────────────────────────────────────────────────────────────────────
+//             confirmed auth failure; same UX behaviour as before.
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -42,12 +39,12 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       if (result.data?.success && result.data.data?.user) {
         setState('authorized');
       } else {
-        // Server explicitly says not authenticated — redirect to login
+        // Server explicitly says not authenticated: redirect to login
         setState('unauthorized');
         router.replace('/login');
       }
     } else {
-      // Network or server error — don't log out, show retry UI
+      // Network or server error: don't log out, show retry UI
       setState('error');
     }
   }, [router]);
@@ -83,7 +80,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (state === 'authorized') return <>{children}</>;
 
-  // Redirecting state — show spinner while Next.js router navigates
+  // Redirecting state: show spinner while Next.js router navigates
   return (
     <div className="h-screen w-full flex items-center justify-center bg-(--color-background)">
       <div className="w-6 h-6 border-2 border-(--color-border) border-t-(--color-subtle) rounded-full animate-spin" />

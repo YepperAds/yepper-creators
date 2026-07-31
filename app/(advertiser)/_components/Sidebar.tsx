@@ -150,7 +150,7 @@ export default function Sidebar() {
       ]
     },
     {
-      // Global links — accessible to both Content Creators and Web Developers
+      // Global links: accessible to both Content Creators and Web Developers
       items: [
         { label: 'Connect Website', href: '/?panel=analytics&tab=websites', icon: OutlineWifi, activeIcon: SolidWifi },
         { label: 'Wallet',          href: '/?panel=wallet',   icon: OutlineBanknotes, activeIcon: SolidBanknotes },
@@ -180,7 +180,7 @@ export default function Sidebar() {
       className={`h-screen shrink-0 border-r border-(--color-border) bg-(--color-surface-2) flex flex-col pt-6 pb-6 transition-all duration-300 ease-in-out relative z-40 ${collapsed ? 'w-20' : 'w-64'
         }`}
     >
-      {/* ── Overlay for closing dropdowns ── */}
+      {/* Overlay for closing dropdowns */}
       {openDropdown && (
         <div 
           className="fixed inset-0 z-30" 
@@ -188,7 +188,7 @@ export default function Sidebar() {
         />
       )}
 
-      {/* ── Header & Logo ── */}
+      {/* Header & Logo */}
       <div className={`px-4 mb-8 flex ${collapsed ? 'flex-col gap-6 items-center' : 'items-center justify-between'} relative z-40`}>
         {!collapsed ? (
           <Link href="/" className="flex items-center px-1 shrink-0 min-h-[28px]">
@@ -224,7 +224,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* ── Navigation ── */}
+      {/* Navigation */}
       <nav className={`flex-1 space-y-6 ${collapsed ? 'px-2' : 'px-3'} relative z-40`}>
         {navGroups.map((group, groupIdx) => (
           <div key={groupIdx} className="flex flex-col gap-1">
@@ -262,7 +262,7 @@ export default function Sidebar() {
                       <ChevronRightIcon className={`w-3.5 h-3.5 ml-auto opacity-50 transition-transform ${openDropdown === item.label ? 'rotate-90' : ''}`} />
                     )}
 
-                    {/* ── Custom Tooltip for Collapsed Menu ── */}
+                    {/* Custom Tooltip for Collapsed Menu */}
                     {collapsed && !openDropdown && (
                       <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-(--color-surface-3) text-(--color-white) border border-(--color-border) text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/navitem:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg flex items-center gap-2">
                         {item.label}
@@ -271,7 +271,7 @@ export default function Sidebar() {
                     )}
                   </ButtonOrLink>
 
-                  {/* ── Flyout Menu ── */}
+                  {/* Flyout Menu */}
                   {item.dropdown && openDropdown === item.label && (
                     <div className="absolute left-full ml-3 bottom-0 bg-(--color-surface-1) border border-(--color-border) rounded-lg shadow-xl overflow-hidden py-2 min-w-[220px] animate-in fade-in slide-in-from-left-2 z-50">
                       {item.dropdown.map((subItem, idx) => {
@@ -312,7 +312,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* ── Logout Button ── */}
+      {/* Logout Button */}
       <div className={`pt-6 border-t border-(--color-border) mt-auto ${collapsed ? 'px-2' : 'px-3'}`}>
         <button
           onClick={handleLogout}
@@ -322,7 +322,7 @@ export default function Sidebar() {
           <OutlineLogout className="w-5 h-5 shrink-0" />
           {!collapsed && <span>{loggingOut ? 'Signing out...' : 'Sign out'}</span>}
 
-          {/* ── Custom Tooltip ── */}
+          {/* Custom Tooltip */}
           {collapsed && (
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-(--color-surface-3) text-(--color-white) border border-(--color-border) text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
               Sign out

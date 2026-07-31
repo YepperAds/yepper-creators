@@ -55,7 +55,7 @@ const PrerollContainer = () => {
               </h1>
 
               <p className="text-[#fff]/70 leading-relaxed mb-8">
-                A video ad that plays before the viewer's chosen video starts, the same slot used by YouTube and streaming platforms — the viewer has committed to watching but hasn't started yet, making it the highest-attention video placement available.
+                A video ad that plays before the viewer's chosen video starts, the same slot used by YouTube and streaming platforms. The viewer has committed to watching but hasn't started yet, making it the highest-attention video placement available.
               </p>
             </div>
 

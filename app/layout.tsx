@@ -21,8 +21,8 @@ export const metadata: Metadata = {
     template: "%s | Yepper",
     default: "Yepper",
   },
-  description: "Yepper — Everything you need, in one place.",
-  // Plain static file under /public, not the app/icon.png convention —
+  description: "Yepper. Everything you need, in one place.",
+  // Plain static file under /public, not the app/icon.png convention;
   // Vercel's build adapter mishandles the synthetic route Next generates
   // for that convention (tries to lstat it as a route folder and fails
   // with ENOTDIR). Referencing a public/ file explicitly sidesteps that

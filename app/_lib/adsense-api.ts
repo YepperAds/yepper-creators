@@ -6,7 +6,7 @@
 //
 // MIGRATION NOTES (original was axios + Bearer token from localStorage):
 //   • Swapped axios → native fetch (matches rest of yepper-creators)
-//   • Token is read from localStorage for now — same auth strategy as
+//   • Token is read from localStorage for now, same auth strategy as
 //     the original React app. Once auth is merged, update to cookie-based.
 //   • All API namespaces are preserved 1-to-1 so page files can be ported
 //     with minimal changes (just swap the import path).
@@ -28,7 +28,7 @@ async function adsenseRequest<T = unknown>(
   // requests. Server-side code can call the backend directly.
   const url = typeof window !== 'undefined' ? `/api/proxy${path}` : `${ADSENSE_BASE_URL}${path}`;
 
-  // Token header is optional — client will usually hit the proxy which uses
+  // Token header is optional; client will usually hit the proxy which uses
   // httpOnly cookies. Keep the legacy token read for pages that still rely on
   // a readable cookie/localStorage value.
   const token = typeof window !== 'undefined'
@@ -123,7 +123,7 @@ export const passwordAPI = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// WEBSITE  (AdPromoter — publisher side)
+// WEBSITE  (AdPromoter: publisher side)
 // ═══════════════════════════════════════════════════════════════
 export const websiteAPI = {
   getAll:               ()                       => adsenseHttp.get('/api/createWebsite'),
@@ -180,7 +180,7 @@ export const categoryAPI = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// WEB ADVERTISE  (AdOwner — advertiser side)
+// WEB ADVERTISE  (AdOwner: advertiser side)
 // ═══════════════════════════════════════════════════════════════
 export const advertiseAPI = {
   create:               (formData: FormData)             => adsenseHttp.post('/api/web-advertise', formData),

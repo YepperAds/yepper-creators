@@ -1,10 +1,8 @@
 import Image from 'next/image';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CampaignMosaic — the scrolling wall of campaign creatives on the right side
+// CampaignMosaic: the scrolling wall of campaign creatives on the right side
 // of every full-screen auth-adjacent layout (login, onboarding, …). Shared so
 // the two don't drift apart.
-// ─────────────────────────────────────────────────────────────────────────────
 
 type MediaType = 'image' | 'gif' | 'video';
 

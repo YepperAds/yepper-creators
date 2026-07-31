@@ -46,7 +46,7 @@ function HotDealPaymentCallbackContent() {
 
         if (json.success) {
           setStatus('success');
-          setMessage(json.message || 'Payment successful — Hot Deal claimed!');
+          setMessage(json.message || 'Payment successful. Hot Deal claimed!');
           setTimeout(() => router.push('/'), 3000);
         } else {
           setStatus('failed');

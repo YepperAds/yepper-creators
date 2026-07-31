@@ -10,11 +10,11 @@ import CategoryCard from '@/app/_components/shared/CategoryCard';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 function itemLabel(item: HotDeal['items'][number]): string {
-  if (item.itemType === 'youtube') return `YouTube — ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
+  if (item.itemType === 'youtube') return `YouTube: ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
   return 'Website ad space';
 }
 
-// One checkout for an entire admin-curated Hot Deal bundle — every item gets
+// One checkout for an entire admin-curated Hot Deal bundle: every item gets
 // claimed/booked together at the package's (possibly discounted) total price,
 // paid via the same wallet/Flutterwave flow as a single YouTube claim.
 export default function HotDealPurchaseModal({
@@ -112,7 +112,7 @@ export default function HotDealPurchaseModal({
         <div className="flex items-start justify-between gap-2 mb-4">
           <div className="min-w-0">
             <h3 className="text-lg font-bold text-(--color-white)">{deal.title}</h3>
-            <p className="text-xs text-(--color-muted) mt-0.5">{deal.items.length} bundled placement{deal.items.length === 1 ? '' : 's'} — pay once, claim them all.</p>
+            <p className="text-xs text-(--color-muted) mt-0.5">{deal.items.length} bundled placement{deal.items.length === 1 ? '' : 's'}: pay once, claim them all.</p>
           </div>
           <button onClick={onClose} className="shrink-0 p-1 rounded-full hover:bg-(--color-surface-2)">
             <XMarkIcon className="w-5 h-5 text-(--color-muted)" />
@@ -138,7 +138,7 @@ export default function HotDealPurchaseModal({
 
             {needsLogin && (
               <p className="mb-3 text-xs text-amber-400 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-                Log in to buy this deal —{' '}
+                Log in to buy this deal:{' '}
                 <a href={`/login?from=${encodeURIComponent(`/?dealId=${deal.id}`)}`} className="underline font-semibold">
                   go to login
                 </a>.

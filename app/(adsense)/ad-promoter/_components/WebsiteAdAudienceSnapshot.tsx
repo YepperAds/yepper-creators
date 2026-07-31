@@ -9,7 +9,7 @@ import DailyBarChart from './DailyBarChart';
 
 // A compact "who's seeing this" view for an individual ad, embedded in its
 // expanded card on the Analytics page. There's no per-ad view/click event
-// log on the backend (views/clicks are bare counters — see
+// log on the backend (views/clicks are bare counters, see
 // WebAdvertiseModel), so this reuses the real visitor analytics of the
 // website the ad is placed on: since the ad only shows there, that
 // website's audience *is* the ad's audience. Real data, just scoped one
@@ -35,7 +35,7 @@ export default function WebsiteAdAudienceSnapshot({ websiteId }: { websiteId: st
   if (!analytics || !analytics.totalViews) {
     return (
       <p className="text-xs text-(--color-muted) border border-dashed border-(--color-border) rounded-xl p-4 text-center">
-        No visitor data yet for the site this ad runs on — install the Yepper script there to see who&apos;s seeing it.
+        No visitor data yet for the site this ad runs on. Install the Yepper script there to see who&apos;s seeing it.
       </p>
     );
   }
@@ -43,7 +43,7 @@ export default function WebsiteAdAudienceSnapshot({ websiteId }: { websiteId: st
   return (
     <div className="space-y-3">
       <p className="text-[10px] font-bold uppercase tracking-wide text-(--color-muted)">
-        Audience — based on this ad&apos;s website's real visitor traffic
+        Audience: based on this ad&apos;s website's real visitor traffic
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-(--color-surface-3) px-4 py-3">

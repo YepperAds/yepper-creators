@@ -36,12 +36,12 @@ export async function GET(req: NextRequest) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      // Don't cache — auth responses must always be fresh
+      // Don't cache: auth responses must always be fresh
       cache: 'no-store',
     });
 
     if (!upstream.ok) {
-      // Token expired or invalid — tell the client to log out
+      // Token expired or invalid: tell the client to log out
       const res = NextResponse.json(
         { success: false, message: 'Session expired' },
         { status: 200 },
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         user: {
           id:         u.id ?? u._id,
           _id:        u.id ?? u._id,
-          // user_uuid mirrors id — kept for backwards compatibility with social connect flow
+          // user_uuid mirrors id, kept for backwards compatibility with social connect flow
           user_uuid:  (u as any).user_uuid ?? u.id ?? u._id,
           name:       u.name,
           email:      u.email,
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
           googleId:   u.googleId,
           createdAt:  u.createdAt,
           updatedAt:  u.updatedAt,
-          // role defaults — can be extended later
+          // role defaults, can be extended later
           role:       'user',
           // Creator fields (if present)
           username:   (u as any).username ?? undefined,
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch {
-    // Network error reaching the adsense backend — don't log user out,
+    // Network error reaching the adsense backend. Don't log user out,
     // surface as a retryable error (ProtectedRoute handles this gracefully)
     return NextResponse.json(
       { success: false, message: 'Could not reach auth server' },

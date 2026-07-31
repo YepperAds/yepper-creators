@@ -4,7 +4,7 @@
 // Shows a banner when:
 //   (a) user has a pending grant they haven't used yet, OR
 //   (b) user just applied a grant and is within the 24-hour display window
-// After 24 hours the banner disappears automatically — until the admin grants again.
+// After 24 hours the banner disappears automatically, until the admin grants again.
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,7 +78,7 @@ export default function TrafficGrantBanner({  websiteId  }: any) {
           ) : (
             <>
               <div style={{ color: '#fff', fontWeight: 600, fontSize: 15, marginBottom: 3 }}>
-                Traffic grant applied — your analytics and tier have been updated
+                Traffic grant applied: your analytics and tier have been updated
               </div>
               <div style={{ color: '#6ee7b7', fontSize: 13, lineHeight: 1.5 }}>
                 {grant.grantedTraffic?.toLocaleString()} visitors · {grant.trafficTier} tier

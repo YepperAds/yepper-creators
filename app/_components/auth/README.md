@@ -41,15 +41,15 @@ creators panel read auth state via `GET /auth/session`.
 | File | What changed |
 |---|---|
 | `app/api/auth/session/route.ts` | Verifies JWT with adsense backend instead of querying `businesses` table |
-| `app/api/auth/login/route.ts` | **New** — proxies to adsense backend, sets cookie |
-| `app/api/auth/register/route.ts` | **New** — proxies to adsense backend |
+| `app/api/auth/login/route.ts` | **New**: proxies to adsense backend, sets cookie |
+| `app/api/auth/register/route.ts` | **New**: proxies to adsense backend |
 | `app/api/auth/google/callback/route.ts` | Calls adsense `/api/auth/google-exchange` instead of upserting `businesses` |
-| `app/api/auth/verify-email/route.ts` | **New** — catches adsense email-verify redirect, sets cookie |
-| `app/api/auth/forgot-password/route.ts` | **New** — proxies to adsense backend |
+| `app/api/auth/verify-email/route.ts` | **New**: catches adsense email-verify redirect, sets cookie |
+| `app/api/auth/forgot-password/route.ts` | **New**: proxies to adsense backend |
 | `app/_components/auth/ProtectedRoute.tsx` | Removed onboarding check (username/what_they_do) |
 | `app/_components/auth/AuthGuard.tsx` | Removed onboarding check |
 | `app/_components/auth/LoginForm.tsx` | Added email/password form alongside Google |
-| `app/_components/auth/RegisterForm.tsx` | **New** — full registration form |
+| `app/_components/auth/RegisterForm.tsx` | **New**: full registration form |
 | `app/_types/auth.ts` | Merged User type from both systems |
 | `backend-adsense/controllers/authController.js` | Added `googleExchange` endpoint |
 | `backend-adsense/routes/authRoutes.js` | Added `/google-exchange` route |
@@ -58,8 +58,8 @@ creators panel read auth state via `GET /auth/session`.
 ## What is NOT changed
 
 - The creators panel's ProtectedRoute and AuthGuard call sites are identical
-- The `(advertiser)` layout uses ProtectedRoute — works unchanged
-- The `(adsense)` layout uses its own auth — now shares the same cookie
+- The `(advertiser)` layout uses ProtectedRoute; works unchanged
+- The `(adsense)` layout uses its own auth; now shares the same cookie
 
 ## .env.local required keys
 

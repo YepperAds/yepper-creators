@@ -2,11 +2,11 @@ import Image from 'next/image';
 import { CheckIcon } from '@heroicons/react/24/solid';
 import { getBusinessCategory } from '@/app/_lib/business-categories';
 
-// Renders a business category as a real photo (see /public/category-photos)
-// — a small thumbnail for pill/badge sizes, a full-bleed glass-shine
+// Renders a business category as a real photo (see /public/category-photos):
+// a small thumbnail for pill/badge sizes, a full-bleed glass-shine
 // background for size="card" (.category-photo-card in globals.css). Others /
 // Any category have no natural photo, so they alone keep the old Fluent
-// Emoji 3D render inside the claymorphism shell (.category-art) — see
+// Emoji 3D render inside the claymorphism shell (.category-art); see
 // BusinessCategory.isIcon in business-categories.ts. Pass `onClick` to make
 // it an interactive picker pill/card; omit it for a read-only badge.
 interface CategoryCardProps {
@@ -29,7 +29,7 @@ export default function CategoryCard({ id, label, description, selected, onClick
   const image = <Image src={cat.image} alt="" width={imgSize} height={imgSize} className="yp-float shrink-0" />;
 
   if (size === 'card') {
-    // Others / Any category have no real photo — keep the old clay+icon shell
+    // Others / Any category have no real photo; keep the old clay+icon shell
     // instead of stretching a small 3D render as a fake background.
     if (cat.isIcon) {
       const cardContent = (

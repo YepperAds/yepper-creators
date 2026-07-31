@@ -17,7 +17,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         if (result.ok && result.data?.success && result.data.data?.user) {
           router.replace('/');
         } else {
-          // Covers 401, 503, network errors — just show the login form
+          // Covers 401, 503, network errors: just show the login form
           setChecked(true);
         }
       } catch {

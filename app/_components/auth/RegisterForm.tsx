@@ -1,7 +1,7 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RegisterForm — converted from clientZip/src/pages/Register.js
+// RegisterForm: converted from clientZip/src/pages/Register.js
 // ─────────────────────────────────────────────────────────────────────────────
 // CHANGES FROM ORIGINAL:
 //   [1] react-router-dom → Next.js useRouter + Link
@@ -24,7 +24,7 @@ const GoogleIcon = () => (
 );
 
 export default function RegisterForm() {
-  // Manual email registration removed — Google-only signup
+  // Manual email registration removed: Google-only signup
   const [googleLoading, setGoogleLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState<{ maskedEmail: string } | null>(null);
@@ -64,7 +64,7 @@ export default function RegisterForm() {
         </button>
       </div>
 
-      {/* Manual email sign-up removed — only Google signup is supported */}
+      {/* Manual email sign-up removed, only Google signup is supported */}
 
       <p className="text-center text-xs text-zinc-500">Manual registration is disabled. Use Sign up with Google above.</p>
     </div>

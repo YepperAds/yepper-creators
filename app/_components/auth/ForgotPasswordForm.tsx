@@ -1,7 +1,5 @@
 'use client';
-// ─────────────────────────────────────────────────────────────────────────────
-// ForgotPasswordForm — converted from clientZip/src/pages/ForgotPassword.js
-// ─────────────────────────────────────────────────────────────────────────────
+// ForgotPasswordForm: converted from clientZip/src/pages/ForgotPassword.js
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
@@ -36,7 +34,7 @@ export default function ForgotPasswordForm() {
   if (sent) return (
     <div className="text-center space-y-4">
       <div className="text-3xl">📬</div>
-      <p className="text-sm text-zinc-300">Check your inbox — a reset link is on its way.</p>
+      <p className="text-sm text-zinc-300">Check your inbox. A reset link is on its way.</p>
       <Link href="/login" className="text-xs text-zinc-500 underline">Back to login</Link>
     </div>
   );

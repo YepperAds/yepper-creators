@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// useSession — unified auth hook for the whole app
+// useSession: unified auth hook for the whole app
 // ─────────────────────────────────────────────────────────────────────────────
 // Replaces the old adsense AuthContext. Checks the cookie-based session via
 // /api/auth/session so every route group (advertiser, adsense) shares one
 // source of truth.
 //
 // Returns:
-//   user         — the logged-in user object, or null
-//   isLoading    — true while the session check is in flight
-//   isAuthenticated — true once user is confirmed
+//   user         : the logged-in user object, or null
+//   isLoading    : true while the session check is in flight
+//   isAuthenticated: true once user is confirmed
 // ─────────────────────────────────────────────────────────────────────────────
 
 'use client';

@@ -30,7 +30,7 @@ export default function DashboardHome({
         <LeftRail />
       </Suspense>
 
-      {/* Fixed-height shell — only the page rendered inside <main> scrolls
+      {/* Fixed-height shell: only the page rendered inside <main> scrolls
           (each page manages its own header/tabs/scroll-body, see
           PageHeader.tsx), so the sidebar, top header, and right rail never
           move when the page's content does. */}

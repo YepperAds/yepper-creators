@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-// Fades + rises children in the first time they scroll into view — see
+// Fades + rises children in the first time they scroll into view; see
 // .yp-reveal/.yp-revealed in globals.css. Plain IntersectionObserver, no
 // animation library, so it degrades to just "visible" if JS is slow to hydrate.
 export default function Reveal({ children, className = '' }: { children: React.ReactNode; className?: string }) {

@@ -186,7 +186,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     router.push(`/ad-owner/pages/direct-ad?websiteId=${activeWebsite.id}&categoryId=${categoryId}`);
   };
 
-  // Step 2 — pick an ad space on the chosen website, then hand off to the
+  // Step 2: pick an ad space on the chosen website, then hand off to the
   // real booking + payment flow (/ad-owner/pages/direct-ad).
   if (activeWebsite) {
     return (
@@ -213,7 +213,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
         ) : activeWebsite.isProspect ? (
           interestSubmitted ? (
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <p className="text-sm font-bold text-emerald-400">Thanks — we've noted your interest.</p>
+              <p className="text-sm font-bold text-emerald-400">Thanks, we've noted your interest.</p>
               <p className="text-xs text-muted mt-1">We'll be in touch once this site is live on Yepper.</p>
             </div>
           ) : (
@@ -306,7 +306,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     );
   }
 
-  // Step 1 — every category shown with its actual content right there:
+  // Step 1: every category shown with its actual content right there:
   // a small video preview row for each creator, logo tiles for websites.
   return (
     <div className="space-y-8">

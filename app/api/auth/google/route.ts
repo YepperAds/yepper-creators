@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set('access_type', 'online');
   authUrl.searchParams.set('prompt', 'select_account');
 
-  // Google echoes `state` back unchanged on the callback — this is the only
+  // Google echoes `state` back unchanged on the callback: this is the only
   // way to carry a "return to" path through the OAuth round trip. Only allow
   // same-site relative paths (single leading slash) to avoid open redirects.
   const from = req.nextUrl.searchParams.get('from');

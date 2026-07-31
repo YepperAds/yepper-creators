@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Placeholder homepage content — only shown when the real network has no
+// Placeholder homepage content: only shown when the real network has no
 // listings yet, so the marketplace doesn't look empty on day one. Swap or
 // remove once there's enough real inventory to fill the grid on its own.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const MOCK_WEBSITES: PublicWebsite[] = [
   },
 ];
 
-// Real, widely-embeddable public YouTube videos — just for previewing the
+// Real, widely-embeddable public YouTube videos: just for previewing the
 // real autoplay-loop card behavior with mock data. Swap for actual creator
 // videos once real ones are connected.
 const SAMPLE_VIDEO_IDS = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', '9bZkp7q19f0', 'kJQP7kiw5Fk'];
@@ -65,7 +65,7 @@ function mockVideos(seedOffset: number): PublicCreator['videos'] {
   return [0, 1, 2].map((i) => {
     const id = SAMPLE_VIDEO_IDS[(seedOffset + i) % SAMPLE_VIDEO_IDS.length];
     return {
-      title: `Episode ${i + 1} — worth a watch`,
+      title: `Episode ${i + 1}: worth a watch`,
       views: 5_000 + ((seedOffset + i) * 37_511) % 200_000,
       likes: 200 + ((seedOffset + i) * 911) % 8_000,
       published_at: null,

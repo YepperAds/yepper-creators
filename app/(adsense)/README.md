@@ -7,18 +7,18 @@ merged from `clientZip` (React CRA) into this Next.js project.
 
 ```
 (adsense)/
-├── layout.tsx              — Shared layout (no auth wrapper yet)
-├── page.tsx                — Hub / landing page
-├── ad-owner/pages/         — AdOwner: create & manage ad campaigns
-│   ├── ads/                — My campaigns (fully converted)
-│   ├── upload-ad/          — New campaign flow
-│   ├── ad-details/[adId]/  — Campaign details
-│   └── …                   — Other pages (stubs, see TODO below)
-├── ad-promoter/pages/      — AdPromoter: publish ads on websites
-│   ├── websites/           — My websites
-│   ├── website/[websiteId] — Website details
-│   └── …                   — Other pages (stubs)
-└── admin/pages/            — Admin panel
+├── layout.tsx              : Shared layout (no auth wrapper yet)
+├── page.tsx                : Hub / landing page
+├── ad-owner/pages/         : AdOwner: create & manage ad campaigns
+│   ├── ads/                : My campaigns (fully converted)
+│   ├── upload-ad/          : New campaign flow
+│   ├── ad-details/[adId]/  : Campaign details
+│   └── …                   : Other pages (stubs, see TODO below)
+├── ad-promoter/pages/      : AdPromoter: publish ads on websites
+│   ├── websites/           : My websites
+│   ├── website/[websiteId] : Website details
+│   └── …                   : Other pages (stubs)
+└── admin/pages/            : Admin panel
     ├── dashboard/
     ├── users/
     └── …
@@ -36,7 +36,7 @@ Express server running on a different port from the yepper-creators backend.
 
 Run both: `npm run backend:dev` and `npm run backend-adsense:dev`
 
-## Auth — PENDING
+## Auth: PENDING
 
 Auth is NOT yet merged. The Adsense pages currently read/write a `token` from
 `localStorage` (same as the original React app). Once the auth systems are

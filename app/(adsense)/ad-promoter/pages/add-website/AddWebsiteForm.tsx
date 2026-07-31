@@ -25,8 +25,8 @@ const normaliseUrl = (raw) => {
 // dashboard's in-place "Add website" panel can embed the exact same flow.
 // Standalone usage (no props) behaves identically to before: back navigates
 // via router.back(), success navigates to the new website's detail page.
-// Embedded usage (onCreated/onCancel/embedded) stays in place — no router
-// navigation, no full-screen header — and lets the caller decide what happens.
+// Embedded usage (onCreated/onCancel/embedded) stays in place (no router
+// navigation, no full-screen header) and lets the caller decide what happens.
 
 const AddWebsiteForm = ({
   onCreated,
@@ -42,10 +42,10 @@ const AddWebsiteForm = ({
 
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Step 1 — website details
+  // Step 1: website details
   const [websiteData, setWebsiteData] = useState({ name: '', url: '' });
 
-  // Step 2 — domain verification
+  // Step 2: domain verification
   const [verifyLoading,   setVerifyLoading]   = useState(false);
   const [verifyToken,     setVerifyToken]     = useState('');
   const [verifyTxtRecord, setVerifyTxtRecord] = useState('');
@@ -55,11 +55,11 @@ const AddWebsiteForm = ({
   const [verifyMsg,       setVerifyMsg]       = useState('');
   const [copied,          setCopied]          = useState(false);
 
-  // Step 3 — icon
+  // Step 3: icon
   const [iconFile,    setIconFile]    = useState(null);
   const [iconPreview, setIconPreview] = useState(null);
 
-  // Step 4 — categories
+  // Step 4: categories
   const [selectedBusinessCategories, setSelectedBusinessCategories] = useState([]);
   const [businessCategories,         setBusinessCategories]         = useState([]);
   const [loadingCategories,          setLoadingCategories]          = useState(true);
@@ -140,7 +140,7 @@ const AddWebsiteForm = ({
         websiteName:        websiteData.name,
         websiteLink:        websiteData.url,
         monthlyTraffic:     0,
-        imageUrl:           iconPreview || '',   // base64 — backend uploads to Cloudinary
+        imageUrl:           iconPreview || '',   // base64, backend uploads to Cloudinary
         businessCategories: selectedBusinessCategories,
       });
       const websiteId = response.data.data?.id ?? response.data.data?._id;
@@ -229,7 +229,7 @@ const AddWebsiteForm = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── Shared step shell — full-screen header when standalone, slim inline pill when embedded ──
+  // ── Shared step shell: full-screen header when standalone, slim inline pill when embedded ──
 
   const StepShell = ({ step, label, onBack, children }: { step: number; label: string; onBack: () => void; children: React.ReactNode }) => {
     if (embedded) {
@@ -239,7 +239,7 @@ const AddWebsiteForm = ({
             <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
               <ArrowLeft size={16} className="mr-1.5" /> Back
             </button>
-            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 4 — {label}</span>
+            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 4: {label}</span>
           </div>
           {children}
         </div>
@@ -254,7 +254,7 @@ const AddWebsiteForm = ({
                 <ArrowLeft size={18} className="mr-2" />
                 <span className="font-medium">Back</span>
               </button>
-              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 4 — {label}</span>
+              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 4: {label}</span>
             </div>
           </div>
         </header>
@@ -265,7 +265,7 @@ const AddWebsiteForm = ({
     );
   };
 
-  // ── STEP 1 — Website details ─────────────────────────────────────────────────
+  // ── STEP 1: Website details ─────────────────────────────────────────────────
 
   const renderStep1 = () => (
     <StepShell step={1} label="Website Details" onBack={handleStep1Back}>
@@ -309,7 +309,7 @@ const AddWebsiteForm = ({
     </StepShell>
   );
 
-  // ── STEP 2 — Domain verification ─────────────────────────────────────────────
+  // ── STEP 2: Domain verification ─────────────────────────────────────────────
 
   const renderStep2 = () => (
     <StepShell step={2} label="Verify Domain Ownership" onBack={handleBack}>
@@ -395,7 +395,7 @@ const AddWebsiteForm = ({
     </StepShell>
   );
 
-  // ── STEP 3 — Icon upload ─────────────────────────────────────────────────────
+  // ── STEP 3: Icon upload ─────────────────────────────────────────────────────
 
   const renderStep3 = () => (
     <StepShell step={3} label="Website Icon" onBack={handleBack}>
@@ -427,7 +427,7 @@ const AddWebsiteForm = ({
               <>
                 <Upload className="text-white mb-3" size={32} />
                 <p className="text-white font-medium mb-1">Click to upload icon</p>
-                <p className="text-sm text-subtle">JPEG, PNG, GIF, SVG, WebP — max 5MB</p>
+                <p className="text-sm text-subtle">JPEG, PNG, GIF, SVG, WebP (max 5MB)</p>
               </>
             )}
           </div>
@@ -447,7 +447,7 @@ const AddWebsiteForm = ({
     </StepShell>
   );
 
-  // ── STEP 4 — Business categories ─────────────────────────────────────────────
+  // ── STEP 4: Business categories ─────────────────────────────────────────────
 
   const renderStep4 = () => {
     const isAnySelected = selectedBusinessCategories.includes('any');

@@ -7,11 +7,11 @@ type ResolvedTheme = 'dark' | 'light';
 
 const STORAGE_KEY = 'yepper-theme';
 
-// Routes that are always dark regardless of the user's theme choice — the
+// Routes that are always dark regardless of the user's theme choice: the
 // auth flow and the public marketing site were designed dark-only and never
 // got themed. `/` is ambiguous: it's the marketing homepage for guests but
 // the real dashboard for logged-in users, so it only counts as "always
-// dark" when there's no session — checked via `yepper_token`, the
+// dark" when there's no session, checked via `yepper_token`, the
 // non-httpOnly mirror of the session cookie (see app/api/auth/dev-login).
 // Keep this list and the equivalent string in ThemeScript below in sync.
 const ALWAYS_DARK_PATHS = ['/login', '/onboarding', '/privacy', '/terms'];
@@ -32,14 +32,14 @@ function resolve(choice: ThemeChoice): ResolvedTheme {
 }
 
 // Only ever stamps `data-theme` on force-dark routes if it's already
-// missing — never flips it to "light", since the base :root is dark by
+// missing; never flips it to "light", since the base :root is dark by
 // default and that's exactly what these routes want.
 function apply(resolved: ResolvedTheme) {
   if (isForceDarkRoute(window.location.pathname)) return;
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
-// Inline, synchronous, runs before paint — keeps a returning light-mode user
+// Inline, synchronous, runs before paint; keeps a returning light-mode user
 // from seeing a flash of the dark-mode default while React hydrates.
 export function ThemeScript() {
   const code = `(function(){try{var p=window.location.pathname;var always=['/login','/onboarding','/privacy','/terms'];var forced=always.indexOf(p)!==-1||(p==='/'&&document.cookie.indexOf('yepper_token=')===-1);if(forced)return;var s=localStorage.getItem('${STORAGE_KEY}')||'dark';var r=s==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):s;document.documentElement.setAttribute('data-theme',r);}catch(e){}})();`;
@@ -53,7 +53,7 @@ const ThemeContext = createContext<{
 } | null>(null);
 
 // SSR renders with no localStorage, so these only run client-side (lazy
-// useState initializers execute on both, guarded below) — but by the time
+// useState initializers execute on both, guarded below), but by the time
 // this component itself is client-rendered, ThemeScript has already
 // stamped data-theme on <html>, so reading localStorage straight from the
 // initializer just brings React state in sync with what's already on

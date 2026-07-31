@@ -11,7 +11,7 @@ import {
 import { getToken } from '@/app/(adsense)/utils/token';
 
 // Video uploads go straight to the Render backend, bypassing the Next.js API
-// route proxy — Vercel Serverless Functions hard-cap request bodies at
+// route proxy: Vercel Serverless Functions hard-cap request bodies at
 // ~4.5MB regardless of streaming, which any real video file blows past.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
@@ -20,7 +20,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 // BACKEND_URL below since both services share the same ad_video_jobs table.
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL ?? 'http://localhost:5050';
 
-// Under 5 minutes: the video gets exactly one ad slot, forced to the middle —
+// Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
 // no choice. 5 minutes or longer: three candidate slots open up (just after
 // the 5-minute mark, the middle, and the 80%-through point), and an
 // advertiser can claim any one of them.
@@ -48,7 +48,7 @@ function getAdSlots(duration: number): AdSlot[] {
 
 function downloadImage(url: string) {
   // Claimed creatives live on Cloudinary (cross-origin), so the anchor
-  // `download` attribute is ignored by the browser — opening in a new tab
+  // `download` attribute is ignored by the browser: opening in a new tab
   // lets the creator save it themselves via right-click / browser controls.
   window.open(url, '_blank');
 }
@@ -58,8 +58,8 @@ function downloadImage(url: string) {
 // flow (POST /api/social/post-ad/:provider, cookie auth, no other inputs
 // required) without duplicating it.
 //
-// Advertisers' creatives never get burned into the video on Yepper's servers
-// — the creator downloads the claimed image(s) here, edits them into the
+// Advertisers' creatives never get burned into the video on Yepper's servers.
+// The creator downloads the claimed image(s) here, edits them into the
 // video themselves with their own tools, and uploads the finished file. This
 // route is a plain relay to YouTube; it doesn't inspect the video at all.
 export default function PostAdModal({
@@ -86,7 +86,7 @@ export default function PostAdModal({
   const pollCancelRef = useRef(false);
 
   // Ad creatives an advertiser has already claimed on this creator's channel
-  // (via "Collaborate with [creator]" on the homepage) — downloadable here so
+  // (via "Collaborate with [creator]" on the homepage), downloadable here so
   // the creator can edit them into their video before uploading it.
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
   const [includedSlots, setIncludedSlots]       = useState<string[]>([]);
@@ -118,7 +118,7 @@ export default function PostAdModal({
     }
   }, [open, provider]);
 
-  // Pull any ad spaces an advertiser has already claimed for this creator —
+  // Pull any ad spaces an advertiser has already claimed for this creator,
   // shown immediately, independent of picking a video, so the creator can
   // grab the image(s) whenever they're ready to start editing.
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function PostAdModal({
       .catch(() => setPendingClaims([]));
   }, [open]);
 
-  // Once the video is picked, read its duration client-side — that's what
+  // Once the video is picked, read its duration client-side: that's what
   // decides whether this is a "forced single mid-roll" video (<5min) or a
   // "pick your slots" video (5min+).
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function PostAdModal({
   const relevantClaimedSlots = adSlots.filter((s) => claimedSlotKeys.has(s.key));
   const hasRelevantClaims    = relevantClaimedSlots.length > 0;
 
-  // Defaults to every relevant claimed slot once they're known — for a short
+  // Defaults to every relevant claimed slot once they're known: for a short
   // video there's only one possible slot, so it's pre-checked automatically.
   // Adjusted during render (not an effect) per https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
   const relevantSlotsKey = relevantClaimedSlots.map((s) => s.key).join(',');
@@ -171,7 +171,7 @@ export default function PostAdModal({
   const close = () => { if (!adUploading) onClose(); };
 
   // Polls the backend job created by handlePostAd. The YouTube upload runs in
-  // the background on the server — without this, the original code waited on
+  // the background on the server; without this, the original code waited on
   // a single held-open request for that whole pipeline, which Render's
   // reverse-proxy idle timeout would kill (502) on anything but a short, fast
   // video.
@@ -190,7 +190,7 @@ export default function PostAdModal({
         const json = await res.json();
         const job = json?.data;
         if (!json?.success || !job) {
-          setAdUploadError('Lost track of the upload — please check back in a minute or try again');
+          setAdUploadError('Lost track of the upload, please check back in a minute or try again');
           setAdUploading(false);
           setUploadStage('idle');
           resolve();
@@ -218,7 +218,7 @@ export default function PostAdModal({
         setUploadStage('idle');
         resolve();
       } catch {
-        setTimeout(tick, 3000); // transient blip while polling — retry rather than failing the whole job
+        setTimeout(tick, 3000); // transient blip while polling: retry rather than failing the whole job
       }
     };
     tick();
@@ -249,7 +249,7 @@ export default function PostAdModal({
       }
 
       // Use XMLHttpRequest so we can track upload progress. This request now
-      // only covers the file transfer — it returns a jobId as soon as the
+      // only covers the file transfer; it returns a jobId as soon as the
       // video lands on the backend, well before the YouTube relay starts.
       const result = await new Promise<{ success: boolean; data?: { jobId: string }; message?: string; code?: string }>((resolve) => {
         const xhr = new XMLHttpRequest();
@@ -264,7 +264,7 @@ export default function PostAdModal({
         xhr.open('POST', `${WORKER_URL}/api/social/post-ad/${provider}`);
         xhr.withCredentials = true;
         // The login cookie is SameSite=Lax and scoped to this site, not the
-        // backend's — it won't ride along on this cross-origin request, so
+        // backend's; it won't ride along on this cross-origin request, so
         // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
         const token = getToken();
         if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -298,7 +298,7 @@ export default function PostAdModal({
 
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-lg font-bold text-(--color-white)">Post Ad — {provider.charAt(0).toUpperCase() + provider.slice(1)}</h3>
+            <h3 className="text-lg font-bold text-(--color-white)">Post Ad: {provider.charAt(0).toUpperCase() + provider.slice(1)}</h3>
             <p className="text-xs text-(--color-muted) mt-0.5">A unique tracking code will be added to your video description automatically.</p>
           </div>
           <button onClick={close} disabled={adUploading} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
@@ -325,7 +325,7 @@ export default function PostAdModal({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Advertiser creatives claimed on this channel — downloadable any time, independent of picking a video */}
+            {/* Advertiser creatives claimed on this channel, downloadable any time, independent of picking a video */}
             {pendingClaims.length > 0 && (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
                 <p className="text-xs font-bold text-emerald-400">Ad images ready for you to use</p>
@@ -337,7 +337,7 @@ export default function PostAdModal({
                     <div key={claim.slotType} className="flex items-center justify-between gap-2 text-xs text-(--color-white) bg-(--color-surface-2) rounded-lg px-3 py-2">
                       <span className="truncate">
                         {claim.slotType.charAt(0).toUpperCase() + claim.slotType.slice(1)} slot
-                        <span className="text-(--color-muted)"> — {claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, {claim.adSize}</span>
+                        <span className="text-(--color-muted)">: {claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, {claim.adSize}</span>
                       </span>
                       <button
                         onClick={() => downloadImage(claim.imageUrl)}
@@ -395,7 +395,7 @@ export default function PostAdModal({
                           className="accent-emerald-500"
                         />
                         {slot.label}
-                        {claim ? ` — ${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize}` : ''}
+                        {claim ? `: ${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize}` : ''}
                       </label>
                     );
                   })}

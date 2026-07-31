@@ -8,7 +8,7 @@ import { X, Save, Monitor, Smartphone, Tablet, RotateCcw } from 'lucide-react';
 import CSSEditor from './CSSEditor'
 import api from '@/app/_lib/adsense-api';
 
-// Plain white + shadow, no dark-mode auto-adaptation — every ad slot starts
+// Plain white + shadow, no dark-mode auto-adaptation, every ad slot starts
 // here unless its own template/colors have been set. Mirrors SYSTEM_DEFAULT
 // in backend/AdPromoter/utils/adCustomization.js; keep both in sync.
 const SYSTEM_DEFAULT = {
@@ -22,8 +22,8 @@ const SYSTEM_DEFAULT = {
   borderColor: 'rgba(0, 0, 0, 0.08)',
   borderWidth: 1,
   imagePosition: 'top',
-  // Capped by default so an advertiser's uploaded image — whatever its real
-  // resolution/aspect ratio — can never blow the card out of proportion.
+  // Capped by default so an advertiser's uploaded image, whatever its real
+  // resolution/aspect ratio, can never blow the card out of proportion.
   // imageHeight applies when imagePosition is 'top', imageWidthPercent when
   // it's 'left'. Must match SYSTEM_DEFAULT in backend/AdPromoter/utils/adCustomization.js.
   imageHeight: 160,
@@ -48,7 +48,7 @@ const SYSTEM_DEFAULT = {
   template: undefined,
 };
 
-// Curated background+text bundles — must match TEMPLATES in
+// Curated background+text bundles, must match TEMPLATES in
 // backend/AdPromoter/utils/adCustomization.js (the server is authoritative;
 // this is just for the swatch picker + live preview).
 const TEMPLATES = [
@@ -72,7 +72,7 @@ const FONT_OPTIONS = [
   { key: 'classic', label: 'Classic Slab', stack: '"Roboto Slab",Georgia,serif', google: 'Roboto+Slab:wght@500;600;700' },
 ];
 
-// Roughly how much vertical room the title/description/CTA/padding need —
+// Roughly how much vertical room the title/description/CTA/padding need,
 // keeps the card height in step with the image height instead of a tiny
 // image floating in a huge box, or a big image crammed into a small one.
 // Must match TEXT_AREA_RESERVE in backend/AdPromoter/utils/adCustomization.js.
@@ -88,7 +88,7 @@ function hexToRgb(hex) {
   return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
 }
 
-// WCAG relative luminance — picks readable text colors for whatever flat
+// WCAG relative luminance, picks readable text colors for whatever flat
 // background color the user dials in manually (gradients from a template
 // already ship their own matching text colors, so this only kicks in for
 // the plain color picker).
@@ -130,7 +130,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
     setCssError('');
   }, [activeSlot, category]);
 
-  // Pull in the selected font for live preview — same Google Fonts URL the
+  // Pull in the selected font for live preview, same Google Fonts URL the
   // live ad's injected <style> imports.
   useEffect(() => {
     const font = FONT_OPTIONS.find((f) => f.key === settings.fontFamily);
@@ -166,7 +166,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
   };
 
   // Any manual color edit means this slot is no longer "using" a named
-  // template — it's a custom look from here on.
+  // template; it's a custom look from here on.
   const updateColorSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value, template: undefined }));
   };
@@ -177,7 +177,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
   };
 
   // The container should "go with" the image instead of leaving it stranded
-  // in a mismatched box — shrinking the image shrinks the card, growing it
+  // in a mismatched box, shrinking the image shrinks the card, growing it
   // grows the card. Only applies to top-image layout (where the image stacks
   // with the text, so its height directly competes with the card's height);
   // left-image layout is already proportional since it's a width percentage
@@ -563,7 +563,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
           </button>
         </div>
 
-        {/* Ad-space slot selector — each slot's look is independent; picking
+        {/* Ad-space slot selector: each slot's look is independent; picking
             a template/color here only ever touches the slot selected below. */}
         {slotCount > 1 && (
           <div className="px-6 py-3 border-b border-border flex items-center gap-2 flex-wrap">
@@ -640,7 +640,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                       onChange={(e: any) => updateSetting('width', parseInt(e.target.value))}
                       className="w-full accent-black"
                     />
-                    <p className="text-xs text-subtle mt-1">Minimum 160px — enforced server-side too.</p>
+                    <p className="text-xs text-subtle mt-1">Minimum 160px (enforced server-side too).</p>
                   </div>
 
                   <div>
@@ -655,7 +655,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                       onChange={(e: any) => updateSetting('height', parseInt(e.target.value))}
                       className="w-full accent-black"
                     />
-                    <p className="text-xs text-subtle mt-1">Minimum 90px — enforced server-side too.</p>
+                    <p className="text-xs text-subtle mt-1">Minimum 90px (enforced server-side too).</p>
                   </div>
 
                   <div>
@@ -719,7 +719,7 @@ const AdCustomizationModal = ({ categoryId, onClose, onSave }: any) => {
                       </>
                     )}
                     <p className="text-xs text-subtle mt-1">
-                      The full image always shows (never cropped) — it's scaled to fit this box, so it can never blow up the card.
+                      The full image always shows (never cropped), it's scaled to fit this box, so it can never blow up the card.
                       {settings.imagePosition !== 'left' && ' The ad space height resizes to match.'}
                     </p>
                   </div>

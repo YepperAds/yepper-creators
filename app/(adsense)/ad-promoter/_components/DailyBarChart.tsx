@@ -1,5 +1,5 @@
 // Shared bar chart for a continuous { date, value } series (see
-// buildDailySeries in app/_lib/daily-series.ts) — used by the full
+// buildDailySeries in app/_lib/daily-series.ts), used by the full
 // per-website Analytics panel and the compact per-ad audience snapshot.
 export default function DailyBarChart({
   series,

@@ -13,7 +13,7 @@ const TRAFFIC_TIERS = [
   {
     tier: 'unverified',
     label: 'Unverified',
-    description: 'GSC connected but under 500 monthly organic clicks — 63,000 RWF total cap split across all spaces',
+    description: 'GSC connected but under 500 monthly organic clicks: 63,000 RWF total cap split across all spaces',
     min: 0,
     max: 0,
     color: '#f59e0b',
@@ -81,7 +81,7 @@ const TRAFFIC_TIERS = [
 // ── Exact prices per space per tier (from Yepper pricing xlsx) ───────────────
 const TIER_PRICES = {
   unverified: {
-    // 63,000 total cap — individual space prices allocated by visibility
+    // 63,000 total cap: individual space prices allocated by visibility
     totalCap: 63000,
     'Header': 9000,
     'Above The Fold': 7800,
@@ -254,7 +254,7 @@ export function getTierFromGsc(gscData) {
   const clicks = gscData.summary?.clicks || 0;
   // GSC gives 28-day clicks; extrapolate to monthly (~30 days)
   const monthly = Math.round(clicks * (30 / 28));
-  // If monthly < 500, they don't qualify for any verified tier yet — still Unverified
+  // If monthly < 500, they don't qualify for any verified tier yet, still Unverified
   if (monthly < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
   return (
     TRAFFIC_TIERS.find(t => t.tier !== 'unverified' && monthly >= t.min && monthly <= t.max) ||
@@ -277,11 +277,11 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
   // Resolve tier priority: grantedTier (admin grant) > GSC data > monthlyTraffic > unverified
   const resolvedTier = (() => {
     if (grantedTier) {
-      // Admin granted traffic is active — use that tier directly for pricing
+      // Admin granted traffic is active, use that tier directly for pricing
       return TRAFFIC_TIERS.find(t => t.tier === grantedTier) || TRAFFIC_TIERS.find(t => t.tier === 'unverified');
     }
     if (gscData !== undefined) {
-      // gscData was explicitly passed — use it
+      // gscData was explicitly passed, use it
       return getTierFromGsc(gscData);
     }
     // Legacy path: no gscData prop, use monthlyTraffic
@@ -376,8 +376,8 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
         <p style={{ fontSize: '12px', color: resolvedTier.textColor, marginBottom: '12px', margin: '0 0 12px 0' }}>
           {tierKey === 'unverified'
             ? (gscData?.connected && gscData?.siteMatched
-                ? `GSC connected — only ${gscMonthlyClicks ?? 0} organic clicks/mo (need 500+ for Starter tier)`
-                : 'GSC not connected — connect Search Console to unlock tier-based pricing')
+                ? `GSC connected, only ${gscMonthlyClicks ?? 0} organic clicks/mo (need 500+ for Starter tier)`
+                : 'GSC not connected: connect Search Console to unlock tier-based pricing')
             : resolvedTier.description}
         </p>
 
@@ -433,7 +433,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
             </p>
             <p style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', margin: '4px 0 0 0' }}>
               {gscData?.connected && gscData?.siteMatched
-                ? `Your organic traffic (${gscMonthlyClicks ?? 0} clicks/mo) is below the 500/mo minimum for Starter tier. Keep growing — prices will unlock automatically once you hit 500.`
+                ? `Your organic traffic (${gscMonthlyClicks ?? 0} clicks/mo) is below the 500/mo minimum for Starter tier. Keep growing. Prices will unlock automatically once you hit 500.`
                 : 'Connect GSC to unlock tier-based pricing and higher price caps.'}
             </p>
           </div>
@@ -501,7 +501,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
               return (
                 <div key={t} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', backgroundColor: '#fff', border: '1px solid #e5e7eb' }}>
                   <span style={{ fontWeight: '600', color: td.color, textTransform: 'capitalize' }}>{td.label}</span>
-                  <span style={{ color: '#374151' }}>{p ? `RWF ${p.toLocaleString()}` : '—'}</span>
+                  <span style={{ color: '#374151' }}>{p ? `RWF ${p.toLocaleString()}` : '-'}</span>
                 </div>
               );
             })}

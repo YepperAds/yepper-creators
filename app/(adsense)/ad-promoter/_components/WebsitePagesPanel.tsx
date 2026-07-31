@@ -9,7 +9,7 @@ import { websiteAPI } from '@/app/_lib/adsense-api';
 // "Blog" → "/blog") so ad spaces (see AddNewCategory.tsx / codeDisplay.tsx)
 // can target one of them by path instead of always showing everywhere. The
 // site-wide script matches a category's target_path against
-// location.pathname itself — this list is the only thing an owner has to
+// location.pathname itself; this list is the only thing an owner has to
 // keep accurate; nothing else needs re-pasting when pages are added later.
 export default function WebsitePagesPanel({ website, onPagesChange }) {
   const [open, setOpen] = useState(false);
@@ -25,7 +25,7 @@ export default function WebsitePagesPanel({ website, onPagesChange }) {
     if (!l || !raw) { setError('Give the page both a label and a path.'); return; }
 
     // The script compares this against location.pathname, which is never a
-    // full URL — so a pasted "https://example.com/sign-in" has to be reduced
+    // full URL, so a pasted "https://example.com/sign-in" has to be reduced
     // to "/sign-in" (via URL parsing, not string-prepending) or the mismatch
     // check silently fails to match on every real page load.
     let p;
@@ -69,7 +69,7 @@ export default function WebsitePagesPanel({ website, onPagesChange }) {
           <div className="text-left">
             <p className="text-sm font-semibold text-zinc-100">Website Pages</p>
             <p className="text-xs text-zinc-500">
-              {pages.length} page{pages.length !== 1 ? 's' : ''} registered — lets ad spaces target one specific page
+              {pages.length} page{pages.length !== 1 ? 's' : ''} registered, letting ad spaces target one specific page
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function WebsitePagesPanel({ website, onPagesChange }) {
           <p className="text-xs text-zinc-500 leading-relaxed">
             Register the real pages of your site (label + path, e.g. "Home" → <code className="text-zinc-400">/</code>,
             "Blog" → <code className="text-zinc-400">/blog</code>). When you add or duplicate an ad space, you'll be able
-            to pick one of these instead of "every page" — no code change needed to scope it there.
+            to pick one of these instead of "every page"; no code change needed to scope it there.
           </p>
 
           {pages.length > 0 && (

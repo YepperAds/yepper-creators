@@ -115,11 +115,11 @@ export default function NotificationsPage({ onBack }: { onBack?: () => void } = 
             <div className="w-24 h-24 rounded-full bg-(--color-surface-2) flex items-center justify-center">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22c1.1046 0 2-.8954 2-2H10c0 1.1046.8954 2 2 2z" fill="#9CA3AF"/><path d="M18 8a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2V8z" fill="#9CA3AF"/></svg>
             </div>
-            <div className="text-sm text-(--color-muted)">You're all caught up — no notifications yet.</div>
+            <div className="text-sm text-(--color-muted)">You're all caught up. No notifications yet.</div>
           </div>
         )}
 
-        {/* Full-bleed divided list, no card wrapper — same density as a
+        {/* Full-bleed divided list, no card wrapper, same density as a
             phone notification feed. */}
         <div className="divide-y divide-(--color-border)">
           {notifications.map((n) => (
@@ -143,7 +143,7 @@ export default function NotificationsPage({ onBack }: { onBack?: () => void } = 
                 </p>
               </div>
 
-              {/* Thumbnail-weight action square — both actions stay available,
+              {/* Thumbnail-weight action square: both actions stay available,
                   just grouped into one compact cluster instead of spread
                   across the row. */}
               <div className="flex items-center gap-1 rounded-lg bg-(--color-surface-2) p-1 shrink-0">

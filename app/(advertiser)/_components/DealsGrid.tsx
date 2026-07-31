@@ -5,8 +5,8 @@ import type { HotDeal, PublicWebsite, PublicCreator } from '@/app/_lib/public-ho
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import PageHeader from '@/app/_components/dashboard/PageHeader';
 
-// Same rich spotlight card as the home feed's Hot Deals tab (HotDealsSection)
-// — this panel used to have its own plainer card design, which meant a deal
+// Same rich spotlight card as the home feed's Hot Deals tab (HotDealsSection).
+// This panel used to have its own plainer card design, which meant a deal
 // looked different depending on which route you found it through.
 export default function DealsGrid({
   deals,

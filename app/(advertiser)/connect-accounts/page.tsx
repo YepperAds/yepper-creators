@@ -206,9 +206,9 @@ export default function ConnectAccountsPage() {
   const openPostAdModal = (provider: string) => setPostAdProvider(provider);
   const closePostAdModal = () => setPostAdProvider(null);
 
-  // Read-only status of this creator's 3 placement slots — advertisers claim
+  // Read-only status of this creator's 3 placement slots: advertisers claim
   // them via "Collaborate with [you]" from the Explore / Advertise feed.
-  // The ad TYPE (corner badge vs L-bar) is the creator's own choice below —
+  // The ad TYPE (corner badge vs L-bar) is the creator's own choice below;
   // advertisers only pick a size and upload their creative into it.
   useEffect(() => {
     if (!user?.id) return;
@@ -255,7 +255,7 @@ export default function ConnectAccountsPage() {
     }
   };
 
-  // Fetch video stats for YouTube accounts (informational "Est. Views/Post" stat only —
+  // Fetch video stats for YouTube accounts (informational "Est. Views/Post" stat only;
   // pricing itself comes from the ad-spaces fetch above, keyed off subscriber count).
   useEffect(() => {
     const run = async () => {
@@ -265,7 +265,7 @@ export default function ConnectAccountsPage() {
 
       for (const acc of ytAccounts) {
         try {
-          // Use the creator's integer ID — the backend queries social_video_stats.creator_id (INTEGER)
+          // Use the creator's integer ID: the backend queries social_video_stats.creator_id (INTEGER)
           const identifier = user.id ?? (user as any).user_uuid;
           const res = await api.get(SOCIAL_ENDPOINTS.videoStats('youtube', identifier));
           if (!res.ok) continue;
@@ -325,7 +325,7 @@ export default function ConnectAccountsPage() {
         if (e.data.error) {
           const msgs: Record<string, string> = {
             config_missing:  'YouTube connection is not configured on this server.',
-            token_error:     'Google denied the connection — please try again.',
+            token_error:     'Google denied the connection, please try again.',
             channel_missing: 'No YouTube channel found on your Google account.',
             server_error:    'A server error occurred. Please try again later.',
           };
@@ -349,7 +349,7 @@ export default function ConnectAccountsPage() {
     }
   };
 
-  // Website handoff feature removed — only social connections are supported.
+  // Website handoff feature removed: only social connections are supported.
 
   const handleDisconnectExecute = async () => {
     if (confirmText.toLowerCase() !== 'disconnect' || !disconnectingProvider) return;
@@ -422,7 +422,7 @@ export default function ConnectAccountsPage() {
     </section>
   );
 
-  // WebsitePanel removed — only social connections are displayed below.
+  // WebsitePanel removed: only social connections are displayed below.
 
   return (
     <div className="relative">
@@ -547,10 +547,10 @@ export default function ConnectAccountsPage() {
               {/* Views calculation + tier pricing */}
               {account.provider === 'youtube' && (
                 <div className="p-5 space-y-3">
-                  {/* Ad spaces — advertisers claim these via "Collaborate with you" on Explore/Advertise */}
+                  {/* Ad spaces: advertisers claim these via "Collaborate with you" on Explore/Advertise */}
                   <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
                     <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Ad Type</p>
-                    <p className="text-[10px] text-(--color-muted) mb-2">Pick one format for your channel — advertisers can only choose a size, not the type.</p>
+                    <p className="text-[10px] text-(--color-muted) mb-2">Pick one format for your channel: advertisers can only choose a size, not the type.</p>
                     <div className="space-y-1.5 mb-4">
                       {adFormatCatalog.map((t) => (
                         <label key={t.type} className="flex items-start gap-2 text-xs text-(--color-white) cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-1) p-2 hover:bg-(--color-surface-3)">
@@ -595,7 +595,7 @@ export default function ConnectAccountsPage() {
                         ))}
                       </div>
                     )}
-                    <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed — once claimed, their ad is offered automatically next time you hit Post Ad.</p>
+                    <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed; once claimed, their ad is offered automatically next time you hit Post Ad.</p>
                   </div>
 
                   <SendAdInviteModal
@@ -604,7 +604,7 @@ export default function ConnectAccountsPage() {
                     onClose={() => setInviteModalOpen(false)}
                   />
 
-                  {/* Tier pricing table — tier is based purely on subscriber count */}
+                  {/* Tier pricing table: tier is based purely on subscriber count */}
                   {ytPricing && (
                     <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-3 border-b border-(--color-border)">
@@ -656,7 +656,7 @@ export default function ConnectAccountsPage() {
         </section>
       </div>
 
-      {/* ── Post Ad Modal ── */}
+      {/* Post Ad Modal */}
       <PostAdModal
         provider={postAdProvider}
         open={!!postAdProvider}

@@ -12,24 +12,24 @@ function redirectToLoginForDeal(dealId: string) {
   window.location.href = `/login?from=${encodeURIComponent(`/?dealId=${dealId}`)}`;
 }
 
-// Admin-curated bundles, shown to every visitor — signed in or not — as a
+// Admin-curated bundles, shown to every visitor, signed in or not, as a
 // trending section above the normal feed. See HotDealPurchaseModal for the
 // all-or-nothing checkout.
 //
 // `initialDealId` deep-links straight into a specific deal's purchase modal
-// (e.g. from an emailed link — see adminSendDealEmail in
+// (e.g. from an emailed link, see adminSendDealEmail in
 // hotDealsController.js) wherever this section is rendered: the logged-out
 // home feed and every dashboard panel that shows it alike.
 //
 // `requireLogin` is set by the logged-out home feed (HomePage.tsx is only
-// ever rendered when there's no session — see app/page.tsx) so "Pick the
+// ever rendered when there's no session (see app/page.tsx) so "Pick the
 // package" sends the visitor to log in first, then lands them right back on
 // this same deal's purchase modal via the `dealId` deep link above, instead
 // of only discovering they need to log in after filling out the whole form.
 //
 // `websites`/`creators` resolve each deal item's real content (channel
 // avatar + an actual video, or the site's real name) for the platform tiles
-// below the price — see HotDealPlatformCard.tsx. Every color on this card is
+// below the price (see HotDealPlatformCard.tsx). Every color on this card is
 // a literal value, not a --color-* theme token: the whole point of the photo
 // + fixed white price panel is that it reads identically in light and dark
 // mode, per explicit design direction.
@@ -48,8 +48,8 @@ export default function HotDealsSection({
   websites?: PublicWebsite[];
   creators?: PublicCreator[];
   /** 'light' is for the marketing site, which (unlike the dashboard) never
-   * follows the adaptive dark/light tokens — see ThemeProvider's
-   * isForceDarkRoute — so its heading needs fixed literal colors instead. */
+   * follows the adaptive dark/light tokens (see ThemeProvider's
+   * isForceDarkRoute), so its heading needs fixed literal colors instead. */
   variant?: 'dark' | 'light';
   horizontal?: boolean;
 }) {
@@ -58,7 +58,7 @@ export default function HotDealsSection({
   );
 
   // Strip `dealId` back out of the URL once consumed, without disturbing any
-  // other params (e.g. `panel=advertise`) — plain History API so this never
+  // other params (e.g. `panel=advertise`); plain History API so this never
   // needs a useSearchParams()/Suspense boundary just for a one-time cleanup.
   useEffect(() => {
     if (!initialDealId) return;
@@ -100,7 +100,7 @@ export default function HotDealsSection({
                 horizontal ? 'w-[400px] shrink-0 shadow-[0_10px_32px_rgba(0,0,0,0.14)] hover:-translate-y-1 transition-transform duration-200' : 'max-w-sm'
               }`}
             >
-              {/* Corner sale ribbon — clipped to a triangle by the card's own
+              {/* Corner sale ribbon, clipped to a triangle by the card's own
                   overflow-hidden, the classic e-commerce "you're saving real
                   money" cue that a plain price line doesn't give you. */}
               {pctOff > 0 && (
@@ -138,7 +138,7 @@ export default function HotDealsSection({
                 </div>
               </div>
 
-              {/* Promo-stripe band, not flush with the card edges — the white
+              {/* Promo-stripe band, not flush with the card edges. The white
                   content panel below sits padded inside it, rather than the
                   white filling the whole width/corners like a plain document. */}
               <div className="yp-promo-stripes px-2.5 pt-1.5 pb-1.5">

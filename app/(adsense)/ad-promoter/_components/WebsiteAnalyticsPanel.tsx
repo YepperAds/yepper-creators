@@ -19,12 +19,12 @@ import { buildDailySeries } from '@/app/_lib/daily-series';
 import AudienceMap from './AudienceMap';
 import DailyBarChart from './DailyBarChart';
 
-// Visitor-traffic analytics for a single website the user owns — extracted
+// Visitor-traffic analytics for a single website the user owns, extracted
 // from the per-website "Analytics" tab (see ad-promoter/pages/website/[websiteId]/page.tsx)
 // so it can be shown as its own tab on the dashboard's main Analytics page
 // instead of buried inside the website drill-down. WebsiteDetails itself
 // still fetches this same data internally (it feeds AddNewCategory's
-// traffic-based pricing) — this component is a second, independent fetch
+// traffic-based pricing); this component is a second, independent fetch
 // for display purposes only.
 export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { websiteId: string; websiteLink?: string | null }) {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -245,14 +245,14 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 Your Stated Traffic
               </h2>
               <p className="text-xs text-muted mt-0.5">
-                Numbers you provided via your analytics boost — shown separately from script-counted data
+                Numbers you provided via your analytics boost, shown separately from script-counted data
                 {hoursLeft > 0 && <span className="text-amber-400 ml-2">· Visible for {hoursLeft}h more</span>}
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 mb-4">
               {[
-                { label: 'Monthly Visitors', value: gd.grantedTraffic?.toLocaleString() ?? '—', sub: 'as stated by you' },
-                { label: 'Monthly Views', value: gd.grantedViews?.toLocaleString() ?? '—', sub: 'as stated by you' },
+                { label: 'Monthly Visitors', value: gd.grantedTraffic?.toLocaleString() ?? '-', sub: 'as stated by you' },
+                { label: 'Monthly Views', value: gd.grantedViews?.toLocaleString() ?? '-', sub: 'as stated by you' },
                 { label: 'Traffic Tier', value: gd.trafficTier, sub: 'applied to your ad spaces', color: tierColor, cap: true },
               ].map(({ label, value, sub, color, cap }) => (
                 <div key={label} className="border border-border p-5 bg-surface-1">
@@ -277,7 +277,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21.35 11.1h-9.17v2.73h5.51c-.33 1.81-1.87 3.14-3.77 3.14a5.02 5.02 0 01-5.03-5.02 5.02 5.02 0 015.03-5.02c1.22 0 2.33.44 3.19 1.16l2.02-2.02A8.46 8.46 0 0014.51 4c-4.69 0-8.5 3.8-8.5 8.5s3.81 8.5 8.5 8.5c4.91 0 8.17-3.45 8.17-8.3 0-.56-.06-1.1-.17-1.6h-1.16z" fill="#4285F4"/></svg>
               Organic Traffic (Search Console)
             </h2>
-            <p className="text-xs text-muted mt-0.5">Real clicks & impressions from Google Search — last 28 days</p>
+            <p className="text-xs text-muted mt-0.5">Real clicks & impressions from Google Search (last 28 days)</p>
           </div>
           {gscData?.connected && (
             <button onClick={handleDisconnectGsc} className="text-xs text-muted hover:text-red-400 transition-colors underline">Disconnect</button>
@@ -295,7 +295,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
               <svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M43.6 20.2H24v7.3H35.2c-.9 4.8-5 8.4-11.2 8.4A13.4 13.4 0 0110.6 24a13.4 13.4 0 0113.4-13.4c3.2 0 6.2 1.2 8.5 3.1l5.4-5.4A22.5 22.5 0 0024 2C11.9 2 2 11.9 2 24s9.9 22 22 22c13.1 0 21.8-9.2 21.8-22.1 0-1.5-.2-2.9-.4-4.3l-1.8.6z" fill="#4285F4"/></svg>
             </div>
             <h3 className="text-base font-semibold text-white mb-2">Connect Google Search Console</h3>
-            <p className="text-sm text-muted mb-6 max-w-sm mx-auto">See how many people find your site through Google — clicks, impressions, CTR, and top queries.</p>
+            <p className="text-sm text-muted mb-6 max-w-sm mx-auto">See how many people find your site through Google: clicks, impressions, CTR, and top queries.</p>
             <button
               onClick={handleConnectGsc}
               disabled={gscConnecting}
@@ -309,7 +309,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
           </div>
         ) : gscData.connected && !gscData.siteMatched ? (
           <div className="border border-amber-400/30 bg-amber-400/5 p-6 text-center">
-            <p className="text-sm font-semibold text-amber-300 mb-1">Connected — but no matching property found</p>
+            <p className="text-sm font-semibold text-amber-300 mb-1">Connected, but no matching property found</p>
             <p className="text-xs text-amber-400/80 mb-4">Make sure <strong>{websiteLink}</strong> is verified in your Google Search Console account.</p>
             <button onClick={handleConnectGsc} className="text-xs underline text-amber-400 hover:text-amber-300">Reconnect</button>
           </div>
@@ -320,7 +320,7 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
                 { label: 'Total Clicks', value: gscData.summary?.clicks?.toLocaleString() ?? '0', sub: 'from Google Search' },
                 { label: 'Impressions', value: gscData.summary?.impressions?.toLocaleString() ?? '0', sub: 'times shown' },
                 { label: 'Avg. CTR', value: `${gscData.summary?.ctr ?? 0}%`, sub: 'click-through rate' },
-                { label: 'Avg. Position', value: gscData.summary?.position ?? '—', sub: 'mean ranking' },
+                { label: 'Avg. Position', value: gscData.summary?.position ?? '-', sub: 'mean ranking' },
               ].map(({ label, value, sub }) => (
                 <div key={label} className="border border-border p-5 bg-surface-1">
                   <p className="text-xs font-medium text-muted uppercase mb-1">{label}</p>

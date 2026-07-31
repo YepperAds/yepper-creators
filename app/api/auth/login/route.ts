@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
       secure:   process.env.NODE_ENV === 'production',
       maxAge:   60 * 60 * 24 * 7,
     };
-    // httpOnly cookie — used by Next.js API routes (/api/auth/session, etc.)
+    // httpOnly cookie: used by Next.js API routes (/api/auth/session, etc.)
     res.cookies.set('yepper_session', data.token, { ...cookieOpts, httpOnly: true });
-    // readable cookie — used by client-side axios in adsense utils/api.tsx
+    // readable cookie: used by client-side axios in adsense utils/api.tsx
     res.cookies.set('yepper_token', data.token, { ...cookieOpts, httpOnly: false });
   }
 

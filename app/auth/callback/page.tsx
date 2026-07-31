@@ -31,7 +31,7 @@ function CallbackContent() {
     }
 
     if (!token) {
-      setTimeout(() => setError('Invalid callback — no token provided.'), 0);
+      setTimeout(() => setError('Invalid callback: no token provided.'), 0);
       setTimeout(() => router.replace('/login'), 3000);
       return;
     }
@@ -47,7 +47,7 @@ function CallbackContent() {
         return;
       }
 
-      // Session cookie is now set via fetch — browser won't block it
+      // Session cookie is now set via fetch; browser won't block it
       router.replace('/');
     }
 

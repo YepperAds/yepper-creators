@@ -107,7 +107,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
   const router = useRouter();
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  // Use the shared session hook — no more localStorage.getItem('token')
+  // Use the shared session hook: no more localStorage.getItem('token')
   const { user, isAuthenticated, token } = useSession();
 
   // websiteId from prop takes priority; fall back to route param
@@ -438,7 +438,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                {/* Left — inputs */}
+                {/* Left: inputs */}
                 <div className="space-y-6">
                   <PricingTiers
                     selectedPrice={categoryData[activeCategory] || {}}
@@ -460,7 +460,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                           onChange={(e) => updateCategoryData(activeCategory, 'targetPath', e.target.value || null)}
                           className="w-full bg-surface-1 border border-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-white/40"
                         >
-                          <option value="">All Pages — shows on every page</option>
+                          <option value="">All Pages (shows on every page)</option>
                           {websitePages.map((p) => (
                             <option key={p.path} value={p.path}>{p.label} ({p.path})</option>
                           ))}
@@ -473,7 +473,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                       )}
                       <p className="text-xs text-muted mt-1.5">
                         You'll still paste a small placeholder div where you want this ad (see Integration Codes after
-                        saving) — this just tells the system which page to expect it on, so it can flag it if it ends up
+                        saving). This just tells the system which page to expect it on, so it can flag it if it ends up
                         elsewhere.
                       </p>
                     </div>
@@ -510,7 +510,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                   </div>
                 </div>
 
-                {/* Right — preview */}
+                {/* Right: preview */}
                 <div className="space-y-6">
                   <h3 className="text-lg font-semibold text-white">Description &amp; Preview</h3>
 

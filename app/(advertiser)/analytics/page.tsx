@@ -327,7 +327,7 @@ function AdCampaignCard({ post, open, onToggle }: { post: AdPost; open: boolean;
           )}
 
           <p className="text-xs text-(--color-muted) border border-dashed border-(--color-border) rounded-xl p-4 text-center">
-            Audience location isn&apos;t available for {provLabel} ads — Yepper doesn&apos;t currently pull per-video viewer geography from {provLabel}.
+            Audience location isn&apos;t available for {provLabel} ads. Yepper doesn&apos;t currently pull per-video viewer geography from {provLabel}.
           </p>
         </div>
       )}
@@ -374,11 +374,11 @@ export default function AnalyticsPage() {
         const uuid = u?.id ?? u?.user_uuid ?? u?.uuid;
         if (uuid) { setUserUuid(String(uuid)); return; }
       }
-      setLoading(false); // session unavailable or no UUID — stop the spinner
+      setLoading(false); // session unavailable or no UUID, stop the spinner
     }).catch(() => setLoading(false));
   }, []);
 
-  // Fetch ad posts — always live stats from YouTube
+  // Fetch ad posts: always live stats from YouTube
   const syncAdPosts = useCallback(async (uid: string, quiet = false) => {
     if (!quiet) setSyncing(true);
     setError('');
@@ -420,7 +420,7 @@ export default function AnalyticsPage() {
   const toggleAd = (id: number) =>
     setOpenAds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // Website ad campaigns — views/clicks for ads placed on publisher sites via direct-ad
+  // Website ad campaigns: views/clicks for ads placed on publisher sites via direct-ad
   useEffect(() => {
     (async () => {
       try {
@@ -440,7 +440,7 @@ export default function AnalyticsPage() {
   const toggleWebAd = (id: string) =>
     setOpenWebAds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // Deep-linked from the "just created this ad" success screen — scroll it into view once loaded.
+  // Deep-linked from the "just created this ad" success screen; scroll it into view once loaded.
   useEffect(() => {
     if (!adIdParam || webAdsLoading) return;
     document.getElementById(`web-ad-${adIdParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -474,7 +474,7 @@ export default function AnalyticsPage() {
 
       {tab === 'ads' && (
       <>
-      {/* Sub-tabs — website ads vs. social media ads, so neither needs a scroll to reach */}
+      {/* Sub-tabs: website ads vs. social media ads, so neither needs a scroll to reach */}
       <div className="flex items-center gap-1 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-1 w-fit">
         {([
           { id: 'website' as const, label: 'Website Ads' },
@@ -553,7 +553,7 @@ export default function AnalyticsPage() {
 
       {adsSubTab === 'website' && (
       <>
-      {/* Website ad campaigns — traffic on ads placed directly on publisher sites */}
+      {/* Website ad campaigns: traffic on ads placed directly on publisher sites */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-(--color-white)">Website Ad Campaigns</h2>

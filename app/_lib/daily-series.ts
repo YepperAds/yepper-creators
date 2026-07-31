@@ -1,4 +1,4 @@
-// Backend day-count endpoints only return days that actually had traffic —
+// Backend day-count endpoints only return days that actually had traffic:
 // with a sparse or short history that's 2-3 entries, which a `flex-1` bar
 // chart renders as a couple of giant blocks rather than a real chart. This
 // fills in every day across the selected range (as 0) so the chart always

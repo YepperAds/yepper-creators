@@ -1,7 +1,7 @@
 'use client';
 // @ts-nocheck
 
-// PaymentCallback2.js — Flutterwave version
+// PaymentCallback2.js: Flutterwave version
 import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Text, Heading, Container } from '@/app/(adsense)/components/components';
@@ -87,7 +87,7 @@ function PaymentCallback2Content() {
               setMessage(errorData?.message || errorData?.error || `Server error (${statusCode})`);
           }
         } else {
-          setMessage((err as any).message || 'Network error — unable to reach the payment verification server. Please check your connection.');
+          setMessage((err as any).message || 'Network error: unable to reach the payment verification server. Please check your connection.');
         }
       }
     };
@@ -124,7 +124,7 @@ function PaymentCallback2Content() {
             <div className="flex items-center gap-2 justify-center bg-amber-50 border border-amber-400 text-amber-800 rounded px-4 py-2 mb-6 text-sm">
               <FlaskConical size={15} className="shrink-0" />
               <span>
-                <strong>Sandbox Mode</strong> — this was a test transaction. No real money was charged.
+                <strong>Sandbox Mode</strong>: this was a test transaction. No real money was charged.
               </span>
             </div>
           )}

@@ -1,4 +1,4 @@
-// Short "why this, why now" blurb shown before a listing row — the whole
+// Short "why this, why now" blurb shown before a listing row. The whole
 // point is telling a first-time visitor why they'd use a ready-made
 // listing instead of going and finding media space themselves, before
 // they see the listing itself.

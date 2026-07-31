@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
   if (!jwt) return NextResponse.redirect(new URL('/login?error=google_exchange_failed', origin));
 
-  // 4. Set both session cookies and redirect to the dashboard — no role-selection
+  // 4. Set both session cookies and redirect to the dashboard: no role-selection
   // step, the dashboard shows both website and YouTube features to everyone.
   const state = req.nextUrl.searchParams.get('state');
   const from  = state && state.startsWith('/') && !state.startsWith('//') ? state : null;

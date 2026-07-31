@@ -9,7 +9,7 @@ const PauseContainer = () => {
       point: "Appears only when the viewer pauses",
     },
     {
-      point: "Non-intrusive — never interrupts playback",
+      point: "Non-intrusive, never interrupts playback",
     },
     {
       point: "Full-attention static frame, no motion competing for focus",
@@ -55,7 +55,7 @@ const PauseContainer = () => {
               </h1>
 
               <p className="text-[#fff]/70 leading-relaxed mb-8">
-                An ad overlay that appears the moment a viewer pauses the video — it never interrupts playback, and catches a viewer who's already stepped away from the content and looking at a static frame.
+                An ad overlay that appears the moment a viewer pauses the video. It never interrupts playback, and catches a viewer who's already stepped away from the content and looking at a static frame.
               </p>
             </div>
 

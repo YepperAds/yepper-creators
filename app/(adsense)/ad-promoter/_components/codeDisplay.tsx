@@ -8,27 +8,27 @@ import {
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 
-// Every space type now uses the same mechanism — a <div data-yepper-space>
+// Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
 // WebsitePagesPanel.tsx / AddNewCategory.tsx's page picker). "All Pages"
 // (target_path null) means pasting the div once in the root layout; a
-// specific page means pasting it just on that page's component — either way,
+// specific page means pasting it just on that page's component; either way,
 // the div is what actually places the ad, and the target page is a
 // verification check, not a placement mechanism: the site-wide script
 // (installed once, globally) matches the div's own page against it, and
 // reports a mismatch instead of silently doing nothing or rendering somewhere
 // unintended (see reportPageMismatch in SiteScriptController.js). Iframe
 // embeds used to be the recommendation for in-flow types (sidebar, header,
-// etc.) — existing ones already pasted keep working via /api/p/embed, but new
+// etc.), existing ones already pasted keep working via /api/p/embed, but new
 // spaces all get a div now for the same tracking every other type gets.
 const isPageScoped = (cat) => !!cat.targetPath;
 
 // ── Plain <script> tag ──────────────────────────────────────────────────────
-// A tag, not code — dropped directly in a page's markup/JSX return, exactly
+// A tag, not code, dropped directly in a page's markup/JSX return, exactly
 // where the placeholder div below also gets dropped. React/Vue/Angular all
 // mount a <script> written in a template/JSX the same way any other DOM node
 // mounts: via a real createElement+insert, which the browser executes
-// normally (unlike innerHTML-inserted scripts, which don't run) — no
+// normally (unlike innerHTML-inserted scripts, which don't run), no
 // lifecycle hook required. Usually goes in the root layout/head so it loads
 // once, site-wide (e.g. public/index.html's <head>, or a framework's root
 // layout component).
@@ -36,12 +36,12 @@ function buildScriptTag(src) {
   return `<script src="${src}" async></script>`;
 }
 
-// ── Placeholder div — required for every space ──────────────────────────────
-// A real markup element, not an injection — paste it directly in whichever
+// ── Placeholder div: required for every space ──────────────────────────────
+// A real markup element, not an injection, paste it directly in whichever
 // page's JSX/template the ad should render on. The site-wide script
 // (installed once, globally) scans for these on every route change; if the
 // div's page doesn't match the space's configured target page, it
-// deliberately does NOT render and reports the mismatch back instead — see
+// deliberately does NOT render and reports the mismatch back instead, see
 // reportPageMismatch in SiteScriptController.js.
 function buildPlaceholderDiv(categoryId) {
   return `<div data-yepper-space="${categoryId}"></div>`;
@@ -103,7 +103,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
       await categoryAPI.updateTargetPath(cat._id, targetPath);
       onTargetPathChange?.(cat._id, targetPath);
     } catch (e) {
-      alert('Failed to update target page — please try again.');
+      alert('Failed to update target page. Please try again.');
     } finally {
       setTogglingId(null);
     }
@@ -186,10 +186,10 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
           <div className="p-5 space-y-2">
             <CodeBlock code={mainCode} />
             <p className="text-xs text-zinc-500 leading-relaxed">
-              A tag, not code — paste it once in your site's root HTML (e.g. <code className="text-zinc-400">public/index.html</code>'s
+              A tag, not code, paste it once in your site's root HTML (e.g. <code className="text-zinc-400">public/index.html</code>'s
               <code className="text-zinc-400"> &lt;head&gt;</code>) or your framework's root layout/head
               (<code className="text-zinc-400">app/layout.tsx</code>, <code className="text-zinc-400">App.vue</code>,
-              <code className="text-zinc-400"> index.html</code> for Angular) — same tag either way, no hooks or lifecycle code needed.
+              <code className="text-zinc-400"> index.html</code> for Angular), same tag either way, no hooks or lifecycle code needed.
             </p>
           </div>
 
@@ -247,7 +247,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                                   : 'text-blue-400 border-blue-800'
                               }`}
                             >
-                              <option value="">All Pages — every page</option>
+                              <option value="">All Pages (every page)</option>
                               {websitePages.map((p: any) => (
                                 <option key={p.path} value={p.path}>{p.label}</option>
                               ))}
@@ -268,7 +268,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         </div>
                         <button
                           onClick={() => startDuplicate(cat)}
-                          title="Duplicate this ad space for another page — gives that page its own independently-sold ads instead of mirroring this one's"
+                          title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
                           className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
                         >
                           <Files className="w-3 h-3" />
@@ -324,7 +324,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             {duplicateError && <p className="text-xs text-red-400 mt-1">{duplicateError}</p>}
                             {!duplicateError && (
                               <p className="text-xs text-zinc-600 mt-1">
-                                Creates a separate ad space with its own tag and its own inventory — advertisers who buy
+                                Creates a separate ad space with its own tag and its own inventory; advertisers who buy
                                 this one won't automatically show up on {cat.categoryName || cat.spaceType} too.
                               </p>
                             )}
@@ -350,7 +350,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 </div>
               </div>
 
-              {/* Precise-Placement Spaces (accordion) — one placeholder div per space */}
+              {/* Precise-Placement Spaces (accordion): one placeholder div per space */}
               {categories.length > 0 && (
                 <div className="border-t border-zinc-700">
                   <button
@@ -360,14 +360,14 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     <div className="flex items-center gap-2">
                       <MousePointer className="w-4 h-4 text-purple-400" />
                       <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
-                      <span className="text-xs text-zinc-500 ml-1">— one div per space, paste exactly where it goes</span>
+                      <span className="text-xs text-zinc-500 ml-1">(one div per space, paste exactly where it goes)</span>
                     </div>
                     {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
                   </button>
                   {showManual && (
                     <div className="px-5 pb-5 space-y-4">
                       <p className="text-xs text-zinc-500 leading-relaxed">
-                        Each space below gets its own div, tied to its own inventory — pasting the <em>same</em> div on two
+                        Each space below gets its own div, tied to its own inventory; pasting the <em>same</em> div on two
                         different pages shows the same currently-sold ad on both at once. If a second page needs its own,
                         separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> on the space above
                         instead of copying this div twice.
@@ -385,14 +385,14 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                               </div>
                               <p className="text-xs text-zinc-500 leading-relaxed">
                                 {positionsSelf
-                                  ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}) — the div's
+                                  ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
                                       spot in your markup doesn't matter, only which page it's on.</>
-                                  : <>Renders right where you paste it — drop this div exactly where you want the ad box to sit in
+                                  : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
                                       your page's layout.</>} {cat.targetPath
-                                  ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page — the dropdown above
+                                  ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
                                       is set to that page, and the ad won't show (and you'll get notified) if this div ends up
                                       somewhere else.</>
-                                  : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ' — paste it once in your root layout so it\'s on every page, same as the main script above.' : ' — paste it on every page you want this ad to appear on.'}</>}
+                                  : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
                               </p>
                               <CodeBlock code={buildPlaceholderDiv(cat._id)} />
                             </div>

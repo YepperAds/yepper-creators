@@ -5,7 +5,7 @@ import { PlayIcon } from '@heroicons/react/24/solid';
 import { getYouTubeVideoId } from '@/app/_lib/youtube';
 
 // Loops the first ~6s of the video, muted, while the card is on screen.
-// Only mounts the actual iframe once in view — with dozens of these in a
+// Only mounts the actual iframe once in view. With dozens of these in a
 // continuously-growing feed, autoplaying every embed at once would be a
 // real bandwidth/CPU hit, so off-screen cards just show a static thumbnail.
 const LOOP_SECONDS = 6;

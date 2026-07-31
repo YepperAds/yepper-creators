@@ -14,7 +14,7 @@ import SupportPage from '@/app/(advertiser)/support/page';
 import DealsGrid from '@/app/(advertiser)/_components/DealsGrid';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
-// Solid pill, not just bare text on the mesh backdrop — the panels using
+// Solid pill, not just bare text on the mesh backdrop. The panels using
 // this (websites, wallet, analytics, etc.) render directly on `yp-mesh`
 // with no card behind them, so `text-subtle` alone has poor contrast
 // against the vivid light-mode gradient.
@@ -35,8 +35,8 @@ function BackToFeed({ onClick }: { onClick: () => void }) {
 const PANEL_CARD = 'rounded-3xl border border-border bg-surface-2 p-4 sm:p-6';
 
 // These older panels don't manage their own header/scroll region (see
-// PageHeader.tsx for the ones that do — HomeExplore, DealsGrid,
-// NotificationsPage) — <main> itself no longer scrolls (each page owns its
+// PageHeader.tsx for the ones that do: HomeExplore, DealsGrid,
+// NotificationsPage). <main> itself no longer scrolls (each page owns its
 // scroll now), so they need this wrapper to stay reachable at all.
 function LegacyPanel({ onBack, children }: { onBack: () => void; children: React.ReactNode }) {
   return (
@@ -47,7 +47,7 @@ function LegacyPanel({ onBack, children }: { onBack: () => void; children: React
   );
 }
 
-// The `useSearchParams()` boundary — this is the only part of the dashboard
+// The `useSearchParams()` boundary: this is the only part of the dashboard
 // that needs to be wrapped in <Suspense> by the parent. `panel` drives which
 // content shows in the center column; switching panels never leaves `/`.
 export default function CenterPanel({

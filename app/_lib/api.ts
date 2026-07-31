@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Yepper — Base API Client
+// Yepper: Base API Client
 // ─────────────────────────────────────────────────────────────
 // All backend requests go through this module.
 //

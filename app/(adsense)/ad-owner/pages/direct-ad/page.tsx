@@ -49,11 +49,11 @@ function DirectAdvertise() {
   const fileInputRef = useRef(null);
 
   // "All Pages" ad spaces (categoryInfo.targetPath === null) let the
-  // advertiser pick which pages to show on — but only from pages where the
+  // advertiser pick which pages to show on, but only from pages where the
   // site-wide script has actually detected this category's placeholder div
   // (categoryInfo.detectedPages), not the website's self-reported page list.
   // An owner can register 6 pages in their dashboard but only ever have
-  // pasted the ad code on 1 of them — this reflects where the ad can really
+  // pasted the ad code on 1 of them, this reflects where the ad can really
   // render. Picking 2+ real placements doubles the price.
   const registeredPages = Array.isArray(websiteInfo?.pages) ? websiteInfo.pages : [];
   const detectedPaths: string[] = Array.isArray(categoryInfo?.detectedPages) ? categoryInfo.detectedPages : [];
@@ -162,7 +162,7 @@ function DirectAdvertise() {
       try {
         const parsed = JSON.parse(savedData);
         setBusinessData(parsed.businessData || {});
-        // Restore the step too — needed so the googleReturn effect below (which
+        // Restore the step too, needed so the googleReturn effect below (which
         // only fires when step === 2) still sees step 2 after the OAuth round
         // trip remounts this page fresh with step defaulted back to 1.
         if (parsed.step) setStep(parsed.step);
@@ -209,7 +209,7 @@ function DirectAdvertise() {
     fetchData();
   }, [websiteId, categoryId]);
 
-  // Must match the tolerance in isImageSizeAcceptable, backend/AdPromoter/utils/adSpaceLayout.js —
+  // Must match the tolerance in isImageSizeAcceptable, backend/AdPromoter/utils/adSpaceLayout.js,
   // this is a UX-only pre-check, the backend call in createAdAndProceed() is the authoritative gate.
   const checkImageDimensions = (selectedFile: File): Promise<{ ok: boolean; message?: string }> => {
     return new Promise((resolve) => {
@@ -255,7 +255,7 @@ function DirectAdvertise() {
     }
 
     if (selectedFile.size > maxSize) {
-      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB — please choose a smaller file.`);
+      setError(`File is too large (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 25MB. Please choose a smaller file.`);
       return;
     }
 
@@ -504,7 +504,7 @@ function DirectAdvertise() {
           logo: '',
         },
         callback: async (data) => {
-          // Close the modal immediately — it won't close itself
+          // Close the modal immediately; it won't close itself
           if (flwModal && typeof flwModal.close === 'function') flwModal.close();
 
           if (data.status === 'successful' || data.status === 'completed') {
@@ -747,8 +747,8 @@ function DirectAdvertise() {
                   </label>
                   {categoryInfo?.recommendedSize && (
                     <p className="text-xs text-muted mb-2">
-                      Recommended size: {(categoryInfo.recommendedSize as any).width}×{(categoryInfo.recommendedSize as any).height}px
-                      — images that don't roughly match this shape will be rejected.
+                      Recommended size: {(categoryInfo.recommendedSize as any).width}×{(categoryInfo.recommendedSize as any).height}px;
+                      images that don't roughly match this shape will be rejected.
                     </p>
                   )}
                   <div
@@ -939,7 +939,7 @@ function DirectAdvertise() {
                 <div className="space-y-6">
                   <p className="text-subtle text-sm">Please sign in or create an account to proceed with your advertisement.</p>
 
-                  {/* Google — primary CTA */}
+                  {/* Google: primary CTA */}
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
@@ -1030,7 +1030,7 @@ function DirectAdvertise() {
                             RWF {displayPrice}
                             {pageSelectionEligible && selectedPages.length >= 2 && (
                               <span className="ml-2 text-xs font-normal text-subtle">
-                                (doubled — {selectedPages.length} pages)
+                                (doubled: {selectedPages.length} pages)
                               </span>
                             )}
                           </span>

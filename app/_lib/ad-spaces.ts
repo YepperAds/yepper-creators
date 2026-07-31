@@ -1,4 +1,4 @@
-// Ad-space mockup images — one per placement, showing an advertiser roughly
+// Ad-space mockup images: one per placement, showing an advertiser roughly
 // where their ad will actually sit on the page/player. Keyed by the
 // canonical space label (see SPACE_TYPES / SPACE_ALIASES in
 // backend/models/PricingModel.js) so it matches ad_categories.space_type
@@ -29,7 +29,7 @@ const AD_SPACE_IMAGES: Record<string, string> = {
 
 /** Looks up the mockup image for an ad space, trying the canonical
  * `spaceType` first and falling back to `categoryName` (the free-text field
- * site owners can rename) — returns null if neither matches so callers can
+ * site owners can rename); returns null if neither matches so callers can
  * skip the thumbnail instead of showing a broken image. */
 export function getAdSpaceImage(spaceType?: string | null, categoryName?: string | null): string | null {
   const bySpaceType = spaceType ? AD_SPACE_IMAGES[spaceType.toLowerCase().trim()] : undefined;
@@ -38,7 +38,7 @@ export function getAdSpaceImage(spaceType?: string | null, categoryName?: string
   return byCategoryName ?? null;
 }
 
-// Short, plain-language explanations of each placement — a web owner's ad
+// Short, plain-language explanations of each placement: a web owner's ad
 // category can carry its own free-text `description`, but plenty are
 // created without one (e.g. admin-added prospect sites just reuse the
 // space-type name), so advertisers need a guaranteed, easy-to-scan fallback
@@ -68,7 +68,7 @@ const AD_SPACE_DESCRIPTIONS: Record<string, string> = {
 };
 
 /** Same lookup strategy as `getAdSpaceImage`, but for a short fallback
- * description — returns null if nothing matches so callers can fall back
+ * description; returns null if nothing matches so callers can fall back
  * further (e.g. to their own copy) instead of showing a blank string. */
 export function getAdSpaceDescription(spaceType?: string | null, categoryName?: string | null): string | null {
   const bySpaceType = spaceType ? AD_SPACE_DESCRIPTIONS[spaceType.toLowerCase().trim()] : undefined;

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Yepper — Unified Auth Types
+// Yepper: Unified Auth Types
 // ─────────────────────────────────────────────────────────────────────────────
 // Single auth source: backend-adsense (JWT, email/password + Google OAuth).
 // The `yepper_session` cookie stores the JWT issued by the adsense backend.

@@ -172,7 +172,7 @@ export default function OnboardingPage() {
   return (
     <div className="h-screen overflow-hidden flex bg-black">
 
-      {/* ══ LEFT — form panel ══════════════════════════════════════════════════ */}
+      {/* LEFT: form panel */}
       <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
 
         {/* Logo */}
@@ -331,7 +331,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* ══ RIGHT — scrolling campaign mosaic ═══════════════════════════════════ */}
+      {/* RIGHT: scrolling campaign mosaic */}
       <CampaignMosaic />
 
     </div>

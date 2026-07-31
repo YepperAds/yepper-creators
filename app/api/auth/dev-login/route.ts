@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DEV-ONLY login bypass — lets a developer get an authenticated session on
+// DEV-ONLY login bypass: lets a developer get an authenticated session on
 // localhost without going through real Google OAuth (which needs a registered
 // redirect URI you usually don't have configured for localhost).
 //
 // Reuses the exact same backend endpoint the real flow uses
-// (/api/auth/google-exchange — see app/api/auth/google/callback/route.ts),
+// (/api/auth/google-exchange, see app/api/auth/google/callback/route.ts),
 // just with a fixed fake Google identity instead of a real one. Same Creator
 // row, same JWT, same cookies, same redirect logic as a real login.
 //
-// Returns 404 in production — this route (and the button that links to it in
+// Returns 404 in production. This route (and the button that links to it in
 // LoginForm.tsx) should be deleted once you no longer need local testing.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';
 
@@ -49,7 +47,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=dev_login_failed', origin));
   }
 
-  // No role-selection step — everyone lands on the dashboard regardless of profile state.
+  // No role-selection step: everyone lands on the dashboard regardless of profile state.
   const redirectPath = '/';
   const res = NextResponse.redirect(new URL(redirectPath, origin));
 

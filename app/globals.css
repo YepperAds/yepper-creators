@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
-   Yepper Design System — v1.0
+   Yepper Design System: v1.0
    Global CSS custom properties (design tokens)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -16,12 +16,12 @@
   --color-subtle:      var(--subtle);     
   --color-white:       var(--text-main);  
 
-  /* ── Accent — Coral (use sparingly) ──────────────────────── */
+  /* Accent: Coral (use sparingly) */
   --color-coral:       #E8472B;
   --color-coral-dark:  #C73820;
   --color-coral-text:  var(--coral-text);  /* coral used as text on a surface */
 
-  /* ── Accent — Blue (use sparingly) ───────────────────────── */
+  /* Accent: Blue (use sparingly) */
   --color-blue:        #1090C8;   
   --color-blue-dark:   #0C7AAB;   
 
@@ -38,7 +38,7 @@
 /* ── Theme tokens ─────────────────────────────────────────────
    Dark is the default and the no-JS/no-flash fallback. ThemeProvider
    (app/_components/ThemeProvider.tsx) stamps data-theme="light" on <html>
-   once a user (or their OS) picks light — see the Settings → Appearance
+   once a user (or their OS) picks light; see the Settings → Appearance
    "Color scheme" control. Everything downstream just reads --bg/--surface-*
    and friends through the theme mapping block up top, so components that
    use the bg-background/bg-surface-1/text-white/etc. tokens get both
@@ -54,7 +54,7 @@
   --subtle:     #ABABAB;
   --text-main:  #FFFFFF;
   --coral-text: #E8472B;   /* vivid coral already clears 4.5:1 on dark surfaces */
-  --clay-bg:           #2B2420;            /* same idea, dark-mode putty — still one tone for every card */
+  --clay-bg:           #2B2420;            /* same idea, dark-mode putty; still one tone for every card */
   --clay-shadow-dark:  rgba(0, 0, 0, 0.55);
   --clay-shadow-light: rgba(255, 255, 255, 0.07);
   color-scheme: dark;
@@ -76,12 +76,12 @@
   color-scheme: light;
 }
 
-/* ── Marketing site palette — fixed, literal values on purpose. The public
+/* Marketing site palette: fixed, literal values on purpose. The public
    site and the dashboard are two different products visually: the dashboard
    follows the user's light/dark choice via the --bg, --surface-*, --text-main
    tokens above, but the marketing site never does (see ThemeProvider's
    ALWAYS_DARK_PATHS/isForceDarkRoute) and was never meant to just be "dark
-   mode" — it's its own always-on-this-way brand identity, so it gets its
+   mode"; it's its own always-on-this-way brand identity, so it gets its
    own token set instead of borrowing the dashboard's adaptive ones. ── */
 :root {
   --mkt-bg:        #FFFFFF;
@@ -91,7 +91,7 @@
   --mkt-border:    #E8E6E1;
 }
 
-/* ── Hero gradient — Yepper's two brand colors (coral + blue) meeting in a
+/* Hero gradient: Yepper's two brand colors (coral + blue) meeting in a
    confident diagonal blend, the same overlap-reads-as-violet trick as the
    old yp-mesh, just as one deliberate gradient instead of six competing
    blobs. ── */
@@ -99,14 +99,14 @@
   background-image: linear-gradient(135deg, #E8472B 0%, #B23A6B 45%, #1090C8 100%);
 }
 
-/* ── Dot grid — small decorative texture behind the hero's photo stack,
+/* Dot grid: small decorative texture behind the hero's photo stack,
    purely presentational (aria-hidden wherever it's used). ── */
 .yp-dot-grid {
   background-image: radial-gradient(var(--mkt-border) 1.5px, transparent 1.5px);
   background-size: 16px 16px;
 }
 
-/* ── Horizontal scroll row — Hot Deals and the website listings on the
+/* Horizontal scroll row: Hot Deals and the website listings on the
    marketing site scroll sideways instead of stacking; scrollbar hidden
    since the fade edges (applied inline per usage) already signal "more". ── */
 .yp-scroll-row {
@@ -116,7 +116,7 @@
   display: none;
 }
 
-/* ── Full-bleed — breaks a section out of its max-w-7xl parent to span
+/* Full-bleed: breaks a section out of its max-w-7xl parent to span
    the full viewport width for a solid color band; nest a max-w-7xl
    container inside for the actual content alignment. ── */
 .yp-full-bleed {
@@ -128,7 +128,7 @@
   margin-right: -50vw;
 }
 
-/* ── Scroll reveal — fade + rise in once, the first time the element
+/* Scroll reveal: fade + rise in once, the first time the element
    enters the viewport (see Reveal.tsx, which toggles .yp-revealed via
    IntersectionObserver). Static (no motion) until JS opts it in, so it
    never gets stuck invisible if something goes wrong. ── */
@@ -156,13 +156,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Clickable affordance — every interactive element should look
+/* Clickable affordance: every interactive element should look
    clickable. Browsers (and Tailwind's preflight, which deliberately
    matches native behavior) default <button> to cursor:default, not
-   pointer — so without this, most of the app's custom buttons and chips
+   pointer. So without this, most of the app's custom buttons and chips
    show a plain arrow on hover. `label:has(input[checkbox/radio/file])`
    only targets labels that actually wrap a control (checkbox cards, file
-   pickers) — plain field captions like <label>Email address</label> stay
+   pickers); plain field captions like <label>Email address</label> stay
    arrow-cursor since clicking them does nothing. Disabled elements get
    cursor:not-allowed instead so it's equally clear they're inert. ── */
 button:not(:disabled),
@@ -214,7 +214,7 @@ select:disabled {
   outline-offset: 2px;
 }
 
-/* ── Brand gradient mesh — ambient backdrop for the whole homepage,
+/* Brand gradient mesh: ambient backdrop for the whole homepage,
    dashboard, and auth screen. Lovable-style: vivid color blobs that
    fade into the page background, built from the two brand colors only
    (coral + blue). The overlap reads as a soft violet, same trick
@@ -222,7 +222,7 @@ select:disabled {
    viewport so it reads as one continuous backdrop behind every card
    as the page scrolls, instead of being boxed into a hero section. */
 .yp-mesh {
-  /* Capped lower than the original (was up to 0.85) — at full saturation, no
+  /* Capped lower than the original (was up to 0.85); at full saturation, no
      gray text color could clear 4.5:1 against the blob peaks no matter how
      dark, since the peak itself was nearly as dark as mid-gray text. These
      ceilings keep every blob's peak luminance high enough that --subtle/
@@ -238,7 +238,7 @@ select:disabled {
   background-color: var(--color-surface-1);
 }
 
-/* ── Website-card attention motion — a logo is static, so give the tile
+/* Website-card attention motion: a logo is static, so give the tile
    its own life: a light sweep across the gradient + a gentle logo float,
    the non-video equivalent of the YouTube cards' autoplay loop. ── */
 @keyframes yp-shimmer {
@@ -260,10 +260,10 @@ select:disabled {
   animation: yp-float 3s ease-in-out infinite;
 }
 
-/* ── Category art shell — ONE consistent claymorphism material, used
+/* Category art shell: ONE consistent claymorphism material, used
    everywhere a business category is selected or displayed (see
    CategoryCard.tsx). Every category shares the exact same --clay-bg/shadow
-   tokens — a real 3D-rendered image (not a gradient, not an icon font) is
+   tokens; a real 3D-rendered image (not a gradient, not an icon font) is
    what tells one category apart from another, not the card's color.
    The dual light/dark soft shadow is the classic clay "puffed up" look;
    the selected state flips to an inset "pressed" shadow, the natural
@@ -293,11 +293,11 @@ select:disabled {
     0 0 0 3px var(--color-coral);
 }
 
-/* ── Category photo card — full-bleed category photo, used for
+/* Category photo card: full-bleed category photo, used for
    category-selection grids (CategoryCard.tsx size="card") and hot deal cards
    (HotDealsSection.tsx). A frosted glass PANE would hide the photo it's
    supposed to show off, so "glass" here means a light border + soft puffed
-   shadow — not a blur, and no light-sweep animation over the photo itself.
+   shadow, not a blur, and no light-sweep animation over the photo itself.
    The scrim darkens just enough for the label to stay readable over any
    photo, in either theme. ─────────────────────────────────────────────── */
 .category-photo-card {
@@ -327,12 +327,12 @@ select:disabled {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
 }
 
-/* ── Hot deal spotlight card (HotDealsSection.tsx) — every color here is a
+/* Hot deal spotlight card (HotDealsSection.tsx): every color here is a
    literal value, never a --color-* theme token, because the deal is meant to
    read exactly the same in light and dark mode (the whole point of putting
    it on a photo + fixed white price panel is that it shouldn't repaint when
    the visitor's OS/browser theme does). ─────────────────────────────────── */
-/* Breathing glow, not a static shadow — reads as "live promotion" the way a
+/* Breathing glow, not a static shadow; reads as "live promotion" the way a
    pulsing neon sign does. Only the shadow's own size/opacity moves, nothing
    shifts position, so it never disturbs the layout around it. */
 @keyframes yp-glow-pulse {
@@ -345,7 +345,7 @@ select:disabled {
   animation: yp-glow-pulse 2.4s ease-in-out infinite;
 }
 
-/* Subtle scale pulse for the "Hot deal" tag and the CTA button — draws the
+/* Subtle scale pulse for the "Hot deal" tag and the CTA button: draws the
    eye without moving anything out of place (transform: scale only, no
    position change, so text/icons inside never reflow or drift). */
 @keyframes yp-pulse-pop {
@@ -365,7 +365,7 @@ select:disabled {
 }
 
 /* Small attention-getting wiggle for the fake "Ad" popup on website platform
-   tiles — deliberately irregular (not a smooth sine) so it reads as a nudge,
+   tiles: deliberately irregular (not a smooth sine) so it reads as a nudge,
    not a smooth loading/pulse animation. */
 @keyframes yp-adshake {
   0%, 100% { transform: rotate(0deg); }
@@ -380,7 +380,7 @@ select:disabled {
 
 /* Continuous right-to-left drift for the platform-tiles row, only turned on
    (via the .yp-marquee class) once there are enough tiles that sliding is
-   actually useful — the row's content is duplicated once in the markup so
+   actually useful; the row's content is duplicated once in the markup so
    the loop point at -50% is seamless. Pauses on hover so it's actually
    possible to click a tile. */
 @keyframes yp-marquee {
@@ -394,7 +394,7 @@ select:disabled {
   animation-play-state: paused;
 }
 
-/* Vertical counterpart of yp-marquee — the auth/onboarding campaign mosaic's
+/* Vertical counterpart of yp-marquee: the auth/onboarding campaign mosaic's
    columns scroll upward forever. Content is duplicated once in the markup
    (doubled array) so the loop point at -50% is seamless. */
 @keyframes yp-scroll-up {
@@ -402,7 +402,7 @@ select:disabled {
   to   { transform: translateY(-50%); }
 }
 
-/* ── Cartoon promo backdrop for the hot deal's price/platforms panel — a
+/* Cartoon promo backdrop for the hot deal's price/platforms panel: a
    diagonal candy-stripe band in the brand coral, the classic "sale banner"
    texture, so the white price panel reads as a card sitting on a promo
    background instead of being the bottom half of the tile edge-to-edge. */
@@ -418,7 +418,7 @@ select:disabled {
 }
 
 /* Slow independent drift for the cartoon cloud shapes on the website
-   platform tile — each instance gets its own animation-delay via inline
+   platform tile: each instance gets its own animation-delay via inline
    style so a row of tiles doesn't move in lockstep. */
 @keyframes yp-cloud-drift {
   0%, 100% { transform: translateX(0); }
@@ -437,7 +437,7 @@ select:disabled {
   animation: yp-sparkle 1.8s ease-in-out infinite;
 }
 
-/* 8-point starburst sticker shape for the "Ad" badge on the website tile —
+/* 8-point starburst sticker shape for the "Ad" badge on the website tile:
    reads as a cartoon sale sticker instead of a plain rounded label. */
 .yp-starburst {
   clip-path: polygon(

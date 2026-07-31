@@ -1,6 +1,6 @@
 import Reveal from '@/app/_components/shared/Reveal';
 
-// Used to be a 3-tab panel (Overview / Privacy Policy / Terms of Use) — now
+// Used to be a 3-tab panel (Overview / Privacy Policy / Terms of Use), now
 // that /privacy and /terms are real pages (see LegalDoc.tsx), duplicating
 // their content here in miniature just meant two versions of the same
 // policy to keep in sync. Overview is the only thing that belongs on the
@@ -19,7 +19,7 @@ export default function SystemInfoPanel() {
             <h3 className="text-sm font-bold text-coral uppercase tracking-wide mb-2">For publishers</h3>
             <p className="text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">
               Verify your website or YouTube channel and we place it in a traffic tier based on your audience
-              size. You keep 100% of the listed price — Yepper&apos;s margin is added on top of what advertisers
+              size. You keep 100% of the listed price. Yepper&apos;s margin is added on top of what advertisers
               pay, never taken out of your payout.
             </p>
           </div>

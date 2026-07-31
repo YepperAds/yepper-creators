@@ -3,7 +3,7 @@
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
-// Logged-out visitors can't collaborate yet — send them to log in, then land
+// Logged-out visitors can't collaborate yet. Send them to log in, then land
 // straight back on the dashboard's advertise panel with this exact website
 // already open, instead of dropping them on a blank feed.
 function startCollaborate(param: 'websiteId', id: string) {

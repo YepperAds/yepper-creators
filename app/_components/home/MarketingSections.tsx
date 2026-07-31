@@ -13,12 +13,12 @@ const STEPS = [
   {
     number: '01',
     title: 'Find the right audience',
-    body: 'Browse verified websites and YouTube channels by category, traffic tier, and niche — no cold outreach, no guesswork.',
+    body: 'Browse verified websites and YouTube channels by category, traffic tier, and niche: no cold outreach, no guesswork.',
   },
   {
     number: '02',
     title: 'Book ad space directly',
-    body: 'Agree on placement and price with the publisher or creator, and lock in your slot in minutes — no agency in between.',
+    body: 'Agree on placement and price with the publisher or creator, and lock in your slot in minutes: no agency in between.',
   },
   {
     number: '03',
@@ -28,10 +28,10 @@ const STEPS = [
 ];
 
 // Alternating tint keeps six identical cards from reading as one gray
-// wall — coral and blue are Yepper's own two brand colors, used the way
+// wall; coral and blue are Yepper's own two brand colors, used the way
 // the reference decks mixed dark/light/tinted cards for rhythm.
 const FEATURES = [
-  { icon: BoltIcon, title: 'Instant booking', body: 'Reserve ad space in a few clicks — no back-and-forth emails or waiting on approvals.', tint: 'coral' },
+  { icon: BoltIcon, title: 'Instant booking', body: 'Reserve ad space in a few clicks: no back-and-forth emails or waiting on approvals.', tint: 'coral' },
   { icon: ShieldCheckIcon, title: 'Verified partners', body: 'Every website and channel goes through a verification check before it’s listed.', tint: 'blue' },
   { icon: ChartBarIcon, title: 'Live analytics', body: 'Real-time impressions, clicks, and spend tracking built into your dashboard.', tint: 'blue' },
   { icon: CurrencyDollarIcon, title: 'Transparent pricing', body: 'The listed price is what you pay. No hidden fees, no agency markups.', tint: 'coral' },
@@ -56,7 +56,7 @@ export default function MarketingSections() {
                 From discovery to results, in three steps
               </h2>
               <p className="mt-3 text-base text-[color:var(--mkt-ink-muted)]">
-                Yepper strips out the agencies and the guesswork — book real ad space, straight from the source.
+                Yepper strips out the agencies and the guesswork: book real ad space, straight from the source.
               </p>
             </div>
 
@@ -112,7 +112,7 @@ export default function MarketingSections() {
               Put your ad space, or your budget, to work
             </h2>
             <p className="mt-4 text-base sm:text-lg text-white/85 max-w-md mx-auto">
-              Book directly with a publisher or creator — no agency, no waiting on quotes.
+              Book directly with a publisher or creator: no agency, no waiting on quotes.
             </p>
             <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">
               <Link

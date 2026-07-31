@@ -8,7 +8,7 @@ import { BUSINESS_CATEGORIES } from '@/app/_lib/business-categories';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 // The claim upload includes an image file and can land close to the Next.js
-// API route proxy's ~4.5MB Vercel body cap — go straight to the backend
+// API route proxy's ~4.5MB Vercel body cap, so go straight to the backend
 // instead, same as the video upload in PostAdModal.tsx.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
@@ -36,8 +36,8 @@ interface PricingRow {
 // Lets an advertiser claim one of a creator's three video-placement slots
 // (intro / middle / end) by paying the creator's subscriber-tier price for a
 // chosen duration, then uploading their creative to it at a size of their
-// choosing. Price (and the visual overlay format itself — corner badge vs
-// L-bar) follows the creator's own fixed choice (set on their dashboard) —
+// choosing. Price (and the visual overlay format itself, corner badge vs
+// L-bar) follows the creator's own fixed choice (set on their dashboard);
 // the advertiser only picks duration + size. Once claimed, the slot is
 // automatically offered to the creator next time they post a video through
 // Yepper (see PostAdModal.tsx).
@@ -150,7 +150,7 @@ export default function AdSpacesModal({
       formData.append('businessCategoryOther', businessCategoryOther.trim());
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
-      // backend's — it won't ride along on this cross-origin request, so
+      // backend's; it won't ride along on this cross-origin request, so
       // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
       const token = getToken();
       const res = await fetch(`${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim/initiate`, {
@@ -200,7 +200,7 @@ export default function AdSpacesModal({
         <div className="flex items-start justify-between gap-2 mb-4">
           <div className="min-w-0">
             <h3 className="text-lg font-bold text-(--color-white)">Collaborate with {creator.channelName || creator.name}</h3>
-            <p className="text-xs text-(--color-muted) mt-0.5">Claim a placement slot — your ad gets inserted automatically the next time they post a video.</p>
+            <p className="text-xs text-(--color-muted) mt-0.5">Claim a placement slot: your ad gets inserted automatically the next time they post a video.</p>
           </div>
           <button onClick={onClose} className="shrink-0 p-1 rounded-full hover:bg-(--color-surface-2)">
             <XMarkIcon className="w-5 h-5 text-(--color-muted)" />
@@ -224,7 +224,7 @@ export default function AdSpacesModal({
 
         {needsLogin && (
           <p className="mb-3 text-xs text-amber-400 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-            Log in to claim an ad space — <a href="/login" className="underline font-semibold">go to login</a>.
+            Log in to claim an ad space: <a href="/login" className="underline font-semibold">go to login</a>.
           </p>
         )}
         {error && (
@@ -358,7 +358,7 @@ export default function AdSpacesModal({
           </div>
         )}
 
-        <p className="mt-4 text-[10px] text-(--color-muted)">Note: videos under 5 minutes only ever get the "Middle" slot — the other two only apply once the creator's video is long enough.</p>
+        <p className="mt-4 text-[10px] text-(--color-muted)">Note: videos under 5 minutes only ever get the "Middle" slot; the other two only apply once the creator's video is long enough.</p>
       </div>
     </div>
   );

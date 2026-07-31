@@ -10,10 +10,10 @@ import SidebarToggleIcon from './SidebarToggleIcon';
 // The box body navigates to the "view all" panel on click; the "+" pill in
 // the header navigates to the add flow instead. Both use next/link, but the
 // outer wrapper is a plain div (not an <a>) so the inner Link never ends up
-// nested inside an anchor — stopPropagation keeps its click from also
+// nested inside an anchor. stopPropagation keeps its click from also
 // triggering the outer navigation.
 //
-// `collapsed` swaps the whole box for a single icon button — there's no
+// `collapsed` swaps the whole box for a single icon button; there's no
 // meaningful way to shrink "3 connected websites + thumbnails" down to a
 // sliver, so collapsed mode just becomes a shortcut row, same idea as
 // LeftRail's collapsed nav icons (with the same hover tooltip).
@@ -78,7 +78,7 @@ function Box({
 }
 
 // A handful of big, slightly-tilted polaroid-style cards fanned out inside a
-// dark tray — reads as "a stack of your ad creatives" at a glance rather than
+// dark tray, reads as "a stack of your ad creatives" at a glance rather than
 // a plain list.
 const TILT = ['rotate-[-7deg] -translate-y-1', 'rotate-[4deg] translate-y-1.5', 'rotate-[-3deg] -translate-y-0.5', 'rotate-[6deg] translate-y-1'];
 
@@ -139,7 +139,7 @@ function MyAdsBox({ ads, loading, collapsed }: { ads: MyAd[]; loading: boolean; 
           href="/?panel=advertise"
           scroll={false}
           onClick={(e) => e.stopPropagation()}
-          title="Add ad — pick a website or YouTube channel"
+          title="Add ad: pick a website or YouTube channel"
           className="flex items-center justify-center w-5 h-5 rounded-full bg-background text-white hover:bg-coral transition-colors shrink-0"
         >
           <PlusIcon className="w-3.5 h-3.5" />

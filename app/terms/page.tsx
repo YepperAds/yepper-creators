@@ -13,7 +13,7 @@ export default function TermsPage() {
       label="Terms of Service"
       headline="Simple terms, for a marketplace built on direct deals"
       intro={[
-        'These terms cover how Yepper connects publishers and advertisers directly — no agencies, no middlemen — and what we each owe one another to keep it that way.',
+        'These terms cover how Yepper connects publishers and advertisers directly (no agencies, no middlemen) and what we each owe one another to keep it that way.',
         'By using Yepper, you agree to the terms below.',
       ]}
       effectiveDate={String(new Date().getFullYear())}

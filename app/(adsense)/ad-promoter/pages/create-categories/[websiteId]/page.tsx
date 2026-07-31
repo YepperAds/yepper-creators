@@ -161,7 +161,7 @@ const CategoryCreation = () => {
   const [, setUser] = useState<Record<string,unknown> | null>(null); // NEW: Custom user state
   const [, setLoading] = useState<boolean>(true); // NEW: Loading state for auth check
   const { websiteId } = useParams();
-  // state is not available via usePathname in Next.js — use searchParams instead
+  // state is not available via usePathname in Next.js, use searchParams instead
   const router = useRouter();
   const [websiteDetails] = useState<Record<string,unknown> | null>(null);
   const [websiteMonthlyTraffic, setWebsiteMonthlyTraffic] = useState<number | null>(null);
@@ -207,7 +207,7 @@ const CategoryCreation = () => {
     const fetchWebsiteDetails = async () => {
         try {
             const token = getToken();
-            // Fetch analytics first — includes grantDisplay if a grant is active
+            // Fetch analytics first, includes grantDisplay if a grant is active
             try {
               const analyticsRes = await api.get(`/api/analytics/${websiteId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -215,7 +215,7 @@ const CategoryCreation = () => {
               if (analyticsRes.data?.grantDisplay) {
                 setGrantDisplay(analyticsRes.data.grantDisplay);
                 setWebsiteMonthlyTraffic(analyticsRes.data.grantDisplay.grantedTraffic);
-                return; // pricing resolved from grant — no need to fetch raw traffic
+                return; // pricing resolved from grant, no need to fetch raw traffic
               }
             } catch (_) { /* analytics fetch failed, fall through to website fetch */ }
 

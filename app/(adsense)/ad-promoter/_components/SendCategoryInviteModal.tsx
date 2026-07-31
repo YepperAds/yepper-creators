@@ -6,7 +6,7 @@ import { Mail, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 
 // Lets a website owner email one specific person a direct link into booking
-// this ad space — clicking it (see sendCategoryInvite in
+// this ad space; clicking it (see sendCategoryInvite in
 // createCategoryController.js) takes them straight to /ad-owner/pages/direct-ad
 // pre-filled with this website + category, logging in first if needed.
 const SendCategoryInviteModal = ({ category, onClose }: any) => {
@@ -66,7 +66,7 @@ const SendCategoryInviteModal = ({ category, onClose }: any) => {
                         ) : (
                             <>
                                 <p className="text-[#fff]/80 mb-6">
-                                    Email a recipient a direct link to book "{category.categoryName || category.spaceType}" — they log in (or sign up) and land right back here to advertise on it.
+                                    Email a recipient a direct link to book "{category.categoryName || category.spaceType}"; they log in (or sign up) and land right back here to advertise on it.
                                 </p>
 
                                 {error && (

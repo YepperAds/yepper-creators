@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: '%s | Yepper Adsense',
     default: 'Yepper Adsense',
   },
-  description: 'Yepper Adsense — Advertise and monetize with Yepper.',
+  description: 'Yepper Adsense: Advertise and monetize with Yepper.',
 };
 
 export default function AdsenseLayout({ children }: { children: React.ReactNode }) {

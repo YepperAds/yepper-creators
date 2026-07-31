@@ -1,7 +1,7 @@
 import HomeHeader from '@/app/_components/home/HomeHeader';
 import type { LegalSection } from './LegalContent';
 
-// Big editorial legal-document layout shared by /privacy and /terms — a
+// Big editorial legal-document layout shared by /privacy and /terms: a
 // short label + huge headline + intro up top, then each section as a
 // title/numbered-points row, matching how real legal pages (not fake
 // "lorem ipsum" placeholders) are usually laid out.

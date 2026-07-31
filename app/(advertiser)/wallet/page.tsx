@@ -158,7 +158,7 @@ export default function WalletPage() {
         <div className="mb-6 flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
           <p className="text-sm text-amber-300">
             Withdrawal of <span className="font-semibold">{fmt(pendingWithdrawal.amount)} {currency}</span> pending since{' '}
-            {new Date(pendingWithdrawal.createdAt).toLocaleString()} — awaiting admin review.
+            {new Date(pendingWithdrawal.createdAt).toLocaleString()}, awaiting admin review.
           </p>
           <button
             onClick={cancelPendingWithdrawal}

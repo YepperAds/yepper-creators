@@ -24,14 +24,14 @@ function domainOf(link: string): string {
   }
 }
 
-// Deliberately no rounded-*/border here — callers own their own
+// Deliberately no rounded-*/border here. Callers own their own
 // radius/clipping on whatever element bounds this tile (so a caller that
 // nests it inside an already-rounded card never ends up with two
 // mismatched radii fighting for the same corner).
 export default function WebsiteLogoTile({ website, className }: { website: PublicWebsite; className?: string }) {
   return (
     <div className={`flex flex-col overflow-hidden bg-[#fff] ${className ?? ''}`}>
-      {/* Browser chrome — real logo top-left (favicon position) + real
+      {/* Browser chrome: real logo top-left (favicon position) + real
           domain (address-bar position), so the tile is unmistakably "a
           website" rather than a generic colored square. */}
       <div className="h-9 shrink-0 flex items-center gap-2 px-2 bg-[#f1f5f9] border-b border-black/10">
@@ -48,7 +48,7 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
         </span>
       </div>
 
-      {/* Page body — a little wireframe (nav + hero + content grid), not just
+      {/* Page body: a little wireframe (nav + hero + content grid), not just
           a flat color block, so the tile reads as an actual page layout. */}
       <div className="relative flex-1 overflow-hidden bg-[#f8fafc]">
         {/* Mini nav bar, tinted in the site's brand gradient */}
@@ -60,7 +60,7 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
           </span>
         </div>
 
-        {/* Content skeleton — fixed (not %) heights: this wrapper's own
+        {/* Content skeleton, fixed (not %) heights: this wrapper's own
             height is auto (sized to content), so percentage heights on its
             children would resolve to nothing per the CSS spec. */}
         <div className="p-[10%] space-y-1.5">

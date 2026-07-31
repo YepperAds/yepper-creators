@@ -87,9 +87,9 @@ const PaymentModal = ({ ad, websiteId, onClose }: PaymentModalProps) => {
       if (e.response?.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (e.response?.status === 400) {
-        errorMessage = e.(response.data as any)?.message ?? 'Invalid request data.';
+        errorMessage = (e.response?.data as any)?.message ?? 'Invalid request data.';
       } else if (e.response?.data?.message) {
-        errorMessage = e.(response.data as any).message;
+        errorMessage = (e.response.data as any).message;
       }
       setError(errorMessage);
     } finally {

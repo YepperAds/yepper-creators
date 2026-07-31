@@ -1,6 +1,5 @@
 'use client';
 
-import { ShieldCheckIcon } from '@heroicons/react/24/solid';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 import WebsiteLogoTile from '@/app/_components/dashboard/WebsiteLogoTile';
@@ -22,6 +21,10 @@ function startCollaborate(id: string) {
 }
 
 function WebsiteTile({ website }: { website: PublicWebsite }) {
+  // The catch-all "any category" placeholder isn't a real category, so it's
+  // filtered out here rather than in CategoryCard: a badge that just says
+  // "Any category" tells an advertiser nothing about the site.
+  const realCategories = (website.businessCategories ?? []).filter((c) => c !== 'any');
   return (
     <button
       onClick={() => startCollaborate(website.id)}
@@ -29,15 +32,12 @@ function WebsiteTile({ website }: { website: PublicWebsite }) {
     >
       <div className="relative aspect-[4/3]">
         <WebsiteLogoTile website={website} className="absolute inset-0" />
-        <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[color:var(--mkt-ink)] shadow-sm">
-          <ShieldCheckIcon className="w-3.5 h-3.5 text-blue" /> Verified
-        </span>
       </div>
       <div className="p-5">
         <p className="text-base font-bold text-[color:var(--mkt-ink)] font-(--font-display) truncate">{website.websiteName}</p>
-        {website.businessCategories?.length > 0 && (
+        {realCategories.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1">
-            {website.businessCategories.slice(0, 2).map((c) => (
+            {realCategories.slice(0, 2).map((c) => (
               <CategoryCard key={c} id={c} size="badge" />
             ))}
           </div>

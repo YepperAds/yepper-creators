@@ -65,8 +65,8 @@ export default function HomePage({
             <Reveal>
               <SectionIntro
                 eyebrow="Pick it yourself"
-                title="Or browse verified websites directly"
-                body="Prefer to choose your own placement? Every listed website is manually verified and sorted into a real traffic tier, so you know exactly what audience you're reaching before you book. No cold outreach, no guessing."
+                title="Browse websites directly"
+                body="Prefer to choose your own placement? Every listed website is sorted into a real traffic tier, so you know exactly what audience you're reaching before you book. No cold outreach, no guessing."
                 accent="blue"
               />
               <WebsiteRow websites={displayWebsites} />

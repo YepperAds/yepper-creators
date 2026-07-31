@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   BoltIcon,
-  ShieldCheckIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
@@ -13,7 +12,7 @@ const STEPS = [
   {
     number: '01',
     title: 'Find the right audience',
-    body: 'Browse verified websites and YouTube channels by category, traffic tier, and niche: no cold outreach, no guesswork.',
+    body: 'Browse websites and YouTube channels by category, traffic tier, and niche: no cold outreach, no guesswork.',
   },
   {
     number: '02',
@@ -32,7 +31,6 @@ const STEPS = [
 // the reference decks mixed dark/light/tinted cards for rhythm.
 const FEATURES = [
   { icon: BoltIcon, title: 'Instant booking', body: 'Reserve ad space in a few clicks: no back-and-forth emails or waiting on approvals.', tint: 'coral' },
-  { icon: ShieldCheckIcon, title: 'Verified partners', body: 'Every website and channel goes through a verification check before it’s listed.', tint: 'blue' },
   { icon: ChartBarIcon, title: 'Live analytics', body: 'Real-time impressions, clicks, and spend tracking built into your dashboard.', tint: 'blue' },
   { icon: CurrencyDollarIcon, title: 'Transparent pricing', body: 'The listed price is what you pay. No hidden fees, no agency markups.', tint: 'coral' },
   { icon: UserGroupIcon, title: 'Direct relationships', body: 'Work straight with the publisher or creator, campaign after campaign.', tint: 'coral' },

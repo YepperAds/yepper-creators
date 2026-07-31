@@ -18,7 +18,7 @@ export default function SystemInfoPanel() {
           <div>
             <h3 className="text-sm font-bold text-coral uppercase tracking-wide mb-2">For publishers</h3>
             <p className="text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">
-              Verify your website or YouTube channel and we place it in a traffic tier based on your audience
+              List your website or YouTube channel and we place it in a traffic tier based on your audience
               size. You keep 100% of the listed price. Yepper&apos;s margin is added on top of what advertisers
               pay, never taken out of your payout.
             </p>
@@ -26,17 +26,16 @@ export default function SystemInfoPanel() {
           <div>
             <h3 className="text-sm font-bold text-blue uppercase tracking-wide mb-2">For advertisers</h3>
             <p className="text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">
-              Browse verified websites and creators by category and audience size, then book the spaces that
-              fit your campaign. Every listing is tier-verified, so you know what you&apos;re paying for
-              before you commit.
+              Browse websites and creators by category and audience size, then book the spaces that
+              fit your campaign. Every listing is sorted into a traffic tier, so you know what you&apos;re
+              paying for before you commit.
             </p>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-coral uppercase tracking-wide mb-2">Verification &amp; tiers</h3>
+            <h3 className="text-sm font-bold text-coral uppercase tracking-wide mb-2">Traffic tiers</h3>
             <p className="text-sm text-[color:var(--mkt-ink-muted)] leading-relaxed">
-              Every site or channel goes through a verification check before it&apos;s listed. Traffic tiers
-              (Starter through Elite) are reviewed periodically as audiences grow, so pricing always reflects
-              real reach.
+              Traffic tiers (Starter through Elite) are reviewed periodically as audiences grow, so pricing
+              always reflects real reach.
             </p>
           </div>
         </div>

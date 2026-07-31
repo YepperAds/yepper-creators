@@ -36,27 +36,29 @@ export default function HomePage({
       <div id="explore" className="scroll-mt-24">
         {/* Full-bleed color bands — no border, no inset card, just a
             confident wall of brand color behind each real-content row. */}
-        <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#FDEDE9' }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Reveal>
-              <SectionIntro
-                eyebrow="Fastest way in"
-                title="Skip the search. Start with a Hot Deal."
-                body="Every Hot Deal bundles YouTube slots and website ad spaces an admin has already vetted and priced together, at a discount. Instead of piecing together your own media plan from scratch, grab a ready-made bundle and launch today."
-                accent="coral"
-              />
-              <HotDealsSection
-                deals={hotDeals}
-                initialDealId={dealId}
-                requireLogin
-                websites={displayWebsites}
-                creators={displayCreators}
-                variant="light"
-                horizontal
-              />
-            </Reveal>
-          </div>
-        </section>
+        {hotDeals.length > 0 && (
+          <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#FDEDE9' }}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <Reveal>
+                <SectionIntro
+                  eyebrow="Fastest way in"
+                  title="Skip the search. Start with a Hot Deal."
+                  body="Every Hot Deal bundles YouTube slots and website ad spaces an admin has already vetted and priced together, at a discount. Instead of piecing together your own media plan from scratch, grab a ready-made bundle and launch today."
+                  accent="coral"
+                />
+                <HotDealsSection
+                  deals={hotDeals}
+                  initialDealId={dealId}
+                  requireLogin
+                  websites={displayWebsites}
+                  creators={displayCreators}
+                  variant="light"
+                  horizontal
+                />
+              </Reveal>
+            </div>
+          </section>
+        )}
 
         <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#E8F4FA' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

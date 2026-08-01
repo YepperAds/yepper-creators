@@ -79,15 +79,21 @@ export default function HomeExplore({
             </div>
           </>
         ) : tab === 'deals' ? (
-          <HotDealsSection
-            deals={hotDeals}
-            initialDealId={dealId}
-            websites={displayWebsites}
-            creators={displayCreators}
-          />
+          hotDeals.length > 0 ? (
+            <HotDealsSection
+              deals={hotDeals}
+              initialDealId={dealId}
+              websites={displayWebsites}
+              creators={displayCreators}
+            />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border py-10 text-center text-muted text-sm">
+              No hot deals available right now.
+            </div>
+          )
         ) : (
           <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
             <DashboardFeed websites={displayWebsites} />
           </div>
         )}

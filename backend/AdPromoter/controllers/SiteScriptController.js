@@ -338,9 +338,15 @@ exports.serveSiteScript = async (req, res) => {
 
     /* Shadow DOM so the site's own stylesheet can't reach in and restyle
        the ad's text/colors/box layout — real isolation, not a specificity
-       trick. _ysRoot is where this ad's content and styles go; falls back
-       to host itself on the rare browser with no Shadow DOM support. */
+       trick. _ysRoot is where this ad's <style> tag goes; _ysContent is a
+       separate child of it that renderAds replaces wholesale on every
+       re-render — kept apart so overwriting the ad's markup on a rotation
+       or a refetch never also wipes out the style tag sitting next to it.
+       Falls back to host itself on the rare browser with no Shadow DOM
+       support, with the same content/style split preserved. */
     host._ysRoot=(typeof host.attachShadow==='function')?host.attachShadow({mode:'open'}):host;
+    host._ysContent=D.createElement('div');
+    host._ysRoot.appendChild(host._ysContent);
 
     ph.appendChild(host);
     return host;
@@ -348,7 +354,7 @@ exports.serveSiteScript = async (req, res) => {
 
   /* ── Dismiss button for a host (floating reappears after 40s) ── */
   function addDismissButton(host, spaceType){
-    var root=host._ysRoot||host;
+    var root=host._ysContent||host;
     var stLower=spaceType.toLowerCase();
     if(stLower==='overlay'||stLower==='modalpic'){
       var btn=D.createElement('button');
@@ -380,7 +386,7 @@ exports.serveSiteScript = async (req, res) => {
   /* ── Render ads into host ─────────────────────────────── */
   function renderAds(host, sp, data){
     var lang=getLang(sp.lang);
-    var root=host._ysRoot||host;
+    var root=host._ysContent||host;
 
     if(!data||!data.html){
       root.innerHTML=

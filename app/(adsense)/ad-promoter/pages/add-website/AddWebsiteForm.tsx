@@ -7,7 +7,7 @@ import {
   Upload, ArrowLeft, Check, AlertTriangle, Loader, ClipboardCopy, RefreshCw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
-import api from '@/app/_lib/adsense-api';
+import api, { websiteAPI } from '@/app/_lib/adsense-api';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -63,6 +63,15 @@ const AddWebsiteForm = ({
   const [selectedBusinessCategories, setSelectedBusinessCategories] = useState([]);
   const [businessCategories,         setBusinessCategories]         = useState([]);
   const [loadingCategories,          setLoadingCategories]          = useState(true);
+
+  // Step 5: pages (optional) — the same registry WebsitePagesPanel manages
+  // later from the website's own detail view, offered right here too so
+  // adding pages isn't gated behind "create the site first, then go find
+  // this option in a different panel."
+  const [pages,     setPages]     = useState<{ label: string; path: string }[]>([]);
+  const [pageLabel, setPageLabel] = useState('');
+  const [pagePath,  setPagePath]  = useState('');
+  const [pageError, setPageError] = useState('');
 
   const [errors,       setErrors]       = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,6 +135,27 @@ const AddWebsiteForm = ({
     }
   };
 
+  // Same normalisation as WebsitePagesPanel's addRow: the site-wide script
+  // compares this against location.pathname, which is never a full URL, so
+  // a pasted "https://example.com/sign-in" has to become "/sign-in".
+  const addPageRow = () => {
+    const l = pageLabel.trim();
+    const raw = pagePath.trim();
+    if (!l || !raw) { setPageError('Give the page both a label and a path.'); return; }
+    let p;
+    if (/^https?:\/\//i.test(raw)) {
+      try { p = new URL(raw).pathname || '/'; }
+      catch { setPageError("That doesn't look like a valid URL."); return; }
+    } else {
+      p = raw.startsWith('/') ? raw : `/${raw}`;
+    }
+    if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+    if (pages.some((pg) => pg.path === p)) { setPageError('That path is already added.'); return; }
+    setPages([...pages, { label: l, path: p }]);
+    setPageLabel(''); setPagePath(''); setPageError('');
+  };
+  const removePageRow = (path: string) => setPages(pages.filter((p) => p.path !== path));
+
   // ── Final submit ─────────────────────────────────────────────────────────────
 
   const handleFinalSubmit = async () => {
@@ -144,6 +174,9 @@ const AddWebsiteForm = ({
         businessCategories: selectedBusinessCategories,
       });
       const websiteId = response.data.data?.id ?? response.data.data?._id;
+      if (pages.length > 0) {
+        try { await websiteAPI.updatePages(websiteId, pages); } catch { /* site is already created; pages can still be added later */ }
+      }
       if (onCreated) {
         onCreated(websiteId);
       } else {
@@ -239,7 +272,7 @@ const AddWebsiteForm = ({
             <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
               <ArrowLeft size={16} className="mr-1.5" /> Back
             </button>
-            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 4: {label}</span>
+            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 5: {label}</span>
           </div>
           {children}
         </div>
@@ -254,7 +287,7 @@ const AddWebsiteForm = ({
                 <ArrowLeft size={18} className="mr-2" />
                 <span className="font-medium">Back</span>
               </button>
-              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 4: {label}</span>
+              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 5: {label}</span>
             </div>
           </div>
         </header>
@@ -513,18 +546,101 @@ const AddWebsiteForm = ({
             Back
           </button>
           <button
-            onClick={handleFinalSubmit}
-            disabled={selectedBusinessCategories.length === 0 || isSubmitting}
+            onClick={() => {
+              if (selectedBusinessCategories.length === 0) { setErrors({ general: 'Please select at least one business category.' }); return; }
+              setErrors({});
+              setCurrentStep(5);
+            }}
+            disabled={selectedBusinessCategories.length === 0}
             className="bg-black text-[#fff] px-8 py-3 hover:bg-gray-800 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isSubmitting
-              ? <><Loader size={16} className="animate-spin" /> Creating Website…</>
-              : 'Create Website & Choose Ad Categories'}
+            Continue to Website Pages
           </button>
         </div>
       </StepShell>
     );
   };
+
+  // ── STEP 5: Website pages (optional) ────────────────────────────────────────
+  // The same page registry WebsitePagesPanel manages later, offered here too:
+  // ad spaces can target one of these pages instead of "every page", and
+  // there's no reason that has to wait until after the site already exists.
+
+  const renderStep5 = () => (
+    <StepShell step={5} label="Website Pages" onBack={handleBack}>
+      <div className="max-w-2xl mx-auto">
+        <div className="border border-border bg-surface-1 p-8 space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-white mb-1">Register your site's pages (optional)</h2>
+            <p className="text-sm text-subtle">
+              Add a label + path for each real page (e.g. &quot;Home&quot; &rarr; <code className="text-subtle">/</code>,
+              &quot;Blog&quot; &rarr; <code className="text-subtle">/blog</code>) so an ad space can target one specific
+              page instead of every page. You can also add these later, but doing it now saves a trip back here.
+            </p>
+          </div>
+
+          {pages.length > 0 && (
+            <div className="divide-y divide-border border border-border overflow-hidden">
+              {pages.map((p) => (
+                <div key={p.path} className="flex items-center justify-between gap-2 px-4 py-2.5 bg-surface-2">
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold text-white">{p.label}</span>
+                    <span className="text-xs text-subtle ml-2 font-mono">{p.path}</span>
+                  </div>
+                  <button
+                    onClick={() => removePageRow(p.path)}
+                    className="shrink-0 px-1.5 text-sm text-subtle hover:text-red-400"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              value={pageLabel}
+              onChange={(e) => setPageLabel(e.target.value)}
+              placeholder="Label, e.g. Home"
+              className="flex-1 px-3 py-2 border border-border bg-surface-1 text-sm text-white outline-none focus:border-white/40"
+            />
+            <input
+              value={pagePath}
+              onChange={(e) => setPagePath(e.target.value)}
+              placeholder="Path, e.g. /blog (full URL is fine too)"
+              onKeyDown={(e) => { if (e.key === 'Enter') addPageRow(); }}
+              className="flex-1 px-3 py-2 border border-border bg-surface-1 text-sm text-white outline-none focus:border-white/40 font-mono"
+            />
+            <button
+              onClick={addPageRow}
+              className="shrink-0 px-4 py-2 border border-border text-sm font-medium text-white hover:bg-surface-2"
+            >
+              Add
+            </button>
+          </div>
+
+          {pageError && <p className="text-xs text-error">{pageError}</p>}
+          {errors.submit && (
+            <div className="flex items-center gap-2 bg-error/10 border border-red-300 text-error px-4 py-3">
+              <AlertTriangle size={16} />
+              <span>{errors.submit}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleFinalSubmit}
+            disabled={isSubmitting}
+            className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSubmitting
+              ? <><Loader size={16} className="animate-spin" /> Creating Website…</>
+              : pages.length > 0 ? 'Create Website & Choose Ad Categories' : 'Skip & Create Website'}
+          </button>
+        </div>
+      </div>
+    </StepShell>
+  );
 
   return (
     <>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowPathIcon,
   GlobeAltIcon,
@@ -33,6 +34,7 @@ export default function WebsitesList({
   addWebsiteHref?: string;
   initialExpandedId?: string | number;
 } = {}) {
+  const router = useRouter();
   const [websites,           setWebsites]           = useState<Website[]>([]);
   const [loading,            setLoading]            = useState(true);
   const [error,              setError]              = useState('');
@@ -68,6 +70,28 @@ export default function WebsitesList({
   }, []);
 
   useEffect(() => { fetchWebsites(); }, [fetchWebsites]);
+
+  // Mirrors expand/collapse into the URL (?websiteId=) so RightRail can
+  // read it and hide itself while a site's details are open: those tabs
+  // (Ad Spaces, Integration Codes, ...) want the full width, not a sidebar
+  // eating a third of it.
+  const expandSite = (id: string) => {
+    setExpandedId(id);
+    router.replace(`/?panel=websites&websiteId=${id}`, { scroll: false });
+  };
+  const collapseSite = () => {
+    setExpandedId(null);
+    router.replace('/?panel=websites', { scroll: false });
+  };
+
+  // With only one website, "View Details" is a pointless extra click: go
+  // straight to it as soon as the list loads.
+  useEffect(() => {
+    if (websites.length === 1 && expandedId === null) {
+      expandSite(String(websites[0].id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [websites]);
 
   async function handleDisconnectConfirm() {
     if (!disconnecting || confirmText.toLowerCase() !== 'disconnect') return;
@@ -229,26 +253,31 @@ export default function WebsitesList({
                 </div>
 
                 {isExpanded ? (
-                  <WebsiteDetails
-                    websiteId={String(site.id)}
-                    embedded
-                    onBack={() => setExpandedId(null)}
-                  />
+                  <>
+                    <WebsiteDetails
+                      websiteId={String(site.id)}
+                      embedded
+                      onBack={collapseSite}
+                    />
+                    {/* Disconnect lives here now, at the very bottom of
+                        everything, instead of a button sitting right next to
+                        "View Details" where it's one misclick away. */}
+                    <div className="border-t border-[color:var(--color-border)] p-5">
+                      <button
+                        onClick={() => { setDisconnecting(site); setConfirmText(''); }}
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 hover:bg-red-500/5 transition-colors"
+                      >
+                        <TrashIcon className="w-4 h-4" /> Disconnect this website
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <div className="flex divide-x divide-[color:var(--color-border)]">
-                    <button
-                      onClick={() => setExpandedId(String(site.id))}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-[color:var(--color-white)] hover:bg-[color:var(--color-surface-2)] transition-colors"
-                    >
-                      <ChartBarIcon className="w-4 h-4" /> View Details
-                    </button>
-                    <button
-                      onClick={() => { setDisconnecting(site); setConfirmText(''); }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold text-red-400 hover:bg-red-500/5 transition-colors"
-                    >
-                      <TrashIcon className="w-4 h-4" /> Disconnect
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => expandSite(String(site.id))}
+                    className="w-full flex items-center justify-center gap-2 py-3 text-xs font-semibold text-[color:var(--color-white)] hover:bg-[color:var(--color-surface-2)] transition-colors"
+                  >
+                    <ChartBarIcon className="w-4 h-4" /> View Details
+                  </button>
                 )}
               </div>
             );

@@ -12,7 +12,7 @@ import { websiteAPI } from '@/app/_lib/adsense-api';
 // location.pathname itself; this list is the only thing an owner has to
 // keep accurate; nothing else needs re-pasting when pages are added later.
 export default function WebsitePagesPanel({ website, onPagesChange }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [pages, setPages] = useState(website?.pages || []);
   const [label, setLabel] = useState('');
   const [path, setPath] = useState('');

@@ -3,8 +3,8 @@
 
 import React, { useState } from 'react';
 import {
-  Copy, Check, Plus, Code, MousePointer,
-  Trash2, X, ChevronDown, ChevronRight, Mail, Files,
+  Copy, Check, Plus, Code,
+  Trash2, X, ChevronDown, Mail, Files,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 
@@ -87,7 +87,6 @@ const CodeBlock = ({ code }) => (
 // ── Main integration component ────────────────────────────────────────────────
 export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onTargetPathChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
-  const [showManual, setShowManual] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateLabel, setDuplicateLabel] = useState('');
@@ -228,6 +227,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 <div className="divide-y divide-zinc-800">
                   {categories.map((cat: any, idx: any) => {
                     const earning = earningsSummary?.categories?.find(e => e.categoryId?.toString() === cat._id?.toString());
+                    const st = (cat.spaceType || '').toLowerCase();
+                    const positionsSelf = st === 'floating' || st === 'modalpic';
                     return (
                       <div key={cat._id}>
                       <div className="px-5 py-3 flex items-center gap-3">
@@ -344,65 +345,33 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           </button>
                         </div>
                       )}
+
+                      {/* This space's own placement div, right here instead of
+                          in a separate list you'd have to cross-reference by
+                          number: the whole point of pairing them is not
+                          having to scroll back and forth to match a space to
+                          its code. */}
+                      <div className="px-5 pb-4 flex flex-col gap-2">
+                        <p className="text-xs text-zinc-500 leading-relaxed">
+                          {positionsSelf
+                            ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
+                                spot in your markup doesn't matter, only which page it's on.</>
+                            : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
+                                your page's layout.</>} {cat.targetPath
+                            ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
+                                is set to that page, and the ad won't show (and you'll get notified) if this div ends up
+                                somewhere else.</>
+                            : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
+                          {' '}Pasting the <em>same</em> div on two different pages shows the same currently-sold ad on
+                          both; for a second page's own, separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> instead.
+                        </p>
+                        <CodeBlock code={buildPlaceholderDiv(cat._id)} />
+                      </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-
-              {/* Precise-Placement Spaces (accordion): one placeholder div per space */}
-              {categories.length > 0 && (
-                <div className="border-t border-zinc-700">
-                  <button
-                    onClick={() => setShowManual(o => !o)}
-                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-800 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <MousePointer className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm font-semibold text-zinc-100">Precise-Placement Spaces</span>
-                      <span className="text-xs text-zinc-500 ml-1">(one div per space, paste exactly where it goes)</span>
-                    </div>
-                    {showManual ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
-                  </button>
-                  {showManual && (
-                    <div className="px-5 pb-5 space-y-4">
-                      <p className="text-xs text-zinc-500 leading-relaxed">
-                        Each space below gets its own div, tied to its own inventory; pasting the <em>same</em> div on two
-                        different pages shows the same currently-sold ad on both at once. If a second page needs its own,
-                        separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> on the space above
-                        instead of copying this div twice.
-                      </p>
-                      <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
-                        {categories.map((cat: any, idx: any) => {
-                          const st = (cat.spaceType || '').toLowerCase();
-                          const positionsSelf = st === 'floating' || st === 'modalpic';
-                          return (
-                            <div key={cat._id} className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-500 font-mono">{idx + 1}.</span>
-                                <span className="text-xs font-semibold text-zinc-300">{cat.categoryName || cat.spaceType}</span>
-                                <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-auto">{cat.spaceType}</span>
-                              </div>
-                              <p className="text-xs text-zinc-500 leading-relaxed">
-                                {positionsSelf
-                                  ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
-                                      spot in your markup doesn't matter, only which page it's on.</>
-                                  : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
-                                      your page's layout.</>} {cat.targetPath
-                                  ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
-                                      is set to that page, and the ad won't show (and you'll get notified) if this div ends up
-                                      somewhere else.</>
-                                  : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
-                              </p>
-                              <CodeBlock code={buildPlaceholderDiv(cat._id)} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { fetchDashboardAds, type OwnWebsite, type MyAd, type YoutubeChannel } from '@/app/_lib/my-ads';
 import SidebarToggleIcon from './SidebarToggleIcon';
@@ -230,6 +230,7 @@ function PlatformsBox({
 }
 
 export default function RightRail() {
+  const searchParams = useSearchParams();
   const [websites, setWebsites]             = useState<OwnWebsite[]>([]);
   const [myAds, setMyAds]                   = useState<MyAd[]>([]);
   const [youtubeChannels, setYoutubeChannels] = useState<YoutubeChannel[]>([]);
@@ -249,6 +250,13 @@ export default function RightRail() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // A website's expanded detail view (Ad Spaces, Integration Codes, ...)
+  // wants the full width, not a third of it eaten by this sidebar, so it
+  // hides itself while one is open (see WebsitesList's expandSite).
+  if (searchParams.get('panel') === 'websites' && searchParams.get('websiteId')) {
+    return null;
+  }
 
   return (
     <aside

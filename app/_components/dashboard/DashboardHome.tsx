@@ -42,7 +42,9 @@ export default function DashboardHome({
               <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
             </Suspense>
           </main>
-          <RightRail />
+          <Suspense fallback={<div className="w-72 shrink-0" />}>
+            <RightRail />
+          </Suspense>
         </div>
       </div>
     </div>

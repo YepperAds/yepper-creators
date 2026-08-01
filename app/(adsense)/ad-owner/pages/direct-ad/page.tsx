@@ -11,8 +11,9 @@ import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 import api, { authAPI } from '@/app/_lib/adsense-api';
 import type {} from '@/app/(adsense)/types';
 import CategoryCard from '@/app/_components/shared/CategoryCard';
+import AdImageFitModal from './AdImageFitModal';
 
-const GLASS_CARD = 'rounded-3xl border border-border/40 bg-surface-1/25 backdrop-blur-2xl';
+const GLASS_CARD = 'rounded-3xl border border-black/10 bg-[#ffffff] shadow-lg';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-3 flex-shrink-0" viewBox="0 0 24 24">
@@ -41,6 +42,7 @@ function DirectAdvertise() {
   const [categoryInfo, setCategoryInfo] = useState<Record<string, unknown> | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<{ url: string | ArrayBuffer | null; type: string } | null>(null);
+  const [fitModalFile, setFitModalFile] = useState<File | null>(null);
   const [step, setStep] = useState(1);
   const [adId, setAdId] = useState<string | null>(null);
   const [paymentDone, setPaymentDone] = useState(false);
@@ -243,6 +245,34 @@ function DirectAdvertise() {
     });
   };
 
+  // Actually stores/previews a file that's already known to be acceptable —
+  // either it passed checkImageDimensions on the first try, or it's the
+  // cropped export from AdImageFitModal (which is built at exactly the
+  // required pixel size, so there's nothing left to check).
+  const acceptFile = (selectedFile: File) => {
+    setFile(null);
+    setFilePreview(null);
+
+    setTimeout(async () => {
+      setFile(selectedFile);
+      setError(null);
+
+      try {
+        await saveFileToIndexedDB(FILE_STORAGE_KEY, selectedFile);
+      } catch (dbError) {
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview({
+          url: reader.result,
+          type: selectedFile.type
+        });
+      };
+      reader.readAsDataURL(selectedFile);
+    }, 50);
+  };
+
   const processFile = async (selectedFile: File | null) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime', 'application/pdf'];
     const maxSize = 25 * 1024 * 1024; // must match the backend multer limit in WebAdvertiseController.js
@@ -262,32 +292,15 @@ function DirectAdvertise() {
     if (selectedFile.type.startsWith('image/')) {
       const dimCheck = await checkImageDimensions(selectedFile);
       if (!dimCheck.ok) {
-        setError(dimCheck.message || 'This image doesn\'t fit this ad space.');
+        // Instead of just rejecting it, let them see it against the actual
+        // required size and drag/resize it to fit, Canva/Figma-style.
+        setError(null);
+        setFitModalFile(selectedFile);
         return;
       }
     }
 
-    setFile(null);
-    setFilePreview(null);
-    
-    setTimeout(async () => {
-      setFile(selectedFile);
-      setError(null);
-
-      try {
-        await saveFileToIndexedDB(FILE_STORAGE_KEY, selectedFile);
-      } catch (dbError) {
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview({
-          url: reader.result,
-          type: selectedFile.type
-        });
-      };
-      reader.readAsDataURL(selectedFile);
-    }, 50);
+    acceptFile(selectedFile);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -584,6 +597,19 @@ function DirectAdvertise() {
 
   return (
     <div className="min-h-screen yp-mesh">
+      {fitModalFile && categoryInfo?.recommendedSize && (
+        <AdImageFitModal
+          file={fitModalFile}
+          targetWidth={(categoryInfo.recommendedSize as any).width}
+          targetHeight={(categoryInfo.recommendedSize as any).height}
+          onCancel={() => setFitModalFile(null)}
+          onConfirm={(croppedFile) => {
+            setFitModalFile(null);
+            acceptFile(croppedFile);
+          }}
+        />
+      )}
+
       {/* Fixed Alert Messages - Always visible at top */}
       {(error || success || authError || authSuccess) && (
         <div className="fixed top-0 left-0 right-0 z-50 px-6 pt-6">
@@ -695,7 +721,7 @@ function DirectAdvertise() {
                       }}
                     />
                   ) : (
-                    <Globe size={40} className="mr-3 text-white" />
+                    <Globe size={40} className="mr-3 text-subtle" />
                   )}
                   <p className="text-base font-medium">{websiteInfo?.websiteName}</p>
                 </div>
@@ -927,7 +953,7 @@ function DirectAdvertise() {
                 {!adId && (
                   <button
                     onClick={handleBackToStep1}
-                    className="text-subtle hover:text-white transition-colors flex items-center gap-2"
+                    className="text-subtle hover:text-black transition-colors flex items-center gap-2"
                   >
                     <ArrowLeft size={18} />
                     <span className="text-sm font-medium">Back to Edit</span>
@@ -966,7 +992,7 @@ function DirectAdvertise() {
                   <button
                     onClick={() => createAdAndProceed()}
                     disabled={isLoading}
-                    className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl bg-black text-[#ffffff] py-3 font-semibold hover:bg-neutral-800 border border-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Creating Ad...' : 'Create Ad & Proceed to Payment'}
                   </button>
@@ -984,7 +1010,7 @@ function DirectAdvertise() {
                     <h2 className="text-xl font-bold text-success">Your ad is live!</h2>
                     <p className="text-subtle text-sm mt-2">
                       Your advertisement is now showing on{' '}
-                      <span className="font-semibold text-white">{websiteInfo?.websiteName}</span>.
+                      <span className="font-semibold text-black">{websiteInfo?.websiteName}</span>.
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
@@ -992,13 +1018,13 @@ function DirectAdvertise() {
                       href={websiteInfo?.websiteLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-white text-background px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-black text-[#ffffff] px-6 py-3 font-semibold hover:bg-neutral-800 transition-colors"
                     >
                       View your ad live →
                     </a>
                     <NextLink
                       href="/?panel=ads"
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-surface-2 text-white border border-border px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-transparent text-black border border-black/20 px-6 py-3 font-semibold hover:bg-black/5 transition-colors"
                     >
                       Go to dashboard & monitor traffic →
                     </NextLink>
@@ -1081,7 +1107,7 @@ function DirectAdvertise() {
                     <button
                       onClick={handlePayment}
                       disabled={isLoading || (pageSelectionEligible && selectedPages.length === 0)}
-                      className="w-full rounded-xl bg-white text-background py-3 font-semibold hover:bg-surface-3 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded-xl bg-black text-[#ffffff] py-3 font-semibold hover:bg-neutral-800 border border-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? 'Processing...' : 'Proceed to Payment'}
                     </button>

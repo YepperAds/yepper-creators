@@ -10,6 +10,10 @@ import type { PublicWebsite } from '@/app/_lib/public-home';
 // auto-opens it), not out to the site's real URL, which just abandoned the
 // flow instead of letting them pick a space.
 function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (website: PublicWebsite) => void }) {
+  // The catch-all "any category" placeholder isn't a real category, so it's
+  // filtered out here: a badge that just says "Any category" tells an
+  // advertiser nothing about the site.
+  const realCategories = (website.businessCategories ?? []).filter((c) => c !== 'any');
   return (
     <div className="rounded-2xl border border-border bg-surface-2 p-4 sm:p-5 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 gap-2">
@@ -23,10 +27,12 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
 
       <div className="flex flex-col justify-between min-w-0 flex-1">
         <div>
-          <p className="text-sm font-bold text-white font-(--font-display)">{website.websiteName}</p>
-          {website.businessCategories?.length > 0 && (
+          {/* Fixed white on purpose: stays light even in light mode instead
+              of flipping to dark ink via the adaptive text-white token. */}
+          <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
+          {realCategories.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {website.businessCategories.map((c) => (
+              {realCategories.map((c) => (
                 <CategoryCard key={c} id={c} size="badge" />
               ))}
             </div>

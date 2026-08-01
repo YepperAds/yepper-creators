@@ -74,7 +74,7 @@ export default function HomeExplore({
               creators={displayCreators}
             />
             <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Contents on Yepper</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
               <DashboardFeed websites={displayWebsites} />
             </div>
           </>

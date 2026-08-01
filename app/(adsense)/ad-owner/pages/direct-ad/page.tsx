@@ -997,7 +997,7 @@ function DirectAdvertise() {
                       View your ad live →
                     </a>
                     <NextLink
-                      href={`/?panel=analytics&adId=${adId}`}
+                      href="/?panel=ads"
                       className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-surface-2 text-white border border-border px-6 py-3 font-semibold hover:bg-surface-3 transition-colors"
                     >
                       Go to dashboard & monitor traffic →

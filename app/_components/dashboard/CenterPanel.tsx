@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import AdvertiseBrowser from './AdvertiseBrowser';
 import HomeExplore from './HomeExplore';
+import AdsPage from './AdsPage';
+import PageHeader from './PageHeader';
 import AddWebsiteForm from '@/app/(adsense)/ad-promoter/pages/add-website/AddWebsiteForm';
 import AnalyticsPage from '@/app/(advertiser)/analytics/page';
 import WalletPage from '@/app/(advertiser)/wallet/page';
@@ -12,6 +14,7 @@ import NotificationsPage from '@/app/(advertiser)/notifications/page';
 import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
 import SupportPage from '@/app/(advertiser)/support/page';
 import DealsGrid from '@/app/(advertiser)/_components/DealsGrid';
+import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 // Solid pill, not just bare text on the mesh backdrop. The panels using
@@ -72,9 +75,29 @@ export default function CenterPanel({
       <div className="h-full overflow-y-auto py-4">
         <AddWebsiteForm
           embedded
-          onCreated={(websiteId: string) => router.replace(`/?panel=analytics&websiteId=${websiteId}`, { scroll: false })}
+          onCreated={(websiteId: string) => router.replace(`/?panel=websites&websiteId=${websiteId}`, { scroll: false })}
           onCancel={backToFeed}
         />
+      </div>
+    );
+  } else if (panel === 'ads') {
+    content = <AdsPage onBack={backToFeed} />;
+  } else if (panel === 'websites') {
+    content = (
+      <div className="h-full flex flex-col overflow-hidden">
+        <PageHeader title="Websites" onBack={backToFeed} />
+        <div className="flex-1 overflow-y-auto py-4">
+          <WebsitesList addWebsiteHref="/?panel=add-website" initialExpandedId={searchParams.get('websiteId') ?? undefined} />
+        </div>
+      </div>
+    );
+  } else if (panel === 'youtube') {
+    content = (
+      <div className="h-full flex flex-col overflow-hidden">
+        <PageHeader title="YouTube" onBack={backToFeed} />
+        <div className="flex-1 overflow-y-auto py-4">
+          <ConnectAccountsPage />
+        </div>
       </div>
     );
   } else if (panel === 'analytics') {

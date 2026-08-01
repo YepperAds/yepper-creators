@@ -11,6 +11,9 @@ import {
   UserIcon as OutlineUser,
   BellIcon as OutlineBell,
   BanknotesIcon as OutlineBanknotes,
+  MegaphoneIcon as OutlineMegaphone,
+  GlobeAltIcon as OutlineGlobe,
+  FilmIcon as OutlineFilm,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -28,12 +31,18 @@ import {
   UserIcon as SolidUser,
   BellIcon as SolidBell,
   BanknotesIcon as SolidBanknotes,
+  MegaphoneIcon as SolidMegaphone,
+  GlobeAltIcon as SolidGlobe,
+  FilmIcon as SolidFilm,
 } from '@heroicons/react/24/solid';
 import { useTheme, type ThemeChoice } from '@/app/_components/ThemeProvider';
 import SidebarToggleIcon from './SidebarToggleIcon';
 
 const NAV_ITEMS = [
   { label: 'Home',          panel: null,             icon: OutlineHome,      activeIcon: SolidHome },
+  { label: 'Ads',           panel: 'ads',            icon: OutlineMegaphone, activeIcon: SolidMegaphone },
+  { label: 'Websites',      panel: 'websites',       icon: OutlineGlobe,     activeIcon: SolidGlobe },
+  { label: 'YouTube',       panel: 'youtube',        icon: OutlineFilm,      activeIcon: SolidFilm },
   { label: 'Hot Deals',     panel: 'deals',          icon: OutlineFire,      activeIcon: SolidFire },
   { label: 'Wallet',        panel: 'wallet',         icon: OutlineBanknotes, activeIcon: SolidBanknotes },
   { label: 'Analytics',     panel: 'analytics',      icon: OutlineChart,     activeIcon: SolidChart },

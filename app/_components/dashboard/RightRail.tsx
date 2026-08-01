@@ -34,14 +34,14 @@ function PlatformPickerModal({ open, onClose }: { open: boolean; onClose: () => 
         <p className="text-xs text-muted mb-4">Pick a platform to view or connect.</p>
         <div className="space-y-2">
           <button
-            onClick={() => go('/?panel=analytics&tab=websites')}
+            onClick={() => go('/?panel=websites')}
             className="w-full flex items-center gap-3 rounded-xl border border-border bg-background p-3 hover:border-coral/40 transition-colors text-left"
           >
             <GlobeAltIcon className="w-5 h-5 text-coral shrink-0" />
             <span className="text-sm font-semibold text-white">Website</span>
           </button>
           <button
-            onClick={() => go('/?panel=analytics&tab=youtube')}
+            onClick={() => go('/?panel=youtube')}
             className="w-full flex items-center gap-3 rounded-xl border border-border bg-background p-3 hover:border-coral/40 transition-colors text-left"
           >
             <PlayCircleIcon className="w-5 h-5 text-coral shrink-0" />
@@ -89,7 +89,7 @@ function MyAdsBox({ ads, loading, collapsed }: { ads: MyAd[]; loading: boolean; 
     return (
       <div className="group/box relative">
         <button
-          onClick={() => router.push('/?panel=analytics', { scroll: false })}
+          onClick={() => router.push('/?panel=ads', { scroll: false })}
           className="w-full flex items-center justify-center p-3 rounded-xl border border-border bg-surface-2 hover:bg-surface-3 transition-colors"
         >
           <PhotoIcon className="w-5 h-5 text-white" />
@@ -105,8 +105,8 @@ function MyAdsBox({ ads, loading, collapsed }: { ads: MyAd[]; loading: boolean; 
     <div
       role="link"
       tabIndex={0}
-      onClick={() => router.push('/?panel=analytics', { scroll: false })}
-      onKeyDown={(e) => { if (e.key === 'Enter') router.push('/?panel=analytics', { scroll: false }); }}
+      onClick={() => router.push('/?panel=ads', { scroll: false })}
+      onKeyDown={(e) => { if (e.key === 'Enter') router.push('/?panel=ads', { scroll: false }); }}
       className="cursor-pointer rounded-2xl border border-border bg-surface-2 p-5 transition-colors hover:bg-surface-3"
     >
       <div className="flex items-center justify-between mb-4">

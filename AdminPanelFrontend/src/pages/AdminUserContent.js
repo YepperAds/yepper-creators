@@ -188,13 +188,63 @@ function SmartDeleteButton({ onCheck, onDelete, label = 'Delete', itemName = '' 
   );
 }
 
-/* ── Tier badge ────────────────────────────────────────────────────────────── */
+/* ── Tier badge (read-only, used nowhere directly anymore but kept for any
+   other callers) ─────────────────────────────────────────────────────────── */
 function TierBadge({ tier }) {
   const color = TIER_COLOR[tier] || TIER_COLOR.unverified;
   return (
     <span style={{ background: color + '18', color, padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'capitalize' }}>
       {tier || 'unverified'}
     </span>
+  );
+}
+
+/* ── Tier picker ───────────────────────────────────────────────────────────
+   Same pill look as TierBadge, but an actual <select> plus a "Set" button
+   that only appears once the choice differs from the current tier — one
+   click sets the price for that tier immediately (see setWebsiteTier /
+   setAdSpaceTier below), no separate traffic-grant round trip. Always
+   re-settable, even once a space has ads selected into it: a space's price
+   applies to every ad sitting in it, so reselecting the tier is meant to
+   move all of them to the new price together. */
+const TIER_OPTIONS = ['unverified', 'starter', 'basic', 'standard', 'premium', 'elite'];
+
+function TierPicker({ tier, onSet, busy }) {
+  const current = tier || 'unverified';
+  const [value, setValue] = useState(current);
+  useEffect(() => { setValue(current); }, [current]);
+
+  const dirty = value !== current;
+  const color = TIER_COLOR[value] || TIER_COLOR.unverified;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <select
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        disabled={busy}
+        style={{
+          background: color + '18', color, border: `1px solid ${color}55`,
+          borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'capitalize',
+          padding: '3px 8px', cursor: busy ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {TIER_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+      {dirty && (
+        <button
+          onClick={() => onSet(value)}
+          disabled={busy}
+          style={{
+            fontSize: 11, fontWeight: 600, color: '#fff',
+            background: busy ? '#93c5fd' : '#2563eb', border: 'none',
+            borderRadius: 6, padding: '3px 9px', cursor: busy ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {busy ? '…' : 'Set'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -206,6 +256,7 @@ export default function AdminUserContent() {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast]     = useState(null);
+  const [tierBusyId, setTierBusyId] = useState(null);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -266,6 +317,33 @@ export default function AdminUserContent() {
       load();
     } catch (e) {
       showToast(e.message, false);
+    }
+  };
+
+  /* ── tier handlers ── */
+  const setWebsiteTier = async (websiteId, tier, name) => {
+    setTierBusyId(websiteId);
+    try {
+      const res = await adminFetch(`/users/${userId}/websites/${websiteId}/tier`, { method: 'PUT', body: JSON.stringify({ tier }) }, adminHeaders);
+      showToast(`"${name}" set to ${tier}${res.spacesRepriced ? ` (${res.spacesRepriced} unpaid space${res.spacesRepriced === 1 ? '' : 's'} repriced)` : ''}.`);
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setTierBusyId(null);
+    }
+  };
+
+  const setAdSpaceTier = async (spaceId, tier, name) => {
+    setTierBusyId(spaceId);
+    try {
+      await adminFetch(`/users/${userId}/ad-spaces/${spaceId}/tier`, { method: 'PUT', body: JSON.stringify({ tier }) }, adminHeaders);
+      showToast(`"${name}" set to ${tier}.`);
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setTierBusyId(null);
     }
   };
 
@@ -350,7 +428,13 @@ export default function AdminUserContent() {
                     </a>
                   </td>
                   <td style={{ ...td, color: '#475569' }}>{fmt(w.monthly_traffic)}<span style={{ color: '#94a3b8' }}>/mo</span></td>
-                  <td style={td}><TierBadge tier={w.traffic_tier} /></td>
+                  <td style={td}>
+                    <TierPicker
+                      tier={w.traffic_tier}
+                      busy={tierBusyId === w.id}
+                      onSet={t => setWebsiteTier(w.id, t, w.website_name)}
+                    />
+                  </td>
                   <td style={td}>
                     <span style={{ fontSize: 12, fontWeight: 500, color: w.verification_status === 'verified' ? '#059669' : w.verification_status === 'pending' ? '#d97706' : '#94a3b8', textTransform: 'capitalize' }}>
                       {w.verification_status || 'pending'}
@@ -400,7 +484,13 @@ export default function AdminUserContent() {
                     <td style={{ ...td, color: '#475569', fontSize: 12 }}>{s.space_type}</td>
                     <td style={{ ...td, fontSize: 12, color: '#475569' }}>{site?.website_name || <em style={{ color: '#cbd5e1' }}>#{s.website_id}</em>}</td>
                     <td style={{ ...td, fontWeight: 600, color: '#1e293b' }}>${fmt(s.price)}</td>
-                    <td style={td}><TierBadge tier={s.tier} /></td>
+                    <td style={td}>
+                      <TierPicker
+                        tier={s.tier}
+                        busy={tierBusyId === s.id}
+                        onSet={t => setAdSpaceTier(s.id, t, s.category_name)}
+                      />
+                    </td>
                     <td style={{ ...td, color: '#64748b', fontSize: 12, textTransform: 'capitalize' }}>{s.default_language}</td>
                     <td style={{ ...td, color: '#94a3b8', fontSize: 12 }}>{date(s.created_at)}</td>
                     <td style={td}>

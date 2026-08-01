@@ -816,3 +816,85 @@ exports.deleteAd = async (req, res) => {
     client.release();
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/admin/users/:userId/websites/:websiteId/tier
+// Admin sets a website's tier directly, no traffic-grant token/email round
+// trip needed. Reprices every currently-unpaid ad space on the site to
+// match, the same cascade applyGrant already does when a tier is reached via
+// the owner-facing grant flow — this is just a second, direct way to land on
+// the same tier value.
+// ─────────────────────────────────────────────────────────────────────────────
+const VALID_TIERS = Object.keys(TIER_PRICES);
+
+exports.setWebsiteTier = async (req, res) => {
+  try {
+    const { websiteId } = req.params;
+    const { tier } = req.body;
+    if (!VALID_TIERS.includes(tier)) {
+      return res.status(400).json({ success: false, message: `Tier must be one of: ${VALID_TIERS.join(', ')}` });
+    }
+
+    await query(
+      `UPDATE websites SET traffic_tier = $1, granted_tier_display = $1 WHERE id = $2::uuid`,
+      [tier, websiteId]
+    );
+
+    const { rows: unpaid } = await query(
+      `SELECT * FROM ad_categories
+       WHERE website_id = $1::uuid AND (selected_ads IS NULL OR array_length(selected_ads,1) IS NULL)`,
+      [websiteId]
+    );
+    const tierPrices = TIER_PRICES[tier];
+    let spacesRepriced = 0;
+    for (const s of unpaid) {
+      const canonical = SPACE_TYPE_MAP[s.space_type] || s.space_type;
+      const newPrice = tierPrices[canonical];
+      if (newPrice !== undefined && parseFloat(newPrice) !== parseFloat(s.price)) {
+        await query(`UPDATE ad_categories SET price=$1, tier=$2 WHERE id=$3`, [newPrice, tier, s.id]);
+        spacesRepriced++;
+      }
+    }
+
+    res.json({ success: true, message: `Website set to ${tier}.`, tier, spacesRepriced });
+  } catch (err) {
+    console.error('setWebsiteTier error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/admin/users/:userId/ad-spaces/:spaceId/tier
+// Sets ONE ad space's tier independently of its website's tier: the website
+// keeps whatever tier it already has, only this one space's price/tier
+// changes. Always re-settable, even once a space already has one or more
+// ads selected into it (selected_ads is an array — a space can carry
+// several ads at once, e.g. in rotation): the space's price is what every
+// ad sitting in it is priced against, so reselecting the tier here is meant
+// to move all of them to the new tier's price together, not just future ones.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.setAdSpaceTier = async (req, res) => {
+  try {
+    const { spaceId } = req.params;
+    const { tier } = req.body;
+    if (!VALID_TIERS.includes(tier)) {
+      return res.status(400).json({ success: false, message: `Tier must be one of: ${VALID_TIERS.join(', ')}` });
+    }
+
+    const { rows } = await query(`SELECT * FROM ad_categories WHERE id = $1::uuid`, [spaceId]);
+    const space = rows[0];
+    if (!space) return res.status(404).json({ success: false, message: 'Ad space not found.' });
+
+    const canonical = SPACE_TYPE_MAP[space.space_type] || space.space_type;
+    const newPrice = TIER_PRICES[tier][canonical];
+    if (newPrice === undefined) {
+      return res.status(400).json({ success: false, message: `No price defined for space type "${space.space_type}" at tier "${tier}".` });
+    }
+
+    await query(`UPDATE ad_categories SET price=$1, tier=$2 WHERE id=$3`, [newPrice, tier, spaceId]);
+    res.json({ success: true, message: `Ad space set to ${tier}.`, tier, price: newPrice });
+  } catch (err) {
+    console.error('setAdSpaceTier error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

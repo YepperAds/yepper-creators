@@ -50,6 +50,8 @@ router.get('/users/:userId/ad-spaces/:spaceId/advertiser-check',  adminAuth, ctr
 router.delete('/users/:userId/websites/:websiteId',       adminAuth, ctrl.deleteWebsite);
 router.delete('/users/:userId/ad-spaces/:spaceId',        adminAuth, ctrl.deleteAdSpace);
 router.delete('/users/:userId/ads/:adId',                 adminAuth, ctrl.deleteAd);
+router.put('/users/:userId/websites/:websiteId/tier',     adminAuth, ctrl.setWebsiteTier);
+router.put('/users/:userId/ad-spaces/:spaceId/tier',      adminAuth, ctrl.setAdSpaceTier);
 
 // ── User-facing endpoint (requires user JWT) ──────────────────────────────────
 router.get('/user-grant-status', authMiddleware, ctrl.getUserGrantStatus);

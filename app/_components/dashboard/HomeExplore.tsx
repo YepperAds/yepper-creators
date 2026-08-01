@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { FireIcon } from '@heroicons/react/24/solid';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import DashboardFeed from './DashboardFeed';
 import PageHeader from './PageHeader';
@@ -87,8 +88,12 @@ export default function HomeExplore({
               creators={displayCreators}
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-border py-10 text-center text-muted text-sm">
-              No hot deals available right now.
+            <div className="flex flex-col items-center justify-center text-center px-6 py-16">
+              <FireIcon className="w-10 h-10 text-(--color-coral) mb-3" />
+              <h1 className="text-xl font-bold text-(--color-white)">No Hot Deals right now</h1>
+              <p className="text-sm text-(--color-muted) mt-1.5 max-w-sm">
+                Admin-curated bundles of YouTube slots and website ad spaces show up here, with a fixed package price, as soon as one goes live.
+              </p>
             </div>
           )
         ) : (

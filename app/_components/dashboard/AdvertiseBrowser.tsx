@@ -103,7 +103,9 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
   return (
     <button onClick={onClick} className="w-36 shrink-0 text-center group">
       <WebsiteLogoTile website={website} className="relative w-36 h-36 rounded-lg overflow-hidden border border-border group-hover:opacity-90 transition-opacity" />
-      <p className="mt-1.5 text-xs font-semibold text-white truncate">{website.websiteName}</p>
+      {/* Fixed white on purpose: stays light even in light mode instead of
+          flipping to dark ink via the adaptive text-white token. */}
+      <p className="mt-1.5 text-xs font-semibold text-[#fff] truncate">{website.websiteName}</p>
     </button>
   );
 }

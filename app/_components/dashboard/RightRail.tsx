@@ -65,8 +65,8 @@ function AdStack({ ads }: { ads: MyAd[] }) {
       {shown.map((ad, i) => (
         <div
           key={ad.id}
-          className={`absolute top-2 w-28 h-28 rounded-xl border-[3px] border-neutral-950 bg-neutral-800 shadow-xl overflow-hidden ${TILT[i % TILT.length]}`}
-          style={{ left: `${i * 42}px`, zIndex: shown.length - i }}
+          className={`yp-float absolute top-2 w-32 h-32 rounded-xl border-[3px] border-neutral-950 bg-neutral-800 shadow-xl overflow-hidden ${TILT[i % TILT.length]}`}
+          style={{ left: `${i * 36}px`, zIndex: shown.length - i, animationDelay: `${i * 0.4}s` }}
         >
           {ad.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -95,7 +95,7 @@ function MyAdsBox({ ads, loading, collapsed }: { ads: MyAd[]; loading: boolean; 
           <PhotoIcon className="w-5 h-5 text-white" />
         </button>
         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-surface-3 text-white border border-border text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/box:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
-          My ads
+          Your ads
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ function MyAdsBox({ ads, loading, collapsed }: { ads: MyAd[]; loading: boolean; 
       className="cursor-pointer rounded-2xl border border-border bg-surface-2 p-5 transition-colors hover:bg-surface-3"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted">My ads</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Your ads</h3>
         <Link
           href="/?panel=advertise"
           scroll={false}

@@ -100,15 +100,15 @@ function AdTile({ item, onOpen }: { item: AdCardItem; onOpen: () => void }) {
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
 
-      <span className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-bold text-white uppercase tracking-wide">
+      <span className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-bold text-[#fff] uppercase tracking-wide">
         {item.kind === 'youtube' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
         {item.kind === 'youtube' ? 'YouTube' : 'Website'}
       </span>
 
       <div className="absolute inset-x-0 bottom-0 p-4">
-        <p className="text-base font-bold text-white leading-snug line-clamp-2 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{item.title}</p>
-        <p className="text-xs text-white/70 mt-0.5 truncate">{item.subtitle}</p>
-        <div className="flex items-center gap-4 mt-2.5 text-sm text-white/90">
+        <p className="text-base font-bold text-[#fff] leading-snug line-clamp-2 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{item.title}</p>
+        <p className="text-xs text-[#fff]/70 mt-0.5 truncate">{item.subtitle}</p>
+        <div className="flex items-center gap-4 mt-2.5 text-sm text-[#fff]/90">
           <span className="flex items-center gap-1"><EyeIcon className="w-4 h-4" />{fmt(item.views)}</span>
           <span className="flex items-center gap-1">
             {item.kind === 'youtube' ? <HeartIcon className="w-4 h-4" /> : <CursorArrowRaysIcon className="w-4 h-4" />}
@@ -165,7 +165,7 @@ function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => voi
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+          className="absolute top-4 right-4 z-20 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 text-[#fff] hover:bg-black/80 transition-colors"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>

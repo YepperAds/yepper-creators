@@ -27,9 +27,10 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
 
       <div className="flex flex-col justify-between min-w-0 flex-1">
         <div>
-          {/* Fixed white on purpose: stays light even in light mode instead
-              of flipping to dark ink via the adaptive text-white token. */}
-          <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
+          {/* Dark pill behind the name so it stays white and readable in
+              both themes: this card's own bg-surface-2 goes near-white in
+              light mode, so plain white text would disappear against it. */}
+          <p className="inline-block text-sm font-bold text-[#fff] bg-black/75 rounded px-1.5 py-0.5 font-(--font-display)">{website.websiteName}</p>
           {realCategories.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {realCategories.map((c) => (

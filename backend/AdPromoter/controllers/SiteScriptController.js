@@ -234,9 +234,30 @@ exports.serveSiteScript = async (req, res) => {
      template/color/font never bleeds into slot 1. \`data\` is the resolved
      response from /ads/customization (one fully-resolved bundle per slot,
      already defaulted to plain white+shadow — no dark-mode auto-adaptation). */
-  function injectStyles(sp, data){
+  function injectStyles(sp, data, root){
+    var slots=data.slots||[];
+
+    /* Positioning rules stay in the page's own <head>: they control how the
+       host box sits relative to the viewport (fixed/floating placement,
+       width, z-index), which only has any effect from outside the shadow
+       boundary. Everything else — colors, fonts, text, the ad's own box
+       styling — goes inside the shadow root instead, below, so the site's
+       stylesheet can't reach in and restyle it, and the ad's own rules
+       can't leak out and accidentally match something on the page. */
+    var posId='_ys_'+sp.id+'_pos';
+    if(!D.getElementById(posId)){
+      var posCss=sp.css;
+      if(sp.spaceType.toLowerCase()==='floating'&&slots[0]&&slots[0].width){
+        posCss+='.'+sp.px+'-host{width:'+slots[0].width+'px;}';
+      }
+      var posEl=D.createElement('style');
+      posEl.id=posId;
+      posEl.textContent=posCss;
+      D.head.appendChild(posEl);
+    }
+
     var sid='_ys_'+sp.id;
-    if(D.getElementById(sid))return;
+    if(root.querySelector('#'+sid))return;
     var el=D.createElement('style');
     el.id=sid;
 
@@ -245,7 +266,6 @@ exports.serveSiteScript = async (req, res) => {
       fontCss+='@import url(https://fonts.googleapis.com/css2?'+fi+'&display=swap);';
     });
 
-    var slots=data.slots||[];
     /* Safety net for any item whose slot index has no resolved bundle. */
     var rulesCss='.'+sp.px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
     slots.forEach(function(s,si){
@@ -272,7 +292,7 @@ exports.serveSiteScript = async (req, res) => {
       }
     });
 
-    el.textContent=sp.css+fontCss+rulesCss+\`
+    el.textContent=fontCss+rulesCss+\`
       .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
@@ -284,13 +304,7 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;}
     \`;
 
-    /* Floating's host has a fixed width baked into placementCSS() so it looks
-       right with zero configuration — override it once the first slot sets a
-       custom width, so the size control actually has an effect on it. */
-    if(sp.spaceType.toLowerCase()==='floating'&&slots[0]&&slots[0].width){
-      el.textContent+='.'+sp.px+'-host{width:'+slots[0].width+'px;}';
-    }
-    D.head.appendChild(el);
+    root.appendChild(el);
   }
 
   /* ── Find or create host for a space ─────────────────── */
@@ -307,6 +321,12 @@ exports.serveSiteScript = async (req, res) => {
     var ph=D.querySelector('[data-yepper-space="'+sp.id+'"]');
     if(!ph)return null;
 
+    /* Whatever's already sitting in the placeholder — stray text, leftover
+       markup from editing the page, anything at all — is cleared here: this
+       div is fully owned by the ad from the moment it's found, not shared
+       content the ad has to render alongside. */
+    ph.innerHTML='';
+
     var host=D.createElement('div');
     host.className=sp.px+'-host '+sp.wrap;
     host.setAttribute('data-yid',sp.id);
@@ -316,19 +336,26 @@ exports.serveSiteScript = async (req, res) => {
       host.classList.add('yw-genie-pre');
     }
 
+    /* Shadow DOM so the site's own stylesheet can't reach in and restyle
+       the ad's text/colors/box layout — real isolation, not a specificity
+       trick. _ysRoot is where this ad's content and styles go; falls back
+       to host itself on the rare browser with no Shadow DOM support. */
+    host._ysRoot=(typeof host.attachShadow==='function')?host.attachShadow({mode:'open'}):host;
+
     ph.appendChild(host);
     return host;
   }
 
   /* ── Dismiss button for a host (floating reappears after 40s) ── */
   function addDismissButton(host, spaceType){
+    var root=host._ysRoot||host;
     var stLower=spaceType.toLowerCase();
     if(stLower==='overlay'||stLower==='modalpic'){
       var btn=D.createElement('button');
       btn.textContent='×';
       btn.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:none;cursor:pointer;color:#fff;z-index:1;';
       btn.onclick=function(){host.style.display='none';};
-      host.appendChild(btn);
+      root.appendChild(btn);
     }
     if(stLower==='floating'){
       var fbtn=D.createElement('button');
@@ -338,7 +365,7 @@ exports.serveSiteScript = async (req, res) => {
         hideFloating(host);
         setTimeout(function(){revealFloating(host);},40000);
       };
-      host.appendChild(fbtn);
+      root.appendChild(fbtn);
     }
   }
 
@@ -353,9 +380,10 @@ exports.serveSiteScript = async (req, res) => {
   /* ── Render ads into host ─────────────────────────────── */
   function renderAds(host, sp, data){
     var lang=getLang(sp.lang);
+    var root=host._ysRoot||host;
 
     if(!data||!data.html){
-      host.innerHTML=
+      root.innerHTML=
         '<div class="'+sp.px+'-empty">'+
           '<p class="'+sp.px+'-empty-name">'+escHtml(sp.name)+'</p>'+
           '<p class="'+sp.px+'-empty-title">'+lang.title+'</p>'+
@@ -379,9 +407,9 @@ exports.serveSiteScript = async (req, res) => {
       .replace(/sp-description/g,sp.px+'-desc')
       .replace(/sp-cta/g,sp.px+'-cta');
 
-    host.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(sp.name)+'</div>'+html;
+    root.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(sp.name)+'</div>'+html;
 
-    var items=Array.from(host.querySelectorAll('.'+sp.px+'-ad'));
+    var items=Array.from(root.querySelectorAll('.'+sp.px+'-ad'));
     if(!items.length){renderAds(host,sp,null);return;}
 
     items.forEach(function(el,idx){
@@ -487,9 +515,9 @@ exports.serveSiteScript = async (req, res) => {
     fetch(_c+'/ads/customization/'+sp.id+ck,{cache:'no-store'})
       .then(function(r){return r.ok?r.json():Promise.resolve({slots:[],fontImports:[]});})
       .then(function(d){
-        injectStyles(sp,d);
         var host=getHost(sp);
         if(!host)return; /* manual with no placeholder — skip */
+        injectStyles(sp,d,host._ysRoot||host);
 
         fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname)+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
@@ -497,9 +525,9 @@ exports.serveSiteScript = async (req, res) => {
           .catch(function(){renderAds(host,sp,null);});
       })
       .catch(function(){
-        injectStyles(sp,{slots:[],fontImports:[]});
         var host=getHost(sp);
         if(!host)return;
+        injectStyles(sp,{slots:[],fontImports:[]},host._ysRoot||host);
         fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,sp,data);})

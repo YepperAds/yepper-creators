@@ -43,8 +43,8 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
           a flat color block, so the tile reads as an actual page layout. */}
       <div className="relative flex-1 overflow-hidden bg-[#f8fafc]">
         {/* Mini nav bar, tinted in the site's brand gradient: the site's own
-            logo sits in the circle at real size instead of an empty dot, so
-            it's the one unmistakable "this is that site" cue on the card. */}
+            logo and name sit here like a real page header, instead of an
+            empty dot and fake nav-link dashes. */}
         <div className="h-[26%] flex items-center gap-[6%] px-[10%]" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
           <span className="flex items-center justify-center w-[16%] aspect-square rounded-full bg-[#fff] ring-2 ring-[#fff]/40 shrink-0 overflow-hidden">
             {website.imageUrl ? (
@@ -54,9 +54,8 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
               <GlobeAltIcon className="w-2/3 h-2/3 text-slate-400" />
             )}
           </span>
-          <span className="ml-auto flex items-center gap-[6%]">
-            <span className="w-[16%] h-1 rounded-full bg-[#fff]/70" />
-            <span className="w-[16%] h-1 rounded-full bg-[#fff]/70" />
+          <span className="min-w-0 flex-1 text-[11px] font-bold text-white truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.25)]">
+            {website.websiteName}
           </span>
         </div>
 

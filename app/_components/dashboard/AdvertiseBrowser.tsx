@@ -99,13 +99,12 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
   );
 }
 
+// No name caption here: WebsiteLogoTile already shows it once, beside the
+// logo inside its own header bar.
 function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onClick: () => void }) {
   return (
     <button onClick={onClick} className="w-36 shrink-0 text-center group">
       <WebsiteLogoTile website={website} className="relative w-36 h-36 rounded-lg overflow-hidden border border-border group-hover:opacity-90 transition-opacity" />
-      {/* Dark pill behind the name so it stays white and readable
-          regardless of the surrounding page's light/dark theme. */}
-      <p className="mt-1.5 inline-block max-w-full text-xs font-semibold text-[#fff] bg-black/75 rounded px-1.5 py-0.5 truncate">{website.websiteName}</p>
     </button>
   );
 }

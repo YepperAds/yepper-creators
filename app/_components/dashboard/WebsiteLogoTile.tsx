@@ -54,7 +54,7 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
               <GlobeAltIcon className="w-2/3 h-2/3 text-slate-400" />
             )}
           </span>
-          <span className="min-w-0 flex-1 text-[11px] font-bold text-white truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.25)]">
+          <span className="min-w-0 flex-1 text-[11px] font-bold text-[#fff] truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.25)]">
             {website.websiteName}
           </span>
         </div>

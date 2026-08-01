@@ -27,10 +27,8 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
 
       <div className="flex flex-col justify-between min-w-0 flex-1">
         <div>
-          {/* Dark pill behind the name so it stays white and readable in
-              both themes: this card's own bg-surface-2 goes near-white in
-              light mode, so plain white text would disappear against it. */}
-          <p className="inline-block text-sm font-bold text-[#fff] bg-black/75 rounded px-1.5 py-0.5 font-(--font-display)">{website.websiteName}</p>
+          {/* No name here: it's already shown once, beside the logo inside
+              WebsiteLogoTile's own header bar, above. */}
           {realCategories.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {realCategories.map((c) => (

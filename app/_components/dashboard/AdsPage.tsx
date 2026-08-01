@@ -6,14 +6,19 @@ import adsenseApi from '@/app/_lib/adsense-api';
 import type { AuthResponse } from '@/app/_types/auth';
 import {
   EyeIcon,
+  UsersIcon,
   HeartIcon,
   ChatBubbleLeftIcon,
   CursorArrowRaysIcon,
   FilmIcon,
   GlobeAltIcon,
+  MapPinIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import PageHeader from './PageHeader';
+import AudienceMap from '@/app/(adsense)/ad-promoter/_components/AudienceMap';
+import DailyBarChart from '@/app/(adsense)/ad-promoter/_components/DailyBarChart';
+import { buildDailySeries } from '@/app/_lib/daily-series';
 
 interface WebsiteSelection {
   websiteId: { _id?: string; id?: string; websiteName?: string; websiteLink?: string; imageUrl?: string | null } | string;
@@ -55,6 +60,7 @@ interface AdCardItem {
   secondaryLabel: string;
   secondaryValue: number;
   websiteLink?: string;
+  websiteId?: string;
   videoUrl?: string | null;
   trackingCode?: string;
   likes?: number;
@@ -114,88 +120,169 @@ function AdTile({ item, onOpen }: { item: AdCardItem; onOpen: () => void }) {
   );
 }
 
+interface SiteAnalytics {
+  totalViews?: number;
+  uniqueVisitors?: number;
+  byDay?: Array<Record<string, unknown>>;
+  mapPoints?: Array<{ lat: number; lon: number; device?: string; city?: string; country?: string; timestamp?: string }>;
+}
+
+// The audience shown here is the website's real visitor traffic, the same
+// approach as WebsiteAdAudienceSnapshot: there's no per-ad view/click event
+// log on the backend, but since the ad only shows on this one site, that
+// site's audience *is* the ad's audience.
+function useSiteAnalytics(websiteId: string | undefined) {
+  const [analytics, setAnalytics] = useState<SiteAnalytics | null>(null);
+  const [loading, setLoading] = useState(!!websiteId);
+
+  useEffect(() => {
+    if (!websiteId) { setAnalytics(null); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    adsenseApi.get(`/api/analytics/${websiteId}?range=30`)
+      .then((r) => { if (!cancelled) setAnalytics(r.data as SiteAnalytics); })
+      .catch(() => { if (!cancelled) setAnalytics(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [websiteId]);
+
+  return { analytics, loading };
+}
+
 // Covers almost the whole page: this is the "see everything about this ad"
 // view, so it gets the same visual weight as a dedicated page instead of a
-// small popover.
+// small popover. Wide two-column layout so the audience map gets a real
+// column of its own instead of being squeezed under everything else, where
+// its corner attribution control was getting clipped.
 function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => void }) {
+  const { analytics, loading: analyticsLoading } = useSiteAnalytics(item.kind === 'website' ? item.websiteId : undefined);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 sm:p-8" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6" onClick={onClose} role="dialog" aria-modal="true">
       <div
-        className="relative w-full max-w-4xl h-full max-h-[88vh] rounded-3xl bg-surface-2 border border-border overflow-hidden flex flex-col"
+        className="relative w-[97vw] max-w-[1600px] h-full max-h-[92vh] rounded-3xl bg-surface-2 border border-border overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+          className="absolute top-4 right-4 z-20 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
 
-        <div className="relative w-full aspect-[16/7] shrink-0 bg-black">
-          {item.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              {item.kind === 'youtube' ? <FilmIcon className="w-12 h-12 text-muted" /> : <GlobeAltIcon className="w-12 h-12 text-muted" />}
+        <div className="grid lg:grid-cols-2 h-full">
+          {/* Left: image, details, stats, performance over time */}
+          <div className="h-full overflow-y-auto">
+            <div className="relative w-full aspect-[16/9] shrink-0 bg-black">
+              {item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {item.kind === 'youtube' ? <FilmIcon className="w-12 h-12 text-muted" /> : <GlobeAltIcon className="w-12 h-12 text-muted" />}
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-surface-2 via-transparent to-transparent" />
             </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-surface-2 via-transparent to-transparent" />
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
-          <div>
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background text-[10px] font-bold text-muted uppercase tracking-wide">
-              {item.kind === 'youtube' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
-              {item.kind === 'youtube' ? 'YouTube' : 'Website'}
-            </span>
-            <h2 className="text-2xl font-bold text-white mt-3 font-(--font-display)">{item.title}</h2>
-            <p className="text-sm text-muted mt-1">{item.subtitle}</p>
-            {item.trackingCode && <p className="text-xs font-mono text-emerald-400 mt-1">{item.trackingCode}</p>}
+            <div className="p-6 sm:p-8 space-y-6">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background text-[10px] font-bold text-muted uppercase tracking-wide">
+                  {item.kind === 'youtube' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
+                  {item.kind === 'youtube' ? 'YouTube' : 'Website'}
+                </span>
+                <h2 className="text-2xl font-bold text-white mt-3 font-(--font-display)">{item.title}</h2>
+                <p className="text-sm text-muted mt-1">{item.subtitle}</p>
+                {item.trackingCode && <p className="text-xs font-mono text-emerald-400 mt-1">{item.trackingCode}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl bg-background px-4 py-3">
+                  <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><EyeIcon className="w-4 h-4" />Views</div>
+                  <p className="text-xl font-bold text-white">{fmt(item.views)}</p>
+                </div>
+                {item.kind === 'website' ? (
+                  <>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><CursorArrowRaysIcon className="w-4 h-4" />Clicks</div>
+                      <p className="text-xl font-bold text-white">{fmt(item.clicks)}</p>
+                    </div>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="text-muted text-xs mb-1">CTR</div>
+                      <p className="text-xl font-bold text-white">
+                        {item.views ? (((item.clicks ?? 0) / item.views) * 100).toFixed(1) : '0.0'}%
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><HeartIcon className="w-4 h-4" />Likes</div>
+                      <p className="text-xl font-bold text-white">{fmt(item.likes)}</p>
+                    </div>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><ChatBubbleLeftIcon className="w-4 h-4" />Comments</div>
+                      <p className="text-xl font-bold text-white">{fmt(item.comments)}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {(item.websiteLink || item.videoUrl) && (
+                <a
+                  href={item.websiteLink ?? item.videoUrl ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-coral-text hover:opacity-80 transition-opacity"
+                >
+                  View live →
+                </a>
+              )}
+
+              {item.kind === 'website' && analytics?.byDay && analytics.byDay.length > 0 && (
+                <div className="rounded-xl bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted mb-3">Site traffic, last 30 days</p>
+                  <DailyBarChart series={buildDailySeries(analytics.byDay, 30, 'count')} height={96} />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="rounded-xl bg-background px-4 py-3">
-              <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><EyeIcon className="w-4 h-4" />Views</div>
-              <p className="text-xl font-bold text-white">{fmt(item.views)}</p>
-            </div>
-            {item.kind === 'website' ? (
-              <>
-                <div className="rounded-xl bg-background px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><CursorArrowRaysIcon className="w-4 h-4" />Clicks</div>
-                  <p className="text-xl font-bold text-white">{fmt(item.clicks)}</p>
-                </div>
-                <div className="rounded-xl bg-background px-4 py-3">
-                  <div className="text-muted text-xs mb-1">CTR</div>
-                  <p className="text-xl font-bold text-white">
-                    {item.views ? (((item.clicks ?? 0) / item.views) * 100).toFixed(1) : '0.0'}%
-                  </p>
-                </div>
-              </>
+          {/* Right: audience map, its own full-height column so the corner
+              attribution control has room to render in full. */}
+          <div className="h-full overflow-y-auto border-t lg:border-t-0 lg:border-l border-border bg-background/40 p-6 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted mb-1">Where your audience is</p>
+
+            {item.kind !== 'website' ? (
+              <div className="mt-4 rounded-xl border border-dashed border-border p-8 flex flex-col items-center gap-2 text-center">
+                <MapPinIcon className="w-8 h-8 text-muted opacity-40" />
+                <p className="text-sm text-muted">Audience location isn&apos;t available for social ads yet.</p>
+              </div>
+            ) : analyticsLoading ? (
+              <div className="mt-4 h-[420px] rounded-xl bg-surface-3 animate-pulse" />
+            ) : !analytics?.mapPoints?.length ? (
+              <div className="mt-4 rounded-xl border border-dashed border-border p-8 flex flex-col items-center gap-2 text-center">
+                <MapPinIcon className="w-8 h-8 text-muted opacity-40" />
+                <p className="text-sm text-muted">No visitor location data yet for the site this ad runs on.</p>
+              </div>
             ) : (
               <>
-                <div className="rounded-xl bg-background px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><HeartIcon className="w-4 h-4" />Likes</div>
-                  <p className="text-xl font-bold text-white">{fmt(item.likes)}</p>
+                <div className="grid grid-cols-2 gap-3 mt-3 mb-4">
+                  <div className="rounded-xl bg-background px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-muted text-[11px] mb-1"><EyeIcon className="w-3.5 h-3.5" />Views (30d)</div>
+                    <p className="text-lg font-bold text-white">{fmt(analytics.totalViews)}</p>
+                  </div>
+                  <div className="rounded-xl bg-background px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-muted text-[11px] mb-1"><UsersIcon className="w-3.5 h-3.5" />Unique visitors</div>
+                    <p className="text-lg font-bold text-white">{fmt(analytics.uniqueVisitors)}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-background px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><ChatBubbleLeftIcon className="w-4 h-4" />Comments</div>
-                  <p className="text-xl font-bold text-white">{fmt(item.comments)}</p>
+                <div className="rounded-xl overflow-hidden border border-border">
+                  <AudienceMap points={analytics.mapPoints} height={420} />
                 </div>
               </>
             )}
           </div>
-
-          {(item.websiteLink || item.videoUrl) && (
-            <a
-              href={item.websiteLink ?? item.videoUrl ?? '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-coral-text hover:opacity-80 transition-opacity"
-            >
-              View live →
-            </a>
-          )}
         </div>
       </div>
     </div>
@@ -253,6 +340,7 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
           secondaryValue: ad.clicks ?? 0,
           clicks: ad.clicks ?? 0,
           websiteLink: site?.websiteLink,
+          websiteId: site?._id ?? site?.id,
         };
       });
 

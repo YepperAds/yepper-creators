@@ -10,12 +10,14 @@ import { X, Check, Move } from 'lucide-react';
 // so the parts that would get cropped away stay visible (dimmed) instead of
 // being clipped out of view — let the owner drag/resize until the frame is
 // fully covered (it turns green), then export exactly that crop at the exact
-// required pixel dimensions. Resize is corner-only and always proportional —
-// width and height always scale together, off the diagonal distance to the
-// cursor, so the photo is never visibly warped. The backend's own size check
-// (adSpaceLayout.js) is still the authoritative gate; this only guarantees
-// what gets sent already matches, so that check never has anything left to
-// reject.
+// required pixel dimensions. Corner handles zoom (scale width and height
+// together, off the diagonal distance to the cursor — never warps the
+// photo). Edge handles never touch scale at all — they only slide the image
+// along that one axis, revealing or hiding more of it on that side, so
+// dragging one can only ever crop the image, never stretch it. The
+// backend's own size check (adSpaceLayout.js) is still the authoritative
+// gate; this only guarantees what gets sent already matches, so that check
+// never has anything left to reject.
 
 const STAGE_MAX = 380; // on-screen px budget for the longer side of the frame
 const MARGIN = 64;     // canvas padding around the frame, so overflow is visible
@@ -190,11 +192,40 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     window.removeEventListener('mouseup', onResizeMouseUp);
   };
 
+  // ── Edge handles (pan one axis only, never touches scale) ───────────────
+  // Grabbing an edge slides the image along just that axis — the image's
+  // size never changes, so more or less of it gets revealed/hidden on that
+  // side. It can only ever crop the image, never stretch it, since scale
+  // isn't part of this at all.
+  const edgePanRef = useRef<{ axis: 'x' | 'y'; start: number; orig: number } | null>(null);
+  const onEdgePanMouseDown = (axis: 'x' | 'y') => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!transform) return;
+    edgePanRef.current = { axis, start: axis === 'x' ? e.clientX : e.clientY, orig: axis === 'x' ? transform.x : transform.y };
+    window.addEventListener('mousemove', onEdgePanMouseMove);
+    window.addEventListener('mouseup', onEdgePanMouseUp);
+  };
+  const onEdgePanMouseMove = (e: MouseEvent) => {
+    const r = edgePanRef.current;
+    if (!r) return;
+    const pos = r.axis === 'x' ? e.clientX : e.clientY;
+    const next = r.orig + (pos - r.start);
+    setTransform(prev => prev && (r.axis === 'x' ? { ...prev, x: next } : { ...prev, y: next }));
+  };
+  const onEdgePanMouseUp = () => {
+    edgePanRef.current = null;
+    window.removeEventListener('mousemove', onEdgePanMouseMove);
+    window.removeEventListener('mouseup', onEdgePanMouseUp);
+  };
+
   useEffect(() => () => {
     window.removeEventListener('mousemove', onImageMouseMove);
     window.removeEventListener('mouseup', onImageMouseUp);
     window.removeEventListener('mousemove', onResizeMouseMove);
     window.removeEventListener('mouseup', onResizeMouseUp);
+    window.removeEventListener('mousemove', onEdgePanMouseMove);
+    window.removeEventListener('mouseup', onEdgePanMouseUp);
   }, []);
 
   const handleConfirm = () => {
@@ -245,6 +276,13 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     { key: 'br', top: 1, left: 1, cursor: 'nwse-resize' },
   ] as const;
 
+  const EDGE_HANDLES = [
+    { key: 'l', axis: 'x' as const, top: 0.5, left: 0, cursor: 'ew-resize', w: 12, h: 32 },
+    { key: 'r', axis: 'x' as const, top: 0.5, left: 1, cursor: 'ew-resize', w: 12, h: 32 },
+    { key: 't', axis: 'y' as const, top: 0, left: 0.5, cursor: 'ns-resize', w: 32, h: 12 },
+    { key: 'b', axis: 'y' as const, top: 1, left: 0.5, cursor: 'ns-resize', w: 32, h: 12 },
+  ] as const;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-2xl max-h-[90vh] rounded-2xl bg-[#ffffff] shadow-2xl overflow-hidden flex flex-col">
@@ -256,7 +294,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
             <p className="text-xs text-neutral-500 mt-0.5">
               {mode === 'preview'
                 ? `It needs to be ${targetWidth}×${targetHeight}px. Replace it with a different image, or resize this one to fit.`
-                : 'Drag to reposition, drag a corner to resize. Dimmed areas outside the frame get cropped away.'}
+                : 'Drag to reposition, drag a corner to zoom, drag an edge to slide that side. Dimmed areas outside the frame get cropped away.'}
             </p>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-black/5 text-neutral-500">
@@ -318,6 +356,25 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
                     left: pos.left,
                     top: pos.top,
                     width: 22, height: 22, borderRadius: 9999,
+                    background: '#fff', border: '3px solid #111',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                    cursor: h.cursor, zIndex: 6,
+                  }}
+                />
+              );
+            })}
+
+            {mode === 'edit' && transform && naturalSize && EDGE_HANDLES.map(h => {
+              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, h.w, h.h);
+              return (
+                <div
+                  key={h.key}
+                  onMouseDown={onEdgePanMouseDown(h.axis)}
+                  style={{
+                    position: 'absolute',
+                    left: pos.left,
+                    top: pos.top,
+                    width: h.w, height: h.h, borderRadius: 6,
                     background: '#fff', border: '3px solid #111',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
                     cursor: h.cursor, zIndex: 6,

@@ -10,18 +10,25 @@ import { X, Check, Move } from 'lucide-react';
 // so the parts that would get cropped away stay visible (dimmed) instead of
 // being clipped out of view — let the owner drag/resize until the frame is
 // fully covered (it turns green), then export exactly that crop at the exact
-// required pixel dimensions. Corner handles zoom (scale width and height
-// together, off the diagonal distance to the cursor — never warps the
-// photo). Edge handles never touch scale at all — they only slide the image
-// along that one axis, revealing or hiding more of it on that side, so
-// dragging one can only ever crop the image, never stretch it. The
-// backend's own size check (adSpaceLayout.js) is still the authoritative
+// required pixel dimensions.
+//
+// The thing being dragged is a BOX, not the raw image. The photo always
+// fills that box via uniform "cover" scaling (like CSS object-fit: cover),
+// cropping whatever overflows — so no matter what shape the box is, the
+// photo's own pixels are never stretched non-uniformly:
+//   - a corner drag scales box.w and box.h together (proportional zoom)
+//   - an edge drag changes only box.w OR box.h — the box's other dimension
+//     doesn't move, and the photo re-zooms uniformly to keep covering the
+//     new shape, so growing height alone crops in tighter (more zoomed),
+//     growing width alone crops out wider — cropped, never warped.
+// The backend's own size check (adSpaceLayout.js) is still the authoritative
 // gate; this only guarantees what gets sent already matches, so that check
 // never has anything left to reject.
 
 const STAGE_MAX = 380; // on-screen px budget for the longer side of the frame
 const MARGIN = 64;     // canvas padding around the frame, so overflow is visible
 const FIT_EPS = 1.5;   // px tolerance before the frame counts as "covered"
+const MIN_BOX = 24;    // px floor so a box can never be dragged to nothing
 
 const CHECKERBOARD_BG = {
   backgroundImage:
@@ -40,13 +47,16 @@ interface Props {
   onConfirm: (croppedFile: File) => void;
 }
 
-type Transform = { x: number; y: number; scale: number };
+// The box the owner directly manipulates. The photo is never stored at a
+// distorted aspect — it's always re-derived from {naturalSize, box} via
+// "cover" scaling at render/export time.
+type Box = { x: number; y: number; w: number; h: number };
 
 export default function AdImageFitModal({ file, targetWidth, targetHeight, onCancel, onChangeImage, onConfirm }: Props) {
   const imgElRef = useRef<HTMLImageElement | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
-  const [transform, setTransform] = useState<Transform | null>(null);
+  const [box, setBox] = useState<Box | null>(null);
   const [exporting, setExporting] = useState(false);
   // Opens on a static "here's the mismatch" preview — nothing draggable yet —
   // so the owner sees why the image was rejected before deciding whether to
@@ -55,8 +65,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
 
   // Frame: the required aspect ratio, scaled down to fit a comfortable
   // on-screen box. This is the only thing the final export cares about
-  // covering — its screen size, not the real target pixels, since the crop
-  // math below converts back through scale regardless of zoom level.
+  // covering — its screen size, not the real target pixels.
   const frame = useMemo(() => {
     if (targetWidth >= targetHeight) {
       const w = STAGE_MAX;
@@ -66,7 +75,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     return { w: STAGE_MAX * (targetWidth / targetHeight), h };
   }, [targetWidth, targetHeight]);
 
-  // Canvas is bigger than the frame so dragging/shrinking the image reveals
+  // Canvas is bigger than the frame so dragging/shrinking the box reveals
   // real "outside the crop" space instead of just clipping to black.
   const canvas = useMemo(() => ({ w: frame.w + MARGIN * 2, h: frame.h + MARGIN * 2 }), [frame]);
 
@@ -76,49 +85,49 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const coverTransform = (w: number, h: number): Transform => {
-    const s = Math.max(frame.w / w, frame.h / h);
-    return { scale: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
-  };
-  // Contains the whole image within the full CANVAS (not just the tiny
-  // frame) so the static preview shows it at a recognizable size — the
-  // required-frame outline is then overlaid on top at its true relative
-  // scale, making the mismatch obvious instead of shrinking the photo down
-  // to a postage stamp to squeeze it inside a thin banner-shaped frame.
-  const containTransform = (w: number, h: number): Transform => {
-    const s = Math.min(canvas.w / w, canvas.h / h);
-    return { scale: s, x: (canvas.w - w * s) / 2, y: (canvas.h - h * s) / 2 };
+  // How the photo renders inside a given box: uniform "cover" scale (the
+  // larger of the two ratios), centered, so it always fully fills the box
+  // with no gaps and no non-uniform stretch — any excess just overflows the
+  // box and gets clipped.
+  const coverLayout = (b: Box, nw: number, nh: number) => {
+    const s = Math.max(b.w / nw, b.h / nh);
+    const contentW = nw * s;
+    const contentH = nh * s;
+    return { scale: s, contentW, contentH, offsetX: (b.w - contentW) / 2, offsetY: (b.h - contentH) / 2 };
   };
 
+  // Loads into a static preview box that contains the whole image at a
+  // recognizable size (matches the photo's own aspect, so nothing is
+  // cropped yet) — the required-frame outline overlays on top at its true
+  // relative scale, making the size mismatch that got it rejected obvious.
   const handleImgLoad = () => {
     const el = imgElRef.current;
     if (!el) return;
     const w = el.naturalWidth, h = el.naturalHeight;
     setNaturalSize({ w, h });
-    setTransform(containTransform(w, h));
+    const s = Math.min(canvas.w / w, canvas.h / h);
+    const bw = w * s, bh = h * s;
+    setBox({ w: bw, h: bh, x: (canvas.w - bw) / 2, y: (canvas.h - bh) / 2 });
   };
 
-  // Switching into edit mode restarts from a "cover"-fitted, centered
-  // position — the frame is already fully covered the moment editing opens,
-  // so there's something to adjust rather than a blank stage to figure out.
+  // Switching into edit mode restarts the box at exactly the frame's size,
+  // centered on it — already fully covering the frame, so there's something
+  // to adjust rather than a blank stage to figure out.
   const startEditing = () => {
     if (!naturalSize) return;
-    setTransform(coverTransform(naturalSize.w, naturalSize.h));
+    setBox({ w: frame.w, h: frame.h, x: MARGIN, y: MARGIN });
     setMode('edit');
   };
 
   const fits = useMemo(() => {
-    if (!transform || !naturalSize) return false;
-    const left = transform.x, top = transform.y;
-    const right = transform.x + naturalSize.w * transform.scale;
-    const bottom = transform.y + naturalSize.h * transform.scale;
+    if (!box) return false;
     return (
-      left <= MARGIN + FIT_EPS &&
-      top <= MARGIN + FIT_EPS &&
-      right >= MARGIN + frame.w - FIT_EPS &&
-      bottom >= MARGIN + frame.h - FIT_EPS
+      box.x <= MARGIN + FIT_EPS &&
+      box.y <= MARGIN + FIT_EPS &&
+      box.x + box.w >= MARGIN + frame.w - FIT_EPS &&
+      box.y + box.h >= MARGIN + frame.h - FIT_EPS
     );
-  }, [transform, naturalSize, frame]);
+  }, [box, frame]);
 
   // Mouse coordinates are viewport-relative; everything else here is
   // canvas-local, so every drag/resize handler needs the canvas's actual
@@ -139,19 +148,19 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     y: e.clientY - canvasOffsetRef.current.top,
   });
 
-  // ── Drag (pan) ──────────────────────────────────────────────────────────
+  // ── Drag (pan) — moves the box, doesn't resize it ────────────────────────
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const onImageMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (mode !== 'edit' || !transform) return;
-    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: transform.x, origY: transform.y };
+    if (mode !== 'edit' || !box) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: box.x, origY: box.y };
     window.addEventListener('mousemove', onImageMouseMove);
     window.addEventListener('mouseup', onImageMouseUp);
   };
   const onImageMouseMove = (e: MouseEvent) => {
     const d = dragRef.current;
     if (!d) return;
-    setTransform(prev => prev && ({ ...prev, x: d.origX + (e.clientX - d.startX), y: d.origY + (e.clientY - d.startY) }));
+    setBox(prev => prev && ({ ...prev, x: d.origX + (e.clientX - d.startX), y: d.origY + (e.clientY - d.startY) }));
   };
   const onImageMouseUp = () => {
     dragRef.current = null;
@@ -159,83 +168,92 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     window.removeEventListener('mouseup', onImageMouseUp);
   };
 
-  // ── Resize (corner handles only, always proportional) ───────────────────
-  // Width and height always scale together, by the same factor, off the
-  // diagonal distance to the cursor — the photo is never visibly warped,
-  // no matter how it's dragged.
-  const resizeRef = useRef<{ startDist: number; origScale: number; cx: number; cy: number } | null>(null);
-  const onResizeMouseDown = (e: React.MouseEvent) => {
+  // ── Resize: corner handles — scale box.w and box.h together ──────────────
+  const cornerRef = useRef<{ startDist: number; origW: number; origH: number; cx: number; cy: number } | null>(null);
+  const onCornerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!transform || !naturalSize) return;
-    const cx = transform.x + (naturalSize.w * transform.scale) / 2;
-    const cy = transform.y + (naturalSize.h * transform.scale) / 2;
+    if (!box) return;
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
     const p = toCanvasPoint(e);
     const startDist = Math.max(1, Math.hypot(p.x - cx, p.y - cy));
-    resizeRef.current = { startDist, origScale: transform.scale, cx, cy };
-    window.addEventListener('mousemove', onResizeMouseMove);
-    window.addEventListener('mouseup', onResizeMouseUp);
+    cornerRef.current = { startDist, origW: box.w, origH: box.h, cx, cy };
+    window.addEventListener('mousemove', onCornerMouseMove);
+    window.addEventListener('mouseup', onCornerMouseUp);
   };
-  const onResizeMouseMove = (e: MouseEvent) => {
-    const r = resizeRef.current;
-    if (!r || !naturalSize) return;
+  const onCornerMouseMove = (e: MouseEvent) => {
+    const r = cornerRef.current;
+    if (!r) return;
     const p = toCanvasPoint(e);
     const dist = Math.max(1, Math.hypot(p.x - r.cx, p.y - r.cy));
-    const nextScale = Math.max(0.02, r.origScale * (dist / r.startDist));
-    const nextW = naturalSize.w * nextScale;
-    const nextH = naturalSize.h * nextScale;
-    setTransform({ scale: nextScale, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
+    const factor = dist / r.startDist;
+    const nextW = Math.max(MIN_BOX, r.origW * factor);
+    const nextH = Math.max(MIN_BOX, r.origH * factor);
+    setBox({ w: nextW, h: nextH, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
   };
-  const onResizeMouseUp = () => {
-    resizeRef.current = null;
-    window.removeEventListener('mousemove', onResizeMouseMove);
-    window.removeEventListener('mouseup', onResizeMouseUp);
+  const onCornerMouseUp = () => {
+    cornerRef.current = null;
+    window.removeEventListener('mousemove', onCornerMouseMove);
+    window.removeEventListener('mouseup', onCornerMouseUp);
   };
 
-  // ── Edge handles (pan one axis only, never touches scale) ───────────────
-  // Grabbing an edge slides the image along just that axis — the image's
-  // size never changes, so more or less of it gets revealed/hidden on that
-  // side. It can only ever crop the image, never stretch it, since scale
-  // isn't part of this at all.
-  const edgePanRef = useRef<{ axis: 'x' | 'y'; start: number; orig: number } | null>(null);
-  const onEdgePanMouseDown = (axis: 'x' | 'y') => (e: React.MouseEvent) => {
+  // ── Resize: edge handles — change only box.w OR box.h ────────────────────
+  // The other dimension never moves. The photo re-derives its own uniform
+  // cover-scale from the new box shape every render, so this only ever
+  // crops the image tighter or wider — it can't stretch it, because there's
+  // no per-axis scale stored anywhere to stretch.
+  const edgeRef = useRef<{ axis: 'x' | 'y'; startDist: number; orig: number; cx: number; cy: number } | null>(null);
+  const onEdgeMouseDown = (axis: 'x' | 'y') => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!transform) return;
-    edgePanRef.current = { axis, start: axis === 'x' ? e.clientX : e.clientY, orig: axis === 'x' ? transform.x : transform.y };
-    window.addEventListener('mousemove', onEdgePanMouseMove);
-    window.addEventListener('mouseup', onEdgePanMouseUp);
+    if (!box) return;
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    const p = toCanvasPoint(e);
+    const startDist = Math.max(1, axis === 'x' ? Math.abs(p.x - cx) : Math.abs(p.y - cy));
+    edgeRef.current = { axis, startDist, orig: axis === 'x' ? box.w : box.h, cx, cy };
+    window.addEventListener('mousemove', onEdgeMouseMove);
+    window.addEventListener('mouseup', onEdgeMouseUp);
   };
-  const onEdgePanMouseMove = (e: MouseEvent) => {
-    const r = edgePanRef.current;
+  const onEdgeMouseMove = (e: MouseEvent) => {
+    const r = edgeRef.current;
     if (!r) return;
-    const pos = r.axis === 'x' ? e.clientX : e.clientY;
-    const next = r.orig + (pos - r.start);
-    setTransform(prev => prev && (r.axis === 'x' ? { ...prev, x: next } : { ...prev, y: next }));
+    const p = toCanvasPoint(e);
+    const dist = Math.max(1, r.axis === 'x' ? Math.abs(p.x - r.cx) : Math.abs(p.y - r.cy));
+    const nextSize = Math.max(MIN_BOX, r.orig * (dist / r.startDist));
+    if (r.axis === 'x') {
+      setBox(prev => prev && ({ ...prev, w: nextSize, x: r.cx - nextSize / 2 }));
+    } else {
+      setBox(prev => prev && ({ ...prev, h: nextSize, y: r.cy - nextSize / 2 }));
+    }
   };
-  const onEdgePanMouseUp = () => {
-    edgePanRef.current = null;
-    window.removeEventListener('mousemove', onEdgePanMouseMove);
-    window.removeEventListener('mouseup', onEdgePanMouseUp);
+  const onEdgeMouseUp = () => {
+    edgeRef.current = null;
+    window.removeEventListener('mousemove', onEdgeMouseMove);
+    window.removeEventListener('mouseup', onEdgeMouseUp);
   };
 
   useEffect(() => () => {
     window.removeEventListener('mousemove', onImageMouseMove);
     window.removeEventListener('mouseup', onImageMouseUp);
-    window.removeEventListener('mousemove', onResizeMouseMove);
-    window.removeEventListener('mouseup', onResizeMouseUp);
-    window.removeEventListener('mousemove', onEdgePanMouseMove);
-    window.removeEventListener('mouseup', onEdgePanMouseUp);
+    window.removeEventListener('mousemove', onCornerMouseMove);
+    window.removeEventListener('mouseup', onCornerMouseUp);
+    window.removeEventListener('mousemove', onEdgeMouseMove);
+    window.removeEventListener('mouseup', onEdgeMouseUp);
   }, []);
 
   const handleConfirm = () => {
-    if (!transform || !naturalSize || !imgElRef.current) return;
+    if (!box || !naturalSize || !imgElRef.current) return;
     setExporting(true);
 
-    const cropX = (MARGIN - transform.x) / transform.scale;
-    const cropY = (MARGIN - transform.y) / transform.scale;
-    const cropW = frame.w / transform.scale;
-    const cropH = frame.h / transform.scale;
+    const { scale, offsetX, offsetY } = coverLayout(box, naturalSize.w, naturalSize.h);
+    // Where the frame sits relative to the rendered (cover-scaled) photo,
+    // converted back into the photo's own natural pixel coordinates.
+    const cropX = (MARGIN - (box.x + offsetX)) / scale;
+    const cropY = (MARGIN - (box.y + offsetY)) / scale;
+    const cropW = frame.w / scale;
+    const cropH = frame.h / scale;
 
     const outCanvas = document.createElement('canvas');
     outCanvas.width = targetWidth;
@@ -252,18 +270,15 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     }, 'image/png', 0.95);
   };
 
-  const scaledW = naturalSize && transform ? naturalSize.w * transform.scale : 0;
-  const scaledH = naturalSize && transform ? naturalSize.h * transform.scale : 0;
+  const layout = box && naturalSize ? coverLayout(box, naturalSize.w, naturalSize.h) : null;
 
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
-  // A handle's "true" position follows the image edge, which can land far
-  // outside the (clipped) canvas when the image's aspect ratio is very
-  // different from the frame's — e.g. a wide banner frame with a square
-  // source photo pushes the top/bottom edges way above/below what's visible.
-  // Pin the handle's on-screen position to the canvas bounds in that case so
-  // it's always visible and grabbable; the drag math itself still reads the
-  // raw mouse position, so resizing behaves correctly either way.
+  // A handle's "true" position follows the box edge, which can land far
+  // outside the (clipped) canvas for an extreme box shape. Pin the handle's
+  // on-screen position to the canvas bounds in that case so it's always
+  // visible and grabbable; the drag math itself still reads the raw mouse
+  // position, so resizing behaves correctly either way.
   const clampedHandlePos = (rawCx: number, rawCy: number, w: number, h: number) => ({
     left: clamp(rawCx, w / 2, canvas.w - w / 2) - w / 2,
     top: clamp(rawCy, h / 2, canvas.h - h / 2) - h / 2,
@@ -294,7 +309,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
             <p className="text-xs text-neutral-500 mt-0.5">
               {mode === 'preview'
                 ? `It needs to be ${targetWidth}×${targetHeight}px. Replace it with a different image, or resize this one to fit.`
-                : 'Drag to reposition, drag a corner to zoom, drag an edge to slide that side. Dimmed areas outside the frame get cropped away.'}
+                : 'Drag to reposition, drag a corner to zoom, drag an edge to crop tighter or wider on that side. Dimmed areas outside the frame get cropped away.'}
             </p>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-black/5 text-neutral-500">
@@ -309,24 +324,34 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
             style={{ width: canvas.w, height: canvas.h, ...CHECKERBOARD_BG }}
           >
             {imgUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                ref={imgElRef}
-                src={imgUrl}
-                alt="Your ad"
-                onLoad={handleImgLoad}
+              // The box is the clipping viewport; the photo inside is always
+              // uniformly cover-scaled to fill it, so it can overflow the
+              // box (clipped) but never gets non-uniformly stretched.
+              <div
                 onMouseDown={onImageMouseDown}
-                draggable={false}
-                style={transform ? {
-                  position: 'absolute',
-                  left: transform.x,
-                  top: transform.y,
-                  width: scaledW,
-                  height: scaledH,
-                  maxWidth: 'none',
+                className="absolute overflow-hidden select-none"
+                style={box ? {
+                  left: box.x, top: box.y, width: box.w, height: box.h,
                   cursor: mode === 'edit' ? 'grab' : 'default',
-                } : { display: 'none' }}
-              />
+                } : { left: 0, top: 0, width: 0, height: 0 }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={imgElRef}
+                  src={imgUrl}
+                  alt="Your ad"
+                  onLoad={handleImgLoad}
+                  draggable={false}
+                  style={layout ? {
+                    position: 'absolute',
+                    left: layout.offsetX,
+                    top: layout.offsetY,
+                    width: layout.contentW,
+                    height: layout.contentH,
+                    maxWidth: 'none',
+                  } : { position: 'absolute', width: 1, height: 1, opacity: 0 }}
+                />
+              </div>
             )}
 
             {/* Spotlight: dims everything outside the frame while leaving it
@@ -345,12 +370,12 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               }}
             />
 
-            {mode === 'edit' && transform && naturalSize && CORNER_HANDLES.map(h => {
-              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, 22, 22);
+            {mode === 'edit' && box && CORNER_HANDLES.map(h => {
+              const pos = clampedHandlePos(box.x + h.left * box.w, box.y + h.top * box.h, 22, 22);
               return (
                 <div
                   key={h.key}
-                  onMouseDown={onResizeMouseDown}
+                  onMouseDown={onCornerMouseDown}
                   style={{
                     position: 'absolute',
                     left: pos.left,
@@ -364,12 +389,12 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               );
             })}
 
-            {mode === 'edit' && transform && naturalSize && EDGE_HANDLES.map(h => {
-              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, h.w, h.h);
+            {mode === 'edit' && box && EDGE_HANDLES.map(h => {
+              const pos = clampedHandlePos(box.x + h.left * box.w, box.y + h.top * box.h, h.w, h.h);
               return (
                 <div
                   key={h.key}
-                  onMouseDown={onEdgePanMouseDown(h.axis)}
+                  onMouseDown={onEdgeMouseDown(h.axis)}
                   style={{
                     position: 'absolute',
                     left: pos.left,
@@ -422,7 +447,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={!transform || exporting}
+                disabled={!box || exporting}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   fits ? 'bg-green-600 text-[#fff] hover:bg-green-700' : 'bg-black text-[#fff] hover:bg-neutral-800'
                 }`}

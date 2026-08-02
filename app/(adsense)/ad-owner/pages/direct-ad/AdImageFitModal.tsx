@@ -246,6 +246,20 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   const scaledW = naturalSize && transform ? naturalSize.w * transform.scaleX : 0;
   const scaledH = naturalSize && transform ? naturalSize.h * transform.scaleY : 0;
 
+  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+
+  // A handle's "true" position follows the image edge, which can land far
+  // outside the (clipped) canvas when the image's aspect ratio is very
+  // different from the frame's — e.g. a wide banner frame with a square
+  // source photo pushes the top/bottom edges way above/below what's visible.
+  // Pin the handle's on-screen position to the canvas bounds in that case so
+  // it's always visible and grabbable; the drag math itself still reads the
+  // raw mouse position, so resizing behaves correctly either way.
+  const clampedHandlePos = (rawCx: number, rawCy: number, w: number, h: number) => ({
+    left: clamp(rawCx, w / 2, canvas.w - w / 2) - w / 2,
+    top: clamp(rawCy, h / 2, canvas.h - h / 2) - h / 2,
+  });
+
   const CORNER_HANDLES = [
     { key: 'tl', top: 0, left: 0, cursor: 'nwse-resize' },
     { key: 'tr', top: 0, left: 1, cursor: 'nesw-resize' },
@@ -318,35 +332,41 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               }}
             />
 
-            {transform && naturalSize && CORNER_HANDLES.map(h => (
-              <div
-                key={h.key}
-                onMouseDown={onCornerMouseDown}
-                style={{
-                  position: 'absolute',
-                  left: transform.x + h.left * scaledW - 8,
-                  top: transform.y + h.top * scaledH - 8,
-                  width: 16, height: 16, borderRadius: 9999,
-                  background: '#fff', border: '2px solid #111',
-                  cursor: h.cursor, zIndex: 6,
-                }}
-              />
-            ))}
+            {transform && naturalSize && CORNER_HANDLES.map(h => {
+              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, 16, 16);
+              return (
+                <div
+                  key={h.key}
+                  onMouseDown={onCornerMouseDown}
+                  style={{
+                    position: 'absolute',
+                    left: pos.left,
+                    top: pos.top,
+                    width: 16, height: 16, borderRadius: 9999,
+                    background: '#fff', border: '2px solid #111',
+                    cursor: h.cursor, zIndex: 6,
+                  }}
+                />
+              );
+            })}
 
-            {transform && naturalSize && EDGE_HANDLES.map(h => (
-              <div
-                key={h.key}
-                onMouseDown={onEdgeMouseDown(h.axis)}
-                style={{
-                  position: 'absolute',
-                  left: transform.x + h.left * scaledW - h.w / 2,
-                  top: transform.y + h.top * scaledH - h.h / 2,
-                  width: h.w, height: h.h, borderRadius: 4,
-                  background: '#fff', border: '2px solid #111',
-                  cursor: h.cursor, zIndex: 6,
-                }}
-              />
-            ))}
+            {transform && naturalSize && EDGE_HANDLES.map(h => {
+              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, h.w, h.h);
+              return (
+                <div
+                  key={h.key}
+                  onMouseDown={onEdgeMouseDown(h.axis)}
+                  style={{
+                    position: 'absolute',
+                    left: pos.left,
+                    top: pos.top,
+                    width: h.w, height: h.h, borderRadius: 4,
+                    background: '#fff', border: '2px solid #111',
+                    cursor: h.cursor, zIndex: 6,
+                  }}
+                />
+              );
+            })}
 
             {fits && (
               <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-green-500 text-white text-[11px] font-semibold px-2.5 py-1 shadow">

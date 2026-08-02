@@ -248,8 +248,8 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-2xl rounded-2xl bg-[#ffffff] shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/10">
+      <div className="w-full max-w-2xl max-h-[90vh] rounded-2xl bg-[#ffffff] shadow-2xl overflow-hidden flex flex-col">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-black/10">
           <div>
             <h2 className="text-base font-semibold text-black">
               {mode === 'preview' ? "This image doesn't fit this ad space" : 'Fit your image to this ad space'}
@@ -265,7 +265,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
           </button>
         </div>
 
-        <div className="p-6 flex flex-col items-center gap-4">
+        <div className="p-6 flex flex-col items-center gap-4 overflow-y-auto min-h-0">
           <div
             ref={canvasElRef}
             className="relative overflow-hidden select-none rounded-md"
@@ -338,7 +338,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-black/10 bg-neutral-50">
+        <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-black/10 bg-neutral-50">
           {mode === 'preview' ? (
             <>
               <button

@@ -145,6 +145,8 @@ const SHADOWS = {
   large: '0 20px 50px rgba(0,0,0,0.3)',
 };
 
+const { getDimensions } = require('./adSpaceLayout');
+
 const MIN_WIDTH = 160, MAX_WIDTH = 1200;
 const MIN_HEIGHT = 90, MAX_HEIGHT = 800;
 const MIN_IMAGE_HEIGHT = 60, MAX_IMAGE_HEIGHT = 360;
@@ -166,7 +168,7 @@ function clampNumber(n, min, max) {
 // system default <- template (if any) <- explicit per-field overrides.
 // Anything the slot doesn't set falls through to the previous layer, so an
 // empty slot resolves to exactly SYSTEM_DEFAULT.
-function resolveSlot(slotData) {
+function resolveSlot(slotData, spaceType) {
   const data = slotData || {};
   const template = data.template && TEMPLATES[data.template] ? TEMPLATES[data.template] : null;
   const resolved = { ...SYSTEM_DEFAULT, ...(template || {}), ...data };
@@ -175,6 +177,19 @@ function resolveSlot(slotData) {
   if (w !== undefined) resolved.width = w; else delete resolved.width;
   const h = clampNumber(resolved.height, MIN_HEIGHT, MAX_HEIGHT);
   if (h !== undefined) resolved.height = h; else delete resolved.height;
+
+  // An untouched slot's default image height scales with the ad space's own
+  // canonical height instead of the same flat number for every shape — a
+  // 160x600 rail defaults to a tall image, not the same short box a 728x90
+  // banner gets, so a rail's mostly-empty min-height doesn't sit unused.
+  // Only kicks in when the slot hasn't set imageHeight itself, so a manual
+  // customization always wins.
+  if (data.imageHeight === undefined) {
+    const dims = getDimensions(spaceType);
+    if (dims) {
+      resolved.imageHeight = clampNumber(dims.height - TEXT_AREA_RESERVE, MIN_IMAGE_HEIGHT, MAX_IMAGE_HEIGHT) ?? SYSTEM_DEFAULT.imageHeight;
+    }
+  }
 
   // Always defined (they're in SYSTEM_DEFAULT) — clamp in place rather than
   // drop, so a bad value falls back to a safe number instead of disappearing
@@ -195,13 +210,13 @@ function resolveSlot(slotData) {
 // customization blob. Returns the resolved bundles plus the deduped list of
 // Google Fonts `@import` params actually in use, so the caller only pulls in
 // what's needed.
-function resolveAllSlots(customization, slotCount) {
+function resolveAllSlots(customization, slotCount, spaceType) {
   const count = Math.max(1, Math.min(MAX_SLOTS, slotCount || 1));
   const rawSlots = (customization && customization.slots) || {};
   const slots = [];
   const fontImports = new Set();
   for (let i = 0; i < count; i++) {
-    const resolved = resolveSlot(rawSlots[String(i)]);
+    const resolved = resolveSlot(rawSlots[String(i)], spaceType);
     if (resolved.fontImport) fontImports.add(resolved.fontImport);
     slots.push(resolved);
   }

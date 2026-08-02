@@ -50,7 +50,7 @@ router.get('/ads/customization/:categoryId', async (req, res) => {
     // Slots are resolved (defaults + template + overrides flattened) here so
     // every renderer just consumes ready-to-use bundles — no template/default
     // logic duplicated across the three rendering surfaces.
-    const { slots, fontImports } = resolveAllSlots(category.customization, category.user_count);
+    const { slots, fontImports } = resolveAllSlots(category.customization, category.user_count, category.space_type);
     res.json({ slots, fontImports, timestamp: Date.now() });
   } catch (error) {
     console.error('Error fetching customization:', error);

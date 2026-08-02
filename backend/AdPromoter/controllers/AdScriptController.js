@@ -613,7 +613,7 @@ exports.serveAdEmbed = async (req, res) => {
     const websiteId = adCategory.website_id;
     const categoryPrice = adCategory.price;
     const categoryName = escapeHtml(adCategory.category_name || 'Ad Space');
-    const { slots, fontImports } = resolveAllSlots(adCategory.customization, adCategory.user_count);
+    const { slots, fontImports } = resolveAllSlots(adCategory.customization, adCategory.user_count, adCategory.space_type);
     const cardCss = buildEmbedCardCss(prefix, slots, fontImports);
 
     let bodyHtml;

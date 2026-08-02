@@ -42,6 +42,10 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [transform, setTransform] = useState<Transform | null>(null);
   const [exporting, setExporting] = useState(false);
+  // Opens on a static "here's the mismatch" preview — nothing draggable yet —
+  // so the owner sees why the image was rejected before deciding whether to
+  // replace it or resize it. Dragging/resizing only turns on in 'edit' mode.
+  const [mode, setMode] = useState<'preview' | 'edit'>('preview');
 
   // Frame: the required aspect ratio, scaled down to fit a comfortable
   // on-screen box. This is the only thing the final export cares about
@@ -66,22 +70,33 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Once the image is loaded and we know both its natural size and the
-  // frame's on-screen size, start it "cover"-fitted and centered over the
-  // frame — the frame is already fully covered on open, not empty, so
-  // there's something to adjust rather than a blank stage to figure out.
+  const coverTransform = (w: number, h: number): Transform => {
+    const s = Math.max(frame.w / w, frame.h / h);
+    return { scaleX: s, scaleY: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
+  };
+  const containTransform = (w: number, h: number): Transform => {
+    const s = Math.min(frame.w / w, frame.h / h);
+    return { scaleX: s, scaleY: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
+  };
+
+  // Loads into the static preview at "contain" scale — the whole image
+  // visible, letterboxed against the required frame — so the mismatch that
+  // got it rejected is plainly visible before anything is editable.
   const handleImgLoad = () => {
     const el = imgElRef.current;
     if (!el) return;
     const w = el.naturalWidth, h = el.naturalHeight;
     setNaturalSize({ w, h });
-    const coverScale = Math.max(frame.w / w, frame.h / h);
-    setTransform({
-      scaleX: coverScale,
-      scaleY: coverScale,
-      x: MARGIN + (frame.w - w * coverScale) / 2,
-      y: MARGIN + (frame.h - h * coverScale) / 2,
-    });
+    setTransform(containTransform(w, h));
+  };
+
+  // Switching into edit mode restarts from a "cover"-fitted, centered
+  // position — the frame is already fully covered the moment editing opens,
+  // so there's something to adjust rather than a blank stage to figure out.
+  const startEditing = () => {
+    if (!naturalSize) return;
+    setTransform(coverTransform(naturalSize.w, naturalSize.h));
+    setMode('edit');
   };
 
   const fits = useMemo(() => {
@@ -120,7 +135,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const onImageMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!transform) return;
+    if (mode !== 'edit' || !transform) return;
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: transform.x, origY: transform.y };
     window.addEventListener('mousemove', onImageMouseMove);
     window.addEventListener('mouseup', onImageMouseUp);
@@ -279,9 +294,13 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
       <div className="w-full max-w-2xl rounded-2xl bg-[#ffffff] shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/10">
           <div>
-            <h2 className="text-base font-semibold text-black">Fit your image to this ad space</h2>
+            <h2 className="text-base font-semibold text-black">
+              {mode === 'preview' ? "This image doesn't fit this ad space" : 'Fit your image to this ad space'}
+            </h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Drag to reposition, drag an edge or corner to resize. Dimmed areas outside the frame get cropped away.
+              {mode === 'preview'
+                ? `It needs to be ${targetWidth}×${targetHeight}px. Replace it with a different image, or resize this one to fit.`
+                : 'Drag to reposition, drag an edge or corner to resize. Dimmed areas outside the frame get cropped away.'}
             </p>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-black/5 text-neutral-500">
@@ -311,7 +330,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
                   width: scaledW,
                   height: scaledH,
                   maxWidth: 'none',
-                  cursor: 'grab',
+                  cursor: mode === 'edit' ? 'grab' : 'default',
                 } : { display: 'none' }}
               />
             )}
@@ -327,12 +346,12 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
                 width: frame.w,
                 height: frame.h,
                 pointerEvents: 'none',
-                boxShadow: `${fits ? '0 0 0 2px #22c55e' : '0 0 0 2px rgba(255,255,255,0.85)'}, 0 0 0 9999px rgba(0,0,0,0.55)`,
+                boxShadow: `${mode === 'edit' && fits ? '0 0 0 2px #22c55e' : '0 0 0 2px rgba(255,255,255,0.85)'}, 0 0 0 9999px rgba(0,0,0,0.55)`,
                 transition: 'box-shadow 0.15s ease',
               }}
             />
 
-            {transform && naturalSize && CORNER_HANDLES.map(h => {
+            {mode === 'edit' && transform && naturalSize && CORNER_HANDLES.map(h => {
               const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, 16, 16);
               return (
                 <div
@@ -350,7 +369,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               );
             })}
 
-            {transform && naturalSize && EDGE_HANDLES.map(h => {
+            {mode === 'edit' && transform && naturalSize && EDGE_HANDLES.map(h => {
               const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, h.w, h.h);
               return (
                 <div
@@ -368,7 +387,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               );
             })}
 
-            {fits && (
+            {mode === 'edit' && fits && (
               <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-green-500 text-white text-[11px] font-semibold px-2.5 py-1 shadow">
                 <Check size={12} /> Fits
               </div>
@@ -381,21 +400,41 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-black/10 bg-neutral-50">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-black/5 transition-colors"
-          >
-            Choose a different image
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!transform || exporting}
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              fits ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-black text-white hover:bg-neutral-800'
-            }`}
-          >
-            {exporting ? 'Saving…' : fits ? 'Use this fit' : 'Use anyway'}
-          </button>
+          {mode === 'preview' ? (
+            <>
+              <button
+                onClick={onCancel}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-black/5 transition-colors"
+              >
+                Change image
+              </button>
+              <button
+                onClick={startEditing}
+                disabled={!naturalSize}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-black hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Resize your image
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onCancel}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-black/5 transition-colors"
+              >
+                Choose a different image
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={!transform || exporting}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  fits ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-black text-white hover:bg-neutral-800'
+                }`}
+              >
+                {exporting ? 'Saving…' : fits ? 'Use this fit' : 'Use anyway'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

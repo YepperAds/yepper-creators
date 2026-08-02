@@ -10,12 +10,13 @@ import { X, Check, Move } from 'lucide-react';
 // so the parts that would get cropped away stay visible (dimmed) instead of
 // being clipped out of view — let the owner drag/resize until the frame is
 // fully covered (it turns green), then export exactly that crop at the exact
-// required pixel dimensions. Resizing is corner-only and always proportional
-// — a photo can't grow in just one dimension without either stretching its
-// pixels or moving the other dimension along with it, so there's no handle
-// that pretends otherwise. The backend's own size check (adSpaceLayout.js)
-// is still the authoritative gate; this only guarantees what gets sent
-// already matches, so that check never has anything left to reject.
+// required pixel dimensions. Every resize handle — corner or edge — scales
+// width and height together (Canva-style): a photo can't grow in just one
+// dimension without either stretching its pixels or moving the other
+// dimension along with it, so nothing here ever does the former. The
+// backend's own size check (adSpaceLayout.js) is still the authoritative
+// gate; this only guarantees what gets sent already matches, so that check
+// never has anything left to reject.
 
 const STAGE_MAX = 380; // on-screen px budget for the longer side of the frame
 const MARGIN = 64;     // canvas padding around the frame, so overflow is visible
@@ -157,22 +158,27 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     window.removeEventListener('mouseup', onImageMouseUp);
   };
 
-  // ── Resize (corner handles only) ─────────────────────────────────────────
-  // A photo can only be scaled proportionally without warping it — there is
-  // no way to grow just one dimension without either stretching the pixels
-  // or moving the other dimension along with it. So there's exactly one
-  // resize affordance: drag a corner, and both dimensions scale together
-  // from the image's own center, off the diagonal distance to the cursor.
-  const resizeRef = useRef<{ startDist: number; origScale: number; cx: number; cy: number } | null>(null);
-  const onResizeMouseDown = (e: React.MouseEvent) => {
+  // ── Resize (corner + edge handles, always proportional) ─────────────────
+  // Like Canva: a photo can grab any handle — corner or edge — but every one
+  // of them scales width and height together from the image's own center.
+  // Corners drive that single scale factor off the diagonal distance to the
+  // cursor; edges drive the exact same factor off just the horizontal or
+  // vertical distance, which just makes them easier to grab from a side —
+  // neither ever stretches the image, since it's one scale value applied to
+  // both dimensions no matter which handle moved it.
+  const resizeRef = useRef<{ metric: 'diag' | 'x' | 'y'; startDist: number; origScale: number; cx: number; cy: number } | null>(null);
+  const onResizeMouseDown = (metric: 'diag' | 'x' | 'y') => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!transform || !naturalSize) return;
     const cx = transform.x + (naturalSize.w * transform.scale) / 2;
     const cy = transform.y + (naturalSize.h * transform.scale) / 2;
     const p = toCanvasPoint(e);
-    const startDist = Math.max(1, Math.hypot(p.x - cx, p.y - cy));
-    resizeRef.current = { startDist, origScale: transform.scale, cx, cy };
+    const startDist = Math.max(
+      1,
+      metric === 'diag' ? Math.hypot(p.x - cx, p.y - cy) : metric === 'x' ? Math.abs(p.x - cx) : Math.abs(p.y - cy)
+    );
+    resizeRef.current = { metric, startDist, origScale: transform.scale, cx, cy };
     window.addEventListener('mousemove', onResizeMouseMove);
     window.addEventListener('mouseup', onResizeMouseUp);
   };
@@ -180,7 +186,10 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     const r = resizeRef.current;
     if (!r || !naturalSize) return;
     const p = toCanvasPoint(e);
-    const dist = Math.max(1, Math.hypot(p.x - r.cx, p.y - r.cy));
+    const dist = Math.max(
+      1,
+      r.metric === 'diag' ? Math.hypot(p.x - r.cx, p.y - r.cy) : r.metric === 'x' ? Math.abs(p.x - r.cx) : Math.abs(p.y - r.cy)
+    );
     const nextScale = Math.max(0.02, r.origScale * (dist / r.startDist));
     const nextW = naturalSize.w * nextScale;
     const nextH = naturalSize.h * nextScale;
@@ -247,6 +256,13 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     { key: 'br', top: 1, left: 1, cursor: 'nwse-resize' },
   ] as const;
 
+  const EDGE_HANDLES = [
+    { key: 'l', metric: 'x' as const, top: 0.5, left: 0, cursor: 'ew-resize', w: 10, h: 26 },
+    { key: 'r', metric: 'x' as const, top: 0.5, left: 1, cursor: 'ew-resize', w: 10, h: 26 },
+    { key: 't', metric: 'y' as const, top: 0, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
+    { key: 'b', metric: 'y' as const, top: 1, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
+  ] as const;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-2xl max-h-[90vh] rounded-2xl bg-[#ffffff] shadow-2xl overflow-hidden flex flex-col">
@@ -258,7 +274,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
             <p className="text-xs text-neutral-500 mt-0.5">
               {mode === 'preview'
                 ? `It needs to be ${targetWidth}×${targetHeight}px. Replace it with a different image, or resize this one to fit.`
-                : 'Drag to reposition, drag a corner to resize. Dimmed areas outside the frame get cropped away.'}
+                : 'Drag to reposition, drag an edge or corner to resize. Dimmed areas outside the frame get cropped away.'}
             </p>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-black/5 text-neutral-500">
@@ -314,12 +330,30 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               return (
                 <div
                   key={h.key}
-                  onMouseDown={onResizeMouseDown}
+                  onMouseDown={onResizeMouseDown('diag')}
                   style={{
                     position: 'absolute',
                     left: pos.left,
                     top: pos.top,
                     width: 16, height: 16, borderRadius: 9999,
+                    background: '#fff', border: '2px solid #111',
+                    cursor: h.cursor, zIndex: 6,
+                  }}
+                />
+              );
+            })}
+
+            {mode === 'edit' && transform && naturalSize && EDGE_HANDLES.map(h => {
+              const pos = clampedHandlePos(transform.x + h.left * scaledW, transform.y + h.top * scaledH, h.w, h.h);
+              return (
+                <div
+                  key={h.key}
+                  onMouseDown={onResizeMouseDown(h.metric)}
+                  style={{
+                    position: 'absolute',
+                    left: pos.left,
+                    top: pos.top,
+                    width: h.w, height: h.h, borderRadius: 4,
                     background: '#fff', border: '2px solid #111',
                     cursor: h.cursor, zIndex: 6,
                   }}

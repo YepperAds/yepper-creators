@@ -1,7 +1,7 @@
 // Combines the two kinds of ads a signed-in user can have running:
-// their own posted YouTube ad videos, and their imported/website ads that
-// are actively showing on a website *they* own, into one list. Used by
-// the dashboard's "My ads" sidebar box (RightRail).
+// their own posted YouTube ad videos, and their own imported/website ads
+// (as advertiser) that are actively showing on any website, into one list.
+// Used by the dashboard's "My ads" sidebar box (RightRail).
 
 export interface OwnWebsite {
   id: string | number;
@@ -33,26 +33,25 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
   const userId = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
   if (!userId) return { websites: [], ads: [], youtubeChannels: [] };
 
-  const [wRes, aRes, activeRes, socialRes] = await Promise.all([
+  const [wRes, aRes, myAdsRes, socialRes] = await Promise.all([
     fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store' }),
     fetch(`/api/social/ad-posts?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
-    fetch('/api/proxy/api/ad-categories/active-ads', { credentials: 'include', cache: 'no-store' }),
+    fetch('/api/proxy/api/web-advertise/my-ads', { credentials: 'include', cache: 'no-store' }),
     fetch(`/api/social/stats?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
   ]);
 
   const wJson = await wRes.json().catch(() => ({}));
   const websites: OwnWebsite[] = Array.isArray(wJson) ? wJson : (wJson?.data ?? []);
-  const ownWebsiteIds = new Set(websites.map((w) => String(w.id)));
 
   const aJson = await aRes.json().catch(() => ({}));
   const adPosts: Array<Record<string, unknown>> = Array.isArray(aJson?.data) ? aJson.data : [];
 
-  const activeJson = await activeRes.json().catch(() => ({}));
-  const activeAds: Array<Record<string, unknown>> = Array.isArray(activeJson?.activeAds) ? activeJson.activeAds : [];
+  const myAdsJson = await myAdsRes.json().catch(() => ({}));
+  const myAds: Array<Record<string, unknown>> = Array.isArray(myAdsJson?.ads) ? myAdsJson.ads : [];
 
-  const websiteAds: MyAd[] = activeAds
+  const websiteAds: MyAd[] = myAds
     .filter((ad) => Array.isArray(ad.websiteSelections) && (ad.websiteSelections as Array<Record<string, unknown>>).some(
-      (s) => ownWebsiteIds.has(String(s.websiteId)) && s.approved && !s.isRejected && s.status === 'active',
+      (s) => s.approved && !s.isRejected && s.status === 'active',
     ))
     .map((ad) => ({
       id: `web-${ad.id}`,

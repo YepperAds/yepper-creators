@@ -123,7 +123,26 @@ exports.getAnalytics = async (req, res) => {
 
     const website = await Website.findById(websiteId);
     if (!website) return res.status(404).json({ message: 'Website not found' });
-    if (website.owner_id.toString() !== user.id.toString())
+
+    const isOwner = website.owner_id.toString() === user.id.toString();
+    let isAdvertiserOnSite = false;
+    if (!isOwner) {
+      const { rows } = await query(
+        `SELECT 1 FROM import_ads
+         WHERE user_id = $1
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements(website_selections) AS sel
+             WHERE sel->>'websiteId' = $2::text
+               AND (sel->>'approved')::boolean = true
+               AND (sel->>'isRejected')::boolean = false
+               AND sel->>'status' = 'active'
+           )
+         LIMIT 1`,
+        [user.id.toString(), websiteId],
+      );
+      isAdvertiserOnSite = rows.length > 0;
+    }
+    if (!isOwner && !isAdvertiserOnSite)
       return res.status(403).json({ message: 'Forbidden' });
 
     const [

@@ -34,12 +34,13 @@ interface Props {
   targetWidth: number;
   targetHeight: number;
   onCancel: () => void;
+  onChangeImage: () => void;
   onConfirm: (croppedFile: File) => void;
 }
 
 type Transform = { x: number; y: number; scale: number };
 
-export default function AdImageFitModal({ file, targetWidth, targetHeight, onCancel, onConfirm }: Props) {
+export default function AdImageFitModal({ file, targetWidth, targetHeight, onCancel, onChangeImage, onConfirm }: Props) {
   const imgElRef = useRef<HTMLImageElement | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
@@ -342,7 +343,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
           {mode === 'preview' ? (
             <>
               <button
-                onClick={onCancel}
+                onClick={onChangeImage}
                 className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-black/5 transition-colors"
               >
                 Change image
@@ -358,7 +359,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
           ) : (
             <>
               <button
-                onClick={onCancel}
+                onClick={onChangeImage}
                 className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-black/5 transition-colors"
               >
                 Choose a different image

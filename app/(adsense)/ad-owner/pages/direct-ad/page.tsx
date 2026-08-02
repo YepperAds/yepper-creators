@@ -603,6 +603,10 @@ function DirectAdvertise() {
           targetWidth={(categoryInfo.recommendedSize as any).width}
           targetHeight={(categoryInfo.recommendedSize as any).height}
           onCancel={() => setFitModalFile(null)}
+          onChangeImage={() => {
+            setFitModalFile(null);
+            fileInputRef.current?.click();
+          }}
           onConfirm={(croppedFile) => {
             setFitModalFile(null);
             acceptFile(croppedFile);

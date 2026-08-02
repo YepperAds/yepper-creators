@@ -10,9 +10,11 @@ import { X, Check, Move } from 'lucide-react';
 // so the parts that would get cropped away stay visible (dimmed) instead of
 // being clipped out of view — let the owner drag/resize until the frame is
 // fully covered (it turns green), then export exactly that crop at the exact
-// required pixel dimensions. The backend's own size check (adSpaceLayout.js)
-// is still the authoritative gate; this only guarantees what gets sent
-// already matches, so that check never has anything left to reject.
+// required pixel dimensions. Resizing is always uniform (never stretches the
+// image's pixels) — every handle, corner or edge, scales width and height
+// together. The backend's own size check (adSpaceLayout.js) is still the
+// authoritative gate; this only guarantees what gets sent already matches,
+// so that check never has anything left to reject.
 
 const STAGE_MAX = 380; // on-screen px budget for the longer side of the frame
 const MARGIN = 64;     // canvas padding around the frame, so overflow is visible
@@ -34,7 +36,7 @@ interface Props {
   onConfirm: (croppedFile: File) => void;
 }
 
-type Transform = { x: number; y: number; scaleX: number; scaleY: number };
+type Transform = { x: number; y: number; scale: number };
 
 export default function AdImageFitModal({ file, targetWidth, targetHeight, onCancel, onConfirm }: Props) {
   const imgElRef = useRef<HTMLImageElement | null>(null);
@@ -50,7 +52,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   // Frame: the required aspect ratio, scaled down to fit a comfortable
   // on-screen box. This is the only thing the final export cares about
   // covering — its screen size, not the real target pixels, since the crop
-  // math below converts back through scaleX/scaleY regardless of zoom level.
+  // math below converts back through scale regardless of zoom level.
   const frame = useMemo(() => {
     if (targetWidth >= targetHeight) {
       const w = STAGE_MAX;
@@ -72,16 +74,18 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
 
   const coverTransform = (w: number, h: number): Transform => {
     const s = Math.max(frame.w / w, frame.h / h);
-    return { scaleX: s, scaleY: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
+    return { scale: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
   };
+  // Contains the whole image within the full CANVAS (not just the tiny
+  // frame) so the static preview shows it at a recognizable size — the
+  // required-frame outline is then overlaid on top at its true relative
+  // scale, making the mismatch obvious instead of shrinking the photo down
+  // to a postage stamp to squeeze it inside a thin banner-shaped frame.
   const containTransform = (w: number, h: number): Transform => {
-    const s = Math.min(frame.w / w, frame.h / h);
-    return { scaleX: s, scaleY: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
+    const s = Math.min(canvas.w / w, canvas.h / h);
+    return { scale: s, x: (canvas.w - w * s) / 2, y: (canvas.h - h * s) / 2 };
   };
 
-  // Loads into the static preview at "contain" scale — the whole image
-  // visible, letterboxed against the required frame — so the mismatch that
-  // got it rejected is plainly visible before anything is editable.
   const handleImgLoad = () => {
     const el = imgElRef.current;
     if (!el) return;
@@ -102,8 +106,8 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   const fits = useMemo(() => {
     if (!transform || !naturalSize) return false;
     const left = transform.x, top = transform.y;
-    const right = transform.x + naturalSize.w * transform.scaleX;
-    const bottom = transform.y + naturalSize.h * transform.scaleY;
+    const right = transform.x + naturalSize.w * transform.scale;
+    const bottom = transform.y + naturalSize.h * transform.scale;
     return (
       left <= MARGIN + FIT_EPS &&
       top <= MARGIN + FIT_EPS &&
@@ -151,103 +155,69 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     window.removeEventListener('mouseup', onImageMouseUp);
   };
 
-  // ── Resize: corner handles (both dimensions, together) ───────────────────
-  // Scales uniformly from the image's own current center, preserving
-  // whatever aspect ratio the image is already at (so a corner-drag after an
-  // edge-drag keeps that stretch instead of snapping back to square).
-  const cornerRef = useRef<{ startDist: number; origScaleX: number; origScaleY: number; cx: number; cy: number } | null>(null);
-  const onCornerMouseDown = (e: React.MouseEvent) => {
+  // ── Resize (corner + edge handles) ───────────────────────────────────────
+  // Every handle scales the image uniformly from its own current center —
+  // corners drive the factor off the diagonal distance to the cursor, edges
+  // off just the horizontal or vertical distance, but both always apply the
+  // same factor to width and height together. Nothing ever stretches the
+  // image's pixels; edge handles are just an easier place to grab the same
+  // proportional resize.
+  const resizeRef = useRef<{ metric: 'diag' | 'x' | 'y'; startDist: number; origScale: number; cx: number; cy: number } | null>(null);
+  const onResizeMouseDown = (metric: 'diag' | 'x' | 'y') => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!transform || !naturalSize) return;
-    const cx = transform.x + (naturalSize.w * transform.scaleX) / 2;
-    const cy = transform.y + (naturalSize.h * transform.scaleY) / 2;
+    const cx = transform.x + (naturalSize.w * transform.scale) / 2;
+    const cy = transform.y + (naturalSize.h * transform.scale) / 2;
     const p = toCanvasPoint(e);
-    const startDist = Math.hypot(p.x - cx, p.y - cy) || 1;
-    cornerRef.current = { startDist, origScaleX: transform.scaleX, origScaleY: transform.scaleY, cx, cy };
-    window.addEventListener('mousemove', onCornerMouseMove);
-    window.addEventListener('mouseup', onCornerMouseUp);
+    const startDist = Math.max(
+      1,
+      metric === 'diag' ? Math.hypot(p.x - cx, p.y - cy) : metric === 'x' ? Math.abs(p.x - cx) : Math.abs(p.y - cy)
+    );
+    resizeRef.current = { metric, startDist, origScale: transform.scale, cx, cy };
+    window.addEventListener('mousemove', onResizeMouseMove);
+    window.addEventListener('mouseup', onResizeMouseUp);
   };
-  const onCornerMouseMove = (e: MouseEvent) => {
-    const r = cornerRef.current;
+  const onResizeMouseMove = (e: MouseEvent) => {
+    const r = resizeRef.current;
     if (!r || !naturalSize) return;
     const p = toCanvasPoint(e);
-    const dist = Math.hypot(p.x - r.cx, p.y - r.cy) || 1;
-    const factor = dist / r.startDist;
-    const nextScaleX = Math.max(0.02, r.origScaleX * factor);
-    const nextScaleY = Math.max(0.02, r.origScaleY * factor);
-    const nextW = naturalSize.w * nextScaleX;
-    const nextH = naturalSize.h * nextScaleY;
-    setTransform({ scaleX: nextScaleX, scaleY: nextScaleY, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
+    const dist = Math.max(
+      1,
+      r.metric === 'diag' ? Math.hypot(p.x - r.cx, p.y - r.cy) : r.metric === 'x' ? Math.abs(p.x - r.cx) : Math.abs(p.y - r.cy)
+    );
+    const nextScale = Math.max(0.02, r.origScale * (dist / r.startDist));
+    const nextW = naturalSize.w * nextScale;
+    const nextH = naturalSize.h * nextScale;
+    setTransform({ scale: nextScale, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
   };
-  const onCornerMouseUp = () => {
-    cornerRef.current = null;
-    window.removeEventListener('mousemove', onCornerMouseMove);
-    window.removeEventListener('mouseup', onCornerMouseUp);
-  };
-
-  // ── Resize: edge handles (width or height only, independently) ──────────
-  const edgeRef = useRef<{ axis: 'x' | 'y'; startDist: number; origScaleX: number; origScaleY: number; cx: number; cy: number } | null>(null);
-  const onEdgeMouseDown = (axis: 'x' | 'y') => (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!transform || !naturalSize) return;
-    const cx = transform.x + (naturalSize.w * transform.scaleX) / 2;
-    const cy = transform.y + (naturalSize.h * transform.scaleY) / 2;
-    const p = toCanvasPoint(e);
-    const startDist = Math.max(1, axis === 'x' ? Math.abs(p.x - cx) : Math.abs(p.y - cy));
-    edgeRef.current = { axis, startDist, origScaleX: transform.scaleX, origScaleY: transform.scaleY, cx, cy };
-    window.addEventListener('mousemove', onEdgeMouseMove);
-    window.addEventListener('mouseup', onEdgeMouseUp);
-  };
-  const onEdgeMouseMove = (e: MouseEvent) => {
-    const r = edgeRef.current;
-    if (!r || !naturalSize) return;
-    const p = toCanvasPoint(e);
-    const dist = Math.max(1, r.axis === 'x' ? Math.abs(p.x - r.cx) : Math.abs(p.y - r.cy));
-    const factor = dist / r.startDist;
-    if (r.axis === 'x') {
-      const nextScaleX = Math.max(0.02, r.origScaleX * factor);
-      const nextW = naturalSize.w * nextScaleX;
-      setTransform(prev => prev && ({ ...prev, scaleX: nextScaleX, x: r.cx - nextW / 2 }));
-    } else {
-      const nextScaleY = Math.max(0.02, r.origScaleY * factor);
-      const nextH = naturalSize.h * nextScaleY;
-      setTransform(prev => prev && ({ ...prev, scaleY: nextScaleY, y: r.cy - nextH / 2 }));
-    }
-  };
-  const onEdgeMouseUp = () => {
-    edgeRef.current = null;
-    window.removeEventListener('mousemove', onEdgeMouseMove);
-    window.removeEventListener('mouseup', onEdgeMouseUp);
+  const onResizeMouseUp = () => {
+    resizeRef.current = null;
+    window.removeEventListener('mousemove', onResizeMouseMove);
+    window.removeEventListener('mouseup', onResizeMouseUp);
   };
 
   useEffect(() => () => {
     window.removeEventListener('mousemove', onImageMouseMove);
     window.removeEventListener('mouseup', onImageMouseUp);
-    window.removeEventListener('mousemove', onCornerMouseMove);
-    window.removeEventListener('mouseup', onCornerMouseUp);
-    window.removeEventListener('mousemove', onEdgeMouseMove);
-    window.removeEventListener('mouseup', onEdgeMouseUp);
+    window.removeEventListener('mousemove', onResizeMouseMove);
+    window.removeEventListener('mouseup', onResizeMouseUp);
   }, []);
 
   const handleConfirm = () => {
     if (!transform || !naturalSize || !imgElRef.current) return;
     setExporting(true);
 
-    const cropX = (MARGIN - transform.x) / transform.scaleX;
-    const cropY = (MARGIN - transform.y) / transform.scaleY;
-    const cropW = frame.w / transform.scaleX;
-    const cropH = frame.h / transform.scaleY;
+    const cropX = (MARGIN - transform.x) / transform.scale;
+    const cropY = (MARGIN - transform.y) / transform.scale;
+    const cropW = frame.w / transform.scale;
+    const cropH = frame.h / transform.scale;
 
     const outCanvas = document.createElement('canvas');
     outCanvas.width = targetWidth;
     outCanvas.height = targetHeight;
     const ctx = outCanvas.getContext('2d');
     if (!ctx) { setExporting(false); return; }
-    // Source rect can carry a different aspect ratio than the destination
-    // when scaleX !== scaleY (an edge-drag stretch) — drawImage stretches it
-    // back to match, which is exactly the stretch the owner saw on screen.
     ctx.drawImage(imgElRef.current, cropX, cropY, cropW, cropH, 0, 0, targetWidth, targetHeight);
 
     outCanvas.toBlob((blob) => {
@@ -258,8 +228,8 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     }, 'image/png', 0.95);
   };
 
-  const scaledW = naturalSize && transform ? naturalSize.w * transform.scaleX : 0;
-  const scaledH = naturalSize && transform ? naturalSize.h * transform.scaleY : 0;
+  const scaledW = naturalSize && transform ? naturalSize.w * transform.scale : 0;
+  const scaledH = naturalSize && transform ? naturalSize.h * transform.scale : 0;
 
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
@@ -283,10 +253,10 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   ] as const;
 
   const EDGE_HANDLES = [
-    { key: 'l', axis: 'x' as const, top: 0.5, left: 0, cursor: 'ew-resize', w: 10, h: 26 },
-    { key: 'r', axis: 'x' as const, top: 0.5, left: 1, cursor: 'ew-resize', w: 10, h: 26 },
-    { key: 't', axis: 'y' as const, top: 0, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
-    { key: 'b', axis: 'y' as const, top: 1, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
+    { key: 'l', metric: 'x' as const, top: 0.5, left: 0, cursor: 'ew-resize', w: 10, h: 26 },
+    { key: 'r', metric: 'x' as const, top: 0.5, left: 1, cursor: 'ew-resize', w: 10, h: 26 },
+    { key: 't', metric: 'y' as const, top: 0, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
+    { key: 'b', metric: 'y' as const, top: 1, left: 0.5, cursor: 'ns-resize', w: 26, h: 10 },
   ] as const;
 
   return (
@@ -356,7 +326,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               return (
                 <div
                   key={h.key}
-                  onMouseDown={onCornerMouseDown}
+                  onMouseDown={onResizeMouseDown('diag')}
                   style={{
                     position: 'absolute',
                     left: pos.left,
@@ -374,7 +344,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               return (
                 <div
                   key={h.key}
-                  onMouseDown={onEdgeMouseDown(h.axis)}
+                  onMouseDown={onResizeMouseDown(h.metric)}
                   style={{
                     position: 'absolute',
                     left: pos.left,
@@ -388,7 +358,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
             })}
 
             {mode === 'edit' && fits && (
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-green-500 text-white text-[11px] font-semibold px-2.5 py-1 shadow">
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-green-500 text-[#fff] text-[11px] font-semibold px-2.5 py-1 shadow">
                 <Check size={12} /> Fits
               </div>
             )}
@@ -411,7 +381,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
               <button
                 onClick={startEditing}
                 disabled={!naturalSize}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-black hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-[#fff] bg-black hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Resize your image
               </button>
@@ -428,7 +398,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
                 onClick={handleConfirm}
                 disabled={!transform || exporting}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  fits ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-black text-white hover:bg-neutral-800'
+                  fits ? 'bg-green-600 text-[#fff] hover:bg-green-700' : 'bg-black text-[#fff] hover:bg-neutral-800'
                 }`}
               >
                 {exporting ? 'Saving…' : fits ? 'Use this fit' : 'Use anyway'}

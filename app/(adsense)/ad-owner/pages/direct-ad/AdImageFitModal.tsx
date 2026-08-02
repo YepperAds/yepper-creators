@@ -10,10 +10,10 @@ import { X, Check, Move } from 'lucide-react';
 // so the parts that would get cropped away stay visible (dimmed) instead of
 // being clipped out of view — let the owner drag/resize until the frame is
 // fully covered (it turns green), then export exactly that crop at the exact
-// required pixel dimensions. Every resize handle — corner or edge — scales
-// width and height together (Canva-style): a photo can't grow in just one
-// dimension without either stretching its pixels or moving the other
-// dimension along with it, so nothing here ever does the former. The
+// required pixel dimensions. Matches Canva's own default: corner handles
+// scale width and height together (proportional, never distorts); edge
+// handles move only that one dimension, which — same as an unlocked image
+// in Canva — can stretch the image if the owner drags it far enough. The
 // backend's own size check (adSpaceLayout.js) is still the authoritative
 // gate; this only guarantees what gets sent already matches, so that check
 // never has anything left to reject.
@@ -39,7 +39,7 @@ interface Props {
   onConfirm: (croppedFile: File) => void;
 }
 
-type Transform = { x: number; y: number; scale: number };
+type Transform = { x: number; y: number; scaleX: number; scaleY: number };
 
 export default function AdImageFitModal({ file, targetWidth, targetHeight, onCancel, onChangeImage, onConfirm }: Props) {
   const imgElRef = useRef<HTMLImageElement | null>(null);
@@ -77,7 +77,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
 
   const coverTransform = (w: number, h: number): Transform => {
     const s = Math.max(frame.w / w, frame.h / h);
-    return { scale: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
+    return { scaleX: s, scaleY: s, x: MARGIN + (frame.w - w * s) / 2, y: MARGIN + (frame.h - h * s) / 2 };
   };
   // Contains the whole image within the full CANVAS (not just the tiny
   // frame) so the static preview shows it at a recognizable size — the
@@ -86,7 +86,7 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   // to a postage stamp to squeeze it inside a thin banner-shaped frame.
   const containTransform = (w: number, h: number): Transform => {
     const s = Math.min(canvas.w / w, canvas.h / h);
-    return { scale: s, x: (canvas.w - w * s) / 2, y: (canvas.h - h * s) / 2 };
+    return { scaleX: s, scaleY: s, x: (canvas.w - w * s) / 2, y: (canvas.h - h * s) / 2 };
   };
 
   const handleImgLoad = () => {
@@ -109,8 +109,8 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
   const fits = useMemo(() => {
     if (!transform || !naturalSize) return false;
     const left = transform.x, top = transform.y;
-    const right = transform.x + naturalSize.w * transform.scale;
-    const bottom = transform.y + naturalSize.h * transform.scale;
+    const right = transform.x + naturalSize.w * transform.scaleX;
+    const bottom = transform.y + naturalSize.h * transform.scaleY;
     return (
       left <= MARGIN + FIT_EPS &&
       top <= MARGIN + FIT_EPS &&
@@ -158,27 +158,27 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     window.removeEventListener('mouseup', onImageMouseUp);
   };
 
-  // ── Resize (corner + edge handles, always proportional) ─────────────────
-  // Like Canva: a photo can grab any handle — corner or edge — but every one
-  // of them scales width and height together from the image's own center.
-  // Corners drive that single scale factor off the diagonal distance to the
-  // cursor; edges drive the exact same factor off just the horizontal or
-  // vertical distance, which just makes them easier to grab from a side —
-  // neither ever stretches the image, since it's one scale value applied to
-  // both dimensions no matter which handle moved it.
-  const resizeRef = useRef<{ metric: 'diag' | 'x' | 'y'; startDist: number; origScale: number; cx: number; cy: number } | null>(null);
+  // ── Resize (corner = proportional, edge = single-axis) ──────────────────
+  // Matches Canva's own default handles: a corner drag scales width and
+  // height together (by the same factor, off the diagonal distance to the
+  // cursor) so it never distorts the image. An edge drag changes only that
+  // one axis (off just the horizontal or vertical distance) — like an
+  // unlocked image in Canva, this can visibly stretch the photo if dragged
+  // far enough, which is the accepted tradeoff for being able to grab a
+  // single side instead of a corner.
+  const resizeRef = useRef<{ metric: 'diag' | 'x' | 'y'; startDist: number; origScaleX: number; origScaleY: number; cx: number; cy: number } | null>(null);
   const onResizeMouseDown = (metric: 'diag' | 'x' | 'y') => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!transform || !naturalSize) return;
-    const cx = transform.x + (naturalSize.w * transform.scale) / 2;
-    const cy = transform.y + (naturalSize.h * transform.scale) / 2;
+    const cx = transform.x + (naturalSize.w * transform.scaleX) / 2;
+    const cy = transform.y + (naturalSize.h * transform.scaleY) / 2;
     const p = toCanvasPoint(e);
     const startDist = Math.max(
       1,
       metric === 'diag' ? Math.hypot(p.x - cx, p.y - cy) : metric === 'x' ? Math.abs(p.x - cx) : Math.abs(p.y - cy)
     );
-    resizeRef.current = { metric, startDist, origScale: transform.scale, cx, cy };
+    resizeRef.current = { metric, startDist, origScaleX: transform.scaleX, origScaleY: transform.scaleY, cx, cy };
     window.addEventListener('mousemove', onResizeMouseMove);
     window.addEventListener('mouseup', onResizeMouseUp);
   };
@@ -186,14 +186,25 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     const r = resizeRef.current;
     if (!r || !naturalSize) return;
     const p = toCanvasPoint(e);
-    const dist = Math.max(
-      1,
-      r.metric === 'diag' ? Math.hypot(p.x - r.cx, p.y - r.cy) : r.metric === 'x' ? Math.abs(p.x - r.cx) : Math.abs(p.y - r.cy)
-    );
-    const nextScale = Math.max(0.02, r.origScale * (dist / r.startDist));
-    const nextW = naturalSize.w * nextScale;
-    const nextH = naturalSize.h * nextScale;
-    setTransform({ scale: nextScale, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
+    if (r.metric === 'diag') {
+      const dist = Math.max(1, Math.hypot(p.x - r.cx, p.y - r.cy));
+      const factor = dist / r.startDist;
+      const nextScaleX = Math.max(0.02, r.origScaleX * factor);
+      const nextScaleY = Math.max(0.02, r.origScaleY * factor);
+      const nextW = naturalSize.w * nextScaleX;
+      const nextH = naturalSize.h * nextScaleY;
+      setTransform({ scaleX: nextScaleX, scaleY: nextScaleY, x: r.cx - nextW / 2, y: r.cy - nextH / 2 });
+    } else if (r.metric === 'x') {
+      const dist = Math.max(1, Math.abs(p.x - r.cx));
+      const nextScaleX = Math.max(0.02, r.origScaleX * (dist / r.startDist));
+      const nextW = naturalSize.w * nextScaleX;
+      setTransform(prev => prev && ({ ...prev, scaleX: nextScaleX, x: r.cx - nextW / 2 }));
+    } else {
+      const dist = Math.max(1, Math.abs(p.y - r.cy));
+      const nextScaleY = Math.max(0.02, r.origScaleY * (dist / r.startDist));
+      const nextH = naturalSize.h * nextScaleY;
+      setTransform(prev => prev && ({ ...prev, scaleY: nextScaleY, y: r.cy - nextH / 2 }));
+    }
   };
   const onResizeMouseUp = () => {
     resizeRef.current = null;
@@ -212,16 +223,19 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     if (!transform || !naturalSize || !imgElRef.current) return;
     setExporting(true);
 
-    const cropX = (MARGIN - transform.x) / transform.scale;
-    const cropY = (MARGIN - transform.y) / transform.scale;
-    const cropW = frame.w / transform.scale;
-    const cropH = frame.h / transform.scale;
+    const cropX = (MARGIN - transform.x) / transform.scaleX;
+    const cropY = (MARGIN - transform.y) / transform.scaleY;
+    const cropW = frame.w / transform.scaleX;
+    const cropH = frame.h / transform.scaleY;
 
     const outCanvas = document.createElement('canvas');
     outCanvas.width = targetWidth;
     outCanvas.height = targetHeight;
     const ctx = outCanvas.getContext('2d');
     if (!ctx) { setExporting(false); return; }
+    // If scaleX !== scaleY (an edge-drag stretch), this source rect carries a
+    // different aspect ratio than the destination — drawImage maps it back
+    // onto the required target size regardless, matching what was shown.
     ctx.drawImage(imgElRef.current, cropX, cropY, cropW, cropH, 0, 0, targetWidth, targetHeight);
 
     outCanvas.toBlob((blob) => {
@@ -232,8 +246,8 @@ export default function AdImageFitModal({ file, targetWidth, targetHeight, onCan
     }, 'image/png', 0.95);
   };
 
-  const scaledW = naturalSize && transform ? naturalSize.w * transform.scale : 0;
-  const scaledH = naturalSize && transform ? naturalSize.h * transform.scale : 0;
+  const scaledW = naturalSize && transform ? naturalSize.w * transform.scaleX : 0;
+  const scaledH = naturalSize && transform ? naturalSize.h * transform.scaleY : 0;
 
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 

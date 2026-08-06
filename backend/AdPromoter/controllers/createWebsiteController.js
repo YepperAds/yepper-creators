@@ -10,6 +10,7 @@ const cloudinary = require('../../config/storage');
 const dns = require('dns').promises;
 const crypto = require('crypto');
 const { resolveImageUrl } = require('../../utils/resolveImageUrl');
+const { generateSiteScript } = require('./SiteScriptController');
 require('dotenv').config();
 
 // NOTE: deliberately whitelisted — `websites` rows also hold gsc_access_token /
@@ -277,7 +278,11 @@ exports.createWebsiteWithCategories = [authenticateToken, async (req, res) => {
       return res.status(400).json({ message: `Invalid business categories: ${invalidCategories.join(', ')}` });
     }
 
-    const resolvedUrl = await resolveImageUrl(imageUrl).catch(() => null);
+    // Logo is no longer collected here — the tracking script auto-detects the
+    // site's real favicon/icon once it's installed and confirms domain
+    // ownership (see analyticsController.trackPageView's domainConfirmed
+    // handling). `imageUrl` is only still accepted for legacy callers.
+    const resolvedUrl = imageUrl ? await resolveImageUrl(imageUrl).catch(() => null) : null;
 
     const savedWebsite = await Website.create({
       ownerId,
@@ -289,8 +294,13 @@ exports.createWebsiteWithCategories = [authenticateToken, async (req, res) => {
       monthlyTraffic: parseInt(monthlyTraffic) || 0,
       trafficTier: computeTrafficTier(monthlyTraffic),
       verificationToken: '',
-      verificationStatus: 'verified',
+      // 'pending' until the installed script confirms it's actually running
+      // on this domain (first pageview ping with a matching hostname).
+      verificationStatus: 'pending',
     });
+
+    const siteScript = await generateSiteScript(savedWebsite.id).catch(() => null);
+    if (siteScript) savedWebsite.site_script = siteScript;
 
     console.log('Website created successfully with ID:', savedWebsite.id);
     createNotification(parseInt(ownerId), 'website_connected', 'Website Connected',

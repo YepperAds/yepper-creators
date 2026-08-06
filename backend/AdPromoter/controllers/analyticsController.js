@@ -6,6 +6,13 @@ const User     = require('../../models/User');
 const Creator  = require('../../creators/models/Creator');
 const jwt      = require('jsonwebtoken');
 
+function extractDomain(url) {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, '');
+  } catch { return null; }
+}
+
 function detectDevice(ua = '') {
   const s = ua.toLowerCase();
   if (/bot|crawl|spider|slurp|mediapartners/i.test(s)) return 'bot';
@@ -31,7 +38,7 @@ async function getAuthUser(req) {
 exports.trackPageView = async (req, res) => {
   res.status(202).json({ ok: true });
   try {
-    const { websiteId, path: pagePath, referrer } = req.body;
+    const { websiteId, path: pagePath, referrer, hostname, logoUrl } = req.body;
     if (!websiteId) return;
 
     const ua = req.headers['user-agent'] || '';
@@ -74,6 +81,29 @@ exports.trackPageView = async (req, res) => {
 
     const updatePayload = { monthlyTraffic: monthlyCount, trafficTier };
     const now = new Date();
+
+    // Domain ownership confirmation: this ping can only carry a hostname
+    // that matches the registered domain if the script is actually running
+    // on that real site (a request forged from elsewhere would have to know
+    // — and lie about — the exact registered domain, same trust boundary as
+    // the referer check SiteScriptController already applies before it will
+    // even serve the script). Once confirmed, the page's own detected icon
+    // becomes the website's logo, replacing the old manual-upload step.
+    const registeredDomain = website.website_link ? extractDomain(website.website_link) : null;
+    const refererDomain = req.headers.referer ? extractDomain(req.headers.referer) : null;
+    const reportedHostname = typeof hostname === 'string' ? hostname.replace(/^www\./, '') : null;
+    const domainConfirmed = !!registeredDomain
+      && (registeredDomain === refererDomain || registeredDomain === reportedHostname);
+
+    if (domainConfirmed) {
+      if (website.verification_status !== 'verified') {
+        updatePayload.verificationStatus = 'verified';
+        updatePayload.verifiedAt = now;
+      }
+      if (typeof logoUrl === 'string' && /^https?:\/\//i.test(logoUrl) && logoUrl !== website.image_url) {
+        updatePayload.imageUrl = logoUrl;
+      }
+    }
 
     if (!website.script_installed) {
       updatePayload.scriptInstalled   = true;

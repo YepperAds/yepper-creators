@@ -604,13 +604,36 @@ exports.serveSiteScript = async (req, res) => {
      removes the div — and the host rendered inside it — the same way the
      framework removes anything else on that page. */
 
+  /* ── Logo auto-detection ──────────────────────────────── */
+  /* Replaces asking publishers to upload a logo at signup: since this
+     script only ever runs on the domain it was issued for (the _allowed
+     check above already returned early otherwise), whatever icon the page
+     itself declares IS that site's real logo. Preference order favors the
+     highest-fidelity source a page typically declares. */
+  function detectLogo(){
+    try{
+      var sels=['link[rel="apple-touch-icon"]','link[rel="icon"]','link[rel="shortcut icon"]'];
+      for(var i=0;i<sels.length;i++){
+        var el=D.querySelector(sels[i]);
+        if(el&&el.href)return el.href;
+      }
+      var og=D.querySelector('meta[property="og:image"]');
+      if(og&&og.content){
+        try{return new URL(og.content,location.href).href;}catch(e){}
+      }
+      return location.origin+'/favicon.ico';
+    }catch(e){return null;}
+  }
+
   /* ── Analytics pageview ping ──────────────────────────── */
   function firePageview(){
     try{
       var _pv={
         websiteId:_wid,
         path: location.pathname || '/',
-        referrer:D.referrer||''
+        referrer:D.referrer||'',
+        hostname: window.location.hostname.replace(/^www\./,''),
+        logoUrl: detectLogo()
       };
       if(navigator.sendBeacon){
         navigator.sendBeacon(_b.replace('/p','') + '/analytics/track',new Blob([JSON.stringify(_pv)],{type:'application/json'}));

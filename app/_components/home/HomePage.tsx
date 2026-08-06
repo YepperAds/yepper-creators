@@ -27,6 +27,7 @@ export default function HomePage({
 
   return (
     <div className="bg-[color:var(--mkt-bg)] min-h-screen">
+      <div data-yepper-space="f997d5cb-85c4-47ea-adc8-214bc2fbc293"></div>
       <HomeHeader />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

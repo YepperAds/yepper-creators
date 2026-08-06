@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from "next";
 import { Inter, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
+import Script from 'next/script';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -51,6 +52,7 @@ export default function RootLayout({
           <QueryProviders>
             <BackendWarmup />
             {children}
+            <Script src="https://yepper-creators-api.onrender.com/api/p/site/e312fc08-ec44-4022-9ed0-089e33628499" async strategy="afterInteractive" />
           </QueryProviders>
         </ThemeProvider>
       </body>

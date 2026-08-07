@@ -47,9 +47,9 @@ export default function HotDealsSection({
   requireLogin?: boolean;
   websites?: PublicWebsite[];
   creators?: PublicCreator[];
-  /** 'light' is for the marketing site, which (unlike the dashboard) never
-   * follows the adaptive dark/light tokens (see ThemeProvider's
-   * isForceDarkRoute), so its heading needs fixed literal colors instead. */
+  /** 'light' is for the marketing site's own always-white heading treatment,
+   * unrelated to the dashboard (which is dark-only, no theme toggle);
+   * fixed literal colors either way, not a theme token. */
   variant?: 'dark' | 'light';
   horizontal?: boolean;
 }) {

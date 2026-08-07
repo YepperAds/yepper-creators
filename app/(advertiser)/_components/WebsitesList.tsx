@@ -44,6 +44,15 @@ export default function WebsitesList({
   const [expandedId,         setExpandedId]         = useState<string | null>(
     initialExpandedId != null ? String(initialExpandedId) : null,
   );
+  // Stored image_url can point at a dead/wrong-content URL (a site's SPA
+  // catch-all 200ing a path that was never really deployed, a favicon that
+  // moved, etc.) — auto-detection on the site's own script prevents new bad
+  // saves, but doesn't retroactively fix whatever's already stored. This
+  // catches the actual broken-image failure client-side and falls back to
+  // the globe icon instead of showing a broken image forever.
+  const [brokenLogoIds, setBrokenLogoIds] = useState<Set<string>>(new Set());
+  const markLogoBroken = (id: string | number) =>
+    setBrokenLogoIds((prev) => new Set(prev).add(String(id)));
 
   const fetchWebsites = useCallback(async () => {
     setLoading(true);
@@ -135,9 +144,14 @@ export default function WebsitesList({
             </div>
 
             <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-[color:var(--color-surface-2)] border border-[color:var(--color-border)]">
-              {disconnecting.imageUrl ? (
+              {disconnecting.imageUrl && !brokenLogoIds.has(String(disconnecting.id)) ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={disconnecting.imageUrl} alt="icon" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                <img
+                  src={disconnecting.imageUrl}
+                  alt="icon"
+                  className="w-8 h-8 rounded-lg object-cover shrink-0"
+                  onError={() => markLogoBroken(disconnecting.id)}
+                />
               ) : (
                 <div className="w-8 h-8 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-1)] flex items-center justify-center shrink-0">
                   <GlobeAltIcon className="w-4 h-4 text-[color:var(--color-muted)]" />
@@ -237,9 +251,14 @@ export default function WebsitesList({
               >
                 <div className="p-5 flex items-center justify-between gap-4 border-b border-[color:var(--color-border)]">
                   <div className="flex items-center gap-3 min-w-0">
-                    {site.imageUrl ? (
+                    {site.imageUrl && !brokenLogoIds.has(String(site.id)) ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={site.imageUrl} alt="icon" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      <img
+                        src={site.imageUrl}
+                        alt="icon"
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
+                        onError={() => markLogoBroken(site.id)}
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] flex items-center justify-center shrink-0">
                         <GlobeAltIcon className="w-5 h-5 text-[color:var(--color-muted)]" />

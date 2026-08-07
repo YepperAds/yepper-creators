@@ -36,14 +36,12 @@
 }
 
 /* ── Theme tokens ─────────────────────────────────────────────
-   Dark is the default and the no-JS/no-flash fallback. ThemeProvider
-   (app/_components/ThemeProvider.tsx) stamps data-theme="light" on <html>
-   once a user (or their OS) picks light; see the Settings → Appearance
-   "Color scheme" control. Everything downstream just reads --bg/--surface-*
-   and friends through the theme mapping block up top, so components that
-   use the bg-background/bg-surface-1/text-white/etc. tokens get both
-   themes for free; anything hand-rolled with raw hex or zinc-*, neutral-*
-   Tailwind classes won't. ── */
+   Dark only, on purpose — there is no light mode and no toggle for one.
+   Everything downstream just reads --bg/--surface-* and friends through the
+   theme mapping block up top, so components that use the
+   bg-background/bg-surface-1/text-white/etc. tokens stay themeable in the
+   future without a rewrite; anything hand-rolled with raw hex or zinc-*,
+   neutral-* Tailwind classes won't. ── */
 :root {
   --bg:         #0F0F0F;
   --surface-1:  #0F0F0F;
@@ -60,29 +58,11 @@
   color-scheme: dark;
 }
 
-:root[data-theme="light"] {
-  --bg:         #ECECEE;
-  --surface-1:  #ECECEE;
-  --surface-2:  #F5F5F6;
-  --surface-3:  #E7E7E9;
-  --border:     #DADADD;
-  --muted:      #A3A3A3;
-  --subtle:     #525252;
-  --text-main:  #111111;
-  --coral-text: #C73820;   /* the vivid dark-mode coral fails AA on white; the darker brand coral clears it */
-  --clay-bg:           #ECE6DE;
-  --clay-shadow-dark:  rgba(0, 0, 0, 0.14);
-  --clay-shadow-light: rgba(255, 255, 255, 0.85);
-  color-scheme: light;
-}
-
 /* Marketing site palette: fixed, literal values on purpose. The public
-   site and the dashboard are two different products visually: the dashboard
-   follows the user's light/dark choice via the --bg, --surface-*, --text-main
-   tokens above, but the marketing site never does (see ThemeProvider's
-   ALWAYS_DARK_PATHS/isForceDarkRoute) and was never meant to just be "dark
-   mode"; it's its own always-on-this-way brand identity, so it gets its
-   own token set instead of borrowing the dashboard's adaptive ones. ── */
+   site and the dashboard are two different products visually and were never
+   meant to share one "dark mode" look; the marketing site is its own
+   always-on-this-way brand identity, so it gets its own token set instead
+   of borrowing the dashboard's --bg/--surface-*/--text-main tokens. ── */
 :root {
   --mkt-bg:        #FFFFFF;
   --mkt-surface:   #F7F6F3;

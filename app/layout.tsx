@@ -35,7 +35,6 @@ export const metadata: Metadata = {
 
 import BackendWarmup from "@/app/_components/BackendWarmup";
 import QueryProviders from "@/app/(adsense)/providers";
-import { ThemeProvider, ThemeScript } from "@/app/_components/ThemeProvider";
 
 export default function RootLayout({
   children,
@@ -43,18 +42,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
-      <head>
-        <ThemeScript />
-      </head>
+    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-(--font-inter)">
-        <ThemeProvider>
-          <QueryProviders>
-            <BackendWarmup />
-            {children}
-            <Script src="https://yepper-creators-api.onrender.com/api/p/site/e312fc08-ec44-4022-9ed0-089e33628499" async strategy="afterInteractive" />
-          </QueryProviders>
-        </ThemeProvider>
+        <QueryProviders>
+          <BackendWarmup />
+          {children}
+          <Script src="https://yepper-creators-api.onrender.com/api/p/site/e312fc08-ec44-4022-9ed0-089e33628499" async strategy="afterInteractive" />
+        </QueryProviders>
       </body>
     </html>
   );

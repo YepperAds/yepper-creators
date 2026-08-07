@@ -15,14 +15,8 @@ import {
   GlobeAltIcon as OutlineGlobe,
   FilmIcon as OutlineFilm,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   Bars3Icon,
-  MoonIcon,
-  SunIcon,
-  ComputerDesktopIcon,
   ExclamationTriangleIcon,
-  CheckIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as SolidHome,
@@ -35,7 +29,6 @@ import {
   GlobeAltIcon as SolidGlobe,
   FilmIcon as SolidFilm,
 } from '@heroicons/react/24/solid';
-import { useTheme, type ThemeChoice } from '@/app/_components/ThemeProvider';
 import SidebarToggleIcon from './SidebarToggleIcon';
 
 const NAV_ITEMS = [
@@ -48,12 +41,6 @@ const NAV_ITEMS = [
   { label: 'Analytics',     panel: 'analytics',      icon: OutlineChart,     activeIcon: SolidChart },
   { label: 'Profile',       panel: 'profile',        icon: OutlineUser,      activeIcon: SolidUser },
   { label: 'Notifications', panel: 'notifications',  icon: OutlineBell,      activeIcon: SolidBell },
-];
-
-const APPEARANCE_OPTIONS: { value: ThemeChoice; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'light',  label: 'Light', icon: SunIcon },
-  { value: 'dark',   label: 'Dark',  icon: MoonIcon },
-  { value: 'system', label: 'Auto',  icon: ComputerDesktopIcon },
 ];
 
 function NavRow({
@@ -111,14 +98,12 @@ export default function LeftRail() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activePanel = searchParams.get('panel');
-  const { theme, setTheme } = useTheme();
 
   const [loggingOut, setLoggingOut] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [showAppearance, setShowAppearance] = useState(false);
 
-  const closeMore = () => { setMoreOpen(false); setShowAppearance(false); };
+  const closeMore = () => setMoreOpen(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -184,44 +169,14 @@ export default function LeftRail() {
                   collapsed ? 'left-1/2 -translate-x-1/2 w-56' : 'left-0 right-0'
                 }`}
               >
-                {!showAppearance ? (
-                  <>
-                    <MenuRow
-                      icon={MoonIcon}
-                      label="Switch appearance"
-                      onClick={() => setShowAppearance(true)}
-                      trailing={<ChevronRightIcon className="w-3.5 h-3.5 opacity-60" />}
-                    />
-                    {/* Report a problem, hidden for now, not commented out of
-                        existence: re-enable by uncommenting this MenuRow.
-                    <MenuRow
-                      icon={ExclamationTriangleIcon}
-                      label="Report a problem"
-                      onClick={() => { window.location.href = 'mailto:support@yepper.cc'; closeMore(); }}
-                    /> */}
-                    <div className="h-px bg-border my-1 mx-1" />
-                    <MenuRow icon={OutlineLogout} label={loggingOut ? 'Signing out…' : 'Log out'} onClick={handleLogout} />
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setShowAppearance(false)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-surface-3 transition-colors text-left"
-                    >
-                      <ChevronLeftIcon className="w-4 h-4 shrink-0" /> Switch appearance
-                    </button>
-                    <div className="h-px bg-border my-1 mx-1" />
-                    {APPEARANCE_OPTIONS.map((opt) => (
-                      <MenuRow
-                        key={opt.value}
-                        icon={opt.icon}
-                        label={opt.label}
-                        onClick={() => { setTheme(opt.value); closeMore(); }}
-                        trailing={theme === opt.value ? <CheckIcon className="w-4 h-4" /> : undefined}
-                      />
-                    ))}
-                  </>
-                )}
+                {/* Report a problem, hidden for now, not commented out of
+                    existence: re-enable by uncommenting this MenuRow.
+                <MenuRow
+                  icon={ExclamationTriangleIcon}
+                  label="Report a problem"
+                  onClick={() => { window.location.href = 'mailto:support@yepper.cc'; closeMore(); }}
+                /> */}
+                <MenuRow icon={OutlineLogout} label={loggingOut ? 'Signing out…' : 'Log out'} onClick={handleLogout} />
               </div>
             )}
 

@@ -41,7 +41,7 @@ export default function TierBadge({ tier, className = '' }: { tier?: string | nu
   const label = TIER_LABELS[key];
   return (
     <CheckBadgeIcon
-      className={`w-4 h-4 shrink-0 ${className}`}
+      className={`w-5 h-5 shrink-0 ${className}`}
       style={{ color }}
       title={`${label} tier`}
     />

@@ -60,10 +60,10 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
               <GlobeAltIcon className="w-2/3 h-2/3 text-slate-400" />
             )}
           </span>
-          <span className="min-w-0 flex-1 text-[11px] font-bold text-black truncate">
-            {website.websiteName}
+          <span className="min-w-0 flex-1 flex items-center gap-1">
+            <span className="text-[11px] font-bold text-black truncate">{website.websiteName}</span>
+            <TierBadge tier={website.trafficTier} />
           </span>
-          <TierBadge tier={website.trafficTier} />
         </div>
 
         {/* Content skeleton, fixed (not %) heights: this wrapper's own

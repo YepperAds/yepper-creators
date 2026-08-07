@@ -26,13 +26,10 @@ import DailyBarChart from './DailyBarChart';
 // still fetches this same data internally (it feeds AddNewCategory's
 // traffic-based pricing); this component is a second, independent fetch
 // for display purposes only.
-export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { websiteId: string; websiteLink?: string | null }) {
+export default function WebsiteAnalyticsPanel({ websiteId }: { websiteId: string }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsRange, setAnalyticsRange] = useState(30);
-  const [gscData, setGscData] = useState<any>(null);
-  const [gscLoading, setGscLoading] = useState(false);
-  const [gscConnecting, setGscConnecting] = useState(false);
 
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
@@ -46,39 +43,8 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
     }
   };
 
-  const fetchGscData = async () => {
-    setGscLoading(true);
-    try {
-      const r = await api.get(`/api/analytics/gsc/data/${websiteId}`);
-      setGscData(r.data as any);
-    } catch (err) {
-      console.error('Failed to fetch GSC data', err);
-    } finally {
-      setGscLoading(false);
-    }
-  };
-
-  const handleConnectGsc = async () => {
-    setGscConnecting(true);
-    try {
-      const r = await api.get(`/api/analytics/gsc/connect/${websiteId}`);
-      window.location.href = (r.data as any).url;
-    } catch {
-      setGscConnecting(false);
-    }
-  };
-
-  const handleDisconnectGsc = async () => {
-    if (!window.confirm('Disconnect Google Search Console from this website?')) return;
-    try {
-      await api.delete(`/api/analytics/gsc/disconnect/${websiteId}`);
-      setGscData(null);
-    } catch {}
-  };
-
   useEffect(() => {
     fetchAnalytics();
-    fetchGscData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [websiteId, analyticsRange]);
 
@@ -263,126 +229,11 @@ export default function WebsiteAnalyticsPanel({ websiteId, websiteLink }: { webs
               ))}
             </div>
             <p className="text-xs text-muted border border-border bg-surface-1 p-3">
-              <span className="font-medium text-subtle">Note:</span> These numbers reflect what you reported and are used to set your tier. They do not change what the Yepper script counted from real visitors, nor what Google Search Console reports.
+              <span className="font-medium text-subtle">Note:</span> These numbers reflect what you reported and are used to set your tier. They do not change what the Yepper script counted from real visitors.
             </p>
           </div>
         );
       })()}
-
-      {/* Google Search Console */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21.35 11.1h-9.17v2.73h5.51c-.33 1.81-1.87 3.14-3.77 3.14a5.02 5.02 0 01-5.03-5.02 5.02 5.02 0 015.03-5.02c1.22 0 2.33.44 3.19 1.16l2.02-2.02A8.46 8.46 0 0014.51 4c-4.69 0-8.5 3.8-8.5 8.5s3.81 8.5 8.5 8.5c4.91 0 8.17-3.45 8.17-8.3 0-.56-.06-1.1-.17-1.6h-1.16z" fill="#4285F4"/></svg>
-              Organic Traffic (Search Console)
-            </h2>
-            <p className="text-xs text-muted mt-0.5">Real clicks & impressions from Google Search (last 28 days)</p>
-          </div>
-          {gscData?.connected && (
-            <button onClick={handleDisconnectGsc} className="text-xs text-muted hover:text-red-400 transition-colors underline">Disconnect</button>
-          )}
-        </div>
-
-        {gscLoading ? (
-          <div className="border border-border p-8 flex items-center justify-center gap-3">
-            <div className="animate-spin w-5 h-5 border-2 border-border border-t-white rounded-full" />
-            <span className="text-sm text-muted">Loading Search Console data…</span>
-          </div>
-        ) : !gscData?.connected ? (
-          <div className="border border-dashed border-border p-12 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-surface-2 border border-border flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M43.6 20.2H24v7.3H35.2c-.9 4.8-5 8.4-11.2 8.4A13.4 13.4 0 0110.6 24a13.4 13.4 0 0113.4-13.4c3.2 0 6.2 1.2 8.5 3.1l5.4-5.4A22.5 22.5 0 0024 2C11.9 2 2 11.9 2 24s9.9 22 22 22c13.1 0 21.8-9.2 21.8-22.1 0-1.5-.2-2.9-.4-4.3l-1.8.6z" fill="#4285F4"/></svg>
-            </div>
-            <h3 className="text-base font-semibold text-white mb-2">Connect Google Search Console</h3>
-            <p className="text-sm text-muted mb-6 max-w-sm mx-auto">See how many people find your site through Google: clicks, impressions, CTR, and top queries.</p>
-            <button
-              onClick={handleConnectGsc}
-              disabled={gscConnecting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-background text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-60"
-            >
-              {gscConnecting
-                ? <><div className="animate-spin w-4 h-4 border-2 border-background border-t-transparent rounded-full" />Connecting…</>
-                : 'Connect with Google'}
-            </button>
-            <p className="text-xs text-muted mt-3">Your website must be verified in Google Search Console first.</p>
-          </div>
-        ) : gscData.connected && !gscData.siteMatched ? (
-          <div className="border border-amber-400/30 bg-amber-400/5 p-6 text-center">
-            <p className="text-sm font-semibold text-amber-300 mb-1">Connected, but no matching property found</p>
-            <p className="text-xs text-amber-400/80 mb-4">Make sure <strong>{websiteLink}</strong> is verified in your Google Search Console account.</p>
-            <button onClick={handleConnectGsc} className="text-xs underline text-amber-400 hover:text-amber-300">Reconnect</button>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'Total Clicks', value: gscData.summary?.clicks?.toLocaleString() ?? '0', sub: 'from Google Search' },
-                { label: 'Impressions', value: gscData.summary?.impressions?.toLocaleString() ?? '0', sub: 'times shown' },
-                { label: 'Avg. CTR', value: `${gscData.summary?.ctr ?? 0}%`, sub: 'click-through rate' },
-                { label: 'Avg. Position', value: gscData.summary?.position ?? '-', sub: 'mean ranking' },
-              ].map(({ label, value, sub }) => (
-                <div key={label} className="border border-border p-5 bg-surface-1">
-                  <p className="text-xs font-medium text-muted uppercase mb-1">{label}</p>
-                  <p className="text-2xl font-bold text-white">{value}</p>
-                  <p className="text-xs text-muted mt-1">{sub}</p>
-                </div>
-              ))}
-            </div>
-            {gscData.byDay?.length > 0 && (
-              <div className="border border-border p-6 bg-surface-1">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-4">Clicks per Day</p>
-                <DailyBarChart
-                  series={buildDailySeries(gscData.byDay, analyticsRange, 'clicks')}
-                  height={96}
-                  barColor="bg-blue-500 hover:bg-blue-400"
-                />
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-5">
-              <div className="border border-border">
-                <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Top Search Queries</div>
-                <div className="divide-y divide-border max-h-64 overflow-y-auto">
-                  {gscData.topQueries?.length > 0 ? gscData.topQueries.map((q: any, i: any) => (
-                    <div key={i} className="px-4 py-3">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-medium text-white truncate flex-1 mr-2">{q.query}</span>
-                        <span className="text-xs text-muted shrink-0">{q.clicks} clicks</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted">
-                        <span>{q.impressions.toLocaleString()} imp.</span>
-                        <span>{q.ctr}% CTR</span>
-                        <span>#{q.position}</span>
-                      </div>
-                    </div>
-                  )) : <div className="px-4 py-8 text-center text-sm text-muted">No query data yet</div>}
-                </div>
-              </div>
-              <div className="border border-border">
-                <div className="px-4 py-3 border-b border-border text-sm font-semibold text-white">Top Pages (Organic)</div>
-                <div className="divide-y divide-border max-h-64 overflow-y-auto">
-                  {gscData.topPages?.length > 0 ? gscData.topPages.map((p: any, i: any) => (
-                    <div key={i} className="px-4 py-3">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-medium text-white truncate flex-1 mr-2">{p.page.replace(/^https?:\/\/[^/]+/, '') || '/'}</span>
-                        <span className="text-xs text-muted shrink-0">{p.clicks} clicks</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted">
-                        <span>{p.impressions.toLocaleString()} imp.</span>
-                        <span>{p.ctr}% CTR</span>
-                        <span>#{p.position}</span>
-                      </div>
-                    </div>
-                  )) : <div className="px-4 py-8 text-center text-sm text-muted">No page data yet</div>}
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-muted text-right">
-              Connected to: {gscData.siteUrl} · {gscData.dateRange?.start} → {gscData.dateRange?.end}
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

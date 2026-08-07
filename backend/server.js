@@ -213,6 +213,16 @@ async function startServer() {
     console.warn('⚠️  Migration 20260730_ad_category_detected_pages skipped:', err.message?.split('\n')[0]);
   }
 
+  // Remove Google Search Console integration columns — traffic tier/pricing
+  // runs purely off real script-tracked traffic now.
+  try {
+    const { up: dropGscColumns } = require('./migrations/20260807_drop_gsc_columns');
+    await dropGscColumns();
+    console.log('✓ gsc columns dropped');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260807_drop_gsc_columns skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

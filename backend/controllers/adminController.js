@@ -72,7 +72,7 @@ function safeUser(u) {
     createdAt: u.created_at,
     updatedAt: u.updated_at,
   };
-  delete out.password; delete out.gsc_access_token; delete out.gsc_refresh_token;
+  delete out.password;
   return out;
 }
 

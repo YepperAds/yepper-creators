@@ -110,15 +110,6 @@ exports.trackPageView = async (req, res) => {
       updatePayload.scriptInstalledAt = now;
     }
 
-    const isGscVerified = !!(website.gsc_site_url && website.gsc_site_url.trim());
-    if (isGscVerified && !website.gsc_verified) {
-      updatePayload.gscVerified     = true;
-      updatePayload.gscVerifiedAt   = now;
-      updatePayload.unverifiedSince = null;
-    } else if (!isGscVerified && !website.unverified_since) {
-      updatePayload.unverifiedSince = now;
-    }
-
     if (website.granted_traffic_display != null) {
       const tierOrder = { unverified: 0, starter: 1, basic: 2, standard: 3, premium: 4, elite: 5 };
       if ((tierOrder[trafficTier] ?? 0) >= (tierOrder[website.granted_tier_display] ?? 0)) {

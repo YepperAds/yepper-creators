@@ -42,26 +42,19 @@ function getTierFromTraffic(v) {
   return TRAFFIC_TIERS.find(t => v >= t.min && v <= t.max) || TRAFFIC_TIERS[0];
 }
 
-function computeEarnings(monthlyTraffic, spaceType, isGscVerified, unverifiedSince) {
+// Tier (and therefore price) comes purely from real script-tracked traffic —
+// same as the tier itself (see analyticsController.trackPageView). No
+// separate verification step changes the price: a brand-new site just
+// starts at 'unverified' and moves up as real traffic accumulates, the same
+// way a new YouTube channel starts at 0 subscribers rather than being
+// penalized for not having connected something else first.
+function computeEarnings(monthlyTraffic, spaceType) {
   const tier       = getTierFromTraffic(monthlyTraffic);
   const multiplier = FORMAT_MULTIPLIERS[(spaceType || '').toLowerCase()] || 1.0;
-  const baseTotal  = Math.round(tier.basePrice * multiplier);
-
-  // If NOT GSC-verified and 7+ days have passed since script was installed,
-  // ad spaces are priced at 4× the normal rate (unverified tier surcharge)
-  const UNVERIFIED_GRACE_DAYS = 7;
-  let unverifiedSurcharge = false;
-  if (!isGscVerified && unverifiedSince) {
-    const daysSince = (Date.now() - new Date(unverifiedSince).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSince >= UNVERIFIED_GRACE_DAYS) {
-      unverifiedSurcharge = true;
-    }
-  }
-
-  const totalPrice = unverifiedSurcharge ? baseTotal * 4 : baseTotal;
+  const totalPrice = Math.round(tier.basePrice * multiplier);
   const ownerEarns = Math.round(totalPrice * 0.70);
   const yepperCut  = totalPrice - ownerEarns;
-  return { tier: tier.tier, totalPrice, ownerEarns, yepperCut, monthlyTraffic, unverifiedSurcharge };
+  return { tier: tier.tier, totalPrice, ownerEarns, yepperCut, monthlyTraffic };
 }
 
 async function getAuthUser(req) {
@@ -103,8 +96,7 @@ exports.getCategoryEarnings = async (req, res) => {
       });
     }
 
-    const isGscVerified = !!(website.gsc_verified || (website.gsc_site_url && website.gsc_site_url.trim()));
-    const earnings = computeEarnings(monthlyTraffic, category.space_type, isGscVerified, website.unverified_since);
+    const earnings = computeEarnings(monthlyTraffic, category.space_type);
     return res.json({ available: true, ...earnings });
 
   } catch (err) {
@@ -137,35 +129,24 @@ exports.getWebsiteEarningsSummary = async (req, res) => {
         message: 'Install your Yepper script to start tracking traffic. Earnings will appear once visitors are detected.',
         monthlyTraffic: 0,
         scriptInstalled: false,
-        gscVerified: false,
-        unverifiedSince: null,
-        unverifiedSurchargeActive: false,
         categories: categories.map(c => ({ categoryId: c.id, name: c.category_name, available: false }))
       });
     }
 
-    const isGscVerified = !!(website.gsc_verified || (website.gsc_site_url && website.gsc_site_url.trim()));
     const summary = categories.map(c => {
-      const e = computeEarnings(monthlyTraffic, c.space_type, isGscVerified, website.unverified_since);
+      const e = computeEarnings(monthlyTraffic, c.space_type);
       return { categoryId: c.id, name: c.category_name, available: true, ...e };
     });
 
-    const totalOwnerEarns = summary.reduce((s, c) => s + (c.ownerEarns || 0), 0);
     const tier = getTierFromTraffic(monthlyTraffic);
-
-    const totalOwnerEarnsPerMonth_base = summary.reduce((s, c) => s + (c.ownerEarns || 0), 0);
-    const unverifiedSurchargeActive = !isGscVerified && !!website.unverified_since &&
-      ((Date.now() - new Date(website.unverified_since).getTime()) / (1000 * 60 * 60 * 24)) >= 7;
+    const totalOwnerEarnsPerMonth = summary.reduce((s, c) => s + (c.ownerEarns || 0), 0);
 
     return res.json({
       available: true,
       monthlyTraffic,
       trafficTier: tier.tier,
-      totalOwnerEarnsPerMonth: totalOwnerEarnsPerMonth_base,
+      totalOwnerEarnsPerMonth,
       scriptInstalled: !!website.script_installed,
-      gscVerified: isGscVerified,
-      unverifiedSince: website.unverified_since || null,
-      unverifiedSurchargeActive,
       categories: summary
     });
 

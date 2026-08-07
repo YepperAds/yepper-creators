@@ -13,7 +13,7 @@ passport.use(new GoogleStrategy({
     let creator = await Creator.findByGoogleId(profile.id);
 
     if (creator) {
-      // Update basic profile fields (don't assume gsc token columns exist for creators)
+      // Update basic profile fields
       creator = await Creator.update(creator.id, {
         fullName: profile.displayName,
         avatar: profile.photos[0]?.value || creator.avatar,

@@ -2,9 +2,12 @@
 // @ts-nocheck
 
 // PricingTiers.js
-// Determines the web owner's tier from GSC organic clicks (if connected) or
-// marks them as Unverified. Emits price data upward AND renders a visible
-// tier badge + price cap in the add-space modal.
+// Determines the web owner's tier purely from real script-tracked monthly
+// traffic (same number the tracking script reports — see
+// analyticsController.trackPageView), same way a new YouTube channel starts
+// at 0 subscribers and grows from real activity rather than some separate
+// verification step. Emits price data upward AND renders a visible tier
+// badge + price cap in the add-space modal.
 
 import { useEffect } from 'react';
 
@@ -13,7 +16,7 @@ const TRAFFIC_TIERS = [
   {
     tier: 'unverified',
     label: 'Unverified',
-    description: 'GSC connected but under 500 monthly organic clicks: 63,000 RWF total cap split across all spaces',
+    description: 'Under 500 monthly visitors: 63,000 RWF total cap split across all spaces',
     min: 0,
     max: 0,
     color: '#f59e0b',
@@ -246,22 +249,6 @@ const SPACE_TYPE_MAP = {
 
 // ── Exported helpers ─────────────────────────────────────────────────────────
 
-/** Determine tier from GSC organic clicks (last 28 days). */
-export function getTierFromGsc(gscData) {
-  if (!gscData || !gscData.connected || !gscData.siteMatched) {
-    return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
-  }
-  const clicks = gscData.summary?.clicks || 0;
-  // GSC gives 28-day clicks; extrapolate to monthly (~30 days)
-  const monthly = Math.round(clicks * (30 / 28));
-  // If monthly < 500, they don't qualify for any verified tier yet, still Unverified
-  if (monthly < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
-  return (
-    TRAFFIC_TIERS.find(t => t.tier !== 'unverified' && monthly >= t.min && monthly <= t.max) ||
-    TRAFFIC_TIERS.find(t => t.tier === 'unverified')
-  );
-}
-
 /** Get the price cap for a given space type at a given tier. */
 export function getPriceForTier(tier, spaceType) {
   const key = SPACE_TYPE_MAP[spaceType] || spaceType;
@@ -272,19 +259,14 @@ export function getPriceForTier(tier, spaceType) {
 // ── Component ────────────────────────────────────────────────────────────────
 // Now renders a visible tier badge + price for this space type.
 
-const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType, gscData, grantedTier  }: any) => {
+const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType, grantedTier  }: any) => {
 
-  // Resolve tier priority: grantedTier (admin grant) > GSC data > monthlyTraffic > unverified
+  // Resolve tier priority: grantedTier (admin grant) > real monthlyTraffic > unverified
   const resolvedTier = (() => {
     if (grantedTier) {
       // Admin granted traffic is active, use that tier directly for pricing
       return TRAFFIC_TIERS.find(t => t.tier === grantedTier) || TRAFFIC_TIERS.find(t => t.tier === 'unverified');
     }
-    if (gscData !== undefined) {
-      // gscData was explicitly passed, use it
-      return getTierFromGsc(gscData);
-    }
-    // Legacy path: no gscData prop, use monthlyTraffic
     const v = parseInt(monthlyTraffic) || 0;
     if (v < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
     return (
@@ -298,12 +280,6 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
   const spacePrice = TIER_PRICES[tierKey]?.[priceKey] ?? null;
   const ownerEarns = spacePrice ? Math.round(spacePrice * 0.70) : null;
   const yepperCut  = spacePrice ? spacePrice - ownerEarns : null;
-
-  // Compute monthly GSC clicks for display
-  const gscMonthlyClicks = (() => {
-    if (!gscData?.connected || !gscData?.siteMatched) return null;
-    return Math.round((gscData.summary?.clicks || 0) * (30 / 28));
-  })();
 
   // Emit price data upward
   useEffect(() => {
@@ -321,7 +297,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
       const tier = TRAFFIC_TIERS.find(t => t.tier === tierKey);
       onPriceSelect({
         price: spacePrice || 0,
-        visitors: gscMonthlyClicks || parseInt(monthlyTraffic) || tier.min,
+        visitors: parseInt(monthlyTraffic) || tier.min,
         tier: tierKey,
         visitorRange: { min: tier.min, max: tier.max === Infinity ? 9999999 : tier.max },
         ownerEarns: ownerEarns || 0,
@@ -362,22 +338,15 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
             </span>
             {tierKey === 'unverified' && (
               <span style={{ fontSize: '11px', color: '#b45309', fontWeight: '500' }}>
-                🔒 Connect Google Search Console to upgrade
+                🔒 Install your Yepper script to start tracking traffic
               </span>
             )}
           </div>
-          {tierKey !== 'unverified' && gscMonthlyClicks !== null && (
-            <span style={{ fontSize: '11px', color: resolvedTier.textColor, fontWeight: '600' }}>
-              ~{gscMonthlyClicks.toLocaleString()} clicks/mo (GSC)
-            </span>
-          )}
         </div>
 
         <p style={{ fontSize: '12px', color: resolvedTier.textColor, marginBottom: '12px', margin: '0 0 12px 0' }}>
           {tierKey === 'unverified'
-            ? (gscData?.connected && gscData?.siteMatched
-                ? `GSC connected, only ${gscMonthlyClicks ?? 0} organic clicks/mo (need 500+ for Starter tier)`
-                : 'GSC not connected: connect Search Console to unlock tier-based pricing')
+            ? `Under 500 monthly visitors so far (need 500+ for Starter tier)`
             : resolvedTier.description}
         </p>
 
@@ -432,9 +401,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
               ⚠️ Unverified pricing: RWF 63,000 total shared across ALL your active ad spaces.
             </p>
             <p style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', margin: '4px 0 0 0' }}>
-              {gscData?.connected && gscData?.siteMatched
-                ? `Your organic traffic (${gscMonthlyClicks ?? 0} clicks/mo) is below the 500/mo minimum for Starter tier. Keep growing. Prices will unlock automatically once you hit 500.`
-                : 'Connect GSC to unlock tier-based pricing and higher price caps.'}
+              Your real traffic is below the 500/mo minimum for Starter tier. Keep growing — prices unlock automatically once you hit 500, same as any other tier.
             </p>
           </div>
         ) : spacePrice !== null ? (
@@ -492,7 +459,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
       {tierKey === 'unverified' && (
         <div style={{ border: '1px solid #e5e7eb', padding: '12px', backgroundColor: '#f9fafb', fontSize: '11px', color: '#6b7280' }}>
           <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#374151' }}>
-            💡 Connect Google Search Console to see your real tier prices:
+            💡 Prices unlock automatically as your real traffic grows:
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
             {['starter', 'basic', 'standard', 'premium', 'elite'].map(t => {

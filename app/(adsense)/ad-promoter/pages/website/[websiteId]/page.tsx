@@ -18,9 +18,6 @@ import {
     Settings2,
     Activity,
     Radio,
-    AlertTriangle,
-    ShieldCheck,
-    ShieldAlert,
     CheckCircle,
 } from 'lucide-react';
 import { MasterIntegration } from '../../../_components/codeDisplay';
@@ -73,19 +70,17 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const [customizationModal, setCustomizationModal] = useState({ isOpen: false, categoryId: null });
 
     // Still fetched (just no longer displayed here), AddNewCategory below
-    // uses `analytics.grantDisplay` and `gscData` to price a new ad space by
-    // real traffic. The full visual breakdown now lives in the dashboard's
-    // main Analytics page (see WebsiteAnalyticsPanel).
+    // uses `analytics.grantDisplay` (or plain monthlyTraffic) to price a new
+    // ad space by real traffic. The full visual breakdown now lives in the
+    // dashboard's main Analytics page (see WebsiteAnalyticsPanel).
     const [analytics, setAnalytics] = useState(null);
     const [earningsSummary, setEarningsSummary] = useState(null);
-    const [gscData, setGscData] = useState(null);
 
     useEffect(() => {
         fetchWebsiteData();
         fetchAdsData();
         fetchWalletBalance();
         fetchAnalytics();
-        fetchGscData();
     }, [websiteId, isAuthenticated]);
 
     useEffect(() => {
@@ -152,13 +147,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
             const r = await api.get(`/api/analytics/${websiteId}?range=30`);
             setAnalytics(r.data as any);
         } catch (err) { console.error('Failed to fetch analytics', err); }
-    };
-
-    const fetchGscData = async () => {
-        try {
-            const r = await api.get(`/api/analytics/gsc/data/${websiteId}`);
-            setGscData(r.data as any);
-        } catch (err) { console.error('Failed to fetch GSC data', err); }
     };
 
     const getAdsForWebsite = (wId) => ({
@@ -312,42 +300,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* GSC / verification status */}
-                            {!earningsSummary?.gscVerified && (
-                                <div className={`border p-4 flex items-start gap-3 ${earningsSummary?.unverifiedSurchargeActive ? 'border-red-400/40 bg-red-400/5' : 'border-amber-400/30 bg-amber-400/5'}`}>
-                                    <div className="shrink-0 mt-0.5">
-                                        {earningsSummary?.unverifiedSurchargeActive
-                                            ? <AlertTriangle size={16} className="text-red-400" />
-                                            : <ShieldAlert size={16} className="text-amber-400" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className={`text-sm font-semibold mb-0.5 ${earningsSummary?.unverifiedSurchargeActive ? 'text-red-300' : 'text-amber-300'}`}>
-                                            {earningsSummary?.unverifiedSurchargeActive
-                                                ? 'Unverified Site: Ad Prices at 4× Rate'
-                                                : 'Connect Google Search Console to Verify Your Site'}
-                                        </p>
-                                        <p className={`text-xs ${earningsSummary?.unverifiedSurchargeActive ? 'text-red-400/80' : 'text-amber-400/70'}`}>
-                                            {earningsSummary?.unverifiedSurchargeActive
-                                                ? 'Running 7+ days without GSC verification. Connect in the Analytics tab to restore normal pricing.'
-                                                : 'Connect GSC in the Analytics tab to verify your site and unlock tier-based pricing.'}
-                                        </p>
-                                    </div>
-                                    <button onClick={() => setActiveTab('analytics')} className="shrink-0 px-3 py-1.5 bg-black text-[#fff] text-xs font-semibold border border-border hover:bg-surface-2 transition-colors whitespace-nowrap">
-                                        Go to Analytics
-                                    </button>
-                                </div>
-                            )}
-
-                            {earningsSummary?.gscVerified && (
-                                <div className="border border-emerald-400/30 bg-emerald-400/5 p-4 flex items-center gap-3">
-                                    <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-bold text-emerald-300">Site Verified: Standard Pricing Active</p>
-                                        <p className="text-xs text-emerald-400/70 mt-0.5">Your script is installed and your site is verified. Ad spaces use tier-based pricing from your real traffic.</p>
                                     </div>
                                 </div>
                             )}
@@ -545,7 +497,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
                     {/* ══════════════════════════ ANALYTICS TAB ══ */}
                     {activeTab === 'analytics' && (
-                        <WebsiteAnalyticsPanel websiteId={websiteId} websiteLink={website?.websiteLink as string | undefined} />
+                        <WebsiteAnalyticsPanel websiteId={websiteId} />
                     )}
 
                 </div>
@@ -661,7 +613,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 websiteId={websiteId}
                                 onSubmitSuccess={handleCloseCategoriesForm}
                                 monthlyTraffic={analytics?.grantDisplay ? analytics.grantDisplay.grantedTraffic : website?.monthlyTraffic}
-                                gscData={analytics?.grantDisplay ? undefined : gscData}
                                 websitePages={website?.pages || []}
                             />
                         </div>

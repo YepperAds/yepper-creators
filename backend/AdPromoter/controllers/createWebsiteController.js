@@ -14,9 +14,8 @@ const { generateSiteScript } = require('./SiteScriptController');
 const { ensureLogo } = require('../utils/logoDetect');
 require('dotenv').config();
 
-// NOTE: deliberately whitelisted — `websites` rows also hold gsc_access_token /
-// gsc_refresh_token / verification_token, and these endpoints are public (no auth).
-// Never spread the raw row here.
+// NOTE: deliberately whitelisted — `websites` rows also hold verification_token,
+// and these endpoints are public (no auth). Never spread the raw row here.
 function toClient(w) {
   if (!w) return null;
   return {

@@ -30,12 +30,6 @@ import { useSession } from '@/app/_hooks/useSession';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface GscData {
-  connected: boolean;
-  siteMatched: boolean;
-  summary?: { clicks: number };
-}
-
 interface GrantDisplay {
   grantedTraffic: number;
   trafficTier: string;
@@ -65,7 +59,6 @@ interface AddNewCategoryProps {
   websiteId?: string;
   onSubmitSuccess: () => void;
   monthlyTraffic?: number | null;
-  gscData?: GscData;
   onSuccess?: () => void;
   onCancel?: () => void;
   websitePages?: { label: string; path: string }[];
@@ -98,7 +91,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
   websiteId: websiteIdProp,
   onSubmitSuccess,
   monthlyTraffic: trafficProp = null,
-  gscData,
   onSuccess,
   onCancel,
   websitePages = [],
@@ -445,7 +437,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                     onPriceSelect={(price: unknown) => updateCategoryData(activeCategory, 'price', price)}
                     monthlyTraffic={websiteMonthlyTraffic}
                     spaceType={categoryDetails[activeCategory]?.spaceType}
-                    gscData={grantDisplay ? undefined : gscData}
                     grantedTier={grantDisplay?.trafficTier || null}
                   />
 

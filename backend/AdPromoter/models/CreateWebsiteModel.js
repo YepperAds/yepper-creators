@@ -6,13 +6,12 @@ const Website = {
     const { rows } = await query(
       `INSERT INTO websites (owner_id, website_name, website_link, image_url, business_categories,
         is_business_categories_selected, monthly_traffic, traffic_tier, site_script,
-        verification_token, verification_status, gsc_access_token, gsc_refresh_token, pages)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        verification_token, verification_status, pages)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [String(data.ownerId), data.websiteName, data.websiteLink, data.imageUrl||null,
        data.businessCategories||[], data.isBusinessCategoriesSelected||false,
        data.monthlyTraffic||0, data.trafficTier||'unverified', data.siteScript||null,
        data.verificationToken||null, data.verificationStatus||'pending',
-       data.gscAccessToken||null, data.gscRefreshToken||null,
        JSON.stringify(data.pages||[])]
     );
     return rows[0];

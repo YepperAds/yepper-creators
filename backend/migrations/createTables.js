@@ -22,8 +22,6 @@ async function createTables() {
       verification_token_expires TIMESTAMPTZ,
       reset_password_token      TEXT,
       reset_password_expires    TIMESTAMPTZ,
-      gsc_access_token          TEXT,
-      gsc_refresh_token         TEXT,
       created_at                TIMESTAMPTZ DEFAULT NOW(),
       updated_at                TIMESTAMPTZ DEFAULT NOW()
     );
@@ -84,15 +82,8 @@ async function createTables() {
       verification_status       TEXT DEFAULT 'pending'
                                   CHECK (verification_status IN ('pending','verified','failed')),
       verified_at               TIMESTAMPTZ,
-      gsc_access_token          TEXT,
-      gsc_refresh_token         TEXT,
-      gsc_site_url              TEXT,
-      gsc_connected_at          TIMESTAMPTZ,
       script_installed          BOOLEAN DEFAULT FALSE,
       script_installed_at       TIMESTAMPTZ,
-      gsc_verified              BOOLEAN DEFAULT FALSE,
-      gsc_verified_at           TIMESTAMPTZ,
-      unverified_since          TIMESTAMPTZ,
       grant_window_expires_at   TIMESTAMPTZ,
       granted_traffic_display   INTEGER,
       granted_views_display     INTEGER,

@@ -741,6 +741,14 @@ exports.checkAdSpaceAdvertisers = async (req, res) => {
 // payments/traffic_grants keep historical rows, so their dangling FKs are
 // nulled rather than deleted; website_page_views are just analytics events
 // and get removed along with the website.
+//
+// import_ads isn't linked to websites by a foreign key — an ad targets sites
+// via the website_selections JSONB array, and one ad can target several
+// websites at once. So deleting a website strips just that website's entry
+// out of every ad's website_selections; an ad that ends up with no
+// selections left (this was its only target) is then deleted outright, same
+// as deleteAd below (nulling its wallet_transactions/payment_trackers/
+// payments references first so the FK constraints don't block it).
 // ─────────────────────────────────────────────────────────────────────────────
 exports.deleteWebsite = async (req, res) => {
   const client = await getClient();
@@ -757,11 +765,39 @@ exports.deleteWebsite = async (req, res) => {
     await client.query(`UPDATE traffic_grants SET website_id = NULL WHERE website_id = $1::uuid`, [websiteId]);
     // website_page_views.website_id is TEXT (not uuid, despite other website_id FKs being uuid)
     await client.query(`DELETE FROM website_page_views WHERE website_id = $1`, [websiteId]);
+
+    const { rows: strippedAds } = await client.query(
+      `UPDATE import_ads
+       SET website_selections = (
+         SELECT COALESCE(jsonb_agg(sel), '[]'::jsonb)
+         FROM jsonb_array_elements(website_selections) sel
+         WHERE sel->>'websiteId' <> $1
+       )
+       WHERE EXISTS (
+         SELECT 1 FROM jsonb_array_elements(website_selections) sel
+         WHERE sel->>'websiteId' = $1
+       )
+       RETURNING id, website_selections`,
+      [websiteId]
+    );
+    const emptiedAdIds = strippedAds
+      .filter(a => {
+        const sel = Array.isArray(a.website_selections) ? a.website_selections : JSON.parse(a.website_selections || '[]');
+        return sel.length === 0;
+      })
+      .map(a => a.id);
+    if (emptiedAdIds.length) {
+      await client.query(`UPDATE payments SET ad_id = NULL WHERE ad_id = ANY($1::uuid[])`, [emptiedAdIds]);
+      await client.query(`UPDATE wallet_transactions SET ad_id = NULL WHERE ad_id = ANY($1::uuid[])`, [emptiedAdIds]);
+      await client.query(`UPDATE payment_trackers SET ad_id = NULL WHERE ad_id = ANY($1::uuid[])`, [emptiedAdIds]);
+      await client.query(`DELETE FROM import_ads WHERE id = ANY($1::uuid[])`, [emptiedAdIds]);
+    }
+
     await client.query(`DELETE FROM ad_categories WHERE website_id = $1::uuid`, [websiteId]);
     await client.query(`DELETE FROM websites WHERE id = $1::uuid`, [websiteId]);
 
     await client.query('COMMIT');
-    res.json({ success: true, message: 'Website and its ad spaces deleted.' });
+    res.json({ success: true, message: 'Website, its ad spaces, and any ads left with no other target deleted.' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('deleteWebsite error:', err);
@@ -803,7 +839,13 @@ exports.deleteAd = async (req, res) => {
     const { adId } = req.params;
     await client.query('BEGIN');
 
+    // payments, wallet_transactions, and payment_trackers all reference
+    // import_ads(id) with no ON DELETE behavior — every one of them has to be
+    // nulled first or the delete below fails with a foreign key violation,
+    // paid ad or not.
     await client.query(`UPDATE payments SET ad_id = NULL WHERE ad_id = $1::uuid`, [adId]);
+    await client.query(`UPDATE wallet_transactions SET ad_id = NULL WHERE ad_id = $1::uuid`, [adId]);
+    await client.query(`UPDATE payment_trackers SET ad_id = NULL WHERE ad_id = $1::uuid`, [adId]);
     await client.query(`DELETE FROM import_ads WHERE id = $1::uuid`, [adId]);
 
     await client.query('COMMIT');

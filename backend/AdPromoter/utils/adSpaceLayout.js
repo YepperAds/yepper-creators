@@ -50,7 +50,7 @@ const MOBILE = AD_SPACE_DIMENSIONS['Mobile Interstitial']; // 320x480
 const PLACEMENT_CSS_TEMPLATES = {
   base: `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
 
-  'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto;top:0;left:0;z-index:900;}`,
+  'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto;}`,
   'above the fold':  `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 16px;}`,
   'beneath title':   `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:12px auto 20px;}`,
   'in feed':         `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:16px auto;border-radius:12px;overflow:hidden;}`,

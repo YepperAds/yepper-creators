@@ -1,6 +1,7 @@
 'use client';
 
 import CategoryCard from '@/app/_components/shared/CategoryCard';
+import TierBadge from '@/app/_components/shared/TierBadge';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
 // Logged-out visitors can't collaborate yet. Send them to log in, then land
@@ -22,11 +23,14 @@ function domainOf(link: string): string {
 function WebsiteCard({ website }: { website: PublicWebsite }) {
   return (
     <div className="rounded-2xl bg-[#0b0b0c] p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-bold text-[#fff]">Website</p>
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-[#fff]">Website</p>
+          <TierBadge tier={website.trafficTier} />
+        </div>
         <button
           onClick={() => startCollaborate('websiteId', website.id)}
-          className="text-xs font-semibold text-[#fff] underline underline-offset-2 hover:text-coral transition-colors"
+          className="text-xs font-semibold text-[#fff] underline underline-offset-2 hover:text-coral transition-colors shrink-0"
         >
           Advertise on {website.websiteName}
         </button>

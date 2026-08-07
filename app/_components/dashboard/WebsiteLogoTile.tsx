@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { GlobeAltIcon } from '@heroicons/react/24/solid';
 import type { PublicWebsite } from '@/app/_lib/public-home';
+import TierBadge from '@/app/_components/shared/TierBadge';
 
 // A flat gradient alone doesn't read as "a website", so each tile is framed
 // as a little browser window: a chrome bar up top carrying the real domain
@@ -72,6 +73,7 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
           <span className="min-w-0 flex-1 text-[11px] font-bold text-[#fff] truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.25)]">
             {website.websiteName}
           </span>
+          <TierBadge tier={website.trafficTier} />
         </div>
 
         {/* Content skeleton, fixed (not %) heights: this wrapper's own

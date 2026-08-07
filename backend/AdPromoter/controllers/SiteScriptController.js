@@ -609,43 +609,80 @@ exports.serveSiteScript = async (req, res) => {
      script only ever runs on the domain it was issued for (the _allowed
      check above already returned early otherwise), whatever icon the page
      itself declares IS that site's real logo. Preference order favors the
-     highest-fidelity source a page typically declares. */
-  function detectLogo(){
+     highest-fidelity source a page typically declares. Returns every
+     candidate instead of just the first hit — a declared <link> only means
+     the tag exists, not that the file behind it is real (see
+     verifyLogoCandidates below). */
+  function getLogoCandidates(){
+    var out=[];
     try{
       var sels=['link[rel="apple-touch-icon"]','link[rel="icon"]','link[rel="shortcut icon"]'];
       for(var i=0;i<sels.length;i++){
         var el=D.querySelector(sels[i]);
-        if(el&&el.href)return el.href;
+        if(el&&el.href)out.push(el.href);
       }
       var og=D.querySelector('meta[property="og:image"]');
       if(og&&og.content){
-        try{return new URL(og.content,location.href).href;}catch(e){}
+        try{out.push(new URL(og.content,location.href).href);}catch(e){}
       }
-      return location.origin+'/favicon.ico';
-    }catch(e){return null;}
+      out.push(location.origin+'/favicon.ico');
+    }catch(e){}
+    return out;
+  }
+
+  /* A <link rel="..."> tag existing, and its URL returning 200, both say
+     nothing about whether it's actually an image — a site's SPA catch-all
+     route happily 200s a path that was never really deployed (its index
+     shell, wrong content-type) exactly as readily as a real icon file. Only
+     letting the browser decode it as an image tells the difference, so each
+     candidate gets a real Image() load attempt, in preference order, capped
+     so a slow/dead host can't hold the pageview beacon open indefinitely. */
+  function verifyImage(url,timeoutMs){
+    return new Promise(function(resolve){
+      if(!url){resolve(null);return;}
+      var img=new Image();
+      var done=false;
+      var t=setTimeout(function(){if(!done){done=true;resolve(null);}},timeoutMs);
+      img.onload=function(){if(!done){done=true;clearTimeout(t);resolve(url);}};
+      img.onerror=function(){if(!done){done=true;clearTimeout(t);resolve(null);}};
+      img.src=url;
+    });
+  }
+
+  function resolveLogo(){
+    var candidates=getLogoCandidates();
+    var i=0;
+    function tryNext(){
+      if(i>=candidates.length)return Promise.resolve(null);
+      var url=candidates[i++];
+      return verifyImage(url,1200).then(function(ok){return ok||tryNext();});
+    }
+    return tryNext();
   }
 
   /* ── Analytics pageview ping ──────────────────────────── */
   function firePageview(){
     try{
-      var _pv={
-        websiteId:_wid,
-        path: location.pathname || '/',
-        referrer:D.referrer||'',
-        hostname: window.location.hostname.replace(/^www\./,''),
-        logoUrl: detectLogo()
-      };
-      if(navigator.sendBeacon){
-        navigator.sendBeacon(_b.replace('/p','') + '/analytics/track',new Blob([JSON.stringify(_pv)],{type:'application/json'}));
-      } else {
-        fetch(_b.replace('/p','') + '/analytics/track',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(_pv),
-          mode:'cors',
-          credentials:'omit'
-        }).catch(function(){});
-      }
+      resolveLogo().then(function(logoUrl){
+        var _pv={
+          websiteId:_wid,
+          path: location.pathname || '/',
+          referrer:D.referrer||'',
+          hostname: window.location.hostname.replace(/^www\./,''),
+          logoUrl: logoUrl
+        };
+        if(navigator.sendBeacon){
+          navigator.sendBeacon(_b.replace('/p','') + '/analytics/track',new Blob([JSON.stringify(_pv)],{type:'application/json'}));
+        } else {
+          fetch(_b.replace('/p','') + '/analytics/track',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(_pv),
+            mode:'cors',
+            credentials:'omit'
+          }).catch(function(){});
+        }
+      });
     }catch(e){}
   }
 

@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { GlobeAltIcon } from '@heroicons/react/24/solid';
 import type { PublicWebsite } from '@/app/_lib/public-home';
 
@@ -27,6 +30,13 @@ function domainOf(link: string): string {
 // nests it inside an already-rounded card never ends up with two
 // mismatched radii fighting for the same corner).
 export default function WebsiteLogoTile({ website, className }: { website: PublicWebsite; className?: string }) {
+  // Stored imageUrl can point at a dead/wrong-content URL (the backend
+  // re-verifies on its own now, see logoDetect.js, but that's async and
+  // won't have caught up yet on this exact load) — fall back to the globe
+  // icon instead of a broken image if it actually fails to load.
+  const [logoBroken, setLogoBroken] = useState(false);
+  const showLogo = !!website.imageUrl && !logoBroken;
+
   return (
     <div className={`flex flex-col overflow-hidden bg-[#fff] ${className ?? ''}`}>
       {/* Browser chrome: real domain in the address-bar position. The logo
@@ -47,9 +57,14 @@ export default function WebsiteLogoTile({ website, className }: { website: Publi
             empty dot and fake nav-link dashes. */}
         <div className="h-[26%] flex items-center gap-[6%] px-[10%]" style={{ backgroundImage: siteGradient(website.id || website.websiteName) }}>
           <span className="flex items-center justify-center w-[16%] aspect-square rounded-full bg-[#fff] ring-2 ring-[#fff]/40 shrink-0 overflow-hidden">
-            {website.imageUrl ? (
+            {showLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={website.imageUrl} alt="" className="w-full h-full object-contain" />
+              <img
+                src={website.imageUrl!}
+                alt=""
+                className="w-full h-full object-contain"
+                onError={() => setLogoBroken(true)}
+              />
             ) : (
               <GlobeAltIcon className="w-2/3 h-2/3 text-slate-400" />
             )}

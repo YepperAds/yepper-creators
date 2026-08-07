@@ -11,6 +11,7 @@ const dns = require('dns').promises;
 const crypto = require('crypto');
 const { resolveImageUrl } = require('../../utils/resolveImageUrl');
 const { generateSiteScript } = require('./SiteScriptController');
+const { ensureLogo } = require('../utils/logoDetect');
 require('dotenv').config();
 
 // NOTE: deliberately whitelisted — `websites` rows also hold gsc_access_token /
@@ -411,6 +412,23 @@ exports.getWebsitesByOwner = async (req, res) => {
   try {
     const websites = await Website.findByOwner(ownerId);
     res.status(200).json(websites.map(toClient));  // ← map
+
+    // Fire-and-forget, after the response above already went out: a site
+    // with no image_url yet either just got added or has never had a
+    // domain-confirmed pageview (the client-side detection in
+    // SiteScriptController only runs once the script is live and actually
+    // visited); a site that already has one might still be stuck on a URL
+    // that looked valid once but doesn't really serve an image (a site's
+    // SPA catch-all 200ing a path that was never deployed). ensureLogo
+    // handles both — re-verifies what's stored and only replaces it if
+    // that check fails, so a working logo is never touched.
+    for (const w of websites) {
+      ensureLogo(w.image_url, w.website_link)
+        .then((logoUrl) => {
+          if (logoUrl) return Website.update(w.id, { imageUrl: logoUrl });
+        })
+        .catch(() => {});
+    }
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch websites', error });
   }

@@ -162,6 +162,13 @@ function PlatformsBox({
     ...channels.map((c): PlatformItem => ({ key: `c-${c.username}`, kind: 'youtube', label: `@${c.username}`, avatar: c.avatar })),
   ].slice(0, 3);
 
+  // Same broken-image safety net as WebsitesList/WebsiteLogoTile: a stored
+  // avatar URL can fail to actually load even after the backend's own
+  // re-verification, so fall back to the kind-specific icon instead of a
+  // broken image.
+  const [brokenAvatarKeys, setBrokenAvatarKeys] = useState<Set<string>>(new Set());
+  const markAvatarBroken = (key: string) => setBrokenAvatarKeys((prev) => new Set(prev).add(key));
+
   if (collapsed) {
     return (
       <div className="group/box relative">
@@ -211,9 +218,14 @@ function PlatformsBox({
           <div className="space-y-2">
             {items.map((item) => (
               <div key={item.key} className="flex items-center gap-2 text-sm text-subtle truncate">
-                {item.avatar ? (
+                {item.avatar && !brokenAvatarKeys.has(item.key) ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.avatar} alt="" className={`w-5 h-5 object-cover shrink-0 ${item.kind === 'youtube' ? 'rounded-full' : 'rounded'}`} />
+                  <img
+                    src={item.avatar}
+                    alt=""
+                    className={`w-5 h-5 object-cover shrink-0 ${item.kind === 'youtube' ? 'rounded-full' : 'rounded'}`}
+                    onError={() => markAvatarBroken(item.key)}
+                  />
                 ) : item.kind === 'youtube' ? (
                   <PlayCircleIcon className="w-4 h-4 shrink-0" />
                 ) : (

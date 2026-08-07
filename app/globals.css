@@ -62,7 +62,7 @@
    site and the dashboard are two different products visually and were never
    meant to share one "dark mode" look; the marketing site is its own
    always-on-this-way brand identity, so it gets its own token set instead
-   of borrowing the dashboard's --bg/--surface-*/--text-main tokens. ── */
+   of borrowing the dashboard's --bg, --surface-1/2/3, --text-main tokens. ── */
 :root {
   --mkt-bg:        #FFFFFF;
   --mkt-surface:   #F7F6F3;

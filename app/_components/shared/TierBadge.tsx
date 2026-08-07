@@ -1,3 +1,5 @@
+import { ShieldCheckIcon } from '@heroicons/react/24/solid';
+
 // Rank badge for a website's traffic tier — grey for Unverified up through
 // gold for Elite, same six tiers earningsController/PricingTiers already
 // compute from real script-tracked traffic (see
@@ -30,9 +32,10 @@ export default function TierBadge({ tier, className = '' }: { tier?: string | nu
   const style = TIER_STYLES[tier || 'unverified'] ?? TIER_STYLES.unverified;
   return (
     <span
-      className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${className}`}
-      style={{ background: style.bg, color: style.text }}
+      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide pl-1 pr-2 py-0.5 rounded-full shrink-0 ring-1 ring-inset ${className}`}
+      style={{ background: style.bg, color: style.text, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35)`, ['--tw-ring-color' as any]: 'rgba(255,255,255,0.35)' }}
     >
+      <ShieldCheckIcon className="w-3 h-3 shrink-0" style={{ color: style.text }} />
       {style.label}
     </span>
   );

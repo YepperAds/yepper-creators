@@ -24,10 +24,7 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
   return (
     <div className="rounded-2xl bg-[#0b0b0c] p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4 gap-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-bold text-[#fff]">Website</p>
-          <TierBadge tier={website.trafficTier} />
-        </div>
+        <p className="text-sm font-bold text-[#fff]">Website</p>
         <button
           onClick={() => startCollaborate('websiteId', website.id)}
           className="text-xs font-semibold text-[#fff] underline underline-offset-2 hover:text-coral transition-colors shrink-0"
@@ -54,7 +51,10 @@ function WebsiteCard({ website }: { website: PublicWebsite }) {
 
         <div className="flex flex-col justify-between min-w-0">
           <div>
-            <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-sm font-bold text-[#fff] font-(--font-display)">{website.websiteName}</p>
+              <TierBadge tier={website.trafficTier} />
+            </div>
             {website.businessCategories?.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {website.businessCategories.map((c) => (

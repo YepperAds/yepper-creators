@@ -1,4 +1,4 @@
-import { ShieldCheckIcon } from '@heroicons/react/24/solid';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
 // Rank badge for a website's traffic tier — grey for Unverified up through
 // gold for Elite, same six tiers earningsController/PricingTiers already
@@ -7,36 +7,43 @@ import { ShieldCheckIcon } from '@heroicons/react/24/solid';
 // Purely presentational: takes whatever `trafficTier` string the site
 // already carries, no separate fetch.
 //
-// Solid opaque background rather than a transparent/outline style on
-// purpose — this sits on top of photos, gradients, and both light (marketing
-// WebsiteRow) and dark (dashboard HomeFeed/DashboardFeed) card backgrounds,
-// so it needs to read clearly regardless of what's behind it, the same way
-// the existing "View"/"Choose ad space" absolute-positioned overlay labels
-// in these same files use an opaque bg instead of relying on context.
-//
-// "Unverified" is relabeled "New" here specifically for public-facing
-// display: an advertiser comparing sites shouldn't read a brand-new site as
-// flagged/suspicious, just early — same reasoning as the cold-start ranking
-// approach (show honestly, don't penalize for being new). Internal/admin
-// surfaces that already say "Unverified" elsewhere are untouched by this.
-const TIER_STYLES: Record<string, { label: string; bg: string; text: string }> = {
-  unverified: { label: 'New',      bg: '#9CA3AF', text: '#1F2937' }, // grey
-  starter:    { label: 'Starter',  bg: '#C87F45', text: '#FFFFFF' }, // bronze
-  basic:      { label: 'Basic',    bg: '#B0B7C3', text: '#1F2937' }, // silver
-  standard:   { label: 'Standard', bg: '#10B981', text: '#FFFFFF' }, // emerald
-  premium:    { label: 'Premium',  bg: '#8B5CF6', text: '#FFFFFF' }, // platinum/violet
-  elite:      { label: 'Elite',    bg: '#F5B700', text: '#1F2937' }, // gold
+// CheckBadgeIcon (the scalloped-seal + checkmark shape) is the same badge
+// silhouette X/Instagram use for verification — just the icon, colored per
+// tier, no background pill/label, same as those. Premium is X's own
+// verified blue specifically, not a spot on the metal/gem ramp.
+const TIER_COLORS: Record<string, string> = {
+  unverified: '#9CA3AF', // grey
+  starter:    '#C87F45', // bronze
+  basic:      '#B0B7C3', // silver
+  standard:   '#10B981', // emerald
+  premium:    '#1D9BF0', // blue (X/Instagram verified blue)
+  elite:      '#F5B700', // gold
+};
+
+// "Unverified" reads as "New" in the tooltip specifically for this
+// public-facing badge: an advertiser comparing sites shouldn't read a
+// brand-new site as flagged/suspicious, just early — same reasoning as the
+// cold-start ranking approach (show honestly, don't penalize for being
+// new). Internal/admin surfaces that already say "Unverified" elsewhere are
+// untouched by this.
+const TIER_LABELS: Record<string, string> = {
+  unverified: 'New',
+  starter:    'Starter',
+  basic:      'Basic',
+  standard:   'Standard',
+  premium:    'Premium',
+  elite:      'Elite',
 };
 
 export default function TierBadge({ tier, className = '' }: { tier?: string | null; className?: string }) {
-  const style = TIER_STYLES[tier || 'unverified'] ?? TIER_STYLES.unverified;
+  const key   = tier && TIER_COLORS[tier] ? tier : 'unverified';
+  const color = TIER_COLORS[key];
+  const label = TIER_LABELS[key];
   return (
-    <span
-      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide pl-1 pr-2 py-0.5 rounded-full shrink-0 ring-1 ring-inset ${className}`}
-      style={{ background: style.bg, color: style.text, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35)`, ['--tw-ring-color' as any]: 'rgba(255,255,255,0.35)' }}
-    >
-      <ShieldCheckIcon className="w-3 h-3 shrink-0" style={{ color: style.text }} />
-      {style.label}
-    </span>
+    <CheckBadgeIcon
+      className={`w-4 h-4 shrink-0 ${className}`}
+      style={{ color }}
+      title={`${label} tier`}
+    />
   );
 }

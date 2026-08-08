@@ -274,11 +274,11 @@ exports.serveSiteScript = async (req, res) => {
        are no longer consulted here for the same reason; still accepted and
        stored (the Customize Ads panel doesn't need a matching rewrite just
        because the renderer stopped reading a few of its fields), just inert. */
-    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
+    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;height:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
     slots.forEach(function(s,si){
       var sel='.'+sp.px+'-ad[data-slot="'+si+'"]';
       rulesCss+=\`
-        \${sel}{display:block;width:\${s.width?s.width+'px':'100%'};max-width:\${s.maxWidth||100}%;height:\${s.height?s.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${s.backgroundColor};border:\${s.borderWidth}px solid \${s.borderColor};border-radius:\${s.borderRadius||16}px;box-shadow:\${s.shadowCss};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;font-family:\${s.fontStack};}
+        \${sel}{display:block;width:\${s.width?s.width+'px':'100%'};max-width:\${s.maxWidth||100}%;height:\${s.height?s.height+'px':'100%'};text-decoration:none;overflow:hidden;background:\${s.backgroundColor};border:\${s.borderWidth}px solid \${s.borderColor};border-radius:\${s.borderRadius||16}px;box-shadow:\${s.shadowCss};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;font-family:\${s.fontStack};}
         \${sel}:hover{transform:translateY(-2px);}
         \${sel} .\${sp.px}-link{display:block;position:relative;width:100%;height:100%;}
         \${sel} .\${sp.px}-inner{position:relative;width:100%;height:100%;}
@@ -294,6 +294,7 @@ exports.serveSiteScript = async (req, res) => {
     });
 
     el.textContent=fontCss+rulesCss+\`
+      .\${sp.px}-wrap{display:block;height:100%;}
       .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
@@ -347,6 +348,16 @@ exports.serveSiteScript = async (req, res) => {
        support, with the same content/style split preserved. */
     host._ysRoot=(typeof host.attachShadow==='function')?host.attachShadow({mode:'open'}):host;
     host._ysContent=D.createElement('div');
+    /* The image-forward ad card fills its box via position:absolute+inset:0
+       (see injectStyles), which needs a real (non-auto) height somewhere in
+       its ancestor chain to resolve against — position:absolute content is
+       removed from normal flow, so it can't establish that height itself
+       the way the old flex+fixed-px-image layout used to. This div sits
+       directly inside the shadow root, i.e. directly inside `host` for
+       layout purposes, so height:100% here correctly picks up host's own
+       real height (the fixed px value set in placementCSS/adSpaceLayout.js)
+       and hands it down through .px-wrap/.px-ad/.px-inner below. */
+    host._ysContent.style.cssText='display:block;height:100%;';
     host._ysRoot.appendChild(host._ysContent);
 
     ph.appendChild(host);

@@ -84,18 +84,20 @@ exports.getCategoryEarnings = async (req, res) => {
     const website = await Website.findById(category.website_id);
     if (!website) return res.status(404).json({ message: 'Website not found' });
 
-    // Use real 30-day rolling traffic stored on the website record
-    const monthlyTraffic = website.monthly_traffic || 0;
-
-    if (monthlyTraffic < 10) {
-      // Script not yet installed or no traffic detected
+    // scriptInstalled is the real flag (set on the very first pageview ping
+    // ever received, see analyticsController.trackPageView) — not a traffic
+    // threshold. A site can have the script correctly installed and running
+    // with low traffic; that's a real $0-ish estimate below, not "script
+    // not detected".
+    if (!website.script_installed) {
       return res.json({
         available: false,
-        reason: 'no_traffic',
+        reason: 'no_script',
         message: 'No traffic detected yet. Install your Yepper script and earnings will appear once visitors are tracked.'
       });
     }
 
+    const monthlyTraffic = website.monthly_traffic || 0;
     const earnings = computeEarnings(monthlyTraffic, category.space_type);
     return res.json({ available: true, ...earnings });
 
@@ -118,14 +120,20 @@ exports.getWebsiteEarningsSummary = async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
 
     const monthlyTraffic = website.monthly_traffic || 0;
-    const scriptInstalled = monthlyTraffic >= 10;
+    // The real flag (set on the very first pageview ping ever received, see
+    // analyticsController.trackPageView) — not a traffic-count guess. This
+    // used to be `monthlyTraffic >= 10`, which kept the "install your
+    // script" banner showing for a site that had the script correctly
+    // installed and rendering ads, just with fewer than 10 tracked visits
+    // so far.
+    const scriptInstalled = !!website.script_installed;
 
     const categories = await AdCategory.findByWebsite(req.params.websiteId);
 
     if (!scriptInstalled) {
       return res.json({
         available: false,
-        reason: 'no_traffic',
+        reason: 'no_script',
         message: 'Install your Yepper script to start tracking traffic. Earnings will appear once visitors are detected.',
         monthlyTraffic: 0,
         scriptInstalled: false,
@@ -146,7 +154,7 @@ exports.getWebsiteEarningsSummary = async (req, res) => {
       monthlyTraffic,
       trafficTier: tier.tier,
       totalOwnerEarnsPerMonth,
-      scriptInstalled: !!website.script_installed,
+      scriptInstalled: true,
       categories: summary
     });
 

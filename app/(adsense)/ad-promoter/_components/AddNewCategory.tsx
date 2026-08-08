@@ -519,7 +519,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
     { id: 'sidebar',   name: 'Sidebar'    },
     { id: 'content',   name: 'Content'    },
     { id: 'special',   name: 'Special'    },
-    { id: 'mobile',    name: 'Mobile'     },
     { id: 'video',     name: 'Video'      },
   ];
 

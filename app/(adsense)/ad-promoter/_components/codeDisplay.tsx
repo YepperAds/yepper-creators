@@ -226,7 +226,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                 </div>
                 <div className="divide-y divide-zinc-800">
                   {categories.map((cat: any, idx: any) => {
-                    const earning = earningsSummary?.categories?.find(e => e.categoryId?.toString() === cat._id?.toString());
                     const st = (cat.spaceType || '').toLowerCase();
                     const positionsSelf = st === 'floating' || st === 'modalpic';
                     return (
@@ -259,11 +258,6 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
                             <span className="text-zinc-400">Price: RWF {Number(cat.price || 0).toLocaleString()}/mo</span>
-                            {earning?.available ? (
-                              <span className="text-green-400">You earn: RWF {Number(earning.ownerEarns).toLocaleString()}/mo</span>
-                            ) : (
-                              <span className="italic">earnings pending traffic</span>
-                            )}
                             <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
                             <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
                           </div>

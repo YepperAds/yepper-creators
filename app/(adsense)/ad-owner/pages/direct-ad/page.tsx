@@ -727,7 +727,7 @@ function DirectAdvertise() {
                   ) : (
                     <Globe size={40} className="mr-3 text-subtle" />
                   )}
-                  <p className="text-base font-medium">{websiteInfo?.websiteName}</p>
+                  <p className="text-base font-medium text-black">{websiteInfo?.websiteName}</p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-border/40 flex gap-2 items-center">
                   <p className="text-xs font-medium text-muted">ACCEPTED CATEGORIES</p>
@@ -748,16 +748,16 @@ function DirectAdvertise() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-3">Category Details</h3>
-                <p className="text-base mb-2"><span className='font-medium'>{categoryInfo?.categoryName}:</span> {categoryInfo?.description}</p>
+                <h3 className="text-lg font-semibold mb-3 text-black">Category Details</h3>
+                <p className="text-base mb-2 text-black"><span className='font-medium'>{categoryInfo?.categoryName}:</span> {categoryInfo?.description}</p>
                 <div className="space-y-2">
                   <div className="flex gap-2 text-sm">
                     <span className="text-subtle">Price:</span>
-                    <span className="font-semibold">RWF {categoryInfo?.price}</span>
+                    <span className="font-semibold text-black">RWF {categoryInfo?.price}</span>
                   </div>
                   <div className="flex gap-2 text-sm">
                     <span className="text-subtle">Tier:</span>
-                    <span className="font-medium capitalize">{categoryInfo?.tier}</span>
+                    <span className="font-medium capitalize text-black">{categoryInfo?.tier}</span>
                   </div>
                 </div>
               </div>
@@ -767,7 +767,7 @@ function DirectAdvertise() {
           {/* Step 1: Ad Details Form */}
           {step === 1 && (
             <div className={`${GLASS_CARD} p-6 sm:p-8`}>
-              <h2 className="text-xl font-semibold mb-6">Advertisement Details</h2>
+              <h2 className="text-xl font-semibold mb-6 text-black">Advertisement Details</h2>
 
               <form onSubmit={handleSubmitBasicInfo} className="space-y-6">
                 {/* File Upload */}
@@ -951,7 +951,7 @@ function DirectAdvertise() {
           {step === 2 && (
             <div className={`${GLASS_CARD} p-6 sm:p-8`}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-black">
                   {isAuthenticated ? 'Review & Create Ad' : 'Sign In to Continue'}
                 </h2>
                 {!adId && (
@@ -1036,7 +1036,7 @@ function DirectAdvertise() {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-xl font-semibold mb-6">Complete Payment</h2>
+                  <h2 className="text-xl font-semibold mb-6 text-black">Complete Payment</h2>
 
                   <div className="space-y-6">
                     <div className="rounded-2xl border border-border bg-surface-2 p-6">

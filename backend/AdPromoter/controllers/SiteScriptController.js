@@ -266,27 +266,28 @@ exports.serveSiteScript = async (req, res) => {
       fontCss+='@import url(https://fonts.googleapis.com/css2?'+fi+'&display=swap);';
     });
 
-    /* Safety net for any item whose slot index has no resolved bundle. */
+    /* Image-forward card: the creative image fills the whole box, the CTA
+       is a small button overlaid on top of it — no business name or
+       description text rendered into the ad at all (see AdDisplayController
+       .displayAd, which stopped sending that markup). imagePosition/
+       imageWidthPercent/titleSize/descriptionColor etc. from customization
+       are no longer consulted here for the same reason; still accepted and
+       stored (the Customize Ads panel doesn't need a matching rewrite just
+       because the renderer stopped reading a few of its fields), just inert. */
     var rulesCss='.'+sp.px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
     slots.forEach(function(s,si){
-      var isH=s.imagePosition==='left';
-      var flexDir=isH?'row':'column';
       var sel='.'+sp.px+'-ad[data-slot="'+si+'"]';
       rulesCss+=\`
         \${sel}{display:block;width:\${s.width?s.width+'px':'100%'};max-width:\${s.maxWidth||100}%;height:\${s.height?s.height+'px':'auto'};text-decoration:none;overflow:hidden;background:\${s.backgroundColor};border:\${s.borderWidth}px solid \${s.borderColor};border-radius:\${s.borderRadius||16}px;box-shadow:\${s.shadowCss};transition:all 0.3s ease;position:relative;color:inherit;box-sizing:border-box;font-family:\${s.fontStack};}
         \${sel}:hover{transform:translateY(-2px);}
-        \${sel} .\${sp.px}-inner{display:flex;flex-direction:\${flexDir};gap:16px;align-items:\${isH?'center':'stretch'};padding:14px;}
-        \${sel} .\${sp.px}-img-wrap{overflow:hidden;border-radius:10px;flex-shrink:0;\${isH?'flex:0 0 '+(s.imageWidthPercent||40)+'%;min-width:120px;':'width:'+(s.topImageWidthPercent||100)+'%;margin:0 auto;height:'+(s.imageHeight||160)+'px;'}\${s.showImage===false?'display:none;':''}}
-        \${sel} .\${sp.px}-text{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
-        \${sel} .\${sp.px}-title{font-size:\${s.titleSize||16}px;font-weight:600;color:\${s.titleColor};margin:0 0 8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-        \${sel} .\${sp.px}-desc{font-size:\${s.descriptionSize||14}px;color:\${s.descriptionColor};line-height:1.5;margin:0 0 12px;\${s.showDescription===false?'display:none;':''}}
-        \${sel} .\${sp.px}-cta{display:inline-flex;align-items:center;align-self:flex-start;background:\${s.ctaBackground};color:\${s.ctaColor};padding:8px 22px;border-radius:8px;font-size:\${s.ctaSize||14}px;font-weight:500;\${s.showCTA===false?'display:none;':''}}
+        \${sel} .\${sp.px}-link{display:block;position:relative;width:100%;height:100%;}
+        \${sel} .\${sp.px}-inner{position:relative;width:100%;height:100%;}
+        \${sel} .\${sp.px}-img-wrap{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;\${s.showImage===false?'display:none;':''}}
+        \${sel} .\${sp.px}-cta{position:absolute;bottom:10px;right:10px;z-index:2;display:inline-flex;align-items:center;background:\${s.ctaBackground};color:\${s.ctaColor};padding:6px 16px;border-radius:8px;font-size:\${s.ctaSize||13}px;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.25);\${s.showCTA===false?'display:none;':''}}
       \`;
       if(s.customCSS){
         rulesCss+=s.customCSS
           .replace(/\\.ad-container/g,sel)
-          .replace(/\\.ad-title/g,sel+' .'+sp.px+'-title')
-          .replace(/\\.ad-description/g,sel+' .'+sp.px+'-desc')
           .replace(/\\.ad-cta/g,sel+' .'+sp.px+'-cta')
           .replace(/\\.ad-image/g,sel+' .'+sp.px+'-img');
       }
@@ -408,9 +409,11 @@ exports.serveSiteScript = async (req, res) => {
       .replace(/sp-content/g,sp.px+'-inner')
       .replace(/sp-image-wrapper/g,sp.px+'-img-wrap')
       .replace(/sp-image/g,sp.px+'-img')
-      .replace(/sp-text-content/g,sp.px+'-text')
-      .replace(/sp-business-name/g,sp.px+'-title')
-      .replace(/sp-description/g,sp.px+'-desc')
+      .replace(/sp-empty-name/g,sp.px+'-empty-name')
+      .replace(/sp-empty-title/g,sp.px+'-empty-title')
+      .replace(/sp-empty-price/g,sp.px+'-empty-price')
+      .replace(/sp-empty-cta/g,sp.px+'-empty-cta')
+      .replace(/sp-empty/g,sp.px+'-empty')
       .replace(/sp-cta/g,sp.px+'-cta');
 
     root.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(sp.name)+'</div>'+html;

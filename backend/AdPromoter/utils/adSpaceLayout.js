@@ -50,16 +50,16 @@ const MOBILE = AD_SPACE_DIMENSIONS['Mobile Interstitial']; // 320x480
 const PLACEMENT_CSS_TEMPLATES = {
   base: `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
 
-  'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto;}`,
-  'above the fold':  `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 16px;}`,
-  'beneath title':   `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:12px auto 20px;}`,
+  'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto;overflow:hidden;}`,
+  'above the fold':  `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 16px;overflow:hidden;}`,
+  'beneath title':   `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:12px auto 20px;overflow:hidden;}`,
   'in feed':         `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:16px auto;border-radius:12px;overflow:hidden;}`,
-  'bottom':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;}`,
-  'pro footer':      `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;}`,
+  'bottom':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;overflow:hidden;}`,
+  'pro footer':      `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;overflow:hidden;}`,
 
-  'inline content':  `.{{PX}}-host{float:right;width:${RECT.width}px;height:${RECT.height}px;margin:0 0 12px 20px;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;height:auto;max-height:${RECT.height}px;margin:12px 0;}}`,
-  'sidebar':         `.{{PX}}-host{width:${RECT.width}px;height:${RECT.height}px;margin:0 0 16px 0;max-width:100%;}`,
-  'sticky sidebar':  `.{{PX}}-host{position:sticky;top:80px;width:${RECT.width}px;height:${RECT.height}px;max-width:100%;z-index:100;}`,
+  'inline content':  `.{{PX}}-host{float:right;width:${RECT.width}px;height:${RECT.height}px;margin:0 0 12px 20px;overflow:hidden;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;height:auto;max-height:${RECT.height}px;margin:12px 0;}}`,
+  'sidebar':         `.{{PX}}-host{width:${RECT.width}px;height:${RECT.height}px;margin:0 0 16px 0;max-width:100%;overflow:hidden;}`,
+  'sticky sidebar':  `.{{PX}}-host{position:sticky;top:80px;width:${RECT.width}px;height:${RECT.height}px;max-width:100%;z-index:100;overflow:hidden;}`,
   'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${RECT.width}px;height:${RECT.height}px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
 
   'left rail':       `.{{PX}}-host{width:${RAIL.width}px;min-height:${RAIL.height}px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;min-height:0;position:static;}}`,

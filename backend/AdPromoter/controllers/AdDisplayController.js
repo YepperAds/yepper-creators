@@ -4,7 +4,6 @@ const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
 const { notifyDomainMismatch, notifyPageMismatch } = require('../../creators/utils/notificationUtils');
-const { truncateWords } = require('../utils/adCustomization');
 
 function extractDomain(url) {
   try {
@@ -107,20 +106,22 @@ exports.resolveCategoryAndAds = resolveCategoryAndAds;
 // When the website owner configured more ad slots (user_count) than are
 // currently sold, append one "Available Advertising Space" item to the
 // rotation so visitors see it (and can buy the remaining slot) instead of
-// the open slot just being silently dropped from the loop.
+// the open slot just being silently dropped from the loop. Uses the same
+// sp-empty/-name/-title/-price/-cta structure (and the site script's already
+// -existing .px-empty-* CSS for it) as the client-side no-ads-at-all
+// fallback in SiteScriptController.js's renderAds — not the sold-ad
+// sp-content/sp-image-wrapper image-forward layout, which has no text to
+// show a price/pitch with.
 function availableSlotHtml(adCategory, categoryId) {
   const FRONTEND = process.env.FRONTEND_URL || '';
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
-      <a href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}" class="sp-link" target="_blank" rel="noopener">
-        <div class="sp-content">
-          <div class="sp-text-content">
-            <h3 class="sp-business-name">Available Advertising Space</h3>
-            <p class="sp-description">Price: RWF ${adCategory.price}/month</p>
-            <button class="sp-cta" type="button">Advertise Here</button>
-          </div>
-        </div>
-      </a>
+      <div class="sp-empty">
+        <p class="sp-empty-name">Available Advertising Space</p>
+        <p class="sp-empty-title">Price</p>
+        <p class="sp-empty-price">RWF ${adCategory.price}/month</p>
+        <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
+      </div>
     </div>`;
 }
 
@@ -137,21 +138,16 @@ exports.displayAd = async (req, res) => {
         const imageUrl = escapeHtml(ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image');
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name);
-        // Cap to 10 words server-side (not just a CSS line-clamp) so the full
-        // description never sits in the page's DOM where any visitor can
-        // read it via "view source"/devtools regardless of how it's clipped
-        // visually.
-        const description = escapeHtml(truncateWords(ad.ad_description, 10));
+        // Image-forward card: no business name/description text in the ad
+        // itself — just the creative image (filling the whole box) and a
+        // CTA button overlaid on it. businessName is still used for the
+        // image's alt text (accessibility, not visible copy).
         return `
           <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">
               <div class="sp-content">
                 <div class="sp-image-wrapper"><img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy"></div>
-                <div class="sp-text-content">
-                  <h3 class="sp-business-name">${businessName}</h3>
-                  <p class="sp-description">${description}</p>
-                  <button class="sp-cta" type="button">Visit Website</button>
-                </div>
+                <button class="sp-cta" type="button">Visit Website</button>
               </div>
             </a>
           </div>`;

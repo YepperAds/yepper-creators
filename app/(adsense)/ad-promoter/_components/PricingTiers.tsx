@@ -318,7 +318,7 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
       {spacePrice !== null ? (
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '11px', color: '#000', margin: '0 0 4px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            You Earn
+            Price
           </p>
           <p style={{ fontSize: '24px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
             RWF {ownerEarns.toLocaleString()}

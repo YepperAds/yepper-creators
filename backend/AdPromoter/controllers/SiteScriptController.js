@@ -550,8 +550,21 @@ exports.serveSiteScript = async (req, res) => {
     /* Fetch the real category config from the API so we have correct
        price, spaceType, lang etc. before rendering */
     fetch(_c+'/space/'+categoryId+'?r='+Date.now(),{cache:'no-store'})
-      .then(function(r){return r.ok?r.json():null;})
+      .then(function(r){return r.ok?r.json():{__notFound:true};})
       .then(function(cat){
+        /* A confirmed 404 means this category was deleted server-side — the
+           div is just stale markup left behind in the owner's own template
+           (deleting an ad space in the dashboard only removes the DB row,
+           it can't reach into the owner's site and remove the div for
+           them). Rendering a fabricated $0 "Available Advertising Space"
+           placeholder here was actively wrong, not just a missing-data
+           fallback: it invented an ad space that no longer exists. Bail out
+           silently instead — same as loadSpace's "no div on this page,
+           nothing to do" case, just the inverse (div exists, space
+           doesn't). Network failures (fetch rejecting outright) are a
+           different, genuinely ambiguous case and still fall through to
+           the resilient stub in .catch below. */
+        if(cat&&cat.__notFound)return;
         var px='yw'+categoryId.slice(-6);
         var st=(cat&&(cat.space_type||cat.spaceType))||'inline content';
         var wrappers=['content-widget','page-module','site-section','layout-block','view-unit','frame-item'];

@@ -258,8 +258,9 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             </select>
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
+                            <span className="text-zinc-400">Price: RWF {Number(cat.price || 0).toLocaleString()}/mo</span>
                             {earning?.available ? (
-                              <span className="text-green-400">RWF {Number(earning.ownerEarns).toLocaleString()}/mo</span>
+                              <span className="text-green-400">You earn: RWF {Number(earning.ownerEarns).toLocaleString()}/mo</span>
                             ) : (
                               <span className="italic">earnings pending traffic</span>
                             )}

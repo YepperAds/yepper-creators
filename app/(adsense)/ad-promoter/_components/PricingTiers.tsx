@@ -257,7 +257,8 @@ export function getPriceForTier(tier, spaceType) {
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-// Now renders a visible tier badge + price for this space type.
+// Renders just the owner's earnings for this space type — no tier badge, no
+// price cap, no Yepper cut, no traffic-threshold messaging (see render below).
 
 const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType, grantedTier  }: any) => {
 
@@ -308,172 +309,28 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
   }, [tierKey, spacePrice]); // eslint-disable-line
 
   // ── Render ──
+  // Deliberately just "what you'll earn" — no tier name, no price cap, no
+  // Yepper's cut, no traffic-threshold messaging. All of that is what the
+  // advertiser gets charged and why; the owner configuring this space only
+  // needs the one number that's actually theirs.
   return (
-    <div>
-      {/* Tier Badge */}
-      <div
-        style={{
-          border: `2px solid ${resolvedTier.border}`,
-          backgroundColor: resolvedTier.bg,
-          borderRadius: 0,
-          padding: '16px',
-          marginBottom: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '3px 12px',
-                backgroundColor: resolvedTier.color,
-                color: tierKey === 'elite' ? '#fff' : (tierKey === 'unverified' ? '#92400e' : '#fff'),
-                fontSize: '11px',
-                fontWeight: '700',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {resolvedTier.label} Tier
-            </span>
-            {tierKey === 'unverified' && (
-              <span style={{ fontSize: '11px', color: '#b45309', fontWeight: '500' }}>
-                🔒 Install your Yepper script to start tracking traffic
-              </span>
-            )}
-          </div>
+    <div style={{ border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', padding: '16px' }}>
+      {spacePrice !== null ? (
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#000', margin: '0 0 4px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            You Earn
+          </p>
+          <p style={{ fontSize: '24px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
+            RWF {ownerEarns.toLocaleString()}
+          </p>
+          <p style={{ fontSize: '11px', color: '#000', margin: '4px 0 0 0', opacity: 0.6 }}>
+            per advertiser/mo
+          </p>
         </div>
-
-        <p style={{ fontSize: '12px', color: resolvedTier.textColor, marginBottom: '12px', margin: '0 0 12px 0' }}>
-          {tierKey === 'unverified'
-            ? `Under 500 monthly visitors so far (need 500+ for Starter tier)`
-            : resolvedTier.description}
+      ) : (
+        <p style={{ fontSize: '12px', color: '#000', margin: 0 }}>
+          Price not available for this space type.
         </p>
-
-        {/* Price block */}
-        {tierKey === 'unverified' ? (
-          <div style={{ borderTop: `1px solid ${resolvedTier.border}`, paddingTop: '12px' }}>
-            {spacePrice !== null ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: '8px',
-                  marginBottom: '10px',
-                }}
-              >
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Price Cap
-                  </p>
-                  <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.color, margin: 0 }}>
-                    RWF {spacePrice.toLocaleString()}
-                  </p>
-                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                    per advertiser/mo
-                  </p>
-                </div>
-                <div style={{ textAlign: 'center', borderLeft: `1px solid ${resolvedTier.border}`, borderRight: `1px solid ${resolvedTier.border}` }}>
-                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    You Earn (70%)
-                  </p>
-                  <p style={{ fontSize: '16px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
-                    RWF {ownerEarns.toLocaleString()}
-                  </p>
-                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                    per advertiser/mo
-                  </p>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Yepper (30%)
-                  </p>
-                  <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.textColor, margin: 0, opacity: 0.6 }}>
-                    RWF {yepperCut.toLocaleString()}
-                  </p>
-                  <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                    per advertiser/mo
-                  </p>
-                </div>
-              </div>
-            ) : null}
-            <p style={{ fontSize: '12px', color: '#92400e', fontWeight: '600', margin: 0 }}>
-              ⚠️ Unverified pricing: RWF 63,000 total shared across ALL your active ad spaces.
-            </p>
-            <p style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', margin: '4px 0 0 0' }}>
-              Your real traffic is below the 500/mo minimum for Starter tier. Keep growing — prices unlock automatically once you hit 500, same as any other tier.
-            </p>
-          </div>
-        ) : spacePrice !== null ? (
-          <div
-            style={{
-              borderTop: `1px solid ${resolvedTier.border}`,
-              paddingTop: '12px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: '8px',
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Price Cap
-              </p>
-              <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.color, margin: 0 }}>
-                RWF {spacePrice.toLocaleString()}
-              </p>
-              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                per advertiser/mo
-              </p>
-            </div>
-            <div style={{ textAlign: 'center', borderLeft: `1px solid ${resolvedTier.border}`, borderRight: `1px solid ${resolvedTier.border}` }}>
-              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                You Earn (70%)
-              </p>
-              <p style={{ fontSize: '16px', fontWeight: '800', color: '#16a34a', margin: 0 }}>
-                RWF {ownerEarns.toLocaleString()}
-              </p>
-              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                per advertiser/mo
-              </p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '11px', color: resolvedTier.textColor, margin: '0 0 2px 0', opacity: 0.7, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Yepper (30%)
-              </p>
-              <p style={{ fontSize: '16px', fontWeight: '800', color: resolvedTier.textColor, margin: 0, opacity: 0.6 }}>
-                RWF {yepperCut.toLocaleString()}
-              </p>
-              <p style={{ fontSize: '10px', color: resolvedTier.textColor, margin: '2px 0 0 0', opacity: 0.6 }}>
-                per advertiser/mo
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p style={{ fontSize: '12px', color: resolvedTier.textColor, margin: 0 }}>
-            Price not available for this space type.
-          </p>
-        )}
-      </div>
-
-      {/* Tier comparison hint */}
-      {tierKey === 'unverified' && (
-        <div style={{ border: '1px solid #e5e7eb', padding: '12px', backgroundColor: '#f9fafb', fontSize: '11px', color: '#6b7280' }}>
-          <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#374151' }}>
-            💡 Prices unlock automatically as your real traffic grows:
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-            {['starter', 'basic', 'standard', 'premium', 'elite'].map(t => {
-              const td = TRAFFIC_TIERS.find(x => x.tier === t);
-              const p = TIER_PRICES[t]?.[priceKey];
-              return (
-                <div key={t} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', backgroundColor: '#fff', border: '1px solid #e5e7eb' }}>
-                  <span style={{ fontWeight: '600', color: td.color, textTransform: 'capitalize' }}>{td.label}</span>
-                  <span style={{ color: '#374151' }}>{p ? `RWF ${p.toLocaleString()}` : '-'}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       )}
     </div>
   );

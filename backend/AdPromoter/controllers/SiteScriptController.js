@@ -406,7 +406,7 @@ exports.serveSiteScript = async (req, res) => {
         '<div class="'+sp.px+'-empty">'+
           '<p class="'+sp.px+'-empty-name">'+escHtml(sp.name)+'</p>'+
           '<p class="'+sp.px+'-empty-title">'+lang.title+'</p>'+
-          '<p class="'+sp.px+'-empty-price">'+lang.price+': $'+sp.price+'/mo</p>'+
+          '<p class="'+sp.px+'-empty-price">'+lang.price+': RWF '+sp.price+'/mo</p>'+
           '<a class="'+sp.px+'-empty-cta" href="'+_f+'/ad-owner/pages/direct-ad?websiteId='+_wid+'&categoryId='+sp.id+'" target="_blank" rel="noopener">'+lang.cta+'</a>'+
         '</div>';
       addDismissButton(host, sp.spaceType);

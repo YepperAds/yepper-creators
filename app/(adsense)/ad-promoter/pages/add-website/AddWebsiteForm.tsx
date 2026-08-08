@@ -19,6 +19,49 @@ const normaliseUrl = (raw) => {
   return `https://${v}`;
 };
 
+// ── Shared step shell: full-screen header when standalone, slim inline pill
+// when embedded ── Module scope, not defined inside AddWebsiteForm: a
+// component defined inside another component's body gets a brand-new
+// identity every render, and React treats a changed component identity as
+// "unmount the old one, mount a fresh one" — which was destroying and
+// recreating every input inside this shell (losing focus) on every single
+// keystroke, since typing a character triggers exactly the re-render that
+// redefined this function. Hoisting it out fixes every input across all
+// three steps at once, since renderStep1/2/3 all wrap their content in this.
+const StepShell = ({ step, label, onBack, embedded, children }: { step: number; label: string; onBack: () => void; embedded: boolean; children: React.ReactNode }) => {
+  if (embedded) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
+            <ArrowLeft size={16} className="mr-1.5" /> Back
+          </button>
+          <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
+        </div>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-background">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="h-16 flex items-center justify-between">
+            <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors">
+              <ArrowLeft size={18} className="mr-2" />
+              <span className="font-medium">Back</span>
+            </button>
+            <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
+          </div>
+        </div>
+      </header>
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 // ── component ─────────────────────────────────────────────────────────────────
 //
 // Extracted from the standalone /ad-promoter/pages/add-website route so the
@@ -173,46 +216,10 @@ const AddWebsiteForm = ({
   const handleBack = () => { setErrors({}); setCurrentStep(prev => prev - 1); };
   const handleStep1Back = () => { if (onCancel) onCancel(); else router.back(); };
 
-  // ── Shared step shell: full-screen header when standalone, slim inline pill when embedded ──
-
-  const StepShell = ({ step, label, onBack, children }: { step: number; label: string; onBack: () => void; children: React.ReactNode }) => {
-    if (embedded) {
-      return (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
-              <ArrowLeft size={16} className="mr-1.5" /> Back
-            </button>
-            <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
-          </div>
-          {children}
-        </div>
-      );
-    }
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-background">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="h-16 flex items-center justify-between">
-              <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors">
-                <ArrowLeft size={18} className="mr-2" />
-                <span className="font-medium">Back</span>
-              </button>
-              <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
-            </div>
-          </div>
-        </header>
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          {children}
-        </div>
-      </div>
-    );
-  };
-
   // ── STEP 1: Website details ─────────────────────────────────────────────────
 
   const renderStep1 = () => (
-    <StepShell step={1} label="Website Details" onBack={handleStep1Back}>
+    <StepShell step={1} label="Website Details" onBack={handleStep1Back} embedded={embedded}>
       <div className="max-w-2xl mx-auto">
         <div className="border border-border bg-surface-1 p-8 space-y-8">
           <div>
@@ -257,7 +264,7 @@ const AddWebsiteForm = ({
   const renderStep2 = () => {
     const isAnySelected = selectedBusinessCategories.includes('any');
     return (
-      <StepShell step={2} label="Business Categories" onBack={handleBack}>
+      <StepShell step={2} label="Business Categories" onBack={handleBack} embedded={embedded}>
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white mb-2">What kind of businesses can advertise on your site?</h1>
@@ -339,7 +346,7 @@ const AddWebsiteForm = ({
   // there's no reason that has to wait until after the site already exists.
 
   const renderStep3 = () => (
-    <StepShell step={3} label="Website Pages" onBack={handleBack}>
+    <StepShell step={3} label="Website Pages" onBack={handleBack} embedded={embedded}>
       <div className="max-w-2xl mx-auto">
         <div className="border border-border bg-surface-1 p-8 space-y-6">
           <div>

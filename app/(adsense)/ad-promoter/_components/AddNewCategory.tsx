@@ -7,15 +7,12 @@ import {
   Check,
   X,
   Monitor,
-  Smartphone,
   Sidebar as SidebarIcon,
   Layers,
-  PanelRight,
   PanelLeft,
   AlignJustify,
   PanelBottom,
   PieChart,
-  Layout,
   Maximize,
   Search,
   Play,
@@ -68,17 +65,12 @@ interface AddNewCategoryProps {
 
 import AboveTheFold      from '../img/aboveTheFold.png';
 import BeneathTitle      from '../img/beneathTitle.png';
-import Bottom            from '../img/bottom.png';
 import Floating          from '../img/floating.png';
 import HeaderPic         from '../img/header.png';
-import InFeed            from '../img/inFeed.png';
 import InlineContent     from '../img/inlineContent.png';
 import LeftRail          from '../img/leftRail.png';
-import MobileInterstial  from '../img/mobileInterstitial.png';
 import ModalPic          from '../img/modal.png';
-import Overlay           from '../img/overlay.png';
 import ProFooter         from '../img/proFooter.png';
-import RightRail         from '../img/rightRail.png';
 import Sidebar           from '../img/sidebar.png';
 import StickySidebar     from '../img/stickySidebar.png';
 import PrerollPic        from '../img/preroll.png';
@@ -176,12 +168,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       spaceType: 'Beneath Title', description: 'Ad space directly below the page title',
       category: 'content', position: 'top', image: BeneathTitle.src,
     },
-    bottom: {
-      name: 'Bottom', icon: <PanelBottom className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Bottom', description: 'Ad placement at the bottom of the webpage',
-      category: 'secondary', position: 'bottom', image: Bottom.src,
-    },
     floating: {
       name: 'Floating', icon: <Maximize className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
@@ -193,12 +179,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Header', description: 'Banner ad space in the header section of the website',
       category: 'primary', position: 'top', image: HeaderPic.src,
-    },
-    inFeed: {
-      name: 'In Feed', icon: <Layout className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'In Feed', description: 'Native ad placement within content feeds',
-      category: 'content', position: 'middle', image: InFeed.src,
     },
     inlineContent: {
       name: 'Inline Content', icon: <AlignJustify className="w-6 h-6" />,
@@ -212,35 +192,17 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       spaceType: 'Left Rail', description: 'Ad space along the left side of the webpage',
       category: 'sidebar', position: 'left', image: LeftRail.src,
     },
-    mobileInterstial: {
-      name: 'Mobile Interstitial', icon: <Smartphone className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Mobile Interstitial', description: 'Full-screen mobile ads that appear between content',
-      category: 'mobile', position: 'overlay', image: MobileInterstial.src,
-    },
     modalPic: {
       name: 'Modal', icon: <Info className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'modalPic', description: 'Pop-up ad that appears in a modal window',
       category: 'special', position: 'overlay', image: ModalPic.src,
     },
-    overlay: {
-      name: 'Overlay', icon: <Layers className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'overlay', description: 'Ad that overlays on top of page content',
-      category: 'special', position: 'overlay', image: Overlay.src,
-    },
     proFooter: {
       name: 'Pro Footer', icon: <PanelBottom className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'proFooter', description: 'Premium ad space in the footer section',
       category: 'secondary', position: 'bottom', image: ProFooter.src,
-    },
-    rightRail: {
-      name: 'Right Rail', icon: <PanelRight className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'rightRail', description: 'Ad space along the right side of the webpage',
-      category: 'sidebar', position: 'right', image: RightRail.src,
     },
     sidebar: {
       name: 'Sidebar', icon: <SidebarIcon className="w-6 h-6" />,

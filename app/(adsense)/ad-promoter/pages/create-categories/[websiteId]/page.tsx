@@ -6,20 +6,17 @@ import { getToken } from '@/app/(adsense)/utils/token';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { 
-    Info, 
-    Check, 
+    Info,
+    Check,
     X,
     ArrowLeft,
     Monitor,
-    Smartphone,
     Sidebar as SidebarIcon,
     Layers,
-    PanelRight,
     PanelLeft,
     AlignJustify,
     PanelBottom,
     PieChart,
-    Layout,
     Maximize,
     Search,
     Play,
@@ -32,17 +29,12 @@ import CategoryInfoModal from '../../../_components/CategoryInfoModal';
 
 import AboveTheFold from '../../../img/aboveTheFold.png';
 import BeneathTitle from '../../../img/beneathTitle.png';
-import Bottom from '../../../img/bottom.png';
 import Floating from '../../../img/floating.png';
 import HeaderPic from '../../../img/header.png';
-import InFeed from '../../../img/inFeed.png';
 import InlineContent from '../../../img/inlineContent.png';
 import LeftRail from '../../../img/leftRail.png';
-import MobileInterstial from '../../../img/mobileInterstitial.png';
 import ModalPic from '../../../img/modal.png';
-import Overlay from '../../../img/overlay.png';
 import ProFooter from '../../../img/proFooter.png';
-import RightRail from '../../../img/rightRail.png';
 import Sidebar from '../../../img/sidebar.png';
 import StickySidebar from '../../../img/stickySidebar.png';
 import PrerollPic from '../../../img/preroll.png';
@@ -274,17 +266,6 @@ const CategoryCreation = () => {
           image: BeneathTitle
 
       },
-      bottom: {
-          name: 'Bottom',
-          icon: <PanelBottom className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Bottom",
-          description: "Ad placement at the bottom of the webpage",
-          visualization: "/api/placeholder/300/120",
-          category: "secondary",
-          position: "bottom",
-          image: Bottom
-      },
       floating: {
           name: 'Floating',
           icon: <Maximize className="w-6 h-6" />,
@@ -306,17 +287,6 @@ const CategoryCreation = () => {
           category: "primary",
           position: "top",
           image: HeaderPic
-      },
-      inFeed: {
-          name: 'In Feed',
-          icon: <Layout className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "In Feed",
-          description: "Native ad placement within content feeds",
-          visualization: "/api/placeholder/300/120",
-          category: "content",
-          position: "middle",
-          image: InFeed
       },
       inlineContent: {
           name: 'Inline Content',
@@ -340,17 +310,6 @@ const CategoryCreation = () => {
           position: "left",
           image: LeftRail
       },
-      mobileInterstial: {
-          name: 'Mobile Interstitial',
-          icon: <Smartphone className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Mobile Interstitial",
-          description: "Full-screen mobile ads that appear between content",
-          visualization: "/api/placeholder/300/120",
-          category: "mobile",
-          position: "overlay",
-          image: MobileInterstial
-      },
       modalPic: {
           name: 'Modal',
           icon: <Info className="w-6 h-6" />,
@@ -362,17 +321,6 @@ const CategoryCreation = () => {
           position: "overlay",
           image: ModalPic
       },
-      overlay: {
-          name: 'Overlay',
-          icon: <Layers className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "overlay",
-          description: "Ad that overlays on top of page content",
-          visualization: "/api/placeholder/300/120",
-          category: "special",
-          position: "overlay",
-          image: Overlay
-      },
       proFooter: {
           name: 'Pro Footer',
           icon: <PanelBottom className="w-6 h-6" />,
@@ -383,17 +331,6 @@ const CategoryCreation = () => {
           category: "secondary",
           position: "bottom",
           image: ProFooter
-      },
-      rightRail: {
-          name: 'Right Rail',
-          icon: <PanelRight className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "rightRail",
-          description: "Ad space along the right side of the webpage",
-          visualization: "/api/placeholder/300/120",
-          category: "sidebar",
-          position: "right",
-          image: RightRail
       },
       sidebar: {
           name: 'Sidebar',

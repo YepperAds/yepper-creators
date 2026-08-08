@@ -20,21 +20,16 @@ const TRAFFIC_TIERS = [
 const FORMAT_MULTIPLIERS = {
   'header':             1.0,
   'above the fold':     1.0,
-  'bottom':             1.0,
   'pro footer':         1.0,
   'profooter':          1.0,
   'beneath title':      1.1,
-  'in feed':            1.1,
   'inline content':     1.1,
   'left rail':          1.1,
-  'rightrail':          1.1,
   'sidebar':            1.3,
   'stickysidebar':      1.3,
   'skyscraper':         1.3,
   'floating':           1.6,
   'modalpic':           1.6,
-  'overlay':            1.6,
-  'mobile interstitial':1.6,
 };
 
 function getTierFromTraffic(v) {

@@ -486,23 +486,22 @@ function shapeGrant(g) {
 // PUBLIC: POST /api/admin/grant-apply
 // ─────────────────────────────────────────────────────────────────────────────
 const TIER_PRICES = {
-  unverified: { 'Header':9000,'Above The Fold':7800,'Sticky Sidebar':6000,'Mobile Interstitial':6000,'Overlay':5400,'Floating':4800,'Modal':4200,'Left Rail':3600,'Right Rail':3600,'Sidebar':3000,'In Feed':2400,'Inline Content':2400,'Beneath Title':2100,'Pro Footer':1500,'Bottom':1200,'Pre-roll':11200,'Mid-roll':13500,'Pause':5000 },
-  starter:    { 'Header':3000,'Above The Fold':2600,'Sticky Sidebar':2000,'Mobile Interstitial':2000,'Overlay':1800,'Floating':1600,'Modal':1400,'Left Rail':1200,'Right Rail':1200,'Sidebar':1000,'In Feed':800,'Inline Content':800,'Beneath Title':700,'Pro Footer':500,'Bottom':400,'Pre-roll':3800,'Mid-roll':4500,'Pause':1700 },
-  basic:      { 'Header':15000,'Above The Fold':13000,'Sticky Sidebar':10000,'Mobile Interstitial':10000,'Overlay':9000,'Floating':8000,'Modal':7000,'Left Rail':6000,'Right Rail':6000,'Sidebar':5000,'In Feed':4000,'Inline Content':4000,'Beneath Title':3500,'Pro Footer':2500,'Bottom':2000,'Pre-roll':18800,'Mid-roll':22500,'Pause':8200 },
-  standard:   { 'Header':30000,'Above The Fold':26000,'Sticky Sidebar':20000,'Mobile Interstitial':20000,'Overlay':18000,'Floating':16000,'Modal':14000,'Left Rail':12000,'Right Rail':12000,'Sidebar':10000,'In Feed':8000,'Inline Content':8000,'Beneath Title':7000,'Pro Footer':5000,'Bottom':4000,'Pre-roll':38000,'Mid-roll':45000,'Pause':17000 },
-  premium:    { 'Header':82000,'Above The Fold':71000,'Sticky Sidebar':55000,'Mobile Interstitial':55000,'Overlay':49000,'Floating':44000,'Modal':38000,'Left Rail':33000,'Right Rail':33000,'Sidebar':27000,'In Feed':22000,'Inline Content':22000,'Beneath Title':19000,'Pro Footer':14000,'Bottom':11000,'Pre-roll':102000,'Mid-roll':123000,'Pause':45000 },
-  elite:      { 'Header':220000,'Above The Fold':190000,'Sticky Sidebar':148000,'Mobile Interstitial':148000,'Overlay':132000,'Floating':118000,'Modal':102000,'Left Rail':88000,'Right Rail':88000,'Sidebar':73000,'In Feed':59000,'Inline Content':59000,'Beneath Title':51000,'Pro Footer':37000,'Bottom':29000,'Pre-roll':275000,'Mid-roll':330000,'Pause':121000 },
+  unverified: { 'Header':9000,'Above The Fold':7800,'Sticky Sidebar':6000,'Floating':4800,'Modal':4200,'Left Rail':3600,'Sidebar':3000,'Inline Content':2400,'Beneath Title':2100,'Pro Footer':1500,'Pre-roll':11200,'Mid-roll':13500,'Pause':5000 },
+  starter:    { 'Header':3000,'Above The Fold':2600,'Sticky Sidebar':2000,'Floating':1600,'Modal':1400,'Left Rail':1200,'Sidebar':1000,'Inline Content':800,'Beneath Title':700,'Pro Footer':500,'Pre-roll':3800,'Mid-roll':4500,'Pause':1700 },
+  basic:      { 'Header':15000,'Above The Fold':13000,'Sticky Sidebar':10000,'Floating':8000,'Modal':7000,'Left Rail':6000,'Sidebar':5000,'Inline Content':4000,'Beneath Title':3500,'Pro Footer':2500,'Pre-roll':18800,'Mid-roll':22500,'Pause':8200 },
+  standard:   { 'Header':30000,'Above The Fold':26000,'Sticky Sidebar':20000,'Floating':16000,'Modal':14000,'Left Rail':12000,'Sidebar':10000,'Inline Content':8000,'Beneath Title':7000,'Pro Footer':5000,'Pre-roll':38000,'Mid-roll':45000,'Pause':17000 },
+  premium:    { 'Header':82000,'Above The Fold':71000,'Sticky Sidebar':55000,'Floating':44000,'Modal':38000,'Left Rail':33000,'Sidebar':27000,'Inline Content':22000,'Beneath Title':19000,'Pro Footer':14000,'Pre-roll':102000,'Mid-roll':123000,'Pause':45000 },
+  elite:      { 'Header':220000,'Above The Fold':190000,'Sticky Sidebar':148000,'Floating':118000,'Modal':102000,'Left Rail':88000,'Sidebar':73000,'Inline Content':59000,'Beneath Title':51000,'Pro Footer':37000,'Pre-roll':275000,'Mid-roll':330000,'Pause':121000 },
 };
 const SPACE_TYPE_MAP = {
   'Header':'Header','Above The Fold':'Above The Fold','Sticky Sidebar':'Sticky Sidebar',
-  'stickySidebar':'Sticky Sidebar','Mobile Interstitial':'Mobile Interstitial',
-  'mobileInterstial':'Mobile Interstitial','Overlay':'Overlay','overlay':'Overlay',
+  'stickySidebar':'Sticky Sidebar',
   'Floating':'Floating','floating':'Floating','Modal':'Modal','modalPic':'Modal',
-  'Left Rail':'Left Rail','leftRail':'Left Rail','Right Rail':'Right Rail','rightRail':'Right Rail',
-  'Sidebar':'Sidebar','sidebar':'Sidebar','In Feed':'In Feed','inFeed':'In Feed',
+  'Left Rail':'Left Rail','leftRail':'Left Rail',
+  'Sidebar':'Sidebar','sidebar':'Sidebar',
   'Inline Content':'Inline Content','inlineContent':'Inline Content',
   'Beneath Title':'Beneath Title','beneathTitle':'Beneath Title',
-  'Pro Footer':'Pro Footer','proFooter':'Pro Footer','Bottom':'Bottom','bottom':'Bottom',
+  'Pro Footer':'Pro Footer','proFooter':'Pro Footer',
   'Pre-roll':'Pre-roll','preroll':'Pre-roll','Preroll':'Pre-roll','pre-roll':'Pre-roll',
   'Mid-roll':'Mid-roll','midroll':'Mid-roll','Midroll':'Mid-roll','mid-roll':'Mid-roll',
   'Pause':'Pause','pause':'Pause',

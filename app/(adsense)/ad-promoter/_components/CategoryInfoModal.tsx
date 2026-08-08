@@ -6,17 +6,12 @@ import { X } from 'lucide-react';
 
 import AboveTheFoldContainer from '../_descriptions/aboveTheFold';
 import BeneathTitleContainer from '../_descriptions/beneathTitle';
-import BottomContainer from '../_descriptions/bottom';
 import FloatingContainer from '../_descriptions/floating';
 import HeaderPicContainer from '../_descriptions/header';
-import InFeedContainer from '../_descriptions/inFeed';
 import InlineContentContainer from '../_descriptions/inlineContent';
 import LeftRailContainer from '../_descriptions/leftRail';
-import MobileInterstialContainer from '../_descriptions/mobileInterstial';
 import ModalPicContainer from '../_descriptions/modal';
-import OverlayContainer from '../_descriptions/overlay';
 import ProFooterContainer from '../_descriptions/proFooter';
-import RightRailContainer from '../_descriptions/rightRail';
 import SidebarContainer from '../_descriptions/sidebar';
 import StickySidebarContainer from '../_descriptions/stickySidebar';
 import PrerollContainer from '../_descriptions/preroll';
@@ -29,19 +24,13 @@ const CategoryInfoModal = ({  isOpen, onClose, category  }: any) => {
     const CategoryComponents = {
         'aboveTheFold': AboveTheFoldContainer,
         'beneathTitle': BeneathTitleContainer,
-        'bottom': BottomContainer,
         'floating': FloatingContainer,
         'HeaderPic': HeaderPicContainer,
         'headerPic': HeaderPicContainer, // Add alternative case
-        'inFeed': InFeedContainer,
-        'infeed': InFeedContainer, // Add alternative case
         'inlineContent': InlineContentContainer,
         'leftRail': LeftRailContainer,
-        'mobileInterstial': MobileInterstialContainer,
         'modalPic': ModalPicContainer,
-        'overlay': OverlayContainer,
         'proFooter': ProFooterContainer,
-        'rightRail': RightRailContainer,
         'sidebar': SidebarContainer,
         'stickySidebar': StickySidebarContainer,
         'preroll': PrerollContainer,

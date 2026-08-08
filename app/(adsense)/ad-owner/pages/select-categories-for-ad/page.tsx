@@ -17,17 +17,12 @@ import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 // Import ad space images
 import AboveTheFold from '../../../ad-promoter/img/aboveTheFold.png';
 import BeneathTitle from '../../../ad-promoter/img/beneathTitle.png';
-import Bottom from '../../../ad-promoter/img/bottom.png';
 import Floating from '../../../ad-promoter/img/floating.png';
 import HeaderPic from '../../../ad-promoter/img/header.png';
-import InFeed from '../../../ad-promoter/img/inFeed.png';
 import InlineContent from '../../../ad-promoter/img/inlineContent.png';
 import LeftRail from '../../../ad-promoter/img/leftRail.png';
-import MobileInterstial from '../../../ad-promoter/img/mobileInterstitial.png';
 import ModalPic from '../../../ad-promoter/img/modal.png';
-import Overlay from '../../../ad-promoter/img/overlay.png';
 import ProFooter from '../../../ad-promoter/img/proFooter.png';
-import RightRail from '../../../ad-promoter/img/rightRail.png';
 import Sidebar from '../../../ad-promoter/img/sidebar.png';
 import StickySidebar from '../../../ad-promoter/img/stickySidebar.png';
 import api from '@/app/_lib/adsense-api';
@@ -68,17 +63,12 @@ const SelectCategoriesForExistingAd = () => {
     const imageMap = {
       'abovethefold': AboveTheFold,
       'beneathtitle': BeneathTitle,
-      'bottom': Bottom,
       'floating': Floating,
       'header': HeaderPic,
-      'infeed': InFeed,
       'inlinecontent': InlineContent,
       'leftrail': LeftRail,
-      'mobileinterstitial': MobileInterstial,
       'modal': ModalPic,
-      'overlay': Overlay,
       'profooter': ProFooter,
-      'rightrail': RightRail,
       'sidebar': Sidebar,
       'stickysidebar': StickySidebar
     };

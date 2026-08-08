@@ -18,18 +18,13 @@ const AD_SPACE_DIMENSIONS = {
   'Header':               { width: 728, height: 90 },
   'Above The Fold':       { width: 728, height: 90 },
   'Beneath Title':        { width: 728, height: 90 },
-  'In Feed':              { width: 728, height: 90 },
-  'Bottom':               { width: 728, height: 90 },
   'Pro Footer':           { width: 728, height: 90 },
   'Sidebar':              { width: 300, height: 250 },
   'Sticky Sidebar':       { width: 300, height: 250 },
   'Inline Content':       { width: 300, height: 250 },
   'Floating':             { width: 300, height: 250 },
   'Left Rail':            { width: 160, height: 600 },
-  'Right Rail':           { width: 160, height: 600 },
   'Modal':                { width: 600, height: 400 },
-  'Overlay':              { width: 600, height: 400 },
-  'Mobile Interstitial':  { width: 320, height: 480 },
   'Pre-roll':             { width: 1280, height: 720 },
   'Mid-roll':             { width: 1280, height: 720 },
   'Pause':                { width: 1280, height: 720 },
@@ -43,7 +38,6 @@ const BANNER = AD_SPACE_DIMENSIONS['Header'];       // 728x90
 const RECT   = AD_SPACE_DIMENSIONS['Sidebar'];       // 300x250
 const RAIL   = AD_SPACE_DIMENSIONS['Left Rail'];     // 160x600
 const MODAL  = AD_SPACE_DIMENSIONS['Modal'];         // 600x400
-const MOBILE = AD_SPACE_DIMENSIONS['Mobile Interstitial']; // 320x480
 
 // CSS per canonical spaceType, keyed with a {{PX}} placeholder instead of an
 // interpolated prefix — used by both scripts (see comment above).
@@ -53,8 +47,6 @@ const PLACEMENT_CSS_TEMPLATES = {
   'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto;overflow:hidden;}`,
   'above the fold':  `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 16px;overflow:hidden;}`,
   'beneath title':   `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:12px auto 20px;overflow:hidden;}`,
-  'in feed':         `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:16px auto;border-radius:12px;overflow:hidden;}`,
-  'bottom':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;overflow:hidden;}`,
   'pro footer':      `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;overflow:hidden;}`,
 
   'inline content':  `.{{PX}}-host{float:right;width:${RECT.width}px;height:${RECT.height}px;margin:0 0 12px 20px;overflow:hidden;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;height:auto;max-height:${RECT.height}px;margin:12px 0;}}`,
@@ -63,12 +55,8 @@ const PLACEMENT_CSS_TEMPLATES = {
   'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${RECT.width}px;height:${RECT.height}px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
 
   'left rail':       `.{{PX}}-host{width:${RAIL.width}px;min-height:${RAIL.height}px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;min-height:0;position:static;}}`,
-  'right rail':      `.{{PX}}-host{width:${RAIL.width}px;min-height:${RAIL.height}px;position:sticky;top:80px;margin-left:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;min-height:0;position:static;}}`,
 
-  'overlay':         `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);}.{{PX}}-host>*{max-width:${MODAL.width}px;max-height:${MODAL.height}px;}`,
   'modal':           `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}.{{PX}}-host>*{max-width:${MODAL.width}px;max-height:${MODAL.height}px;}`,
-
-  'mobile interstitial': `.{{PX}}-host{position:fixed;bottom:0;left:0;right:0;z-index:9999;width:100%;max-height:${MOBILE.height}px;}@media(min-width:769px){.{{PX}}-host{display:none;}}`,
 
   'pre-roll':        `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,
   'mid-roll':         `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,

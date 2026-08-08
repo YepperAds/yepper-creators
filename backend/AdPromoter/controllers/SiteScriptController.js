@@ -353,10 +353,11 @@ exports.serveSiteScript = async (req, res) => {
        its ancestor chain to resolve against — position:absolute content is
        removed from normal flow, so it can't establish that height itself
        the way the old flex+fixed-px-image layout used to. This div sits
-       directly inside the shadow root, i.e. directly inside `host` for
-       layout purposes, so height:100% here correctly picks up host's own
-       real height (the fixed px value set in placementCSS/adSpaceLayout.js)
-       and hands it down through .px-wrap/.px-ad/.px-inner below. */
+       directly inside the shadow root, i.e. directly inside the host
+       element for layout purposes, so height:100% here correctly picks up
+       the host's own real height (the fixed px value set in
+       placementCSS/adSpaceLayout.js) and hands it down through
+       .px-wrap/.px-ad/.px-inner below. */
     host._ysContent.style.cssText='display:block;height:100%;';
     host._ysRoot.appendChild(host._ysContent);
 

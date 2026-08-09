@@ -10,6 +10,9 @@ import {
   PlusCircleIcon,
   XMarkIcon,
   TrashIcon,
+  PencilIcon,
+  CheckIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import WebsiteDetails from '@/app/(adsense)/ad-promoter/pages/website/[websiteId]/page';
 import PanelHeader from '@/app/_components/dashboard/PanelHeader';
@@ -54,6 +57,94 @@ export default function WebsitesList({
   const markLogoBroken = (id: string | number) =>
     setBrokenLogoIds((prev) => new Set(prev).add(String(id)));
 
+  // Website IDs with at least one currently-active (approved, not rejected,
+  // status:'active') paid ad on any of their ad spaces — the domain edit is
+  // locked for these, since changing it would immediately break that ad's
+  // placement (SiteScriptController's referer check compares against the
+  // new domain right away).
+  const [activeAdWebsiteIds, setActiveAdWebsiteIds] = useState<Set<string>>(new Set());
+
+  const fetchActiveAdWebsiteIds = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/proxy/api/ad-categories/active-ads', { credentials: 'include', cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      const activeAds: Array<{ websiteSelections?: Array<{ websiteId: string; approved?: boolean; isRejected?: boolean; status?: string }> }> =
+        json?.activeAds ?? [];
+      const ids = new Set<string>();
+      activeAds.forEach((ad) => {
+        (ad.websiteSelections ?? []).forEach((s) => {
+          if (s.approved && !s.isRejected && s.status === 'active') ids.add(String(s.websiteId));
+        });
+      });
+      setActiveAdWebsiteIds(ids);
+    } catch {
+      // Non-critical: worst case the domain edit stays available a beat
+      // longer than it should, the backend still enforces the real check.
+    }
+  }, []);
+
+  // ── Inline edit: website name (always allowed) ──────────────────────────
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [nameDraft,     setNameDraft]     = useState('');
+  const [nameSaving,    setNameSaving]    = useState(false);
+
+  const startEditName = (site: Website) => {
+    setEditingNameId(String(site.id));
+    setNameDraft(site.websiteName);
+  };
+  const saveName = async (site: Website) => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === site.websiteName) { setEditingNameId(null); return; }
+    setNameSaving(true);
+    try {
+      const res  = await fetch(`/api/proxy/api/websites/${site.id}/name`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ websiteName: trimmed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json?.message ?? 'Failed to update website name.'); return; }
+      setWebsites((prev) => prev.map((w) => (w.id === site.id ? { ...w, websiteName: trimmed } : w)));
+      setEditingNameId(null);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
+  // ── Inline edit: website domain (blocked while ads are active) ──────────
+  const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+  const [domainDraft,     setDomainDraft]     = useState('');
+  const [domainSaving,    setDomainSaving]    = useState(false);
+
+  const startEditDomain = (site: Website) => {
+    setEditingDomainId(String(site.id));
+    setDomainDraft(site.websiteLink);
+  };
+  const saveDomain = async (site: Website) => {
+    const trimmed = domainDraft.trim();
+    if (!trimmed || trimmed === site.websiteLink) { setEditingDomainId(null); return; }
+    setDomainSaving(true);
+    try {
+      const res  = await fetch(`/api/proxy/api/websites/${site.id}/domain`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ websiteLink: trimmed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json?.message ?? 'Failed to update website domain.'); return; }
+      setWebsites((prev) => prev.map((w) => (w.id === site.id ? { ...w, websiteLink: trimmed } : w)));
+      setEditingDomainId(null);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setDomainSaving(false);
+    }
+  };
+
   const fetchWebsites = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -78,7 +169,7 @@ export default function WebsitesList({
     }
   }, []);
 
-  useEffect(() => { fetchWebsites(); }, [fetchWebsites]);
+  useEffect(() => { fetchWebsites(); fetchActiveAdWebsiteIds(); }, [fetchWebsites, fetchActiveAdWebsiteIds]);
 
   // Mirrors expand/collapse into the URL (?websiteId=) so RightRail can
   // read it and hide itself while a site's details are open: those tabs
@@ -265,8 +356,69 @@ export default function WebsitesList({
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[color:var(--color-white)] truncate">{site.websiteName}</p>
-                      <p className="text-xs text-[color:var(--color-muted)] mt-0.5 truncate">{site.websiteLink}</p>
+                      {editingNameId === String(site.id) ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            autoFocus
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveName(site); if (e.key === 'Escape') setEditingNameId(null); }}
+                            className="min-w-0 flex-1 bg-[color:var(--color-surface-2)] border border-[color:var(--color-border)] rounded-lg px-2 py-1 text-sm font-bold text-[color:var(--color-white)] outline-none focus:border-white/30"
+                          />
+                          <button onClick={() => saveName(site)} disabled={nameSaving} title="Save" className="shrink-0 p-1 rounded-md hover:bg-[color:var(--color-surface-2)] text-emerald-400 disabled:opacity-40">
+                            <CheckIcon className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setEditingNameId(null)} title="Cancel" className="shrink-0 p-1 rounded-md hover:bg-[color:var(--color-surface-2)] text-[color:var(--color-muted)]">
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group">
+                          <p className="text-sm font-bold text-[color:var(--color-white)] truncate">{site.websiteName}</p>
+                          <button
+                            onClick={() => startEditName(site)}
+                            title="Edit name"
+                            className="shrink-0 p-0.5 rounded text-[color:var(--color-muted)] hover:text-[color:var(--color-white)] opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <PencilIcon className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+
+                      {editingDomainId === String(site.id) ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            autoFocus
+                            value={domainDraft}
+                            onChange={(e) => setDomainDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveDomain(site); if (e.key === 'Escape') setEditingDomainId(null); }}
+                            className="min-w-0 flex-1 bg-[color:var(--color-surface-2)] border border-[color:var(--color-border)] rounded-lg px-2 py-1 text-xs text-[color:var(--color-white)] outline-none focus:border-white/30"
+                          />
+                          <button onClick={() => saveDomain(site)} disabled={domainSaving} title="Save" className="shrink-0 p-1 rounded-md hover:bg-[color:var(--color-surface-2)] text-emerald-400 disabled:opacity-40">
+                            <CheckIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setEditingDomainId(null)} title="Cancel" className="shrink-0 p-1 rounded-md hover:bg-[color:var(--color-surface-2)] text-[color:var(--color-muted)]">
+                            <XMarkIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group mt-0.5">
+                          <p className="text-xs text-[color:var(--color-muted)] truncate">{site.websiteLink}</p>
+                          {activeAdWebsiteIds.has(String(site.id)) ? (
+                            <span title="Domain locked — this site has active ads running" className="shrink-0 text-[color:var(--color-muted)]">
+                              <LockClosedIcon className="w-3 h-3" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => startEditDomain(site)}
+                              title="Edit domain"
+                              className="shrink-0 p-0.5 rounded text-[color:var(--color-muted)] hover:text-[color:var(--color-white)] opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <PencilIcon className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

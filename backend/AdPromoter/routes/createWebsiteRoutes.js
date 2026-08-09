@@ -15,7 +15,8 @@ router.post('/verify-domain', websiteController.verifyDomain);
 router.post('/upload/:websiteId', websiteController.uploadWebsiteImage);
 router.post('/createWebsiteWithCategories', websiteController.createWebsiteWithCategories);
 
-router.patch('/:websiteId/name', websiteController.updateWebsiteName);
+router.patch('/:websiteId/name', authMiddleware, websiteController.updateWebsiteName);
+router.patch('/:websiteId/domain', authMiddleware, websiteController.updateWebsiteDomain);
 router.patch('/:websiteId/pages', authMiddleware, websiteController.updateWebsitePages);
 router.delete('/:websiteId', authMiddleware, websiteController.deleteWebsite);
 router.get('/', websiteController.getAllWebsites);

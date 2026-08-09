@@ -12,6 +12,8 @@ const crypto = require('crypto');
 const { resolveImageUrl } = require('../../utils/resolveImageUrl');
 const { generateSiteScript } = require('./SiteScriptController');
 const { ensureLogo } = require('../utils/logoDetect');
+const AdCategory = require('../models/CreateCategoryModel');
+const ImportAd = require('../../AdOwner/models/WebAdvertiseModel');
 require('dotenv').config();
 
 // NOTE: deliberately whitelisted — `websites` rows also hold verification_token,
@@ -355,15 +357,66 @@ exports.updateWebsiteName = async (req, res) => {
   try {
     const { websiteId } = req.params;
     const { websiteName } = req.body;
+    const userId = req.user?.id?.toString();
     if (!websiteId || !websiteName) return res.status(400).json({ message: 'Missing required fields' });
 
-    const updatedWebsite = await Website.update(websiteId, { websiteName });
-    if (!updatedWebsite) return res.status(404).json({ message: 'Website not found' });
+    const website = await Website.findById(websiteId);
+    if (!website) return res.status(404).json({ message: 'Website not found' });
+    if (website.owner_id?.toString() !== userId) return res.status(403).json({ message: 'Unauthorized' });
 
-    res.status(200).json(updatedWebsite);
+    const updatedWebsite = await Website.update(websiteId, { websiteName: websiteName.trim() });
+    res.status(200).json(toClient(updatedWebsite));
   } catch (error) {
     console.error('Error updating website name:', error);
     res.status(500).json({ message: 'Failed to update website name', error: error.message });
+  }
+};
+
+// PATCH /api/createWebsite/:websiteId/domain
+// Only allowed while the website has zero currently-active ads: changing the
+// domain immediately changes what SiteScriptController's referer check
+// accepts, so swapping it out from under a live placement would silently
+// stop that ad from rendering. A site with no active ads has nothing to
+// break, so it's a plain field update — same as the name.
+exports.updateWebsiteDomain = async (req, res) => {
+  try {
+    const { websiteId } = req.params;
+    const { websiteLink } = req.body;
+    const userId = req.user?.id?.toString();
+    if (!websiteId || !websiteLink) return res.status(400).json({ message: 'Missing required fields' });
+
+    const domain = normalizeDomain(websiteLink);
+    if (!domain) return res.status(400).json({ message: 'Invalid website URL' });
+
+    const website = await Website.findById(websiteId);
+    if (!website) return res.status(404).json({ message: 'Website not found' });
+    if (website.owner_id?.toString() !== userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    const existing = await Website.findByLink(websiteLink);
+    if (existing && existing.id.toString() !== website.id.toString()) {
+      return res.status(409).json({ message: 'That domain is already connected to another website' });
+    }
+
+    const categories = await AdCategory.findByWebsite(websiteId);
+    const categoryIds = categories.map((c) => c.id);
+    const activeAds = categoryIds.length ? await ImportAd.findActiveByCategories(categoryIds) : [];
+    if (activeAds.length > 0) {
+      return res.status(409).json({
+        message: 'This website has active ads running right now — the domain can\'t be changed until they end (it would break their placement).',
+      });
+    }
+
+    // The old TXT verification, if any, proved ownership of the old domain,
+    // not this one — reset to pending so the site doesn't keep showing as
+    // verified for a domain it never actually proved.
+    const updatedWebsite = await Website.update(websiteId, {
+      websiteLink,
+      verificationStatus: 'pending',
+    });
+    res.status(200).json(toClient(updatedWebsite));
+  } catch (error) {
+    console.error('Error updating website domain:', error);
+    res.status(500).json({ message: 'Failed to update website domain', error: error.message });
   }
 };
 

@@ -287,16 +287,29 @@ exports.serveAdScript = async (req, res) => {
     host.className=_px+'-host '+_wa;
     host.setAttribute('data-yid',_i);
 
-    /* An explicit placeholder div always wins, for any spaceType. */
+    var sp=_sp.toLowerCase();
+    /* _AUTO (Floating/ModalPic) render via position:fixed, meant to pin to
+       the viewport regardless of where the placeholder div sits in the
+       page — but position:fixed actually resolves against the nearest
+       ancestor with a transform/filter/perspective/contain/will-change
+       property instead of the viewport when one exists, and it's common
+       for a placeholder div to end up inside exactly that kind of styled
+       section (a hero banner, an animated card, etc). So these always
+       mount straight on <body>, even when an explicit placeholder div
+       exists — the placeholder is still required for
+       page-targeting/verification elsewhere, it just isn't host's parent
+       for these types. */
+    var pinsToViewport=_AUTO.indexOf(sp)!==-1;
+
     var ph=D.querySelector('[data-yepper-space="'+_i+'"]')||
            D.querySelector('[data-yepper-ad="'+_i+'"]');
-    if(ph){ph.appendChild(host);return host;}
+    if(ph&&!pinsToViewport){ph.appendChild(host);return host;}
 
-    /* No placeholder: only Floating/Modal auto-place. Everything else ships
-       as a precise-placement iframe — bail instead of guessing a spot, so
-       this script doesn't render a duplicate next to that iframe. */
-    var sp=_sp.toLowerCase();
-    if(_AUTO.indexOf(sp)===-1)return null;
+    /* No placeholder (or a pinned type): only Floating/Modal auto-place.
+       Everything else ships as a precise-placement iframe — bail instead of
+       guessing a spot, so this script doesn't render a duplicate next to
+       that iframe. */
+    if(!pinsToViewport)return null;
 
     if(sp==='floating'){
       host.style.transformOrigin='bottom right';

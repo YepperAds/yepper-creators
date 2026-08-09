@@ -333,7 +333,10 @@ exports.serveSiteScript = async (req, res) => {
     host.className=sp.px+'-host '+sp.wrap;
     host.setAttribute('data-yid',sp.id);
 
-    if(sp.spaceType.toLowerCase()==='floating'){
+    var stLower=sp.spaceType.toLowerCase();
+    var pinsToViewport=(stLower==='floating'||stLower==='modal'||stLower==='modalpic'||stLower==='overlay');
+
+    if(stLower==='floating'){
       host.style.transformOrigin='bottom right';
       host.classList.add('yw-genie-pre');
     }
@@ -361,7 +364,22 @@ exports.serveSiteScript = async (req, res) => {
     host._ysContent.style.cssText='display:block;height:100%;';
     host._ysRoot.appendChild(host._ysContent);
 
-    ph.appendChild(host);
+    /* Floating/Modal/Overlay render via position:fixed so they should pin to
+       the viewport no matter where in the page the placeholder div sits —
+       but position:fixed actually resolves against the nearest ancestor
+       that has a transform/filter/perspective/contain/will-change property
+       instead of the viewport, and it's common for a publisher to have
+       pasted the placeholder div inside exactly that kind of styled section
+       (a hero banner, an animated card, etc). Mounting straight on <body>
+       sidesteps that whole class of bug. ph is left in place, empty and
+       untouched otherwise — it's still what getHost/reportPageMismatch use
+       to confirm the space's div exists on this page, it just isn't host's
+       parent anymore for these types. */
+    if(pinsToViewport){
+      D.body.appendChild(host);
+    } else {
+      ph.appendChild(host);
+    }
     return host;
   }
 

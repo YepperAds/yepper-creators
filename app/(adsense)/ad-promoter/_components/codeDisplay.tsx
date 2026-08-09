@@ -7,7 +7,7 @@ import {
   Trash2, X, ChevronDown, Mail, Files, Link2,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
-import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
+import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 
 // Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
@@ -234,94 +234,107 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     <Plus className="w-3 h-3" /> Add Space
                   </button>
                 </div>
-                <div className="flex flex-col gap-4 p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
                   {categories.map((cat: any, idx: any) => {
                     const st = (cat.spaceType || '').toLowerCase();
                     const positionsSelf = st === 'floating' || st === 'modalpic';
                     const thumb = getAdSpaceImage(cat.spaceType, cat.categoryName);
+                    const description = cat.description || getAdSpaceDescription(cat.spaceType, cat.categoryName);
                     const isConnected = connectedIds.has(cat._id);
                     return (
-                      <div key={cat._id} className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden">
-                      {/* Big preview image up top, everything else below it */}
+                      <div key={cat._id} className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden flex flex-col">
+                      {/* Big framed preview image up top, everything else below it */}
                       {thumb && (
-                        <img
-                          src={thumb}
-                          alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                          className="w-full h-56 object-cover border-b border-zinc-800"
-                        />
+                        <div className="p-3 pb-0">
+                          <img
+                            src={thumb}
+                            alt={`${cat.categoryName || cat.spaceType} placement preview`}
+                            className="w-full h-48 object-cover rounded-xl border border-zinc-800"
+                          />
+                        </div>
                       )}
-                      <div className="p-4">
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
-                          <span className="text-sm font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
-                          <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
-                          <select
-                            value={cat.targetPath || ''}
-                            onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
-                            disabled={togglingId === cat._id}
-                            title="Which page this ad shows on"
-                            className={`text-xs pl-1.5 pr-1 py-0.5 rounded border bg-zinc-950 disabled:opacity-50 ${
-                              isPageScoped(cat)
-                                ? 'text-purple-400 border-purple-800'
-                                : 'text-blue-400 border-blue-800'
-                            }`}
-                          >
-                            <option value="">All Pages (every page)</option>
-                            {websitePages.map((p: any) => (
-                              <option key={p.path} value={p.path}>{p.label}</option>
-                            ))}
-                            {cat.targetPath && !websitePages.some((p: any) => p.path === cat.targetPath) && (
-                              <option value={cat.targetPath}>{cat.targetPath}</option>
-                            )}
-                          </select>
-                        </div>
-                        <div className="flex items-center gap-3 mb-3 text-xs text-zinc-600">
-                          <span className="text-zinc-400">Price: RWF {Number(cat.price || 0).toLocaleString()}/mo</span>
-                          <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
-                          <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => toggleConnect(cat._id)}
-                            title="Show the code snippet that places this ad space on your site"
-                            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
-                              isConnected
-                                ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
-                                : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
-                            }`}
-                          >
-                            <Link2 className="w-3 h-3" />
-                            <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
-                          </button>
-                          <button
-                            onClick={() => startDuplicate(cat)}
-                            title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
-                          >
-                            <Files className="w-3 h-3" />
-                            <span>Duplicate</span>
-                          </button>
-                          {onSendInvite && (
-                            <button
-                              onClick={() => onSendInvite(cat)}
-                              title="Email someone a link to advertise on this space"
-                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
-                            >
-                              <Mail className="w-3 h-3" />
-                              <span>Invite</span>
-                            </button>
-                          )}
-                          {onDeleteCategory && (
-                            <button
-                              onClick={() => onDeleteCategory(cat)}
-                              title="Delete ad space"
-                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Delete</span>
-                            </button>
+
+                      {/* Name / description / price, matching the booking gallery's look */}
+                      <div className="px-4 pt-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-white truncate">{cat.categoryName || cat.spaceType}</p>
+                          {description && (
+                            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{description}</p>
                           )}
                         </div>
+                        <span className="text-orange-500 font-bold text-sm whitespace-nowrap shrink-0">
+                          RWF {Number(cat.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      {/* Meta: index, space type, page targeting */}
+                      <div className="px-4 pt-3 flex items-center gap-2 flex-wrap">
+                        <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
+                        <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
+                        <select
+                          value={cat.targetPath || ''}
+                          onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
+                          disabled={togglingId === cat._id}
+                          title="Which page this ad shows on"
+                          className={`text-xs pl-1.5 pr-1 py-0.5 rounded border bg-zinc-950 disabled:opacity-50 ${
+                            isPageScoped(cat)
+                              ? 'text-purple-400 border-purple-800'
+                              : 'text-blue-400 border-blue-800'
+                          }`}
+                        >
+                          <option value="">All Pages (every page)</option>
+                          {websitePages.map((p: any) => (
+                            <option key={p.path} value={p.path}>{p.label}</option>
+                          ))}
+                          {cat.targetPath && !websitePages.some((p: any) => p.path === cat.targetPath) && (
+                            <option value={cat.targetPath}>{cat.targetPath}</option>
+                          )}
+                        </select>
+                        <span className="text-xs text-zinc-600">{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
+                        <span className="text-xs text-zinc-600 capitalize">{cat.defaultLanguage || 'English'}</span>
+                      </div>
+
+                      <div className="p-4 pt-3 flex flex-wrap gap-2 mt-auto">
+                        <button
+                          onClick={() => toggleConnect(cat._id)}
+                          title="Show the code snippet that places this ad space on your site"
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
+                            isConnected
+                              ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
+                              : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
+                          }`}
+                        >
+                          <Link2 className="w-3 h-3" />
+                          <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
+                        </button>
+                        <button
+                          onClick={() => startDuplicate(cat)}
+                          title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
+                        >
+                          <Files className="w-3 h-3" />
+                          <span>Duplicate</span>
+                        </button>
+                        {onSendInvite && (
+                          <button
+                            onClick={() => onSendInvite(cat)}
+                            title="Email someone a link to advertise on this space"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
+                          >
+                            <Mail className="w-3 h-3" />
+                            <span>Invite</span>
+                          </button>
+                        )}
+                        {onDeleteCategory && (
+                          <button
+                            onClick={() => onDeleteCategory(cat)}
+                            title="Delete ad space"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        )}
                       </div>
                       {duplicatingId === cat._id && (
                         <div className="px-4 pb-4 -mt-1 flex items-start gap-2">

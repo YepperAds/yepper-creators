@@ -299,7 +299,7 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
       .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
-      .\${sp.px}-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;}
+      .\${sp.px}-empty{display:flex;flex-wrap:wrap;align-content:center;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
       .\${sp.px}-empty-name{flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:0;}
       .\${sp.px}-empty-title{font-size:14px;font-weight:600;margin:0;}
       .\${sp.px}-empty-price{font-size:12px;color:#555;margin:0;}

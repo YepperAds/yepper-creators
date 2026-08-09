@@ -267,11 +267,12 @@ exports.serveAdScript = async (req, res) => {
       .\${_px}-ad:hover .\${_px}-img{transform:scale(1.03);}
       .\${_px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
-      .\${_px}-empty{display:flex;flex-wrap:wrap;align-content:center;align-items:center;justify-content:center;gap:12px 20px;padding:14px 20px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
-      .\${_px}-empty-name{flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:0;}
-      .\${_px}-empty-title{font-size:14px;font-weight:600;margin:0;}
-      .\${_px}-empty-price{font-size:12px;color:#555;margin:0;}
-      .\${_px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;}
+      .\${_px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
+      .\${_px}-empty-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#ea580c;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+      .\${_px}-empty-name{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:2px 0 0;}
+      .\${_px}-empty-title{font-size:16px;font-weight:700;margin:2px 0 0;max-width:230px;line-height:1.35;color:#111;}
+      .\${_px}-empty-price{font-size:12px;color:#666;margin:0;}
+      .\${_px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;transition:background 0.2s;}
       .\${_px}-empty-cta:hover{background:#e84118;}
     \`;
   }
@@ -349,6 +350,7 @@ exports.serveAdScript = async (req, res) => {
     var lang=getLang();
     host.innerHTML=
       '<div class="'+_px+'-empty">'+
+        '<span class="'+_px+'-empty-badge">Ad</span>'+
         '<p class="'+_px+'-empty-name">'+escHtml(_name)+'</p>'+
         '<p class="'+_px+'-empty-title">'+lang.title+'</p>'+
         '<p class="'+_px+'-empty-price">'+lang.price+': RWF'+_p+'/month</p>'+

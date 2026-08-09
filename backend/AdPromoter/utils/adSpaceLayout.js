@@ -24,7 +24,7 @@ const AD_SPACE_DIMENSIONS = {
   'Inline Content':       { width: 300, height: 250 },
   // Vertical rectangle, close to square, sized up from the old 300x250 —
   // deliberately bigger and taller-than-wide instead of a wide banner shape.
-  'Floating':             { width: 340, height: 400 },
+  'Floating':             { width: 340, height: 360 },
   'Left Rail':            { width: 160, height: 600 },
   // Big enough to feel like the featured moment on the page without going
   // fullscreen (see placementCSS's viewport-relative cap below) — same 3:2

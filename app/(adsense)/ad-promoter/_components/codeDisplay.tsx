@@ -234,96 +234,97 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     <Plus className="w-3 h-3" /> Add Space
                   </button>
                 </div>
-                <div className="divide-y divide-zinc-800">
+                <div className="flex flex-col gap-4 p-4">
                   {categories.map((cat: any, idx: any) => {
                     const st = (cat.spaceType || '').toLowerCase();
                     const positionsSelf = st === 'floating' || st === 'modalpic';
                     const thumb = getAdSpaceImage(cat.spaceType, cat.categoryName);
                     const isConnected = connectedIds.has(cat._id);
                     return (
-                      <div key={cat._id}>
-                      <div className="px-5 py-3 flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
-                        {thumb && (
-                          <img
-                            src={thumb}
-                            alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                            className="w-16 h-11 rounded-md object-cover border border-zinc-700 shrink-0"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
-                            <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
-                            <select
-                              value={cat.targetPath || ''}
-                              onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
-                              disabled={togglingId === cat._id}
-                              title="Which page this ad shows on"
-                              className={`text-xs pl-1.5 pr-1 py-0.5 rounded border bg-zinc-950 disabled:opacity-50 ${
-                                isPageScoped(cat)
-                                  ? 'text-purple-400 border-purple-800'
-                                  : 'text-blue-400 border-blue-800'
-                              }`}
-                            >
-                              <option value="">All Pages (every page)</option>
-                              {websitePages.map((p: any) => (
-                                <option key={p.path} value={p.path}>{p.label}</option>
-                              ))}
-                              {cat.targetPath && !websitePages.some((p: any) => p.path === cat.targetPath) && (
-                                <option value={cat.targetPath}>{cat.targetPath}</option>
-                              )}
-                            </select>
-                          </div>
-                          <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-600">
-                            <span className="text-zinc-400">Price: RWF {Number(cat.price || 0).toLocaleString()}/mo</span>
-                            <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
-                            <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
-                          </div>
+                      <div key={cat._id} className="rounded-xl border border-zinc-800 bg-zinc-950/40 overflow-hidden">
+                      {/* Big preview image up top, everything else below it */}
+                      {thumb && (
+                        <img
+                          src={thumb}
+                          alt={`${cat.categoryName || cat.spaceType} placement preview`}
+                          className="w-full h-56 object-cover border-b border-zinc-800"
+                        />
+                      )}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
+                          <span className="text-sm font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
+                          <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
+                          <select
+                            value={cat.targetPath || ''}
+                            onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
+                            disabled={togglingId === cat._id}
+                            title="Which page this ad shows on"
+                            className={`text-xs pl-1.5 pr-1 py-0.5 rounded border bg-zinc-950 disabled:opacity-50 ${
+                              isPageScoped(cat)
+                                ? 'text-purple-400 border-purple-800'
+                                : 'text-blue-400 border-blue-800'
+                            }`}
+                          >
+                            <option value="">All Pages (every page)</option>
+                            {websitePages.map((p: any) => (
+                              <option key={p.path} value={p.path}>{p.label}</option>
+                            ))}
+                            {cat.targetPath && !websitePages.some((p: any) => p.path === cat.targetPath) && (
+                              <option value={cat.targetPath}>{cat.targetPath}</option>
+                            )}
+                          </select>
                         </div>
-                        <button
-                          onClick={() => toggleConnect(cat._id)}
-                          title="Show the code snippet that places this ad space on your site"
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
-                            isConnected
-                              ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
-                              : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
-                          }`}
-                        >
-                          <Link2 className="w-3 h-3" />
-                          <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
-                        </button>
-                        <button
-                          onClick={() => startDuplicate(cat)}
-                          title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
-                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
-                        >
-                          <Files className="w-3 h-3" />
-                          <span>Duplicate</span>
-                        </button>
-                        {onSendInvite && (
+                        <div className="flex items-center gap-3 mb-3 text-xs text-zinc-600">
+                          <span className="text-zinc-400">Price: RWF {Number(cat.price || 0).toLocaleString()}/mo</span>
+                          <span>{cat.userCount} user{cat.userCount !== 1 ? 's' : ''}</span>
+                          <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => onSendInvite(cat)}
-                            title="Email someone a link to advertise on this space"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
+                            onClick={() => toggleConnect(cat._id)}
+                            title="Show the code snippet that places this ad space on your site"
+                            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
+                              isConnected
+                                ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
+                                : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
+                            }`}
                           >
-                            <Mail className="w-3 h-3" />
-                            <span>Invite</span>
+                            <Link2 className="w-3 h-3" />
+                            <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
                           </button>
-                        )}
-                        {onDeleteCategory && (
                           <button
-                            onClick={() => onDeleteCategory(cat)}
-                            title="Delete ad space"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
+                            onClick={() => startDuplicate(cat)}
+                            title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Delete</span>
+                            <Files className="w-3 h-3" />
+                            <span>Duplicate</span>
                           </button>
-                        )}
+                          {onSendInvite && (
+                            <button
+                              onClick={() => onSendInvite(cat)}
+                              title="Email someone a link to advertise on this space"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
+                            >
+                              <Mail className="w-3 h-3" />
+                              <span>Invite</span>
+                            </button>
+                          )}
+                          {onDeleteCategory && (
+                            <button
+                              onClick={() => onDeleteCategory(cat)}
+                              title="Delete ad space"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {duplicatingId === cat._id && (
-                        <div className="px-5 pb-3 -mt-1 flex items-start gap-2">
+                        <div className="px-4 pb-4 -mt-1 flex items-start gap-2">
                           <div className="flex-1">
                             {websitePages.length > 0 ? (
                               <select
@@ -380,7 +381,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           your website" so the list reads as a visual gallery
                           first, code second. */}
                       {isConnected && (
-                        <div className="px-5 pb-4 flex flex-col gap-2">
+                        <div className="px-4 pb-4 flex flex-col gap-2 border-t border-zinc-800 pt-3">
                           <p className="text-xs text-zinc-500 leading-relaxed">
                             {positionsSelf
                               ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's

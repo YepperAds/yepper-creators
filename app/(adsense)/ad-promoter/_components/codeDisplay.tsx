@@ -300,8 +300,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           title="Show the code snippet that places this ad space on your site"
                           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
                             isConnected
-                              ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
-                              : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
+                              ? 'bg-orange-950 text-orange-400 border-orange-900'
+                              : 'bg-zinc-800 hover:bg-orange-950 text-zinc-500 hover:text-orange-400 border-zinc-700 hover:border-orange-900'
                           }`}
                         >
                           <Link2 className="w-3 h-3" />

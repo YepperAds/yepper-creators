@@ -30,7 +30,8 @@ import AdModalData from '@/app/(adsense)/ad-promoter/_components/adModalData';
 import DeleteCategoryModal from '../../../_components/DeleteCategoryModal';
 import AdCustomizationModal from '../../../_components/AdCustomizationModal';
 import SendCategoryInviteModal from '../../../_components/SendCategoryInviteModal';
-import api from '@/app/_lib/adsense-api';
+import api, { categoryAPI } from '@/app/_lib/adsense-api';
+import { LANGUAGES } from '@/app/_lib/languages';
 import TrafficGrantBanner from '../../../_components/TrafficGrantBanner';
 import WebsiteAnalyticsPanel from '@/app/(adsense)/ad-promoter/_components/WebsiteAnalyticsPanel';
 
@@ -98,15 +99,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
         },
         enabled: !!(user?._id || user?.id),
     });
-
-    const languages = [
-        { value: 'english', label: 'English' },
-        { value: 'french', label: 'French (Français)' },
-        { value: 'kinyarwanda', label: 'Kinyarwanda' },
-        { value: 'kiswahili', label: 'Swahili' },
-        { value: 'chinese', label: 'Chinese (中文)' },
-        { value: 'spanish', label: 'Spanish (Español)' },
-    ];
 
     const fetchWebsiteData = async () => {
         setLoading(true); setFetchError(null);
@@ -188,10 +180,21 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const handleDeleteSuccess = () => { setCategoryToDelete(null); fetchWebsiteData(); };
     const handleSendInvite = (cat) => setCategoryToInvite(cat);
 
-    const handleSaveLanguage = () => {
+    const handleOpenLanguageModal = (cat) => {
+        setCurrentCategory(cat);
+        setSelectedLanguage(cat.defaultLanguage || 'english');
+        setIsLanguageModalOpen(true);
+    };
+
+    const handleSaveLanguage = async () => {
         if (!currentCategory) return;
-        setCategories(categories.map(c => c._id === currentCategory._id ? { ...c, defaultLanguage: selectedLanguage } : c));
-        setIsLanguageModalOpen(false); setCurrentCategory(null);
+        try {
+            await categoryAPI.updateLanguage(currentCategory._id, { defaultLanguage: selectedLanguage });
+            setCategories(categories.map(c => c._id === currentCategory._id ? { ...c, defaultLanguage: selectedLanguage } : c));
+            setIsLanguageModalOpen(false); setCurrentCategory(null);
+        } catch (e) {
+            alert('Failed to update language. Please try again.');
+        }
     };
 
     const openRejectModal = (ad) => {
@@ -317,6 +320,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 onAddSpace={handleOpenCategoriesForm}
                                 onDeleteCategory={handleDeleteCategory}
                                 onSendInvite={handleSendInvite}
+                                onSetLanguage={handleOpenLanguageModal}
                                 onTargetPathChange={(categoryId, targetPath) =>
                                     setCategories(categories.map(c => c._id === categoryId ? { ...c, targetPath } : c))
                                 }
@@ -517,26 +521,41 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
             {isLanguageModalOpen && currentCategory && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-surface-1 border border-border w-full max-w-sm">
-                        <div className="p-4 border-b border-border flex items-center justify-between">
-                            <p className="font-semibold text-white text-sm">Set Default Language</p>
-                            <button onClick={() => setIsLanguageModalOpen(false)}><X size={16} className="text-muted" /></button>
+                    <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-sm overflow-hidden">
+                        <div className="p-4 border-b border-border flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <p className="font-semibold text-white text-sm">Set Default Language</p>
+                                <p className="text-xs text-muted mt-0.5 truncate">
+                                    {currentCategory.categoryName || currentCategory.spaceType}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsLanguageModalOpen(false)}
+                                className="shrink-0 p-1.5 rounded-lg hover:bg-surface-2 transition-colors"
+                            >
+                                <X size={16} className="text-muted" />
+                            </button>
                         </div>
                         <div className="p-4 grid grid-cols-2 gap-2">
-                            {languages.map(lang => (
+                            {LANGUAGES.map(lang => (
                                 <button
                                     key={lang.value}
                                     onClick={() => setSelectedLanguage(lang.value)}
-                                    className={`flex items-center gap-2 p-2.5 text-sm border transition-all ${selectedLanguage === lang.value ? 'border-white bg-surface-2 text-white' : 'border-border text-subtle hover:border-white/30'}`}
+                                    className={`flex items-center gap-2 p-2.5 rounded-xl text-sm border transition-all ${
+                                        selectedLanguage === lang.value
+                                            ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                                            : 'border-border text-subtle hover:border-orange-500/40 hover:bg-surface-2'
+                                    }`}
                                 >
-                                    {selectedLanguage === lang.value && <Check size={11} />}
-                                    {lang.label}
+                                    <span className="text-lg leading-none shrink-0">{lang.flag}</span>
+                                    <span className="flex-1 min-w-0 text-left truncate">{lang.label}</span>
+                                    {selectedLanguage === lang.value && <Check size={13} className="shrink-0" />}
                                 </button>
                             ))}
                         </div>
                         <div className="p-4 border-t border-border flex justify-end gap-2">
-                            <button onClick={() => setIsLanguageModalOpen(false)} className="px-4 py-2 text-sm border border-border text-white hover:bg-surface-2 transition-colors">Cancel</button>
-                            <button onClick={handleSaveLanguage} className="px-4 py-2 text-sm bg-white text-background font-medium hover:opacity-90 transition-colors">Save</button>
+                            <button onClick={() => setIsLanguageModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border border-border text-white hover:bg-surface-2 transition-colors">Cancel</button>
+                            <button onClick={handleSaveLanguage} className="px-4 py-2 rounded-lg text-sm bg-orange-600 text-white font-medium hover:bg-orange-500 transition-colors">Save</button>
                         </div>
                     </div>
                 </div>

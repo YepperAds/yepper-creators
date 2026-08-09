@@ -22,9 +22,14 @@ const AD_SPACE_DIMENSIONS = {
   'Sidebar':              { width: 300, height: 250 },
   'Sticky Sidebar':       { width: 300, height: 250 },
   'Inline Content':       { width: 300, height: 250 },
-  'Floating':             { width: 300, height: 250 },
+  // Vertical rectangle, close to square, sized up from the old 300x250 —
+  // deliberately bigger and taller-than-wide instead of a wide banner shape.
+  'Floating':             { width: 340, height: 400 },
   'Left Rail':            { width: 160, height: 600 },
-  'Modal':                { width: 600, height: 400 },
+  // Big enough to feel like the featured moment on the page without going
+  // fullscreen (see placementCSS's viewport-relative cap below) — same 3:2
+  // shape as before, just scaled up.
+  'Modal':                { width: 900, height: 600 },
   'Pre-roll':             { width: 1280, height: 720 },
   'Mid-roll':             { width: 1280, height: 720 },
   'Pause':                { width: 1280, height: 720 },
@@ -37,7 +42,8 @@ function getDimensions(spaceType) {
 const BANNER = AD_SPACE_DIMENSIONS['Header'];       // 728x90
 const RECT   = AD_SPACE_DIMENSIONS['Sidebar'];       // 300x250
 const RAIL   = AD_SPACE_DIMENSIONS['Left Rail'];     // 160x600
-const MODAL  = AD_SPACE_DIMENSIONS['Modal'];         // 600x400
+const MODAL  = AD_SPACE_DIMENSIONS['Modal'];         // 900x600
+const FLOAT  = AD_SPACE_DIMENSIONS['Floating'];      // 340x400
 
 // CSS per canonical spaceType, keyed with a {{PX}} placeholder instead of an
 // interpolated prefix — used by both scripts (see comment above).
@@ -52,11 +58,23 @@ const PLACEMENT_CSS_TEMPLATES = {
   'inline content':  `.{{PX}}-host{float:right;width:${RECT.width}px;height:${RECT.height}px;margin:0 0 12px 20px;overflow:hidden;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;height:auto;max-height:${RECT.height}px;margin:12px 0;}}`,
   'sidebar':         `.{{PX}}-host{width:${RECT.width}px;height:${RECT.height}px;margin:0 0 16px 0;max-width:100%;overflow:hidden;}`,
   'sticky sidebar':  `.{{PX}}-host{position:sticky;top:80px;width:${RECT.width}px;height:${RECT.height}px;max-width:100%;z-index:100;overflow:hidden;}`,
-  'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${RECT.width}px;height:${RECT.height}px;z-index:9999;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);left:16px;right:16px;bottom:16px;}}`,
+  // position:fixed pins this to the viewport (bottom-right corner) no matter
+  // where in the page's markup the placeholder div actually sits — the div's
+  // spot in the DOM never matters, only which page it's configured for.
+  // max-height:80vh keeps it from overflowing short viewports at the taller
+  // 340x400 size; z-index:99998 sits just under Modal's 99999 so a Modal
+  // opening on the same page still layers above a Floating ad.
+  'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${FLOAT.width}px;height:${FLOAT.height}px;max-height:80vh;z-index:99998;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);max-width:${FLOAT.width}px;left:16px;right:16px;bottom:16px;height:min(${FLOAT.height}px, 60vh);}}`,
 
   'left rail':       `.{{PX}}-host{width:${RAIL.width}px;min-height:${RAIL.height}px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;min-height:0;position:static;}}`,
 
-  'modal':           `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}.{{PX}}-host>*{max-width:${MODAL.width}px;max-height:${MODAL.height}px;}`,
+  // position:fixed;inset:0 also pins Modal to the viewport regardless of the
+  // div's DOM placement, same as Floating above. The ad itself is capped
+  // with min(): whichever is smaller of "most of the viewport" (92vw/88vh)
+  // or the canonical 900x600 — big enough to read as the featured thing on
+  // the page without ever going edge-to-edge/fullscreen, so it still reads
+  // as an ad and not the page itself, and never overflows on small screens.
+  'modal':           `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}.{{PX}}-host>*{max-width:min(92vw,${MODAL.width}px);max-height:min(88vh,${MODAL.height}px);}`,
 
   'pre-roll':        `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,
   'mid-roll':         `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,

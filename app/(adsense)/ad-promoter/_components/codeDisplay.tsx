@@ -406,11 +406,11 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       {isConnected && (
                         <div className="px-4 pb-4 flex flex-col gap-2 border-t border-zinc-800 pt-3">
                           <p className="text-xs text-zinc-500 leading-relaxed">
-                            {positionsSelf
-                              ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
-                                  spot in your markup doesn't matter, only which page it's on.</>
+                            {st !== 'floating' && (positionsSelf
+                              ? <>Positions itself automatically (popup overlay), the div's
+                                  spot in your markup doesn't matter, only which page it's on. </>
                               : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
-                                  your page's layout.</>} {cat.targetPath
+                                  your page's layout. </>)} {cat.targetPath
                               ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
                                   is set to that page, and the ad won't show (and you'll get notified) if this div ends up
                                   somewhere else.</>

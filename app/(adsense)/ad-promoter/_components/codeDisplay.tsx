@@ -4,9 +4,10 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code,
-  Trash2, X, ChevronDown, Mail, Files,
+  Trash2, X, ChevronDown, Mail, Files, Link2,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
+import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 
 // Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
@@ -87,6 +88,7 @@ const CodeBlock = ({ code }) => (
 // ── Main integration component ────────────────────────────────────────────────
 export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onTargetPathChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
+  const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateLabel, setDuplicateLabel] = useState('');
@@ -106,6 +108,14 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
     } finally {
       setTogglingId(null);
     }
+  };
+
+  const toggleConnect = (categoryId: string) => {
+    setConnectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId); else next.add(categoryId);
+      return next;
+    });
   };
 
   const startDuplicate = (cat: any) => {
@@ -228,10 +238,19 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                   {categories.map((cat: any, idx: any) => {
                     const st = (cat.spaceType || '').toLowerCase();
                     const positionsSelf = st === 'floating' || st === 'modalpic';
+                    const thumb = getAdSpaceImage(cat.spaceType, cat.categoryName);
+                    const isConnected = connectedIds.has(cat._id);
                     return (
                       <div key={cat._id}>
                       <div className="px-5 py-3 flex items-center gap-3">
                         <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
+                        {thumb && (
+                          <img
+                            src={thumb}
+                            alt={`${cat.categoryName || cat.spaceType} placement preview`}
+                            className="w-16 h-11 rounded-md object-cover border border-zinc-700 shrink-0"
+                          />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-semibold text-zinc-200">{cat.categoryName || cat.spaceType}</span>
@@ -262,6 +281,18 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span className="capitalize">{cat.defaultLanguage || 'English'}</span>
                           </div>
                         </div>
+                        <button
+                          onClick={() => toggleConnect(cat._id)}
+                          title="Show the code snippet that places this ad space on your site"
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
+                            isConnected
+                              ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
+                              : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
+                          }`}
+                        >
+                          <Link2 className="w-3 h-3" />
+                          <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
+                        </button>
                         <button
                           onClick={() => startDuplicate(cat)}
                           title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
@@ -345,23 +376,27 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           in a separate list you'd have to cross-reference by
                           number: the whole point of pairing them is not
                           having to scroll back and forth to match a space to
-                          its code. */}
-                      <div className="px-5 pb-4 flex flex-col gap-2">
-                        <p className="text-xs text-zinc-500 leading-relaxed">
-                          {positionsSelf
-                            ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
-                                spot in your markup doesn't matter, only which page it's on.</>
-                            : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
-                                your page's layout.</>} {cat.targetPath
-                            ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
-                                is set to that page, and the ad won't show (and you'll get notified) if this div ends up
-                                somewhere else.</>
-                            : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
-                          {' '}Pasting the <em>same</em> div on two different pages shows the same currently-sold ad on
-                          both; for a second page's own, separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> instead.
-                        </p>
-                        <CodeBlock code={buildPlaceholderDiv(cat._id)} />
-                      </div>
+                          its code. Collapsed by default behind "Connect it to
+                          your website" so the list reads as a visual gallery
+                          first, code second. */}
+                      {isConnected && (
+                        <div className="px-5 pb-4 flex flex-col gap-2">
+                          <p className="text-xs text-zinc-500 leading-relaxed">
+                            {positionsSelf
+                              ? <>Positions itself automatically ({st === 'floating' ? 'floating corner' : 'popup overlay'}), the div's
+                                  spot in your markup doesn't matter, only which page it's on.</>
+                              : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
+                                  your page's layout.</>} {cat.targetPath
+                              ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
+                                  is set to that page, and the ad won't show (and you'll get notified) if this div ends up
+                                  somewhere else.</>
+                              : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
+                            {' '}Pasting the <em>same</em> div on two different pages shows the same currently-sold ad on
+                            both; for a second page's own, separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> instead.
+                          </p>
+                          <CodeBlock code={buildPlaceholderDiv(cat._id)} />
+                        </div>
+                      )}
                       </div>
                     );
                   })}

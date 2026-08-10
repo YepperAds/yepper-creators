@@ -32,11 +32,10 @@ const StepShell = ({ step, label, onBack, embedded, children }: { step: number; 
   if (embedded) {
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center mb-6">
           <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors text-sm">
             <ArrowLeft size={16} className="mr-1.5" /> Back
           </button>
-          <span className="px-3 py-1 text-xs font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
         </div>
         {children}
       </div>
@@ -46,12 +45,11 @@ const StepShell = ({ step, label, onBack, embedded, children }: { step: number; 
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="h-16 flex items-center justify-between">
+          <div className="h-16 flex items-center">
             <button onClick={onBack} className="flex items-center text-subtle hover:text-white transition-colors">
               <ArrowLeft size={18} className="mr-2" />
               <span className="font-medium">Back</span>
             </button>
-            <span className="px-3 py-1 text-sm font-medium bg-black text-[#fff]">Step {step} of 3: {label}</span>
           </div>
         </div>
       </header>
@@ -252,7 +250,7 @@ const AddWebsiteForm = ({
             onClick={handleNext}
             className="w-full bg-black text-[#fff] py-3 hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Continue to Categories
+            Continue
           </button>
         </div>
       </div>
@@ -333,7 +331,7 @@ const AddWebsiteForm = ({
             disabled={selectedBusinessCategories.length === 0}
             className="bg-black text-[#fff] px-8 py-3 hover:bg-gray-800 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Continue to Website Pages
+            Continue
           </button>
         </div>
       </StepShell>

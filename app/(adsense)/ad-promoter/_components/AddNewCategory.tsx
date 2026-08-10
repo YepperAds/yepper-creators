@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Info,
-  Check,
   X,
   Monitor,
   Sidebar as SidebarIcon,
@@ -565,40 +564,24 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                     }`}
                   >
                     {/* Card header */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl border transition-colors ${
-                          isDone
-                            ? 'bg-white text-background border-transparent'
-                            : 'bg-surface-3 text-muted border-border'
-                        }`}>
-                          {isDone ? <Check size={20} /> : details.icon}
-                        </div>
-                        <h3 className="text-base font-semibold text-white">{details.name}</h3>
-                      </div>
-                    </div>
-
-                    {/* Preview image */}
-                    <div className="mb-4 overflow-hidden rounded-xl border border-border">
-                      <img
-                        src={details.image}
-                        alt={`${details.name} preview`}
-                        className="w-full h-32 object-cover"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-muted text-sm mb-4 leading-relaxed">{details.description}</p>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-border">
-                      <span className="text-xs text-muted uppercase tracking-wide">
-                        {details.position}
-                      </span>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-base font-semibold text-white">{details.name}</h3>
                       {isDone && (
                         <span className="text-xs text-success font-medium">✓ Added</span>
                       )}
                     </div>
+
+                    {/* Preview image */}
+                    <div className="mb-4 overflow-hidden rounded-xl border border-border bg-white">
+                      <img
+                        src={details.image}
+                        alt={`${details.name} preview`}
+                        className="w-full h-auto object-contain"
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-muted text-sm leading-relaxed">{details.description}</p>
                   </div>
                 );
               })}

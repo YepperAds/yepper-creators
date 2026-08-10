@@ -14,9 +14,6 @@ import {
   PieChart,
   Maximize,
   Search,
-  Play,
-  Film,
-  Pause,
 } from 'lucide-react';
 import { Button, Grid, Input, TextArea } from '@/app/(adsense)/components/components';
 import PricingTiers from './PricingTiers';
@@ -199,24 +196,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'stickySidebar', description: 'Sidebar ad that stays visible as user scrolls',
       category: 'sidebar', position: 'side', image: getAdSpaceImage('Sticky Sidebar') ?? '',
-    },
-    preroll: {
-      name: 'Pre-roll', icon: <Play className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Pre-roll', description: 'Video ad that plays before the content starts',
-      category: 'video', position: 'video', image: getAdSpaceImage('Pre-roll') ?? '',
-    },
-    midroll: {
-      name: 'Mid-roll', icon: <Film className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Mid-roll', description: 'Video ad that plays inside the content (content → ad → content)',
-      category: 'video', position: 'video', image: getAdSpaceImage('Mid-roll') ?? '',
-    },
-    pause: {
-      name: 'Pause', icon: <Pause className="w-6 h-6" />,
-      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
-      spaceType: 'Pause', description: 'Ad that appears when the viewer pauses the video',
-      category: 'video', position: 'video', image: getAdSpaceImage('Pause') ?? '',
     },
   }), []);
 
@@ -503,7 +482,6 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
     { id: 'sidebar',   name: 'Sidebar'    },
     { id: 'content',   name: 'Content'    },
     { id: 'special',   name: 'Special'    },
-    { id: 'video',     name: 'Video'      },
   ];
 
   return (
@@ -559,16 +537,21 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                   <div
                     key={category}
                     onClick={() => handleCategorySelect(category)}
-                    className={`border rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:bg-surface-2 ${
+                    className={`relative border rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:bg-surface-2 ${
                       isDone ? 'border-border bg-surface-2' : 'border-border bg-surface-1'
                     }`}
                   >
+                    {/* Corner affordance: the whole card is clickable, but this
+                        spells out what clicking it does */}
+                    <span className={`absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                      isDone ? 'bg-success/20 text-success' : 'bg-white text-background'
+                    }`}>
+                      {isDone ? '✓ Added' : 'Choose'}
+                    </span>
+
                     {/* Card header */}
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="mb-4 pr-20">
                       <h3 className="text-base font-semibold text-white">{details.name}</h3>
-                      {isDone && (
-                        <span className="text-xs text-success font-medium">✓ Added</span>
-                      )}
                     </div>
 
                     {/* Preview image */}

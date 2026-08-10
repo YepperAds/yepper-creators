@@ -18,10 +18,7 @@ import {
     PanelBottom,
     PieChart,
     Maximize,
-    Search,
-    Play,
-    Film,
-    Pause
+    Search
 } from 'lucide-react';
 import { Button, Grid, Input, TextArea, Badge, Container } from '@/app/(adsense)/components/components';
 import PricingTiers from '../../../_components/PricingTiers';
@@ -342,39 +339,6 @@ const CategoryCreation = () => {
           position: "side",
           image: getAdSpaceImage('Sticky Sidebar')
       },
-      preroll: {
-          name: 'Pre-roll',
-          icon: <Play className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Pre-roll",
-          description: "Video ad that plays before the content starts",
-          visualization: "/api/placeholder/300/120",
-          category: "video",
-          position: "video",
-          image: getAdSpaceImage('Pre-roll')
-      },
-      midroll: {
-          name: 'Mid-roll',
-          icon: <Film className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Mid-roll",
-          description: "Video ad that plays inside the content (content → ad → content)",
-          visualization: "/api/placeholder/300/120",
-          category: "video",
-          position: "video",
-          image: getAdSpaceImage('Mid-roll')
-      },
-      pause: {
-          name: 'Pause',
-          icon: <Pause className="w-6 h-6" />,
-          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
-          spaceType: "Pause",
-          description: "Ad that appears when the viewer pauses the video",
-          visualization: "/api/placeholder/300/120",
-          category: "video",
-          position: "video",
-          image: getAdSpaceImage('Pause')
-      },
   }), []);
 
   const filteredCategories = useMemo(() => {
@@ -498,7 +462,6 @@ const CategoryCreation = () => {
     { id: 'sidebar', name: 'Sidebar' },
     { id: 'content', name: 'Content' },
     { id: 'special', name: 'Special' },
-    { id: 'video', name: 'Video' },
   ];
 
   return (

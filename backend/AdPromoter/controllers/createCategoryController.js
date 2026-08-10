@@ -21,6 +21,44 @@ function escapeHtml(str) {
   ));
 }
 
+// Mirrors app/_lib/ad-spaces.ts's AD_SPACE_IMAGES/AD_SPACE_DESCRIPTIONS: same
+// mockup images and fallback copy the dashboard shows, used here so an invite
+// email shows the recipient the real placement instead of a generic banner.
+// Video-only placements (pre-roll/mid-roll/pause) are YouTube ad spaces, not
+// website ones, so they're deliberately not included.
+const AD_SPACE_IMAGES = {
+  'header':          '/ad-spaces/header.png',
+  'above the fold':  '/ad-spaces/above-the-fold.png',
+  'sticky sidebar':  '/ad-spaces/sticky-sidebar.png',
+  'floating':        '/ad-spaces/floating.png',
+  'modal':           '/ad-spaces/modal.png',
+  'left rail':       '/ad-spaces/left-rail.png',
+  'sidebar':         '/ad-spaces/sidebar.png',
+  'inline content':  '/ad-spaces/inline-content.png',
+  'beneath title':   '/ad-spaces/beneath-title.png',
+  'pro footer':      '/ad-spaces/pro-footer.png',
+};
+
+const AD_SPACE_DESCRIPTIONS = {
+  'header':          'Banner across the top of the page',
+  'above the fold':  'Visible before the visitor scrolls',
+  'sticky sidebar':  'Sidebar ad that follows as you scroll',
+  'floating':        'Floats on screen as you scroll',
+  'modal':           'Pop-up ad in its own window',
+  'left rail':       'Ad along the left edge of the page',
+  'sidebar':         'Ad in the side column',
+  'inline content':  'Placed inside the article text',
+  'beneath title':   'Just below the page title',
+  'pro footer':      'Premium spot in the footer',
+};
+
+function lookupAdSpace(map, spaceType, categoryName) {
+  const bySpace = spaceType ? map[String(spaceType).toLowerCase().trim()] : undefined;
+  if (bySpace) return bySpace;
+  const byName = categoryName ? map[String(categoryName).toLowerCase().trim()] : undefined;
+  return byName || null;
+}
+
 function catToClient(c) {
   if (!c) return null;
   return {
@@ -560,34 +598,69 @@ exports.sendCategoryInvite = async (req, res) => {
     const safeSpaceType   = escapeHtml(category.space_type || '');
     const price = Number(category.price || 0).toFixed(2);
 
+    // Real mockup of this exact placement (same image the dashboard shows
+    // when the owner picked it), so the recipient sees what they'd actually
+    // be buying instead of a generic "AD" placeholder.
+    const spaceImagePath = lookupAdSpace(AD_SPACE_IMAGES, category.space_type, category.category_name);
+    const spaceImageUrl  = spaceImagePath ? `${FRONTEND_URL}${spaceImagePath}` : null;
+    const spaceDescription = category.description
+      || lookupAdSpace(AD_SPACE_DESCRIPTIONS, category.space_type, category.category_name)
+      || 'A dedicated ad space on this site.';
+    const safeSpaceDescription = escapeHtml(spaceDescription);
+
+    // Where this space actually lives: the site's homepage, or the specific
+    // page the owner scoped it to via the page picker (see
+    // WebsitePagesPanel.tsx / AddNewCategory.tsx's "Where should this ad
+    // appear?" field) — target_path is null for "All Pages".
+    let siteUrl = website?.website_link || '';
+    if (siteUrl && !/^https?:\/\//i.test(siteUrl)) siteUrl = `https://${siteUrl}`;
+    const pageUrl = (siteUrl && category.target_path)
+      ? `${siteUrl.replace(/\/+$/, '')}/${String(category.target_path).replace(/^\/+/, '')}`
+      : siteUrl;
+
+    const logoUrl = website?.image_url || '';
+
     // Card mirrors the actual on-site ad widget (see AdDisplayController.js's
-    // availableSlotHtml/.sp-* markup): a graphic banner up top standing in
-    // for the real ad creative that hasn't been placed yet, then a white
-    // info panel with the real space details and an "Advertise Here" CTA —
-    // the same shape a recipient would see live on the site once bought.
+    // availableSlotHtml/.sp-* markup): the real placement image up top, then
+    // a white info panel with the real space details and two CTAs — see the
+    // actual page this would run on, or go straight to booking it.
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
       <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
         <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;"><tr><td align="center">
           <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,0.08);overflow:hidden;">
-            <tr><td style="background:#000;padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">Yepper</h1></td></tr>
+            <tr><td style="background:#000;padding:24px 40px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                ${logoUrl ? `<td style="padding-right:12px;"><img src="${logoUrl}" width="40" height="40" style="border-radius:8px;display:block;object-fit:cover;" alt=""/></td>` : ''}
+                <td valign="middle">
+                  <p style="margin:0;color:#fff;font-size:18px;font-weight:800;">${safeWebsiteName}</p>
+                  <p style="margin:2px 0 0;color:#999;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;">via Yepper</p>
+                </td>
+              </tr></table>
+            </td></tr>
 
             <tr><td style="padding:32px 40px 0;">
 
               <!-- ── Ad space card — same shape as the live on-site ad widget ── -->
               <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:16px;overflow:hidden;border:1px solid #eee;">
 
-                <!-- Graphic banner — stands in for the real ad creative, which doesn't exist yet -->
-                <tr><td bgcolor="#f97316" style="background:linear-gradient(135deg,#fb7185,#f97316);padding:28px 16px;text-align:center;">
-                  <span style="display:inline-block;background:rgba(0,0,0,0.35);color:#fff;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:99px;margin-bottom:12px;">📣 Ad space preview</span><br/>
-                  <span style="display:inline-block;font-size:38px;font-weight:900;letter-spacing:.06em;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,0.25);">AD</span>
-                </td></tr>
+                ${spaceImageUrl
+                  ? `<tr><td style="background:#fff;"><img src="${spaceImageUrl}" width="600" style="display:block;width:100%;max-width:600px;height:auto;" alt="${safeSpaceName} placement preview"/></td></tr>`
+                  : `<tr><td bgcolor="#f97316" style="background:linear-gradient(135deg,#fb7185,#f97316);padding:28px 16px;text-align:center;">
+                      <span style="display:inline-block;background:rgba(0,0,0,0.35);color:#fff;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:99px;margin-bottom:12px;">📣 Ad space preview</span><br/>
+                      <span style="display:inline-block;font-size:38px;font-weight:900;letter-spacing:.06em;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,0.25);">AD</span>
+                    </td></tr>`}
 
                 <!-- Info panel — the real, current details for this space -->
                 <tr><td style="background:#fff;padding:20px;">
                   <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#999;">${safeWebsiteName}${safeSpaceType ? ` · ${safeSpaceType}` : ''}</p>
-                  <p style="margin:0 0 10px;font-size:17px;font-weight:800;color:#111;">${safeSpaceName}</p>
-                  <p style="margin:0 0 16px;font-size:14px;color:#555;">Price: <strong style="color:#111;">RWF ${price}/month</strong></p>
-                  <a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;">Advertise Here →</a>
+                  <p style="margin:0 0 8px;font-size:17px;font-weight:800;color:#111;">${safeSpaceName}</p>
+                  <p style="margin:0 0 14px;font-size:13px;color:#666;line-height:1.5;">${safeSpaceDescription}</p>
+                  <p style="margin:0 0 18px;font-size:14px;color:#555;">Price: <strong style="color:#111;">RWF ${price}/month</strong></p>
+
+                  <table cellpadding="0" cellspacing="0"><tr>
+                    ${pageUrl ? `<td style="padding-right:10px;"><a href="${pageUrl}" style="display:inline-block;background:#fff;color:#111;padding:12px 22px;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;border:1px solid #ddd;">Visit the Website</a></td>` : ''}
+                    <td><a href="${link}" style="display:inline-block;background:#000;color:#fff;padding:12px 22px;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;">Advertise →</a></td>
+                  </tr></table>
                 </td></tr>
               </table>
 
@@ -595,7 +668,7 @@ exports.sendCategoryInvite = async (req, res) => {
                 The "${safeSpaceName}" ad space on ${safeWebsiteName} is open. Book it to run your ad there.
               </p>
               <p style="color:#999;font-size:13px;line-height:1.5;margin:12px 0 32px;">
-                Clicking the button takes you straight there — log in (or create an account) and you'll land right back here to finish booking it.
+                "Advertise" takes you straight there — log in (or create an account) and you'll land right back here to finish booking it.
               </p>
             </td></tr>
 

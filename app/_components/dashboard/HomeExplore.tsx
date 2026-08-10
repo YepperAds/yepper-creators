@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { FireIcon } from '@heroicons/react/24/solid';
+import { MegaphoneIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import DashboardFeed from './DashboardFeed';
 import PageHeader from './PageHeader';
@@ -53,12 +55,34 @@ export default function HomeExplore({
     <div className="h-full flex flex-col overflow-hidden">
       <PageHeader title="Explore Hot Deals, Websites & Broadcast Media" />
 
-      <div className="shrink-0 flex items-center justify-center gap-2 pb-4 pt-2">
-        {TABS.map((t) => (
-          <TabPill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-          </TabPill>
-        ))}
+      <div className="shrink-0 grid grid-cols-3 items-center gap-2 pb-4 pt-2 px-2">
+        <div className="justify-self-start">
+          <Link
+            href="/?panel=advertise"
+            className="flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-semibold text-white hover:bg-surface-2 transition-colors"
+          >
+            <MegaphoneIcon className="w-4 h-4" />
+            Advertise
+          </Link>
+        </div>
+
+        <div className="justify-self-center flex items-center gap-2">
+          {TABS.map((t) => (
+            <TabPill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
+              {t.label}
+            </TabPill>
+          ))}
+        </div>
+
+        <div className="justify-self-end">
+          <Link
+            href="/?panel=add-website"
+            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-background hover:opacity-90 transition-colors"
+          >
+            <PlusCircleIcon className="w-4 h-4" />
+            Add Your Website
+          </Link>
+        </div>
       </div>
 
       {/* px-2: the hot-deal card's pulsing glow (box-shadow, see .hotdeal-glow

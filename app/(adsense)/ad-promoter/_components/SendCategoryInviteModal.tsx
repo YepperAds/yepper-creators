@@ -34,71 +34,68 @@ const SendCategoryInviteModal = ({ category, onClose }: any) => {
             <div className="fixed inset-0 backdrop-blur-sm bg-black/30" onClick={onClose}></div>
 
             <div className="relative w-full max-w-md mx-4">
-                <div className="backdrop-blur-md bg-gradient-to-b from-emerald-900/30 to-emerald-900/10 rounded-3xl overflow-hidden border border-[#fff]/10 shadow-2xl">
-                    <div className="p-10 relative z-10">
-                        <div className="flex items-center mb-8">
-                            <div className="relative">
-                                <div className="absolute inset-0 rounded-full bg-emerald-500 blur-md opacity-40"></div>
-                                <div className="relative p-3 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400">
-                                    <Mail className="text-[#fff]" size={24} />
-                                </div>
+                <div className="bg-white rounded-2xl overflow-hidden border border-border shadow-2xl">
+                    <div className="p-8 relative z-10">
+                        <div className="flex items-center mb-6">
+                            <div className="p-2.5 rounded-full bg-emerald-600">
+                                <Mail className="text-white" size={22} />
                             </div>
                             <div className="ml-4">
-                                <h2 className="text-2xl font-bold text-[#fff]">Send Ad Invite</h2>
+                                <h2 className="text-xl font-bold text-background">Send Ad Invite</h2>
                             </div>
-                            <button onClick={onClose} className="ml-auto text-[#fff]/70 hover:text-[#fff] transition-colors">
-                                <X size={24} />
+                            <button onClick={onClose} className="ml-auto text-background/50 hover:text-background transition-colors">
+                                <X size={22} />
                             </button>
                         </div>
 
                         {sent ? (
                             <>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
-                                    <p className="text-[#fff]/80">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                                    <p className="text-background/70">
                                         {email} now has a link straight into booking "{category.categoryName || category.spaceType}".
                                     </p>
                                 </div>
-                                <button onClick={onClose} className="w-full h-12 rounded-xl bg-surface-1/10 text-white font-medium hover:bg-surface-1/20 transition-all duration-300">
+                                <button onClick={onClose} className="w-full h-12 rounded-xl bg-black/5 text-background font-medium hover:bg-black/10 transition-colors duration-200">
                                     Done
                                 </button>
                             </>
                         ) : (
                             <>
-                                <p className="text-[#fff]/80 mb-6">
+                                <p className="text-background/70 mb-6">
                                     Email a recipient a direct link to book "{category.categoryName || category.spaceType}"; they log in (or sign up) and land right back here to advertise on it.
                                 </p>
 
                                 {error && (
-                                    <div className="bg-red-500/20 border border-red-500/30 p-4 rounded-xl flex items-center gap-3 mb-6">
-                                        <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-                                        <p className="text-red-200 text-sm">{error}</p>
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-center gap-3 mb-6">
+                                        <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                                        <p className="text-red-700 text-sm">{error}</p>
                                     </div>
                                 )}
 
-                                <label className="block text-xs font-semibold text-[#fff]/60 mb-2">Recipient email</label>
+                                <label className="block text-xs font-semibold text-background/60 mb-2">Recipient email</label>
                                 <input
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     type="email"
                                     placeholder="someone@example.com"
-                                    className="w-full mb-8 rounded-xl border border-[#fff]/15 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-[#fff]/30 outline-none focus:border-emerald-400/50"
+                                    className="w-full mb-6 rounded-xl border border-border bg-white px-4 py-3 text-sm text-background placeholder:text-background/30 outline-none focus:border-emerald-500"
                                 />
 
-                                <div className="flex gap-4">
+                                <div className="flex gap-3">
                                     <button
                                         onClick={onClose}
                                         disabled={sending}
-                                        className="flex-1 h-12 rounded-xl bg-surface-1/10 text-white font-medium hover:bg-surface-1/20 transition-all duration-300"
+                                        className="flex-1 h-12 rounded-xl bg-black/5 text-background font-medium hover:bg-black/10 transition-colors duration-200"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={send}
                                         disabled={sending}
-                                        className="flex-1 group relative h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-400 text-white font-medium overflow-hidden transition-all duration-300 disabled:opacity-60"
+                                        className="flex-1 h-12 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors duration-200 disabled:opacity-60"
                                     >
-                                        <span className="relative z-10">{sending ? 'Sending…' : 'Send Invite'}</span>
+                                        {sending ? 'Sending…' : 'Send Invite'}
                                     </button>
                                 </div>
                             </>

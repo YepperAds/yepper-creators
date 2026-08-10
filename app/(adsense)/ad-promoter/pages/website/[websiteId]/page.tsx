@@ -31,7 +31,7 @@ import DeleteCategoryModal from '../../../_components/DeleteCategoryModal';
 import AdCustomizationModal from '../../../_components/AdCustomizationModal';
 import SendCategoryInviteModal from '../../../_components/SendCategoryInviteModal';
 import api, { categoryAPI } from '@/app/_lib/adsense-api';
-import { LANGUAGES } from '@/app/_lib/languages';
+import { LANGUAGES, getLanguageFlagUrl } from '@/app/_lib/languages';
 import TrafficGrantBanner from '../../../_components/TrafficGrantBanner';
 import WebsiteAnalyticsPanel from '@/app/(adsense)/ad-promoter/_components/WebsiteAnalyticsPanel';
 
@@ -547,7 +547,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                             : 'border-border text-subtle hover:border-orange-500/40 hover:bg-surface-2'
                                     }`}
                                 >
-                                    <span className="text-lg leading-none shrink-0">{lang.flag}</span>
+                                    <img src={getLanguageFlagUrl(lang.value)} alt="" className="w-5 h-3.5 object-cover rounded-[2px] shrink-0" />
                                     <span className="flex-1 min-w-0 text-left truncate">{lang.label}</span>
                                     {selectedLanguage === lang.value && <Check size={13} className="shrink-0" />}
                                 </button>

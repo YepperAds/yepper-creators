@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
-import { getLanguageFlag, getLanguageLabel } from '@/app/_lib/languages';
+import { getLanguageFlagUrl, getLanguageLabel } from '@/app/_lib/languages';
 
 // Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
@@ -298,7 +298,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             title="Set the language this ad space's copy (e.g. 'Ad Space Available') is shown in"
                             className="flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-zinc-400 hover:text-orange-400 border border-zinc-700 hover:border-orange-900 transition-all"
                           >
-                            <span className="text-sm leading-none">{getLanguageFlag(cat.defaultLanguage)}</span>
+                            <img src={getLanguageFlagUrl(cat.defaultLanguage)} alt="" className="w-4 h-3 object-cover rounded-[2px] shrink-0" />
                             {getLanguageLabel(cat.defaultLanguage)}
                           </button>
                         )}
@@ -308,13 +308,13 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         <button
                           onClick={() => toggleConnect(cat._id)}
                           title="Show the code snippet that places this ad space on your site"
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 text-white ${
                             isConnected
-                              ? 'bg-orange-950 text-orange-400 border-orange-900'
-                              : 'bg-zinc-800 hover:bg-orange-950 text-zinc-500 hover:text-orange-400 border-zinc-700 hover:border-orange-900'
+                              ? 'bg-orange-700 border-orange-700 hover:bg-orange-600'
+                              : 'bg-orange-600 border-orange-600 hover:bg-orange-500'
                           }`}
                         >
-                          <Link2 className="w-3 h-3" />
+                          <Link2 className="w-3 h-3 text-white" />
                           <span>{isConnected ? 'Hide code' : 'Connect it to your website'}</span>
                         </button>
                         <button

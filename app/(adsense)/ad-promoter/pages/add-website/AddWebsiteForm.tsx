@@ -145,21 +145,31 @@ const AddWebsiteForm = ({
 
   // Same normalisation as WebsitePagesPanel's addRow: the site-wide script
   // compares this against location.pathname, which is never a full URL, so
-  // a pasted "https://example.com/sign-in" has to become "/sign-in".
-  const addPageRow = () => {
+  // a pasted "https://example.com/sign-in" has to become "/sign-in". Shared
+  // by addPageRow and handleFinalSubmit, since finishing without pressing
+  // "Add" first should still pick up whatever's currently typed.
+  const parsePendingPage = (): { page: { label: string; path: string } } | { error: string } | null => {
     const l = pageLabel.trim();
     const raw = pagePath.trim();
-    if (!l || !raw) { setPageError('Give the page both a label and a path.'); return; }
+    if (!l && !raw) return null;
+    if (!l || !raw) return { error: 'Give the page both a label and a path.' };
     let p;
     if (/^https?:\/\//i.test(raw)) {
       try { p = new URL(raw).pathname || '/'; }
-      catch { setPageError("That doesn't look like a valid URL."); return; }
+      catch { return { error: "That doesn't look like a valid URL." }; }
     } else {
       p = raw.startsWith('/') ? raw : `/${raw}`;
     }
     if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-    if (pages.some((pg) => pg.path === p)) { setPageError('That path is already added.'); return; }
-    setPages([...pages, { label: l, path: p }]);
+    return { page: { label: l, path: p } };
+  };
+
+  const addPageRow = () => {
+    const result = parsePendingPage();
+    if (!result) { setPageError('Give the page both a label and a path.'); return; }
+    if ('error' in result) { setPageError(result.error); return; }
+    if (pages.some((pg) => pg.path === result.page.path)) { setPageError('That path is already added.'); return; }
+    setPages([...pages, result.page]);
     setPageLabel(''); setPagePath(''); setPageError('');
   };
   const removePageRow = (path: string) => setPages(pages.filter((p) => p.path !== path));
@@ -171,6 +181,14 @@ const AddWebsiteForm = ({
       setErrors({ general: 'Please select at least one business category.' });
       return;
     }
+    // Finishing without pressing "Add" first shouldn't drop whatever's
+    // currently typed in the page fields — fold it in alongside the rest.
+    const pending = parsePendingPage();
+    if (pending && 'error' in pending) { setPageError(pending.error); return; }
+    const finalPages = pending && !pages.some((pg) => pg.path === pending.page.path)
+      ? [...pages, pending.page]
+      : pages;
+
     setIsSubmitting(true);
     setErrors({});
     try {
@@ -181,8 +199,8 @@ const AddWebsiteForm = ({
         businessCategories: selectedBusinessCategories,
       });
       const websiteId = response.data.data?.id ?? response.data.data?._id;
-      if (pages.length > 0) {
-        try { await websiteAPI.updatePages(websiteId, pages); } catch { /* site is already created; pages can still be added later */ }
+      if (finalPages.length > 0) {
+        try { await websiteAPI.updatePages(websiteId, finalPages); } catch { /* site is already created; pages can still be added later */ }
       }
       if (onCreated) {
         onCreated(websiteId);
@@ -348,12 +366,7 @@ const AddWebsiteForm = ({
       <div className="max-w-2xl mx-auto">
         <div className="border border-border bg-surface-1 p-8 space-y-6">
           <div>
-            <h2 className="text-lg font-bold text-white mb-1">Register your site's pages (optional)</h2>
-            <p className="text-sm text-subtle">
-              Add a label + path for each real page (e.g. &quot;Home&quot; &rarr; <code className="text-subtle">/</code>,
-              &quot;Blog&quot; &rarr; <code className="text-subtle">/blog</code>) so an ad space can target one specific
-              page instead of every page. You can also add these later, but doing it now saves a trip back here.
-            </p>
+            <h2 className="text-lg font-bold text-white mb-1">Register your website's pages (optional)</h2>
           </div>
 
           {pages.length > 0 && (
@@ -412,7 +425,7 @@ const AddWebsiteForm = ({
           >
             {isSubmitting
               ? <><Loader size={16} className="animate-spin" /> Creating Website…</>
-              : pages.length > 0 ? 'Create Website & Choose Ad Categories' : 'Skip & Create Website'}
+              : pages.length > 0 || (pageLabel.trim() && pagePath.trim()) ? 'Finish' : 'Skip & Create Website'}
           </button>
         </div>
       </div>

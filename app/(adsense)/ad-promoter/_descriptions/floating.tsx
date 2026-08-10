@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import Floating from '../img/floating.png';
 
 const FloatingContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const FloatingContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={Floating.src}
+              src="/ad-spaces/floating.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

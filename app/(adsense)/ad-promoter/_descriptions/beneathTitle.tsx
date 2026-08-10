@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import BeneathTitle from '../img/beneathTitle.png';
 
 const BeneathTitleContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const BeneathTitleContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={BeneathTitle.src}
+              src="/ad-spaces/beneath-title.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

@@ -27,20 +27,8 @@ import { Button, Grid, Input, TextArea, Badge, Container } from '@/app/(adsense)
 import PricingTiers from '../../../_components/PricingTiers';
 import CategoryInfoModal from '../../../_components/CategoryInfoModal';
 
-import AboveTheFold from '../../../img/aboveTheFold.png';
-import BeneathTitle from '../../../img/beneathTitle.png';
-import Floating from '../../../img/floating.png';
-import HeaderPic from '../../../img/header.png';
-import InlineContent from '../../../img/inlineContent.png';
-import LeftRail from '../../../img/leftRail.png';
-import ModalPic from '../../../img/modal.png';
-import ProFooter from '../../../img/proFooter.png';
-import Sidebar from '../../../img/sidebar.png';
-import StickySidebar from '../../../img/stickySidebar.png';
-import PrerollPic from '../../../img/preroll.png';
-import MidrollPic from '../../../img/midroll.png';
-import PausePic from '../../../img/pauseAd.png';
 import api from '@/app/_lib/adsense-api';
+import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 
 
 function CategoryModal({ activeCategory, details, categoryData, updateCategoryData, monthlyTraffic, grantedTier, onClose, onSave }) {
@@ -252,7 +240,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "primary",
           position: "top",
-          image: AboveTheFold
+          image: getAdSpaceImage('Above The Fold')
       },
       beneathTitle: {
           name: 'Beneath Title',
@@ -263,7 +251,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "content",
           position: "top",
-          image: BeneathTitle
+          image: getAdSpaceImage('Beneath Title')
 
       },
       floating: {
@@ -275,7 +263,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "special",
           position: "overlay",
-          image: Floating
+          image: getAdSpaceImage('Floating')
       },
       HeaderPic: {
           name: 'Header',
@@ -286,7 +274,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "primary",
           position: "top",
-          image: HeaderPic
+          image: getAdSpaceImage('Header')
       },
       inlineContent: {
           name: 'Inline Content',
@@ -297,7 +285,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "content",
           position: "middle",
-          image: InlineContent
+          image: getAdSpaceImage('Inline Content')
       },
       leftRail: {
           name: 'Left Rail',
@@ -308,7 +296,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "sidebar",
           position: "left",
-          image: LeftRail
+          image: getAdSpaceImage('Left Rail')
       },
       modalPic: {
           name: 'Modal',
@@ -319,7 +307,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "special",
           position: "overlay",
-          image: ModalPic
+          image: getAdSpaceImage('Modal')
       },
       proFooter: {
           name: 'Pro Footer',
@@ -330,7 +318,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "secondary",
           position: "bottom",
-          image: ProFooter
+          image: getAdSpaceImage('Pro Footer')
       },
       sidebar: {
           name: 'Sidebar',
@@ -341,7 +329,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "sidebar",
           position: "side",
-          image: Sidebar
+          image: getAdSpaceImage('Sidebar')
       },
       stickySidebar: {
           name: 'Sticky Sidebar',
@@ -352,7 +340,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "sidebar",
           position: "side",
-          image: StickySidebar
+          image: getAdSpaceImage('Sticky Sidebar')
       },
       preroll: {
           name: 'Pre-roll',
@@ -363,7 +351,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "video",
           position: "video",
-          image: PrerollPic
+          image: getAdSpaceImage('Pre-roll')
       },
       midroll: {
           name: 'Mid-roll',
@@ -374,7 +362,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "video",
           position: "video",
-          image: MidrollPic
+          image: getAdSpaceImage('Mid-roll')
       },
       pause: {
           name: 'Pause',
@@ -385,7 +373,7 @@ const CategoryCreation = () => {
           visualization: "/api/placeholder/300/120",
           category: "video",
           position: "video",
-          image: PausePic
+          image: getAdSpaceImage('Pause')
       },
   }), []);
 

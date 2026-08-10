@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import ProFooter from '../img/proFooter.png';
 
 const ProFooterContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const ProFooterContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={ProFooter.src}
+              src="/ad-spaces/pro-footer.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import InlineContent from '../img/inlineContent.png';
 
 const InlineContentContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const InlineContentContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={InlineContent.src}
+              src="/ad-spaces/inline-content.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

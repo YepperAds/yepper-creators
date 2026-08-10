@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import StickySidebar from '../img/stickySidebar.png';
 
 const StickySidebarContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const StickySidebarContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={StickySidebar.src}
+              src="/ad-spaces/sticky-sidebar.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

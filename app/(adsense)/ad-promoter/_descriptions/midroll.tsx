@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import Midroll from '../img/midroll.png';
 
 const MidrollContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const MidrollContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={Midroll.src}
+              src="/ad-spaces/midroll.png"
               alt="Midroll Space"
               className="w-full h-full object-cover opacity-80"
             />

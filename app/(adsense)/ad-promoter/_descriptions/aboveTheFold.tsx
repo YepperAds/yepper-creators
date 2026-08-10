@@ -2,7 +2,6 @@
 // AboveTheFoldContainer.js
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import AboveTheFold from '../img/aboveTheFold.png'
 
 const AboveTheFoldContainer = () => {  
   const features = [
@@ -32,7 +31,7 @@ const AboveTheFoldContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={AboveTheFold.src}
+              src="/ad-spaces/above-the-fold.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

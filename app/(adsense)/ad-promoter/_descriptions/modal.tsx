@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import ModalPic from '../img/modal.png';
 
 const ModalPicContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const ModalPicContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={ModalPic.src}
+              src="/ad-spaces/modal.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

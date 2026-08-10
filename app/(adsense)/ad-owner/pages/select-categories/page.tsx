@@ -14,17 +14,6 @@ import {
 import { Button, Text, Heading, Container, Badge } from '@/app/(adsense)/components/components';
 import LoadingSpinner from '@/app/(adsense)/components/LoadingSpinner';
 
-// Import ad space images
-import AboveTheFold from '../../../ad-promoter/img/aboveTheFold.png';
-import BeneathTitle from '../../../ad-promoter/img/beneathTitle.png';
-import Floating from '../../../ad-promoter/img/floating.png';
-import HeaderPic from '../../../ad-promoter/img/header.png';
-import InlineContent from '../../../ad-promoter/img/inlineContent.png';
-import LeftRail from '../../../ad-promoter/img/leftRail.png';
-import ModalPic from '../../../ad-promoter/img/modal.png';
-import ProFooter from '../../../ad-promoter/img/proFooter.png';
-import Sidebar from '../../../ad-promoter/img/sidebar.png';
-import StickySidebar from '../../../ad-promoter/img/stickySidebar.png';
 import api from '@/app/_lib/adsense-api';
 
 
@@ -61,16 +50,16 @@ const SelectCategoriesForExistingAd = () => {
     const normalizedName = categoryName.toLowerCase().replace(/\s+/g, '');
     
     const imageMap = {
-      'abovethefold': AboveTheFold,
-      'beneathtitle': BeneathTitle,
-      'floating': Floating,
-      'header': HeaderPic,
-      'inlinecontent': InlineContent,
-      'leftrail': LeftRail,
-      'modal': ModalPic,
-      'profooter': ProFooter,
-      'sidebar': Sidebar,
-      'stickysidebar': StickySidebar
+      'abovethefold': '/ad-spaces/above-the-fold.png',
+      'beneathtitle': '/ad-spaces/beneath-title.png',
+      'floating': '/ad-spaces/floating.png',
+      'header': '/ad-spaces/header.png',
+      'inlinecontent': '/ad-spaces/inline-content.png',
+      'leftrail': '/ad-spaces/left-rail.png',
+      'modal': '/ad-spaces/modal.png',
+      'profooter': '/ad-spaces/pro-footer.png',
+      'sidebar': '/ad-spaces/sidebar.png',
+      'stickysidebar': '/ad-spaces/sticky-sidebar.png'
     };
 
     return imageMap[normalizedName] || null;

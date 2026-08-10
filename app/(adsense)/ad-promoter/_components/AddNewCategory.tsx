@@ -24,6 +24,7 @@ import PricingTiers from './PricingTiers';
 import CategoryInfoModal from './CategoryInfoModal';
 import api from '@/app/_lib/adsense-api';
 import { useSession } from '@/app/_hooks/useSession';
+import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,22 +61,6 @@ interface AddNewCategoryProps {
   onCancel?: () => void;
   websitePages?: { label: string; path: string }[];
 }
-
-// ─── Image imports ────────────────────────────────────────────────────────────
-
-import AboveTheFold      from '../img/aboveTheFold.png';
-import BeneathTitle      from '../img/beneathTitle.png';
-import Floating          from '../img/floating.png';
-import HeaderPic         from '../img/header.png';
-import InlineContent     from '../img/inlineContent.png';
-import LeftRail          from '../img/leftRail.png';
-import ModalPic          from '../img/modal.png';
-import ProFooter         from '../img/proFooter.png';
-import Sidebar           from '../img/sidebar.png';
-import StickySidebar     from '../img/stickySidebar.png';
-import PrerollPic        from '../img/preroll.png';
-import MidrollPic        from '../img/midroll.png';
-import PausePic          from '../img/pauseAd.png';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -160,79 +145,79 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       name: 'Above the Fold', icon: <Layers className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Above The Fold', description: 'Prime visibility area at the top of webpage before scrolling',
-      category: 'primary', position: 'top', image: AboveTheFold.src,
+      category: 'primary', position: 'top', image: getAdSpaceImage('Above The Fold') ?? '',
     },
     beneathTitle: {
       name: 'Beneath Title', icon: <AlignJustify className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Beneath Title', description: 'Ad space directly below the page title',
-      category: 'content', position: 'top', image: BeneathTitle.src,
+      category: 'content', position: 'top', image: getAdSpaceImage('Beneath Title') ?? '',
     },
     floating: {
       name: 'Floating', icon: <Maximize className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Floating', description: 'Ads that float over page content, follows user scrolling',
-      category: 'special', position: 'overlay', image: Floating.src,
+      category: 'special', position: 'overlay', image: getAdSpaceImage('Floating') ?? '',
     },
     HeaderPic: {
       name: 'Header', icon: <Monitor className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Header', description: 'Banner ad space in the header section of the website',
-      category: 'primary', position: 'top', image: HeaderPic.src,
+      category: 'primary', position: 'top', image: getAdSpaceImage('Header') ?? '',
     },
     inlineContent: {
       name: 'Inline Content', icon: <AlignJustify className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Inline Content', description: 'Ad placement directly within article text',
-      category: 'content', position: 'middle', image: InlineContent.src,
+      category: 'content', position: 'middle', image: getAdSpaceImage('Inline Content') ?? '',
     },
     leftRail: {
       name: 'Left Rail', icon: <PanelLeft className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Left Rail', description: 'Ad space along the left side of the webpage',
-      category: 'sidebar', position: 'left', image: LeftRail.src,
+      category: 'sidebar', position: 'left', image: getAdSpaceImage('Left Rail') ?? '',
     },
     modalPic: {
       name: 'Modal', icon: <Info className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'modalPic', description: 'Pop-up ad that appears in a modal window',
-      category: 'special', position: 'overlay', image: ModalPic.src,
+      category: 'special', position: 'overlay', image: getAdSpaceImage('Modal') ?? '',
     },
     proFooter: {
       name: 'Pro Footer', icon: <PanelBottom className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'proFooter', description: 'Premium ad space in the footer section',
-      category: 'secondary', position: 'bottom', image: ProFooter.src,
+      category: 'secondary', position: 'bottom', image: getAdSpaceImage('Pro Footer') ?? '',
     },
     sidebar: {
       name: 'Sidebar', icon: <SidebarIcon className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'sidebar', description: 'Ad placement in the website sidebar',
-      category: 'sidebar', position: 'side', image: Sidebar.src,
+      category: 'sidebar', position: 'side', image: getAdSpaceImage('Sidebar') ?? '',
     },
     stickySidebar: {
       name: 'Sticky Sidebar', icon: <PieChart className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'stickySidebar', description: 'Sidebar ad that stays visible as user scrolls',
-      category: 'sidebar', position: 'side', image: StickySidebar.src,
+      category: 'sidebar', position: 'side', image: getAdSpaceImage('Sticky Sidebar') ?? '',
     },
     preroll: {
       name: 'Pre-roll', icon: <Play className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Pre-roll', description: 'Video ad that plays before the content starts',
-      category: 'video', position: 'video', image: PrerollPic.src,
+      category: 'video', position: 'video', image: getAdSpaceImage('Pre-roll') ?? '',
     },
     midroll: {
       name: 'Mid-roll', icon: <Film className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Mid-roll', description: 'Video ad that plays inside the content (content → ad → content)',
-      category: 'video', position: 'video', image: MidrollPic.src,
+      category: 'video', position: 'video', image: getAdSpaceImage('Mid-roll') ?? '',
     },
     pause: {
       name: 'Pause', icon: <Pause className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'Pause', description: 'Ad that appears when the viewer pauses the video',
-      category: 'video', position: 'video', image: PausePic.src,
+      category: 'video', position: 'video', image: getAdSpaceImage('Pause') ?? '',
     },
   }), []);
 

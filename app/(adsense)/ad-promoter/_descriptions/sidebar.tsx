@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import Sidebar from '../img/sidebar.png';
 
 const SidebarContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const SidebarContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={Sidebar.src}
+              src="/ad-spaces/sidebar.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

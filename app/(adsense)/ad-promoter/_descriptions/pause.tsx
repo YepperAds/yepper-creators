@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import PauseImg from '../img/pauseAd.png';
 
 const PauseContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const PauseContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={PauseImg.src}
+              src="/ad-spaces/pause.png"
               alt="Pause Space"
               className="w-full h-full object-cover opacity-80"
             />

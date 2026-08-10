@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import HeaderPic from '../img/header.png';
 
 const HeaderPicContainer = () => {
   const features = [
@@ -31,7 +30,7 @@ const HeaderPicContainer = () => {
           {/* Image Section */}
           <div className="relative h-full min-h-[500px] overflow-hidden">
             <img
-              src={HeaderPic.src}
+              src="/ad-spaces/header.png"
               alt="Above the Fold Space"
               className="w-full h-full object-cover opacity-80"
             />

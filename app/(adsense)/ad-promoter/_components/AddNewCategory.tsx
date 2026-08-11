@@ -36,6 +36,7 @@ interface CategoryDataEntry {
   userCount?: string;
   instructions?: string;
   targetPath?: string | null;
+  pricingTiers?: PriceTier[] | null;
 }
 
 interface CategoryDetail {
@@ -56,6 +57,115 @@ interface AddNewCategoryProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   websitePages?: { label: string; path: string }[];
+}
+
+interface PriceTier {
+  key: 'shared' | 'featured' | 'exclusive';
+  label: string;
+  price: number;
+  maxSlots: number;
+}
+
+const DEFAULT_TIER_LABELS: Record<PriceTier['key'], string> = {
+  shared: 'Shared', featured: 'Featured', exclusive: 'Exclusive',
+};
+
+// Suggested starting prices for tier 2/3, relative to the base (Shared)
+// price — pre-filled but fully editable, so it's never a blank guess. The
+// web owner can always type their own number instead.
+const TIER_PRICE_MULTIPLIERS: Record<PriceTier['key'], number> = {
+  shared: 1, featured: 2, exclusive: 4,
+};
+
+function buildDefaultTiers(basePrice: number): PriceTier[] {
+  return (['shared', 'featured', 'exclusive'] as const).map((key) => ({
+    key, label: DEFAULT_TIER_LABELS[key],
+    price: Math.round((basePrice * TIER_PRICE_MULTIPLIERS[key]) / 100) * 100,
+    maxSlots: 1,
+  }));
+}
+
+// ─── Split into tiers ───────────────────────────────────────────────────────
+// Optional, off by default: lets a web owner sell ONE ad space as up to 3
+// simultaneous price tiers (Shared/Featured/Exclusive) that rotate in the
+// same slot, instead of every advertiser sharing one flat price. Shared
+// always mirrors the space's normal resolved price (locked here, and the
+// only thing the server will actually charge for that tier) — Featured and
+// Exclusive are the web owner's own asking price. Named differently from
+// the site-traffic tiers (starter/premium/elite/...) so the two concepts
+// never read as the same thing.
+function SplitIntoTiers({
+  basePrice,
+  tiers,
+  onChange,
+}: {
+  basePrice: number;
+  tiers: PriceTier[] | null;
+  onChange: (tiers: PriceTier[] | null) => void;
+}) {
+  const enabled = !!tiers;
+  const rows = (tiers || buildDefaultTiers(basePrice)).map((t, i) => (
+    i === 0 ? { ...t, price: basePrice } : t
+  ));
+
+  const updateRow = (index: number, patch: Partial<PriceTier>) => {
+    onChange(rows.map((t, i) => (i === index ? { ...t, ...patch } : t)));
+  };
+
+  const outOfOrder = rows.some((t, i) => i > 0 && t.price < rows[i - 1].price);
+
+  return (
+    <div className="border border-border rounded-xl p-4 space-y-3">
+      <label className="flex items-center gap-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange(e.target.checked ? buildDefaultTiers(basePrice) : null)}
+          className="w-4 h-4 accent-coral"
+        />
+        <span className="text-sm font-medium text-white">Split this space into 3 tiers instead of one price</span>
+      </label>
+      <p className="text-xs text-muted">
+        Shared stays cheap so this spot never sits empty. Featured and Exclusive are your own asking price for a
+        bigger business — Exclusive also stays on screen longer per rotation.
+      </p>
+
+      {enabled && (
+        <div className="space-y-2 pt-3 border-t border-border">
+          {rows.map((t, i) => (
+            <div key={t.key} className="flex items-center gap-2">
+              <span className="w-16 text-xs font-semibold text-white shrink-0">{t.label}</span>
+              <div className="flex-1 flex items-center gap-1.5">
+                <span className="text-xs text-muted shrink-0">RWF</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={t.price}
+                  disabled={i === 0}
+                  onChange={(e) => updateRow(i, { price: Number(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 rounded-lg border border-border bg-surface-1 text-sm text-white outline-none disabled:opacity-50 focus:border-white/40"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted">slots</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={t.maxSlots}
+                  onChange={(e) => updateRow(i, { maxSlots: Math.max(1, Number(e.target.value) || 1) })}
+                  className="w-14 px-2 py-1.5 rounded-lg border border-border bg-surface-1 text-sm text-white outline-none focus:border-white/40"
+                />
+              </div>
+            </div>
+          ))}
+          {outOfOrder && (
+            <p className="text-xs text-error">Each tier should cost at least as much as the one before it.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -271,6 +381,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
         visitorRange: categoryData[category]?.visitorRange || { min: 0, max: 10000 },
         tier: categoryData[category]?.tier || 'starter',
         targetPath: categoryData[category]?.targetPath || null,
+        pricingTiers: categoryData[category]?.pricingTiers || undefined,
       }));
 
     if (categoriesToSubmit.length === 0) {
@@ -363,6 +474,12 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                     monthlyTraffic={websiteMonthlyTraffic}
                     spaceType={categoryDetails[activeCategory]?.spaceType}
                     grantedTier={grantDisplay?.trafficTier || null}
+                  />
+
+                  <SplitIntoTiers
+                    basePrice={categoryData[activeCategory]?.price || 0}
+                    tiers={categoryData[activeCategory]?.pricingTiers || null}
+                    onChange={(next) => updateCategoryData(activeCategory, 'pricingTiers', next)}
                   />
 
                   <div className="space-y-5">

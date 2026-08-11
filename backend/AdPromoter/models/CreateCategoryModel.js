@@ -6,15 +6,19 @@ const AdCategory = {
     const { rows } = await query(
       `INSERT INTO ad_categories (owner_id, website_id, category_name, description, price, space_type,
         user_count, instructions, default_language, custom_attributes, placement_mode, placeholder_div,
-        api_codes, web_owner_email, visitor_range_min, visitor_range_max, tier, customization, target_path)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+        api_codes, web_owner_email, visitor_range_min, visitor_range_max, tier, customization, target_path,
+        pricing_tiers)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
       [data.ownerId, data.websiteId, data.categoryName, data.description||null, data.price,
        data.spaceType, data.userCount||0, data.instructions||null, data.defaultLanguage||'english',
        JSON.stringify(data.customAttributes||{}), data.placementMode||'auto',
        data.placeholderDiv||null, JSON.stringify(data.apiCodes||{}),
        data.webOwnerEmail, data.visitorRange?.min, data.visitorRange?.max,
        data.tier, data.customization ? JSON.stringify(data.customization) : null,
-       data.targetPath || null]
+       data.targetPath || null,
+       // NULL = single-price space (today's behavior, unchanged). Only set
+       // when the web owner opts into Shared/Featured/Exclusive splitting.
+       data.pricingTiers ? JSON.stringify(data.pricingTiers) : null]
     );
     return rows[0];
   },
@@ -41,6 +45,43 @@ const AdCategory = {
     return rows[0] || null;
   },
   async delete(id) { await query(`DELETE FROM ad_categories WHERE id = $1`, [id]); },
+  // Multi-tier ad spaces: how many currently-active ads are booked into each
+  // tier of this category. "Active" mirrors the same definition used
+  // everywhere else fill is computed (AdDisplayController.resolveCategoryAndAds,
+  // createCategoryController.getCategoriesByWebsiteForAdvertisers) — an
+  // import_ads row with an approved+active website_selections entry for this
+  // category — rather than trusting ad_tier_assignments alone, which never
+  // gets cleaned up if an ad is later rejected/expired.
+  async countActiveAdsByTier(categoryId) {
+    const { rows } = await query(
+      `SELECT ac.ad_tier_assignments, ARRAY_AGG(ia.id) AS active_ad_ids
+       FROM ad_categories ac
+       LEFT JOIN import_ads ia ON EXISTS (
+         SELECT 1 FROM jsonb_array_elements(ia.website_selections) sel
+         WHERE sel->>'websiteId' = ac.website_id::text
+           AND (sel->>'approved')::boolean = true
+           AND sel->>'status' = 'active'
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
+             WHERE cat_id = ac.id::text
+           )
+       )
+       WHERE ac.id = $1
+       GROUP BY ac.id`,
+      [categoryId]
+    );
+    const row = rows[0];
+    if (!row) return {};
+    const assignments = typeof row.ad_tier_assignments === 'string'
+      ? JSON.parse(row.ad_tier_assignments) : (row.ad_tier_assignments || {});
+    const activeIds = (row.active_ad_ids || []).filter(Boolean);
+    const counts = {};
+    for (const adId of activeIds) {
+      const tierKey = assignments[adId];
+      if (tierKey) counts[tierKey] = (counts[tierKey] || 0) + 1;
+    }
+    return counts;
+  },
   // Best-effort, idempotent — the WHERE clause makes repeat beacons for a
   // path already on file a no-op instead of growing the array unbounded.
   async recordDetectedPage(id, path) {

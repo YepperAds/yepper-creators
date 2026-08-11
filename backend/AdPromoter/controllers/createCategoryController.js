@@ -78,6 +78,10 @@ function catToClient(c) {
     webOwnerEmail: c.web_owner_email,
     defaultLanguage: c.default_language,
     customization: typeof c.customization === 'string' ? JSON.parse(c.customization) : (c.customization || null),
+    // Multi-tier ad spaces — null/absent means this space still sells at a
+    // single flat price, same as before this feature existed.
+    pricingTiers: typeof c.pricing_tiers === 'string' ? JSON.parse(c.pricing_tiers) : (c.pricing_tiers || null),
+    adTierAssignments: typeof c.ad_tier_assignments === 'string' ? JSON.parse(c.ad_tier_assignments) : (c.ad_tier_assignments || {}),
   };
 }
 
@@ -207,7 +211,8 @@ exports.createCategory = async (req, res) => {
 
     const {
       websiteId, categoryName, description, price, customAttributes,
-      spaceType, placementMode, userCount, instructions, visitorRange, tier, targetPath
+      spaceType, placementMode, userCount, instructions, visitorRange, tier, targetPath,
+      pricingTiers,
     } = req.body;
 
     const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
@@ -238,6 +243,49 @@ exports.createCategory = async (req, res) => {
       console.error('Pricing lookup failed, using submitted price:', e.message);
     }
 
+    // Multi-tier ad spaces ("Shared / Featured / Exclusive"): optional —
+    // omitting pricingTiers keeps every existing single-price ad space's
+    // behavior exactly as it is today. When present, "shared" always uses
+    // the server-computed finalPrice (same source of truth as a normal
+    // space) rather than whatever the client sent for it, and every tier
+    // must price at or above the one before it — Featured/Exclusive are
+    // the web owner's own asking price, but can never be a cheaper way to
+    // buy the same spot than Shared.
+    const TIER_ORDER = ['shared', 'featured', 'exclusive'];
+    const DEFAULT_DWELL_SECONDS = { shared: 15, featured: 20, exclusive: 35 };
+    let normalizedPricingTiers = null;
+    if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
+      if (pricingTiers.length > 3) {
+        return res.status(400).json({ message: 'A maximum of 3 pricing tiers is supported.' });
+      }
+      const seen = new Set();
+      normalizedPricingTiers = [];
+      let previousPrice = 0;
+      for (const raw of pricingTiers) {
+        const key = TIER_ORDER.includes(raw?.key) ? raw.key : null;
+        if (!key || seen.has(key)) {
+          return res.status(400).json({ message: 'Each pricing tier must have a unique key of shared, featured, or exclusive.' });
+        }
+        seen.add(key);
+        const tierPrice = key === 'shared' ? finalPrice : Number(raw.price);
+        const maxSlots  = Math.max(1, parseInt(raw.maxSlots, 10) || 1);
+        const dwellSeconds = Math.max(5, parseInt(raw.dwellSeconds, 10) || DEFAULT_DWELL_SECONDS[key]);
+        if (!Number.isFinite(tierPrice) || tierPrice < previousPrice) {
+          return res.status(400).json({
+            message: `The ${key} tier's price must be a number at or above the previous tier's price.`,
+          });
+        }
+        previousPrice = tierPrice;
+        normalizedPricingTiers.push({
+          key, label: raw.label || key[0].toUpperCase() + key.slice(1),
+          price: tierPrice, maxSlots, dwellSeconds,
+        });
+      }
+      // Keep canonical shared -> featured -> exclusive order regardless of
+      // what order the client submitted them in.
+      normalizedPricingTiers.sort((a, b) => TIER_ORDER.indexOf(a.key) - TIER_ORDER.indexOf(b.key));
+    }
+
     const savedCategory = await AdCategory.create({
       ownerId: userId,
       websiteId,
@@ -245,6 +293,7 @@ exports.createCategory = async (req, res) => {
       description,
       price: finalPrice,
       spaceType,
+      pricingTiers: normalizedPricingTiers,
       // A specific targetPath is what actually scopes this to one page (the
       // site-wide script matches it against location.pathname) — placementMode
       // is now just a derived label kept for backward compatibility with the
@@ -745,6 +794,37 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
       `SELECT COUNT(*) FROM ad_categories WHERE website_id=$1::uuid`, [websiteId]
     );
 
+    // Multi-tier spaces: figure out, per tier, how many of its maxSlots are
+    // taken. Reuses the same "active ad actually sold on this website+
+    // category" definition as current_user_count above (one batched query
+    // for every tiered category on this page, instead of N+1) and counts
+    // each active ad against the tier ad_tier_assignments says it belongs to.
+    const tieredCategoryIds = categories
+      .filter(c => Array.isArray(c.pricing_tiers) || (typeof c.pricing_tiers === 'string' && c.pricing_tiers))
+      .map(c => c.id);
+
+    let activeAdsByCategoryId = {};
+    if (tieredCategoryIds.length) {
+      const { rows: activeAdRows } = await query(
+        `SELECT ac.id AS category_id, ia.id AS ad_id
+         FROM ad_categories ac
+         JOIN import_ads ia ON EXISTS (
+           SELECT 1 FROM jsonb_array_elements(ia.website_selections) sel
+           WHERE sel->>'websiteId' = $1
+             AND EXISTS (
+               SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
+               WHERE cat_id = ac.id::text
+             )
+         )
+         WHERE ac.id = ANY($2::uuid[])`,
+        [websiteId, tieredCategoryIds]
+      );
+      activeAdsByCategoryId = activeAdRows.reduce((acc, row) => {
+        (acc[row.category_id] ||= []).push(row.ad_id);
+        return acc;
+      }, {});
+    }
+
     // Add isFullyBooked flag — user_count defaults to 0 in the DB for newly
     // created ad spaces, but 0 means "not configured" everywhere else in this
     // file (see maxSlots fallbacks above), not "zero slots". Fall back to the
@@ -752,10 +832,26 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
     // catToClient() maps the raw snake_case row (id, category_name, ...) to
     // the camelCase shape (_id, categoryName, ...) the advertiser UI expects —
     // without it, space._id/categoryName came back undefined.
-    const enriched = categories.map(c => ({
-      ...catToClient(c),
-      isFullyBooked: c.current_user_count >= (c.user_count || 10)
-    }));
+    const enriched = categories.map(c => {
+      const client = catToClient(c);
+      let tierAvailability = null;
+      if (client.pricingTiers) {
+        const activeAdIds = activeAdsByCategoryId[c.id] || [];
+        const assignments = client.adTierAssignments || {};
+        tierAvailability = client.pricingTiers.map(t => ({
+          key: t.key,
+          maxSlots: t.maxSlots,
+          slotsTaken: activeAdIds.filter(adId => assignments[adId] === t.key).length,
+        }));
+      }
+      return {
+        ...client,
+        isFullyBooked: client.pricingTiers
+          ? tierAvailability.every(t => t.slotsTaken >= t.maxSlots)
+          : c.current_user_count >= (c.user_count || 10),
+        tierAvailability,
+      };
+    });
 
     res.status(200).json({ categories: enriched, totalPages: Math.ceil(parseInt(count) / limit), currentPage: page });
 
@@ -820,7 +916,18 @@ exports.getCategoryById = async (req, res) => {
   try {
     const category = await AdCategory.findById(req.params.categoryId);
     if (!category) return res.status(404).json({ message: 'Category not found' });
-    res.status(200).json(catToClient(category));  // ← wrap with catToClient
+    const client = catToClient(category);
+    // Multi-tier ad spaces: the direct-ad checkout page needs to know how
+    // full each tier already is (to show "2/3 taken" and grey out a full
+    // tier) — untiered spaces get tierAvailability: null, unchanged.
+    let tierAvailability = null;
+    if (client.pricingTiers) {
+      const counts = await AdCategory.countActiveAdsByTier(category.id);
+      tierAvailability = client.pricingTiers.map((t) => ({
+        key: t.key, maxSlots: t.maxSlots, slotsTaken: counts[t.key] || 0,
+      }));
+    }
+    res.status(200).json({ ...client, tierAvailability });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch category', error: error.message });
   }

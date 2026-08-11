@@ -48,6 +48,7 @@ function DirectAdvertise() {
   const [paymentDone, setPaymentDone] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [selectedPages, setSelectedPages] = useState<string[]>([]);
+  const [selectedTierKey, setSelectedTierKey] = useState<string | null>(null);
   const fileInputRef = useRef(null);
 
   // "All Pages" ad spaces (categoryInfo.targetPath === null) let the
@@ -64,7 +65,23 @@ function DirectAdvertise() {
     label: registeredPages.find((p: any) => p.path === path)?.label || path,
   }));
   const pageSelectionEligible = !categoryInfo?.targetPath && pageOptions.length >= 2;
-  const basePrice = parseFloat(categoryInfo?.price || 0);
+
+  // Multi-tier ad spaces ("Shared/Featured/Exclusive"): pick a price from
+  // whichever tier is selected instead of the space's flat price. Untiered
+  // spaces (the vast majority) are completely unaffected — pricingTiers is
+  // absent, so this falls straight back to categoryInfo.price as before.
+  const pricingTiers: Array<{ key: string; label: string; price: number; maxSlots: number }> =
+    Array.isArray(categoryInfo?.pricingTiers) ? categoryInfo.pricingTiers : [];
+  const tierAvailability: Array<{ key: string; maxSlots: number; slotsTaken: number }> =
+    Array.isArray(categoryInfo?.tierAvailability) ? categoryInfo.tierAvailability : [];
+  const isTierFull = (key: string) => {
+    const a = tierAvailability.find((t) => t.key === key);
+    return !!a && a.slotsTaken >= a.maxSlots;
+  };
+  const selectedTier = pricingTiers.find((t) => t.key === selectedTierKey) || null;
+  const basePrice = pricingTiers.length > 0
+    ? (selectedTier?.price || 0)
+    : parseFloat(categoryInfo?.price || 0);
   const displayPrice = pageSelectionEligible && selectedPages.length >= 2 ? basePrice * 2 : basePrice;
 
   useEffect(() => {
@@ -75,6 +92,14 @@ function DirectAdvertise() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryInfo, websiteInfo]);
+
+  // Default to the first tier that still has room, once tier data loads.
+  useEffect(() => {
+    if (pricingTiers.length === 0) { setSelectedTierKey(null); return; }
+    const firstOpen = pricingTiers.find((t) => !isTierFull(t.key));
+    setSelectedTierKey(firstOpen ? firstOpen.key : pricingTiers[0].key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryInfo]);
 
   const togglePage = (path: string) => {
     setSelectedPages((prev) =>
@@ -469,6 +494,10 @@ function DirectAdvertise() {
       setError('Select at least one page for this ad to appear on.');
       return;
     }
+    if (pricingTiers.length > 0 && (!selectedTierKey || isTierFull(selectedTierKey))) {
+      setError('Pick an available tier for this ad space.');
+      return;
+    }
     try {
       setIsLoading(true);
 
@@ -478,6 +507,7 @@ function DirectAdvertise() {
           websiteId: websiteId,
           categoryId: categoryId,
           selectedPages: pageSelectionEligible ? selectedPages : null,
+          tierKey: pricingTiers.length > 0 ? selectedTierKey : undefined,
         }]
       }, {
         headers: { 'Authorization': `Bearer ${getToken() || ''}` }
@@ -750,16 +780,54 @@ function DirectAdvertise() {
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-black">Category Details</h3>
                 <p className="text-base mb-2 text-black"><span className='font-medium'>{categoryInfo?.categoryName}:</span> {categoryInfo?.description}</p>
-                <div className="space-y-2">
-                  <div className="flex gap-2 text-sm">
-                    <span className="text-subtle">Price:</span>
-                    <span className="font-semibold text-black">RWF {categoryInfo?.price}</span>
+
+                {pricingTiers.length > 0 ? (
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-subtle">Choose a tier:</span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {pricingTiers.map((t) => {
+                        const avail = tierAvailability.find((a) => a.key === t.key);
+                        const full = !!avail && avail.slotsTaken >= avail.maxSlots;
+                        const selected = selectedTierKey === t.key;
+                        return (
+                          <button
+                            key={t.key}
+                            type="button"
+                            disabled={full}
+                            onClick={() => setSelectedTierKey(t.key)}
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-colors ${
+                              selected ? 'border-coral bg-coral/10' : 'border-border bg-white hover:border-coral/40'
+                            } ${full ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          >
+                            <span>
+                              <span className="block text-sm font-semibold text-black">{t.label}</span>
+                              {t.key === 'exclusive' && (
+                                <span className="block text-[11px] text-subtle">Stays on screen longer</span>
+                              )}
+                            </span>
+                            <span className="text-right shrink-0">
+                              <span className="block text-sm font-semibold text-black">RWF {t.price}</span>
+                              {avail && (
+                                <span className="block text-[11px] text-subtle">{avail.slotsTaken}/{avail.maxSlots} taken</span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex gap-2 text-sm">
-                    <span className="text-subtle">Tier:</span>
-                    <span className="font-medium capitalize text-black">{categoryInfo?.tier}</span>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-subtle">Price:</span>
+                      <span className="font-semibold text-black">RWF {categoryInfo?.price}</span>
+                    </div>
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-subtle">Tier:</span>
+                      <span className="font-medium capitalize text-black">{categoryInfo?.tier}</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

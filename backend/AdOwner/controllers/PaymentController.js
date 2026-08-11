@@ -178,7 +178,31 @@ exports.initiatePayment = async (req, res) => {
         priceMultiplier = selectedPages.length >= 2 ? 2 : 1;
       }
 
-      const basePrice = parseFloat(category.price);
+      // Multi-tier ad spaces ("Shared / Featured / Exclusive"): pick the
+      // price from the tier the advertiser chose, server-side — never trust
+      // a client-sent price, same principle as basePrice below for
+      // untiered spaces. A category without pricing_tiers behaves exactly
+      // as before (tierKey stays null, basePrice comes from category.price).
+      const pricingTiers = typeof category.pricing_tiers === 'string'
+        ? JSON.parse(category.pricing_tiers) : category.pricing_tiers;
+      let tierKey = null;
+      let basePrice;
+      if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
+        const chosenTier = pricingTiers.find((t) => t.key === selection.tierKey);
+        if (!chosenTier) {
+          return res.status(400).json({
+            error: `This ad space sells in tiers — pick one of: ${pricingTiers.map((t) => t.key).join(', ')}.`,
+          });
+        }
+        const tierCounts = await AdCategory.countActiveAdsByTier(categoryId);
+        if ((tierCounts[chosenTier.key] || 0) >= chosenTier.maxSlots) {
+          return res.status(409).json({ error: `The "${chosenTier.label}" tier for this ad space is fully booked. Pick a different tier.` });
+        }
+        tierKey = chosenTier.key;
+        basePrice = parseFloat(chosenTier.price);
+      } else {
+        basePrice = parseFloat(category.price);
+      }
       const finalPrice = basePrice * priceMultiplier;
 
       totalAmount += finalPrice;
@@ -190,6 +214,7 @@ exports.initiatePayment = async (req, res) => {
         categoryName: category.category_name,
         websiteName: website.website_name,
         selectedPages,
+        tierKey,
       });
       categoryDetails.push({
         categoryName: category.category_name,
@@ -227,6 +252,7 @@ exports.initiatePayment = async (req, res) => {
           categoryName: selection.categoryName,
           websiteName: selection.websiteName,
           selectedPages: selection.selectedPages,
+          tierKey: selection.tierKey,
         },
       });
     }
@@ -336,6 +362,18 @@ exports.verifyPayment = async (req, res) => {
              WHERE id = $2 AND NOT ($1 = ANY(COALESCE(selected_ads, ARRAY[]::uuid[])))`,
             [payment.ad_id, payment.category_id]
           );
+
+          // Multi-tier ad spaces: record which tier this ad bought into, so
+          // rotation/fill-checking knows which Shared/Featured/Exclusive
+          // bucket it belongs to. No-op (stays untouched) for ordinary
+          // single-price spaces, where tierKey is never set at checkout.
+          if (payment.metadata?.tierKey) {
+            await client.query(
+              `UPDATE ad_categories SET ad_tier_assignments = ad_tier_assignments || jsonb_build_object($1::text, $2::text)
+               WHERE id = $3`,
+              [payment.ad_id, payment.metadata.tierKey, payment.category_id]
+            );
+          }
 
           const webOwnerEmail = category.web_owner_email;
           const wallet = await client.query(
@@ -650,6 +688,15 @@ exports.handleProcessWallet = async (req, res) => {
            WHERE id = $2 AND NOT ($1 = ANY(COALESCE(selected_ads, ARRAY[]::uuid[])))`,
           [sel.adId, sel.categoryId]
         );
+        // NOTE: this wallet-payment path doesn't resolve a tier price yet
+        // (see initiatePayment for that) — sel.tierKey is never set today,
+        // so this is a no-op until wallet checkout gains tier support too.
+        if (sel.tierKey) {
+          await client.query(
+            `UPDATE ad_categories SET ad_tier_assignments = ad_tier_assignments || jsonb_build_object($1::text, $2::text) WHERE id = $3`,
+            [sel.adId, sel.tierKey, sel.categoryId]
+          );
+        }
 
         await client.query(
           `INSERT INTO wallets (owner_id, owner_type, owner_email, balance, total_earned, total_spent, last_updated)
@@ -897,7 +944,7 @@ exports.validateCategoryData = async (req, res) => {
   }
 };
 
-exports.completeAdPlacement = async (adId, websiteId, categoryId, paymentId, client) => {
+exports.completeAdPlacement = async (adId, websiteId, categoryId, paymentId, client, tierKey) => {
   const ad = await ImportAd.findById(adId);
   const category = await AdCategory.findById(categoryId);
   const website = await Website.findById(websiteId);
@@ -914,6 +961,12 @@ exports.completeAdPlacement = async (adId, websiteId, categoryId, paymentId, cli
 
   await client.query(`UPDATE import_ads SET website_selections = $1, available_for_reassignment = false WHERE id = $2`, [JSON.stringify(websiteSelections), adId]);
   await client.query(`UPDATE ad_categories SET selected_ads = array_append(COALESCE(selected_ads, ARRAY[]::uuid[]), $1) WHERE id = $2 AND NOT ($1 = ANY(COALESCE(selected_ads, ARRAY[]::uuid[])))`, [adId, categoryId]);
+  if (tierKey) {
+    await client.query(
+      `UPDATE ad_categories SET ad_tier_assignments = ad_tier_assignments || jsonb_build_object($1::text, $2::text) WHERE id = $3`,
+      [adId, tierKey, categoryId]
+    );
+  }
 
   await client.query(
     `INSERT INTO wallets (owner_id, owner_type, owner_email, balance, total_earned, total_spent, last_updated)

@@ -449,10 +449,18 @@ exports.serveAdScript = async (req, res) => {
       /* Real ads get more time on screen than the "Available Ad Space"
          filler — a recursive setTimeout (not setInterval) so each item's
          own dwell time decides the next swap, instead of one fixed period
-         for everything. */
+         for everything. Multi-tier spaces ("Shared/Featured/Exclusive")
+         go further: data.dwellByTier gives each tier its own on-screen
+         time (e.g. Exclusive stays up longer than Shared), read via each
+         item's data-tier attribute. Untiered spaces have no dwellByTier,
+         so this falls straight back to the _tAd/_tEmpty split above. */
+      var dwellByTier=data.dwellByTier||null;
       (function scheduleNext(){
         var curAdId=items[cur].dataset.adId;
-        var dwell=(curAdId && curAdId!=='undefined')?_tAd:_tEmpty;
+        var curTier=items[cur].dataset.tier;
+        var dwell=(dwellByTier&&curTier&&dwellByTier[curTier])
+          ? dwellByTier[curTier]
+          : ((curAdId && curAdId!=='undefined')?_tAd:_tEmpty);
         setTimeout(function(){
           items[cur].style.display='none';
           cur=(cur+1)%items.length;

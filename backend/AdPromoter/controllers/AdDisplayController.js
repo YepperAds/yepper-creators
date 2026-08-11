@@ -98,8 +98,36 @@ async function resolveCategoryAndAds(categoryId, req) {
   );
 
   const pageFiltered = filterAdsByPage(ads, adCategory.website_id?.toString(), categoryId, req?.query?.path);
-  const adsToShow = pageFiltered.slice(0, adCategory.user_count || pageFiltered.length);
-  return { adCategory, website, ads: adsToShow, blocked: false };
+
+  // Multi-tier ad spaces ("Shared / Featured / Exclusive"): tag each ad with
+  // which tier it bought into, and cap per tier's own maxSlots instead of
+  // the single overall user_count (which multi-tier spaces don't use).
+  // Ordinary single-price spaces are untouched — pricingTiers is null, so
+  // this block is skipped and the old slice(0, user_count) behavior runs.
+  const pricingTiers = typeof adCategory.pricing_tiers === 'string'
+    ? JSON.parse(adCategory.pricing_tiers) : adCategory.pricing_tiers;
+
+  let adsToShow;
+  if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
+    const assignments = typeof adCategory.ad_tier_assignments === 'string'
+      ? JSON.parse(adCategory.ad_tier_assignments || '{}') : (adCategory.ad_tier_assignments || {});
+    const takenPerTier = {};
+    adsToShow = [];
+    // Walk in canonical tier order (shared -> featured -> exclusive) so the
+    // rotation's slot order is stable and predictable, not insertion order.
+    for (const t of pricingTiers) {
+      for (const ad of pageFiltered) {
+        if (assignments[ad.id] !== t.key) continue;
+        takenPerTier[t.key] = (takenPerTier[t.key] || 0) + 1;
+        if (takenPerTier[t.key] > t.maxSlots) continue; // defensive: never show more than a tier's own capacity
+        adsToShow.push({ ...ad, tier: t.key, tierLabel: t.label, tierDwellSeconds: t.dwellSeconds });
+      }
+    }
+  } else {
+    adsToShow = pageFiltered.slice(0, adCategory.user_count || pageFiltered.length);
+  }
+
+  return { adCategory, website, ads: adsToShow, blocked: false, pricingTiers };
 }
 exports.resolveCategoryAndAds = resolveCategoryAndAds;
 
@@ -125,25 +153,62 @@ function availableSlotHtml(adCategory, categoryId) {
     </div>`;
 }
 
+// Multi-tier version of availableSlotHtml above — one filler per tier that
+// still has open capacity, each pitching its own tier's price (so an
+// "Exclusive" spot advertises itself at the Exclusive price, not the
+// cheapest tier's), instead of one generic filler for the whole space.
+function tierFillerHtml(adCategory, categoryId, tier) {
+  const FRONTEND = process.env.FRONTEND_URL || '';
+  return `
+    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
+      <div class="sp-empty">
+        <p class="sp-empty-name">${escapeHtml(tier.label)} spot open</p>
+        <p class="sp-empty-title">Price</p>
+        <p class="sp-empty-price">RWF ${tier.price}/month</p>
+        <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}" target="_blank" rel="noopener">Advertise Here</a>
+      </div>
+    </div>`;
+}
+
+// Turns pricing_tiers' per-tier dwellSeconds into the {key: milliseconds}
+// map the injected site script reads to decide how long each tier's ad
+// stays on screen (see AdScriptController.js's scheduleNext). null for
+// ordinary single-price spaces, where the script falls back to its own
+// existing flat dwell time unchanged.
+function buildDwellByTier(pricingTiers) {
+  if (!Array.isArray(pricingTiers) || !pricingTiers.length) return null;
+  return pricingTiers.reduce((acc, t) => {
+    acc[t.key] = Math.max(5, t.dwellSeconds || 15) * 1000;
+    return acc;
+  }, {});
+}
+
 exports.displayAd = async (req, res) => {
   try {
     const { categoryId } = req.query;
     if (!categoryId) return res.json({ html: '' });
 
-    const { adCategory, ads: adsToShow } = await resolveCategoryAndAds(categoryId, req);
-    if (!adCategory || !adsToShow.length) return res.json({ html: '' });
+    const { adCategory, ads: adsToShow, pricingTiers } = await resolveCategoryAndAds(categoryId, req);
+    if (!adCategory) return res.json({ html: '' });
+    // A brand-new multi-tier space with zero ads sold yet still needs to
+    // show its 3 open tiers (not the client's generic single-price empty
+    // state) — only bail out to that generic fallback for ordinary,
+    // untiered spaces with nothing sold.
+    const isTiered = Array.isArray(pricingTiers) && pricingTiers.length > 0;
+    if (!isTiered && !adsToShow.length) return res.json({ html: '' });
 
     const adsHtml = adsToShow.map(ad => {
       try {
         const imageUrl = escapeHtml(ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image');
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name);
+        const tierAttr = ad.tier ? ` data-tier="${escapeHtml(ad.tier)}"` : '';
         // Image-forward card: no business name/description text in the ad
         // itself — just the creative image (filling the whole box) and a
         // CTA button overlaid on it. businessName is still used for the
         // image's alt text (accessibility, not visible copy).
         return `
-          <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
+          <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}"${tierAttr}>
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">
               <div class="sp-content">
                 <div class="sp-image-wrapper"><img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy"></div>
@@ -154,11 +219,24 @@ exports.displayAd = async (req, res) => {
       } catch (e) { return ''; }
     }).filter(Boolean).join('');
 
-    const openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
-      ? availableSlotHtml(adCategory, categoryId)
-      : '';
+    // Multi-tier spaces get one filler per tier that still has open
+    // capacity (each pitching its own tier's price); ordinary spaces keep
+    // today's single generic filler based on user_count.
+    let openSlot = '';
+    if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
+      const takenPerTier = {};
+      adsToShow.forEach((ad) => { if (ad.tier) takenPerTier[ad.tier] = (takenPerTier[ad.tier] || 0) + 1; });
+      openSlot = pricingTiers
+        .filter((t) => (takenPerTier[t.key] || 0) < t.maxSlots)
+        .map((t) => tierFillerHtml(adCategory, categoryId, t))
+        .join('');
+    } else {
+      openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
+        ? availableSlotHtml(adCategory, categoryId)
+        : '';
+    }
 
-    return res.json({ html: `<div class="sp-container">${adsHtml}${openSlot}</div>` });
+    return res.json({ html: `<div class="sp-container">${adsHtml}${openSlot}</div>`, dwellByTier: buildDwellByTier(pricingTiers) });
   } catch (error) {
     console.error('Error displaying ad:', error);
     return res.json({ html: '' });

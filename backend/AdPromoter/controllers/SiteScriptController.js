@@ -490,10 +490,18 @@ exports.serveSiteScript = async (req, res) => {
       if(firstAdId&&firstAdId!=='undefined'&&firstAdId!=='null')trackView(firstAdId);
       /* Real ads dwell longer than the "Available Ad Space" filler — a
          recursive setTimeout so each item's own dwell time decides the next
-         swap, instead of one fixed period for everything. */
+         swap, instead of one fixed period for everything. Multi-tier spaces
+         ("Shared/Featured/Exclusive") go further: data.dwellByTier gives
+         each tier its own on-screen time (Exclusive stays up longer than
+         Shared), read via each item's data-tier attribute. Untiered spaces
+         have no dwellByTier and fall straight back to _rotAd/_rotEmpty. */
+      var dwellByTier=data.dwellByTier||null;
       (function scheduleNext(){
         var curAdId=items[cur].dataset.adId;
-        var dwell=(curAdId&&curAdId!=='undefined'&&curAdId!=='null')?_rotAd:_rotEmpty;
+        var curTier=items[cur].dataset.tier;
+        var dwell=(dwellByTier&&curTier&&dwellByTier[curTier])
+          ? dwellByTier[curTier]
+          : ((curAdId&&curAdId!=='undefined'&&curAdId!=='null')?_rotAd:_rotEmpty);
         setTimeout(function(){
           items[cur].style.display='none';
           cur=(cur+1)%items.length;

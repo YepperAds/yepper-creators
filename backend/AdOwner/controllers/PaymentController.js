@@ -6,6 +6,7 @@ const Payment = require('../models/PaymentModel');
 const ImportAd = require('../models/WebAdvertiseModel');
 const AdCategory = require('../../AdPromoter/models/CreateCategoryModel');
 const Website = require('../../AdPromoter/models/CreateWebsiteModel');
+const Pricing = require('../../models/PricingModel');
 const { Wallet, WalletTransaction } = require('../../AdPromoter/models/walletModel');
 const { getClient } = require('../../config/db');
 
@@ -138,6 +139,11 @@ exports.initiatePayment = async (req, res) => {
     const validatedSelections = [];
     const categoryDetails = [];
 
+    // Flat margin for now — the "drops to 25/20/15% for top performers" idea
+    // from the pricing sheet isn't built yet, on purpose (holding off until
+    // asked for). Same margin for every selection in this bulk request.
+    const { marginPercent } = await Pricing.getSettings();
+
     for (const selection of selections) {
       const { websiteId, categoryId } = selection;
       const existing = websiteSelections.find(
@@ -203,14 +209,21 @@ exports.initiatePayment = async (req, res) => {
       } else {
         basePrice = parseFloat(category.price);
       }
-      const finalPrice = basePrice * priceMultiplier;
+      // listedPrice is the owner's 100% cut (what the sheet calls "what the
+      // web owner receives") — chargedPrice is what the advertiser actually
+      // pays, with Yepper's margin added ON TOP, never deducted from the
+      // owner's side. The wallet only ever gets credited listedPrice; see
+      // the metadata.listedPrice read at every "payment succeeded" site.
+      const listedPrice  = basePrice * priceMultiplier;
+      const chargedPrice = listedPrice * (1 + marginPercent / 100);
 
-      totalAmount += finalPrice;
+      totalAmount += chargedPrice;
       validatedSelections.push({
         websiteId,
         categoryId,
         webOwnerId: website.owner_id,
-        price: finalPrice,
+        price: chargedPrice,
+        listedPrice,
         categoryName: category.category_name,
         websiteName: website.website_name,
         selectedPages,
@@ -219,7 +232,7 @@ exports.initiatePayment = async (req, res) => {
       categoryDetails.push({
         categoryName: category.category_name,
         websiteName: website.website_name,
-        price: finalPrice,
+        price: chargedPrice,
         webOwnerId: website.owner_id,
       });
     }
@@ -253,6 +266,9 @@ exports.initiatePayment = async (req, res) => {
           websiteName: selection.websiteName,
           selectedPages: selection.selectedPages,
           tierKey: selection.tierKey,
+          // The owner's 100% cut — wallet crediting reads this, not
+          // `amount` (which includes Yepper's margin on top).
+          listedPrice: selection.listedPrice,
         },
       });
     }
@@ -376,19 +392,25 @@ exports.verifyPayment = async (req, res) => {
           }
 
           const webOwnerEmail = category.web_owner_email;
+          // Owner gets credited their listed (100%) price, not payment.amount
+          // — amount includes Yepper's margin on top, which the advertiser
+          // paid but the owner never sees. Falls back to payment.amount for
+          // payments created before this split existed (metadata.listedPrice
+          // absent), so nothing old silently under-credits to zero.
+          const ownerCredit = parseFloat(payment.metadata?.listedPrice ?? payment.amount);
           const wallet = await client.query(
             `INSERT INTO wallets (owner_id, owner_type, owner_email, balance, total_earned, total_spent, last_updated)
              VALUES ($1, 'webOwner', $2, $3, $3, 0, NOW())
              ON CONFLICT (owner_id, owner_type) DO UPDATE SET
                balance = wallets.balance + $3, total_earned = wallets.total_earned + $3, last_updated = NOW()
              RETURNING *`,
-            [website.owner_id, webOwnerEmail || '', parseFloat(payment.amount)]
+            [website.owner_id, webOwnerEmail || '', ownerCredit]
           );
 
           await client.query(
             `INSERT INTO wallet_transactions (wallet_id, payment_id, ad_id, amount, type, description, status)
              VALUES ($1, $2, $3, $4, 'credit', $5, 'completed')`,
-            [wallet.rows[0].id, payment.id, payment.ad_id, payment.amount,
+            [wallet.rows[0].id, payment.id, payment.ad_id, ownerCredit,
              `Payment for ad: ${adRow.business_name} - ${category.category_name}`]
           );
         }
@@ -491,16 +513,19 @@ exports.verifyPaymentNonTransactional = async (req, res) => {
         const website = await Website.findById(payment.website_id);
         if (website) {
           const ownerEmail = category?.web_owner_email;
+          // Owner's listed (100%) price, not payment.amount — see the same
+          // note in verifyPayment above.
+          const ownerCredit = parseFloat(payment.metadata?.listedPrice ?? payment.amount);
           const ww = await Wallet.create({ ownerId: website.owner_id, ownerEmail: ownerEmail || '', ownerType: 'webOwner' });
           const ownerWallet = await Wallet.findByOwner(website.owner_id, 'webOwner');
           if (ownerWallet) {
             await Wallet.update(ownerWallet.id, {
-              balance: ownerWallet.balance + parseFloat(payment.amount),
-              totalEarned: ownerWallet.total_earned + parseFloat(payment.amount),
+              balance: ownerWallet.balance + ownerCredit,
+              totalEarned: ownerWallet.total_earned + ownerCredit,
             });
             await WalletTransaction.create({
               walletId: ownerWallet.id, paymentId: payment.id, adId: payment.ad_id,
-              amount: payment.amount, type: 'credit',
+              amount: ownerCredit, type: 'credit',
               description: `Payment for ad: ${ad?.business_name || 'Unknown'} on category: ${category?.category_name || 'Unknown'}`,
             });
           }
@@ -558,6 +583,12 @@ exports.handleProcessWallet = async (req, res) => {
     const wallet = await Wallet.findByOwner(userId, 'advertiser');
     const walletBalance = wallet ? parseFloat(wallet.balance) : 0;
 
+    // Same margin split as initiatePayment: the advertiser's wallet is
+    // charged listedPrice + margin, the owner is only ever credited
+    // listedPrice. See Pricing.getSettings() / the note there for why this
+    // isn't the "drops for top performers" version yet.
+    const { marginPercent } = await Pricing.getSettings();
+
     let totalCost = 0;
     const processedSelections = [];
 
@@ -571,9 +602,10 @@ exports.handleProcessWallet = async (req, res) => {
       if (!website) return res.status(404).json({ error: 'Website not found', websiteId: selection.websiteId });
       if (ad.user_id !== userId) return res.status(403).json({ error: 'Unauthorized access to ad' });
 
-      const price = parseFloat(category.price) || 0;
+      const listedPrice = parseFloat(category.price) || 0;
+      const price = listedPrice * (1 + marginPercent / 100);
       totalCost += price;
-      processedSelections.push({ ...selection, ad, category, website, price });
+      processedSelections.push({ ...selection, ad, category, website, price, listedPrice });
     }
 
     const buildPaymentUrl = async (amount, baseRef, customerEmail, customerName, desc) => {
@@ -600,7 +632,7 @@ exports.handleProcessWallet = async (req, res) => {
           webOwnerId: sel.category.owner_id, paymentId: `pending_${individualTxRef}`,
           isReassignment: true, walletApplied: walletToUse * (sel.price / totalCost),
           amountPaid: remainingAmount * (sel.price / totalCost),
-          metadata: { selectionIndex: i, totalSelections: processedSelections.length, hybridPayment: true },
+          metadata: { selectionIndex: i, totalSelections: processedSelections.length, hybridPayment: true, listedPrice: sel.listedPrice },
         });
       }
 
@@ -632,7 +664,7 @@ exports.handleProcessWallet = async (req, res) => {
           isReassignment: false, walletApplied: walletToUse * (sel.price / totalCost),
           refundApplied: refundToUse * (sel.price / totalCost),
           amountPaid: remainingAmount * (sel.price / totalCost),
-          metadata: { selectionIndex: i, totalSelections: processedSelections.length, hybridPayment: true },
+          metadata: { selectionIndex: i, totalSelections: processedSelections.length, hybridPayment: true, listedPrice: sel.listedPrice },
         });
       }
 
@@ -670,7 +702,7 @@ exports.handleProcessWallet = async (req, res) => {
           categoryId: sel.categoryId, webOwnerId: sel.category.owner_id,
           paymentId: individualTxRef, isReassignment, walletApplied: sel.price,
           amountPaid: 0, paidAt: new Date(),
-          metadata: { selectionIndex: i, totalSelections: processedSelections.length, fullWalletPayment: true },
+          metadata: { selectionIndex: i, totalSelections: processedSelections.length, fullWalletPayment: true, listedPrice: sel.listedPrice },
         });
 
         const adRow = await ImportAd.findById(sel.adId);
@@ -702,7 +734,7 @@ exports.handleProcessWallet = async (req, res) => {
           `INSERT INTO wallets (owner_id, owner_type, owner_email, balance, total_earned, total_spent, last_updated)
            VALUES ($1, 'webOwner', $2, $3, $3, 0, NOW())
            ON CONFLICT (owner_id, owner_type) DO UPDATE SET balance = wallets.balance + $3, total_earned = wallets.total_earned + $3, last_updated = NOW()`,
-          [sel.category.owner_id, sel.category.web_owner_email || '', sel.price]
+          [sel.category.owner_id, sel.category.web_owner_email || '', sel.listedPrice]
         );
       }
 
@@ -801,7 +833,11 @@ exports.initiatePaymentWithRefund = async (req, res) => {
 
     const wallet = await Wallet.findByOwner(userId, 'advertiser');
     const walletBalance = wallet ? parseFloat(wallet.balance) : 0;
-    const categoryPrice = parseFloat(category.price);
+    // Same margin split as initiatePayment — listedPrice is the owner's
+    // 100% cut, categoryPrice is what the advertiser actually owes.
+    const { marginPercent } = await Pricing.getSettings();
+    const listedPrice   = parseFloat(category.price);
+    const categoryPrice = listedPrice * (1 + marginPercent / 100);
     let walletForThis = isReassignment ? Math.min(walletBalance, categoryPrice) : 0;
     let refundForThis = (!isReassignment && useRefundOnly && expectedRefund > 0)
       ? Math.min(expectedRefund, await getAllAvailableRefunds(userId), categoryPrice) : 0;
@@ -816,6 +852,7 @@ exports.initiatePaymentWithRefund = async (req, res) => {
         walletApplied: walletForThis, refundApplied: isReassignment ? 0 : refundForThis,
         amountPaid: 0, paymentMethod: walletForThis > 0 ? 'wallet_only' : 'refund_only',
         isReassignment, paidAt: new Date(),
+        metadata: { listedPrice },
       });
       return res.status(200).json({ success: true, allPaid: true, paymentId: payment.id, tx_ref, walletApplied: walletForThis, refundApplied: isReassignment ? 0 : refundForThis, amountPaid: 0, totalCost: categoryPrice });
     }
@@ -834,6 +871,7 @@ exports.initiatePaymentWithRefund = async (req, res) => {
       refundApplied: isReassignment ? 0 : refundForThis, amountPaid: remainingAmount,
       paymentMethod: walletForThis > 0 ? 'wallet_hybrid' : refundForThis > 0 ? 'refund_hybrid' : 'flutterwave',
       isReassignment,
+      metadata: { listedPrice },
     });
 
     res.status(200).json({ success: true, paymentUrl, paymentId: payment.id, tx_ref, walletApplied: walletForThis, refundApplied: isReassignment ? 0 : refundForThis, amountPaid: remainingAmount, totalCost: categoryPrice, isReassignment });

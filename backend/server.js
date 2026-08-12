@@ -31,6 +31,10 @@ const analyticsRoutes          = require('./AdPromoter/routes/analyticsRoutes');
 // ─── AdOwner routes ───────────────────────────────────────────────────────────
 const webAdvertiseRoutes = require('./AdOwner/routes/WebAdvertiseRoutes');
 
+// Background jobs — requiring these runs their setInterval registration as a
+// side effect (see the file itself for what it does).
+require('./AdPromoter/utils/promoteGracePeriodAdSpaces');
+
 // ─── Creators routes ──────────────────────────────────────────────────────────
 const creatorsRouter                           = require('./creators/routes/creatorRoutes');
 const { initCreatorsDatabase }                 = require('./creators/models/initDb');

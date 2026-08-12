@@ -216,56 +216,44 @@ export function getPriceForTier(tier, spaceType) {
   return prices[key] ?? null;
 }
 
+/** Human label for a tier key, e.g. 'premium' -> 'Premium'. Used by the
+ * "Add the price you want" current-tier slot to show which tier it locked to. */
+export function getTierLabel(tier) {
+  return TRAFFIC_TIERS.find(t => t.tier === tier)?.label
+    ?? (tier ? tier[0].toUpperCase() + tier.slice(1) : 'Starter');
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 // Renders just the owner's earnings for this space type — no tier badge, no
 // price cap, no Yepper cut, no traffic-threshold messaging (see render below).
 
 const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType, grantedTier  }: any) => {
 
-  // Resolve tier priority: grantedTier (admin grant) > real monthlyTraffic > unverified
-  const resolvedTier = (() => {
-    if (grantedTier) {
-      // Admin granted traffic is active, use that tier directly for pricing
-      return TRAFFIC_TIERS.find(t => t.tier === grantedTier) || TRAFFIC_TIERS.find(t => t.tier === 'unverified');
-    }
-    const v = parseInt(monthlyTraffic) || 0;
-    if (v < 500) return TRAFFIC_TIERS.find(t => t.tier === 'unverified');
-    return (
-      TRAFFIC_TIERS.find(t => t.tier !== 'unverified' && v >= t.min && v <= t.max) ||
-      TRAFFIC_TIERS.find(t => t.tier === 'starter')
-    );
-  })();
-
-  const tierKey    = resolvedTier.tier;
+  // Every new ad space starts at Starter pricing regardless of claimed/real
+  // traffic — the server enforces this too (createCategoryController ignores
+  // whatever tier is submitted and always prices new spaces at Starter). It
+  // auto-promotes to whatever tier the site's real traffic earns after a
+  // 3-day grace period (see promoteGracePeriodAdSpaces.js), so this preview
+  // shows Starter rather than a resolved-from-traffic tier that wouldn't
+  // actually be what gets charged on day one.
+  const tierKey    = 'starter';
   const priceKey   = SPACE_TYPE_MAP[spaceType] || spaceType;
   const spacePrice = TIER_PRICES[tierKey]?.[priceKey] ?? null;
-  const ownerEarns = spacePrice ? Math.round(spacePrice * 0.70) : null;
-  const yepperCut  = spacePrice ? spacePrice - ownerEarns : null;
+  // Owner keeps the full listed price — Yepper's margin is added on top for
+  // the advertiser at checkout, never subtracted from the owner's side.
+  const ownerEarns = spacePrice;
 
   // Emit price data upward
   useEffect(() => {
-    if (tierKey === 'unverified') {
-      onPriceSelect({
-        price: spacePrice || 0,
-        visitors: 0,
-        tier: 'unverified',
-        visitorRange: { min: 0, max: 0 },
-        ownerEarns: ownerEarns || 0,
-        yepperCut: yepperCut || 0,
-        isUnverified: true,
-      });
-    } else {
-      const tier = TRAFFIC_TIERS.find(t => t.tier === tierKey);
-      onPriceSelect({
-        price: spacePrice || 0,
-        visitors: parseInt(monthlyTraffic) || tier.min,
-        tier: tierKey,
-        visitorRange: { min: tier.min, max: tier.max === Infinity ? 9999999 : tier.max },
-        ownerEarns: ownerEarns || 0,
-        yepperCut: yepperCut || 0,
-        isUnverified: false,
-      });
-    }
+    const tier = TRAFFIC_TIERS.find(t => t.tier === tierKey);
+    onPriceSelect({
+      price: spacePrice || 0,
+      visitors: tier.min,
+      tier: tierKey,
+      visitorRange: { min: tier.min, max: tier.max === Infinity ? 9999999 : tier.max },
+      ownerEarns: ownerEarns || 0,
+      isUnverified: false,
+    });
   }, [tierKey, spacePrice]); // eslint-disable-line
 
   // ── Render ──
@@ -285,6 +273,9 @@ const PricingTiers = ({  selectedPrice, onPriceSelect, monthlyTraffic, spaceType
           </p>
           <p style={{ fontSize: '11px', color: '#000', margin: '4px 0 0 0', opacity: 0.6 }}>
             per advertiser/mo
+          </p>
+          <p style={{ fontSize: '11px', color: '#000', margin: '8px 0 0 0', opacity: 0.55 }}>
+            Starts here for every new space. Moves up automatically once your real traffic earns a higher tier (about 3 days in).
           </p>
         </div>
       ) : (

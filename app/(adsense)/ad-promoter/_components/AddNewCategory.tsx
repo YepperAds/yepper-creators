@@ -16,7 +16,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Button, Grid, Input, TextArea } from '@/app/(adsense)/components/components';
-import PricingTiers from './PricingTiers';
+import PricingTiers, { getPriceForTier, getTierLabel } from './PricingTiers';
 import CategoryInfoModal from './CategoryInfoModal';
 import api from '@/app/_lib/adsense-api';
 import { useSession } from '@/app/_hooks/useSession';
@@ -60,59 +60,58 @@ interface AddNewCategoryProps {
 }
 
 interface PriceTier {
-  key: 'shared' | 'featured' | 'exclusive';
+  key: 'custom' | 'elite' | 'current';
   label: string;
   price: number;
   maxSlots: number;
 }
 
-const DEFAULT_TIER_LABELS: Record<PriceTier['key'], string> = {
-  shared: 'Shared', featured: 'Featured', exclusive: 'Exclusive',
-};
-
-// Suggested starting prices for tier 2/3, relative to the base (Shared)
-// price — pre-filled but fully editable, so it's never a blank guess. The
-// web owner can always type their own number instead.
-const TIER_PRICE_MULTIPLIERS: Record<PriceTier['key'], number> = {
-  shared: 1, featured: 2, exclusive: 4,
-};
-
-function buildDefaultTiers(basePrice: number): PriceTier[] {
-  return (['shared', 'featured', 'exclusive'] as const).map((key) => ({
-    key, label: DEFAULT_TIER_LABELS[key],
-    price: Math.round((basePrice * TIER_PRICE_MULTIPLIERS[key]) / 100) * 100,
-    maxSlots: 1,
-  }));
+// Same traffic thresholds as PricingTiers.tsx's TRAFFIC_TIERS — duplicated
+// narrowly here (just the numbers, not the full color/description objects)
+// since this only needs to estimate which tier a site is currently in for
+// the locked "current tier" preview slot below.
+function estimateCurrentTier(monthlyTraffic: number | null | undefined): string {
+  const v = parseInt(String(monthlyTraffic ?? 0), 10) || 0;
+  if (v >= 50001) return 'premium'; // capped here — Elite is its own separate slot
+  if (v >= 10001) return 'standard';
+  if (v >= 2001)  return 'basic';
+  return 'starter';
 }
 
-// ─── Split into tiers ───────────────────────────────────────────────────────
-// Optional, off by default: lets a web owner sell ONE ad space as up to 3
-// simultaneous price tiers (Shared/Featured/Exclusive) that rotate in the
-// same slot, instead of every advertiser sharing one flat price. Shared
-// always mirrors the space's normal resolved price (locked here, and the
-// only thing the server will actually charge for that tier) — Featured and
-// Exclusive are the web owner's own asking price. Named differently from
-// the site-traffic tiers (starter/premium/elite/...) so the two concepts
-// never read as the same thing.
-function SplitIntoTiers({
-  basePrice,
+// ─── Add the price you want ─────────────────────────────────────────────────
+// Optional, off by default. Replaces the space's single evolving price with
+// exactly 3 fixed rotation slots:
+//   Custom  — the only field the owner actually types into, any price, no ceiling
+//   Elite   — always the Elite tier's price for this space type, locked
+//   Current — always this site's real current tier's price, locked (capped
+//             at Premium — Elite only ever shows in the Elite slot above)
+// Elite/Current shown here are previews only — the server always
+// recomputes and enforces both at submit time, this never trusts what's
+// displayed client-side for those two.
+function AddYourOwnPrice({
+  spaceType,
+  monthlyTraffic,
   tiers,
   onChange,
 }: {
-  basePrice: number;
+  spaceType: string;
+  monthlyTraffic: number | null;
   tiers: PriceTier[] | null;
   onChange: (tiers: PriceTier[] | null) => void;
 }) {
   const enabled = !!tiers;
-  const rows = (tiers || buildDefaultTiers(basePrice)).map((t, i) => (
-    i === 0 ? { ...t, price: basePrice } : t
-  ));
+  const currentTierKey = estimateCurrentTier(monthlyTraffic);
+  const elitePrice   = getPriceForTier('elite', spaceType) ?? 0;
+  const currentPrice = getPriceForTier(currentTierKey, spaceType) ?? 0;
+  const customPrice  = tiers?.find((t) => t.key === 'custom')?.price ?? 0;
 
-  const updateRow = (index: number, patch: Partial<PriceTier>) => {
-    onChange(rows.map((t, i) => (i === index ? { ...t, ...patch } : t)));
+  const setCustomPrice = (price: number) => {
+    onChange([
+      { key: 'custom',  label: 'Custom',                    price, maxSlots: 1 },
+      { key: 'elite',   label: 'Elite',                      price: elitePrice,   maxSlots: 1 },
+      { key: 'current', label: getTierLabel(currentTierKey),  price: currentPrice, maxSlots: 1 },
+    ]);
   };
-
-  const outOfOrder = rows.some((t, i) => i > 0 && t.price < rows[i - 1].price);
 
   return (
     <div className="border border-border rounded-xl p-4 space-y-3">
@@ -120,47 +119,52 @@ function SplitIntoTiers({
         <input
           type="checkbox"
           checked={enabled}
-          onChange={(e) => onChange(e.target.checked ? buildDefaultTiers(basePrice) : null)}
+          onChange={(e) => onChange(e.target.checked ? [
+            { key: 'custom', label: 'Custom', price: 0, maxSlots: 1 },
+            { key: 'elite', label: 'Elite', price: elitePrice, maxSlots: 1 },
+            { key: 'current', label: getTierLabel(currentTierKey), price: currentPrice, maxSlots: 1 },
+          ] : null)}
           className="w-4 h-4 accent-coral"
         />
-        <span className="text-sm font-medium text-white">Split this space into 3 tiers instead of one price</span>
+        <span className="text-sm font-medium text-white">Add the price you want</span>
       </label>
       <p className="text-xs text-muted">
-        Shared stays cheap so this spot never sits empty. Featured and Exclusive are your own asking price for a
-        bigger business — Exclusive also stays on screen longer per rotation.
+        Exactly 3 rotation slots. You set your own price for one — the other two are fixed to Elite and to whatever
+        tier your real traffic currently earns, so this spot always has an easy sale alongside your big ask.
       </p>
 
       {enabled && (
         <div className="space-y-2 pt-3 border-t border-border">
-          {rows.map((t, i) => (
-            <div key={t.key} className="flex items-center gap-2">
-              <span className="w-16 text-xs font-semibold text-white shrink-0">{t.label}</span>
-              <div className="flex-1 flex items-center gap-1.5">
-                <span className="text-xs text-muted shrink-0">RWF</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={t.price}
-                  disabled={i === 0}
-                  onChange={(e) => updateRow(i, { price: Number(e.target.value) || 0 })}
-                  className="w-full px-2 py-1.5 rounded-lg border border-border bg-surface-1 text-sm text-white outline-none disabled:opacity-50 focus:border-white/40"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-muted">slots</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={t.maxSlots}
-                  onChange={(e) => updateRow(i, { maxSlots: Math.max(1, Number(e.target.value) || 1) })}
-                  className="w-14 px-2 py-1.5 rounded-lg border border-border bg-surface-1 text-sm text-white outline-none focus:border-white/40"
-                />
-              </div>
+          <div className="flex items-center gap-2">
+            <span className="w-20 text-xs font-semibold text-white shrink-0">Your price</span>
+            <div className="flex-1 flex items-center gap-1.5">
+              <span className="text-xs text-muted shrink-0">RWF</span>
+              <input
+                type="number"
+                min={1}
+                value={customPrice || ''}
+                placeholder="e.g. 900000"
+                onChange={(e) => setCustomPrice(Number(e.target.value) || 0)}
+                className="w-full px-2 py-1.5 rounded-lg border border-border bg-surface-1 text-sm text-white outline-none focus:border-white/40"
+              />
             </div>
-          ))}
-          {outOfOrder && (
-            <p className="text-xs text-error">Each tier should cost at least as much as the one before it.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-20 text-xs font-semibold text-white shrink-0">Elite</span>
+            <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border bg-surface-2 text-sm text-muted">
+              RWF {elitePrice.toLocaleString()}
+              <span className="text-[10px] uppercase tracking-wide ml-auto">Fixed</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-20 text-xs font-semibold text-white shrink-0">{getTierLabel(currentTierKey)}</span>
+            <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border bg-surface-2 text-sm text-muted">
+              RWF {currentPrice.toLocaleString()}
+              <span className="text-[10px] uppercase tracking-wide ml-auto">Fixed — your site's current tier</span>
+            </div>
+          </div>
+          {customPrice <= 0 && (
+            <p className="text-xs text-error">Type in your own price for the custom slot.</p>
           )}
         </div>
       )}
@@ -476,8 +480,9 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                     grantedTier={grantDisplay?.trafficTier || null}
                   />
 
-                  <SplitIntoTiers
-                    basePrice={categoryData[activeCategory]?.price || 0}
+                  <AddYourOwnPrice
+                    spaceType={categoryDetails[activeCategory]?.spaceType}
+                    monthlyTraffic={websiteMonthlyTraffic}
                     tiers={categoryData[activeCategory]?.pricingTiers || null}
                     onChange={(next) => updateCategoryData(activeCategory, 'pricingTiers', next)}
                   />
@@ -511,20 +516,22 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
                       </p>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-subtle mb-1.5">
-                        Number of ads for this space
-                      </label>
-                      <Input
-                        type="number"
-                        placeholder="Number of ads"
-                        value={categoryData[activeCategory]?.userCount || ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          updateCategoryData(activeCategory, 'userCount', e.target.value)
-                        }
-                        className="w-full"
-                      />
-                    </div>
+                    {!categoryData[activeCategory]?.pricingTiers && (
+                      <div>
+                        <label className="block text-sm font-medium text-subtle mb-1.5">
+                          Number of ads for this space
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="Number of ads"
+                          value={categoryData[activeCategory]?.userCount || ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            updateCategoryData(activeCategory, 'userCount', e.target.value)
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-subtle mb-1.5">

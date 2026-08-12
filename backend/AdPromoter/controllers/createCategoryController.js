@@ -229,60 +229,85 @@ exports.createCategory = async (req, res) => {
       });
     }
 
-    // Price comes from the admin Pricing page (single source of truth),
-    // keyed by the website's tier + canonical space type. Fall back to the
-    // price sent by the client only if no rule exists for this combo.
+    // New ad spaces always start at Starter pricing, no matter what tier
+    // the client claims — self-reported traffic isn't trusted on day one.
+    // A space stays at Starter for its first 3 days; after that,
+    // promoteGracePeriodAdSpaces (see AdPromoter/utils/) moves it up to
+    // whatever tier the website's real, script-tracked traffic has since
+    // earned. This intentionally ignores the `tier`/`visitorRange` the
+    // client sent — only used above for the "missing required fields" check.
+    const canonical = Pricing.canonicalSpace(spaceType);
     let finalPrice = price;
+    let starterTierRange = { min: 500, max: 2000 };
     try {
-      const tierPrices = await Pricing.getTierPrices(tier);
-      const canonical  = Pricing.canonicalSpace(spaceType);
-      if (tierPrices && tierPrices[canonical] !== undefined) {
-        finalPrice = tierPrices[canonical];
+      const starterPrices = await Pricing.getTierPrices('starter');
+      if (starterPrices && starterPrices[canonical] !== undefined) {
+        finalPrice = starterPrices[canonical];
+      }
+      const starterMeta = Pricing.TIERS.find((t) => t.key === 'starter');
+      if (starterMeta?.range) {
+        const m = starterMeta.range.match(/([\d,]+)\s*–\s*([\d,]+)/);
+        if (m) starterTierRange = { min: parseInt(m[1].replace(/,/g, ''), 10), max: parseInt(m[2].replace(/,/g, ''), 10) };
       }
     } catch (e) {
       console.error('Pricing lookup failed, using submitted price:', e.message);
     }
 
-    // Multi-tier ad spaces ("Shared / Featured / Exclusive"): optional —
-    // omitting pricingTiers keeps every existing single-price ad space's
-    // behavior exactly as it is today. When present, "shared" always uses
-    // the server-computed finalPrice (same source of truth as a normal
-    // space) rather than whatever the client sent for it, and every tier
-    // must price at or above the one before it — Featured/Exclusive are
-    // the web owner's own asking price, but can never be a cheaper way to
-    // buy the same spot than Shared.
-    const TIER_ORDER = ['shared', 'featured', 'exclusive'];
-    const DEFAULT_DWELL_SECONDS = { shared: 15, featured: 20, exclusive: 35 };
+    // "Add the price you want": optional, replaces the old freely-editable
+    // 3-tier split — omitting pricingTiers keeps every ad space's behavior
+    // exactly as above (one Starter-then-promoted price). When present,
+    // it's always exactly 3 fixed slots:
+    //   custom  — the owner's own typed price, no ceiling, server trusts it as-is
+    //   elite   — always the Elite price for this space type, server-computed, never client-editable
+    //   current — always this website's real current tier's price for this
+    //             space type (capped at Premium — Elite is reserved for the
+    //             elite slot above), server-computed, never client-editable
+    const TIER_ORDER = ['custom', 'elite', 'current'];
+    const DEFAULT_DWELL_SECONDS = { custom: 35, elite: 20, current: 15 };
     let normalizedPricingTiers = null;
     if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
       if (pricingTiers.length > 3) {
         return res.status(400).json({ message: 'A maximum of 3 pricing tiers is supported.' });
       }
+      const website = await Website.findById(websiteId);
+      const realTier = website?.traffic_tier === 'elite' ? 'premium' : (website?.traffic_tier || 'starter');
+      const [elitePrices, currentTierPrices] = await Promise.all([
+        Pricing.getTierPrices('elite'),
+        Pricing.getTierPrices(realTier),
+      ]);
+      const currentTierMeta = Pricing.TIERS.find((t) => t.key === realTier);
+
       const seen = new Set();
       normalizedPricingTiers = [];
-      let previousPrice = 0;
       for (const raw of pricingTiers) {
         const key = TIER_ORDER.includes(raw?.key) ? raw.key : null;
         if (!key || seen.has(key)) {
-          return res.status(400).json({ message: 'Each pricing tier must have a unique key of shared, featured, or exclusive.' });
+          return res.status(400).json({ message: 'Each pricing tier must have a unique key of custom, elite, or current.' });
         }
         seen.add(key);
-        const tierPrice = key === 'shared' ? finalPrice : Number(raw.price);
-        const maxSlots  = Math.max(1, parseInt(raw.maxSlots, 10) || 1);
-        const dwellSeconds = Math.max(5, parseInt(raw.dwellSeconds, 10) || DEFAULT_DWELL_SECONDS[key]);
-        if (!Number.isFinite(tierPrice) || tierPrice < previousPrice) {
-          return res.status(400).json({
-            message: `The ${key} tier's price must be a number at or above the previous tier's price.`,
-          });
+
+        let tierPrice, label;
+        if (key === 'custom') {
+          tierPrice = Number(raw.price);
+          label = raw.label || 'Custom';
+          if (!Number.isFinite(tierPrice) || tierPrice <= 0) {
+            return res.status(400).json({ message: 'The custom tier needs a real price above 0.' });
+          }
+        } else if (key === 'elite') {
+          tierPrice = elitePrices[canonical];
+          label = 'Elite';
+        } else {
+          tierPrice = currentTierPrices[canonical];
+          label = currentTierMeta?.label || realTier[0].toUpperCase() + realTier.slice(1);
         }
-        previousPrice = tierPrice;
+        if (!Number.isFinite(tierPrice)) {
+          return res.status(400).json({ message: `No price configured for ${label} on this space type yet.` });
+        }
         normalizedPricingTiers.push({
-          key, label: raw.label || key[0].toUpperCase() + key.slice(1),
-          price: tierPrice, maxSlots, dwellSeconds,
+          key, label, price: tierPrice, maxSlots: 1,
+          dwellSeconds: DEFAULT_DWELL_SECONDS[key],
         });
       }
-      // Keep canonical shared -> featured -> exclusive order regardless of
-      // what order the client submitted them in.
       normalizedPricingTiers.sort((a, b) => TIER_ORDER.indexOf(a.key) - TIER_ORDER.indexOf(b.key));
     }
 
@@ -304,8 +329,8 @@ exports.createCategory = async (req, res) => {
       instructions,
       customAttributes: customAttributes || {},
       webOwnerEmail: userEmail,
-      visitorRange,
-      tier,
+      visitorRange: starterTierRange,
+      tier: 'starter',
     });
 
     const finalCategory = await AdCategory.update(savedCategory.id, { apiCodes: buildApiCodes(savedCategory) });

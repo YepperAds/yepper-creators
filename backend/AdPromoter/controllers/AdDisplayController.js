@@ -4,6 +4,7 @@ const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
 const Pricing    = require('../../models/PricingModel');
+const { getDimensions } = require('../utils/adSpaceLayout');
 const { notifyDomainMismatch, notifyPageMismatch } = require('../../creators/utils/notificationUtils');
 
 function extractDomain(url) {
@@ -173,10 +174,19 @@ function availableSlotHtml(adCategory, categoryId, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
   const advertiserPrice = Math.round(parseFloat(adCategory.price) * (1 + marginPercent / 100));
   const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}`;
+  // Inline, explicit height — never depend on height:100% resolving
+  // correctly through the host/customization-slot cascade. When that
+  // cascade breaks (customization is empty, so the class rule falls back to
+  // height:100% of a parent whose own height didn't resolve either) the box
+  // just grows to fit its content instead of clipping, which is what
+  // produces a filler that visually floats in a big empty gap. An inline
+  // style always wins regardless of what's happening upstream.
+  const dims = getDimensions(adCategory.space_type);
+  const heightStyle = dims ? ` style="height:${dims.height}px;max-height:${dims.height}px;"` : '';
 
   if (isBannerShape(adCategory.space_type)) {
     return `
-      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
+      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}"${heightStyle}>
         <div class="sp-empty sp-empty-compact">
           <span class="sp-empty-price">Advertise here — RWF ${advertiserPrice}/month</span>
           <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
@@ -184,7 +194,7 @@ function availableSlotHtml(adCategory, categoryId, marginPercent) {
       </div>`;
   }
   return `
-    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
+    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}"${heightStyle}>
       <div class="sp-empty">
         <p class="sp-empty-name">Available Advertising Space</p>
         <p class="sp-empty-title">Price</p>
@@ -202,10 +212,13 @@ function tierFillerHtml(adCategory, categoryId, tier, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
   const advertiserPrice = Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
   const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}`;
+  // See the same note in availableSlotHtml above — inline height always wins.
+  const dims = getDimensions(adCategory.space_type);
+  const heightStyle = dims ? ` style="height:${dims.height}px;max-height:${dims.height}px;"` : '';
 
   if (isBannerShape(adCategory.space_type)) {
     return `
-      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
+      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${heightStyle}>
         <div class="sp-empty sp-empty-compact">
           <span class="sp-empty-price">${escapeHtml(tier.label)} spot — RWF ${advertiserPrice}/month</span>
           <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
@@ -213,7 +226,7 @@ function tierFillerHtml(adCategory, categoryId, tier, marginPercent) {
       </div>`;
   }
   return `
-    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
+    <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${heightStyle}>
       <div class="sp-empty">
         <p class="sp-empty-name">${escapeHtml(tier.label)} spot open</p>
         <p class="sp-empty-title">Price</p>

@@ -153,6 +153,17 @@ exports.resolveCategoryAndAds = resolveCategoryAndAds;
 // fallback in SiteScriptController.js's renderAds — not the sold-ad
 // sp-content/sp-image-wrapper image-forward layout, which has no text to
 // show a price/pitch with.
+// Short, banner-shaped placements (90px tall — see AD_SPACE_DIMENSIONS in
+// adSpaceLayout.js) don't have room for the normal 4-line filler (eyebrow +
+// name + "Price" label + amount + button) without the button getting
+// clipped by the host's own overflow:hidden. Those get a single-line
+// filler instead; everything with real vertical room (Sidebar, Left Rail,
+// Floating, Modal, ...) keeps the roomier one.
+const BANNER_SHAPE_SPACES = new Set(['Header', 'Above The Fold', 'Beneath Title', 'Pro Footer']);
+function isBannerShape(spaceType) {
+  return BANNER_SHAPE_SPACES.has(Pricing.canonicalSpace(spaceType));
+}
+
 // Both fillers below show advertiserPrice (listed price + Yepper's margin),
 // never the raw listed price — this is the exact number initiatePayment
 // will actually charge. Showing the listed price here and charging more at
@@ -161,13 +172,24 @@ exports.resolveCategoryAndAds = resolveCategoryAndAds;
 function availableSlotHtml(adCategory, categoryId, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
   const advertiserPrice = Math.round(parseFloat(adCategory.price) * (1 + marginPercent / 100));
+  const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}`;
+
+  if (isBannerShape(adCategory.space_type)) {
+    return `
+      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
+        <div class="sp-empty sp-empty-compact">
+          <span class="sp-empty-price">Advertise here — RWF ${advertiserPrice}/month</span>
+          <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
+        </div>
+      </div>`;
+  }
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
       <div class="sp-empty">
         <p class="sp-empty-name">Available Advertising Space</p>
         <p class="sp-empty-title">Price</p>
         <p class="sp-empty-price">RWF ${advertiserPrice}/month</p>
-        <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
+        <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
       </div>
     </div>`;
 }
@@ -179,13 +201,24 @@ function availableSlotHtml(adCategory, categoryId, marginPercent) {
 function tierFillerHtml(adCategory, categoryId, tier, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
   const advertiserPrice = Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
+  const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}`;
+
+  if (isBannerShape(adCategory.space_type)) {
+    return `
+      <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
+        <div class="sp-empty sp-empty-compact">
+          <span class="sp-empty-price">${escapeHtml(tier.label)} spot — RWF ${advertiserPrice}/month</span>
+          <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
+        </div>
+      </div>`;
+  }
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
       <div class="sp-empty">
         <p class="sp-empty-name">${escapeHtml(tier.label)} spot open</p>
         <p class="sp-empty-title">Price</p>
         <p class="sp-empty-price">RWF ${advertiserPrice}/month</p>
-        <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}" target="_blank" rel="noopener">Advertise Here</a>
+        <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
       </div>
     </div>`;
 }

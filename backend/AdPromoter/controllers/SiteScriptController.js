@@ -306,6 +306,15 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-empty-price{font-size:12px;color:#666;margin:0;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;}
 
+      /* Short, banner-shaped spaces (Header/Above the Fold/Beneath Title/
+         Pro Footer — 90px tall) don't have room for the 4-line filler
+         above without the button getting clipped, so they get a single row
+         instead: pitch text on the left, button on the right, both
+         vertically centered, no wasted vertical padding. */
+      .\${sp.px}-empty-compact{flex-direction:row;justify-content:space-between;gap:14px;padding:0 18px;text-align:left;border-radius:0;box-shadow:none;}
+      .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-size:14px;font-weight:600;color:#111;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .\${sp.px}-empty-compact .\${sp.px}-empty-cta{margin-top:0;padding:7px 16px;font-size:12px;}
+
       /* Multi-tier ad spaces: the pricier of the 3 slots doesn't just show
          longer, it visibly looks pricier — ranked by real price (see
          AdDisplayController's tierRank), not by which named slot this is,

@@ -374,7 +374,7 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       .map(([category]) => ({
         ownerId: (user as any)?.id || (user as any)?._id,
         websiteId,
-        categoryName: category.charAt(0).toUpperCase() + category.slice(1),
+        categoryName: categoryDetails[category]?.name || category,
         price: categoryData[category]?.price || 0,
         description: categoryDetails[category]?.description || '',
         spaceType: categoryDetails[category]?.spaceType,

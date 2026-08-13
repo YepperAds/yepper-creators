@@ -410,7 +410,7 @@ const CategoryCreation = () => {
         const details = categoryDetails[category] || {};
         return {
           websiteId,
-          categoryName: category.charAt(0).toUpperCase() + category.slice(1),
+          categoryName: details.name || category,
           description: details.description || '',
           price: Number(data.price) || 0,
           spaceType: details.spaceType || 'banner',

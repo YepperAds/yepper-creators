@@ -54,6 +54,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
     const [categoryToInvite, setCategoryToInvite] = useState(null);
+    const [inviteTier, setInviteTier] = useState(null);
     const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
     const [currentCategory, setCurrentCategory] = useState(null);
     const [selectedLanguage, setSelectedLanguage] = useState('english');
@@ -178,7 +179,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
     const handleCloseCategoriesForm = () => { setCategoriesForm(false); setResult(true); fetchWebsiteData(); };
     const handleDeleteCategory = (cat) => setCategoryToDelete(cat);
     const handleDeleteSuccess = () => { setCategoryToDelete(null); fetchWebsiteData(); };
-    const handleSendInvite = (cat) => setCategoryToInvite(cat);
+    const handleSendInvite = (cat, tier) => { setCategoryToInvite(cat); setInviteTier(tier || null); };
 
     const handleOpenLanguageModal = (cat) => {
         setCurrentCategory(cat);
@@ -612,7 +613,8 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
             {categoryToInvite && (
                 <SendCategoryInviteModal
                     category={categoryToInvite}
-                    onClose={() => setCategoryToInvite(null)}
+                    tier={inviteTier}
+                    onClose={() => { setCategoryToInvite(null); setInviteTier(null); }}
                 />
             )}
 

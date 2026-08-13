@@ -9,18 +9,22 @@ import { categoryAPI } from '@/app/_lib/adsense-api';
 // this ad space; clicking it (see sendCategoryInvite in
 // createCategoryController.js) takes them straight to /ad-owner/pages/direct-ad
 // pre-filled with this website + category, logging in first if needed.
-const SendCategoryInviteModal = ({ category, onClose }: any) => {
+const SendCategoryInviteModal = ({ category, tier, onClose }: any) => {
     const [email, setEmail] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState(null);
     const [sent, setSent] = useState(false);
+
+    const spaceLabel = tier
+        ? `${category.categoryName || category.spaceType} — ${tier.label}`
+        : (category.categoryName || category.spaceType);
 
     const send = async () => {
         if (!email.trim()) { setError('Recipient email is required.'); return; }
         setSending(true);
         setError(null);
         try {
-            await categoryAPI.sendInvite(category._id, { email: email.trim() });
+            await categoryAPI.sendInvite(category._id, { email: email.trim(), tierKey: tier?.key });
             setSent(true);
         } catch (err: any) {
             setError(err?.message || 'Failed to send email');
@@ -53,7 +57,7 @@ const SendCategoryInviteModal = ({ category, onClose }: any) => {
                                 <div className="flex items-center gap-3 mb-6">
                                     <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                                     <p className="text-background/70">
-                                        {email} now has a link straight into booking "{category.categoryName || category.spaceType}".
+                                        {email} now has a link straight into booking "{spaceLabel}".
                                     </p>
                                 </div>
                                 <button onClick={onClose} className="w-full h-12 rounded-xl bg-black/5 text-background font-medium hover:bg-black/10 transition-colors duration-200">
@@ -63,7 +67,7 @@ const SendCategoryInviteModal = ({ category, onClose }: any) => {
                         ) : (
                             <>
                                 <p className="text-background/70 mb-6">
-                                    Email a recipient a direct link to book "{category.categoryName || category.spaceType}"; they log in (or sign up) and land right back here to advertise on it.
+                                    Email a recipient a direct link to book "{spaceLabel}"; they log in (or sign up) and land right back here to advertise on it.
                                 </p>
 
                                 {error && (

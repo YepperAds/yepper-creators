@@ -269,7 +269,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     const description = cat.description || getAdSpaceDescription(cat.spaceType, cat.categoryName);
                     const isConnected = connectedIds.has(cat._id);
                     return (
-                      <div key={cat._id} className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden flex flex-col">
+                      <div key={cat._id} className="rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
                       {/* Big framed preview image up top, everything else below it */}
                       {thumb && (
                         <div className="p-3 pb-0">
@@ -284,9 +284,9 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       {/* Name / description / price, matching the booking gallery's look */}
                       <div className="px-4 pt-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-base font-bold text-white truncate">{cat.categoryName || cat.spaceType}</p>
+                          <p className="text-base font-bold text-zinc-900 truncate">{cat.categoryName || cat.spaceType}</p>
                           {description && (
-                            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{description}</p>
+                            <p className="text-xs text-zinc-600 mt-1 leading-relaxed">{description}</p>
                           )}
                         </div>
                         <span className="text-orange-500 font-bold text-sm whitespace-nowrap shrink-0">
@@ -296,8 +296,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
 
                       {/* Meta: index, space type, page targeting */}
                       <div className="px-4 pt-3 flex items-center gap-2 flex-wrap">
-                        <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
-                        <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
+                        <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
+                        <span className="text-xs text-white bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
                         <select
                           value={cat.targetPath || ''}
                           onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}
@@ -322,7 +322,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           <button
                             onClick={() => onSetLanguage(cat)}
                             title="Set the language this ad space's copy (e.g. 'Ad Space Available') is shown in"
-                            className="flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-zinc-400 hover:text-orange-400 border border-zinc-700 hover:border-orange-900 transition-all"
+                            className="flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-white hover:text-orange-400 border border-zinc-700 hover:border-orange-900 transition-all"
                           >
                             <img src={getLanguageFlagUrl(cat.defaultLanguage)} alt="" className="w-4 h-3 object-cover rounded-[2px] shrink-0" />
                             {getLanguageLabel(cat.defaultLanguage)}
@@ -341,21 +341,55 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         return (
                           <div className="px-4 pt-3">
                             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5">Showing on your site</p>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {cat.pricingTiers.map((t: any) => (
-                                <button
-                                  key={t.key}
-                                  onClick={() => changeDisplayedTier(cat, t.key)}
-                                  title={`Show the ${t.label} slot publicly instead`}
-                                  className={`px-2 py-1 rounded text-xs font-medium border transition-all ${
-                                    liveKey === t.key
-                                      ? 'bg-orange-950 text-orange-400 border-orange-900'
-                                      : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300 hover:border-zinc-600'
-                                  }`}
-                                >
-                                  {t.label} · RWF {Number(t.advertiserPrice ?? t.price).toLocaleString()}
-                                </button>
-                              ))}
+                            <div className="flex flex-col gap-1.5">
+                              {cat.pricingTiers.map((t: any) => {
+                                const isLive = liveKey === t.key;
+                                const justCopied = copiedTierKey === `${cat._id}:${t.key}`;
+                                return (
+                                  <div
+                                    key={t.key}
+                                    className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border flex-wrap ${
+                                      isLive ? 'bg-orange-950 border-orange-900' : 'bg-zinc-800 border-zinc-700'
+                                    }`}
+                                  >
+                                    <span className="text-xs font-medium text-white">
+                                      {t.label} · RWF {Number(t.advertiserPrice ?? t.price).toLocaleString()}
+                                    </span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        onClick={() => changeDisplayedTier(cat, t.key)}
+                                        disabled={isLive}
+                                        title={isLive ? `${t.label} is showing on your site` : `Show the ${t.label} slot publicly instead`}
+                                        className={`px-2 py-1 rounded text-[11px] font-semibold text-white transition-all ${
+                                          isLive ? 'bg-orange-600 cursor-default' : 'bg-zinc-700 hover:bg-zinc-600'
+                                        }`}
+                                      >
+                                        {isLive ? 'Live' : 'Turn on'}
+                                      </button>
+                                      <button
+                                        onClick={() => copyTierLink(cat, t.key)}
+                                        title={`Copy a direct booking link for the ${t.label} slot`}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white transition-all ${
+                                          justCopied ? 'bg-emerald-700' : 'bg-zinc-700 hover:bg-emerald-700'
+                                        }`}
+                                      >
+                                        {justCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                        <span>{justCopied ? 'Copied' : 'Copy link'}</span>
+                                      </button>
+                                      {onSendInvite && (
+                                        <button
+                                          onClick={() => onSendInvite(cat, t)}
+                                          title={`Email someone a link to book the ${t.label} slot`}
+                                          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white bg-zinc-700 hover:bg-emerald-700 transition-all"
+                                        >
+                                          <Mail className="w-3 h-3" />
+                                          <span>Invite</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -377,47 +411,31 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         <button
                           onClick={() => startDuplicate(cat)}
                           title="Duplicate this ad space for another page, gives that page its own independently-sold ads instead of mirroring this one's"
-                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-zinc-500 hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-blue-950 text-white hover:text-blue-400 transition-all border border-zinc-700 hover:border-blue-900 shrink-0"
                         >
                           <Files className="w-3 h-3" />
                           <span>Duplicate</span>
                         </button>
-                        {onSendInvite && (
+                        {/* Tiered spaces get an Invite button per slot, inside
+                            each slot's own box above — a single space-wide
+                            Invite here would be ambiguous about which slot's
+                            price/link it's for, so it's only shown for
+                            plain, single-price spaces. */}
+                        {onSendInvite && !(Array.isArray(cat.pricingTiers) && cat.pricingTiers.length > 0) && (
                           <button
                             onClick={() => onSendInvite(cat)}
                             title="Email someone a link to advertise on this space"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-white hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
                           >
                             <Mail className="w-3 h-3" />
                             <span>Invite</span>
                           </button>
                         )}
-                        {/* One direct booking link per slot — sells a slot
-                            that isn't the one currently showing publicly,
-                            without waiting on the Invite email flow. */}
-                        {Array.isArray(cat.pricingTiers) && cat.pricingTiers.map((t: any) => {
-                          const justCopied = copiedTierKey === `${cat._id}:${t.key}`;
-                          return (
-                            <button
-                              key={t.key}
-                              onClick={() => copyTierLink(cat, t.key)}
-                              title={`Copy a direct booking link for the ${t.label} slot`}
-                              className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
-                                justCopied
-                                  ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
-                                  : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
-                              }`}
-                            >
-                              {justCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                              <span>{justCopied ? 'Copied' : `Copy ${t.label} link`}</span>
-                            </button>
-                          );
-                        })}
                         {onDeleteCategory && (
                           <button
                             onClick={() => onDeleteCategory(cat)}
                             title="Delete ad space"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-zinc-500 hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-red-950 text-white hover:text-red-400 transition-all border border-zinc-700 hover:border-red-900 shrink-0"
                           >
                             <Trash2 className="w-3 h-3" />
                             <span>Delete</span>
@@ -450,7 +468,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-blue-600"
                               />
                             )}
-                            {duplicateError && <p className="text-xs text-red-400 mt-1">{duplicateError}</p>}
+                            {duplicateError && <p className="text-xs text-red-600 mt-1">{duplicateError}</p>}
                             {!duplicateError && (
                               <p className="text-xs text-zinc-600 mt-1">
                                 Creates a separate ad space with its own tag and its own inventory; advertisers who buy
@@ -482,19 +500,19 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           your website" so the list reads as a visual gallery
                           first, code second. */}
                       {isConnected && (
-                        <div className="px-4 pb-4 flex flex-col gap-2 border-t border-zinc-800 pt-3">
-                          <p className="text-xs text-zinc-500 leading-relaxed">
+                        <div className="px-4 pb-4 flex flex-col gap-2 border-t border-zinc-200 pt-3">
+                          <p className="text-xs text-zinc-600 leading-relaxed">
                             {st !== 'floating' && (positionsSelf
                               ? <>Positions itself automatically (popup overlay), the div's
                                   spot in your markup doesn't matter, only which page it's on. </>
                               : <>Renders right where you paste it, drop this div exactly where you want the ad box to sit in
                                   your page's layout. </>)} {cat.targetPath
-                              ? <>Set to the <strong className="text-zinc-300">{cat.targetPath}</strong> page; the dropdown above
+                              ? <>Set to the <strong className="text-zinc-900">{cat.targetPath}</strong> page; the dropdown above
                                   is set to that page, and the ad won't show (and you'll get notified) if this div ends up
                                   somewhere else.</>
-                              : <>Set to <strong className="text-zinc-300">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
+                              : <>Set to <strong className="text-zinc-900">All Pages</strong>{positionsSelf ? ': paste it once in your root layout so it\'s on every page, same as the main script above.' : ': paste it on every page you want this ad to appear on.'}</>}
                             {' '}Pasting the <em>same</em> div on two different pages shows the same currently-sold ad on
-                            both; for a second page's own, separately-sold ad, use <strong className="text-zinc-300">Duplicate</strong> instead.
+                            both; for a second page's own, separately-sold ad, use <strong className="text-zinc-900">Duplicate</strong> instead.
                           </p>
                           <CodeBlock code={buildPlaceholderDiv(cat._id)} />
                         </div>

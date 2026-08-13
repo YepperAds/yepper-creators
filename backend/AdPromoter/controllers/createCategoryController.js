@@ -669,7 +669,7 @@ exports.sendCategoryInvite = async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
     const { categoryId } = req.params;
-    const { email } = req.body;
+    const { email, tierKey } = req.body;
     if (!email || !String(email).trim()) {
       return res.status(400).json({ message: 'Recipient email is required' });
     }
@@ -682,11 +682,20 @@ exports.sendCategoryInvite = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    // A tiered space has no single price/link — inviting for a specific slot
+    // (the per-tier "Invite" button in the dashboard) needs that slot's own
+    // price and its own deep link, same as the per-tier copy-link button.
+    const tiers = Array.isArray(category.pricing_tiers) ? category.pricing_tiers : [];
+    const tier = tierKey ? tiers.find((t) => t.key === tierKey) : null;
+
     const website = await Website.findById(category.website_id);
     const websiteName = website?.website_name || 'this website';
-    const spaceName = category.category_name || category.space_type;
+    const spaceName = tier
+      ? `${category.category_name || category.space_type} — ${tier.label}`
+      : (category.category_name || category.space_type);
 
-    const link = `${FRONTEND_URL}/ad-owner/pages/direct-ad?websiteId=${category.website_id}&categoryId=${category.id}`;
+    const link = `${FRONTEND_URL}/ad-owner/pages/direct-ad?websiteId=${category.website_id}&categoryId=${category.id}`
+      + (tier ? `&tier=${encodeURIComponent(tier.key)}` : '');
     const subject = `Advertise on ${websiteName}`;
     const safeSpaceName   = escapeHtml(spaceName);
     const safeWebsiteName = escapeHtml(websiteName);
@@ -695,7 +704,7 @@ exports.sendCategoryInvite = async (req, res) => {
     // marked-up price checkout will actually charge, not the owner's listed
     // price (see withAdvertiserPrice's note on why these can never diverge).
     const { marginPercent } = await Pricing.getSettings();
-    const price = (Number(category.price || 0) * (1 + marginPercent / 100)).toFixed(2);
+    const price = (Number((tier ? tier.price : category.price) || 0) * (1 + marginPercent / 100)).toFixed(2);
 
     // Real mockup of this exact placement (same image the dashboard shows
     // when the owner picked it), so the recipient sees what they'd actually

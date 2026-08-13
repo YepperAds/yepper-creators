@@ -278,9 +278,9 @@ exports.serveAdScript = async (req, res) => {
       /* Short, banner-shaped spaces get a single-row filler instead of the
          4-line one above — see the matching rule (and the reasoning) in
          SiteScriptController.js's injectStyles. */
-      .\${_px}-empty-compact{flex-direction:row;justify-content:space-between;gap:14px;padding:0 18px;text-align:left;border-radius:0;box-shadow:none;}
-      .\${_px}-empty-compact .\${_px}-empty-price{font-size:14px;font-weight:600;color:#111;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .\${_px}-empty-compact .\${_px}-empty-cta{margin-top:0;padding:7px 16px;font-size:12px;}
+      .\${_px}-empty-compact{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;padding:0 24px;text-align:left;border-radius:0;box-shadow:none;background:linear-gradient(135deg,#fafafa,#efefef);}
+      .\${_px}-empty-compact .\${_px}-empty-price{font-size:19px;font-weight:700;color:#111;margin:0;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .\${_px}-empty-compact .\${_px}-empty-cta{margin-top:0;padding:13px 28px;font-size:14px;flex-shrink:0;}
 
       /* Multi-tier ad spaces: pricier of the 3 slots visibly looks pricier —
          ranked by real price (AdDisplayController's tierRank), not by which

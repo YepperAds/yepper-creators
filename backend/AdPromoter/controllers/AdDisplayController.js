@@ -3,6 +3,7 @@ const { query } = require('../../config/db');
 const AdCategory = require('../models/CreateCategoryModel');
 const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
+const Pricing    = require('../../models/PricingModel');
 const { notifyDomainMismatch, notifyPageMismatch } = require('../../creators/utils/notificationUtils');
 
 function extractDomain(url) {
@@ -140,14 +141,20 @@ exports.resolveCategoryAndAds = resolveCategoryAndAds;
 // fallback in SiteScriptController.js's renderAds — not the sold-ad
 // sp-content/sp-image-wrapper image-forward layout, which has no text to
 // show a price/pitch with.
-function availableSlotHtml(adCategory, categoryId) {
+// Both fillers below show advertiserPrice (listed price + Yepper's margin),
+// never the raw listed price — this is the exact number initiatePayment
+// will actually charge. Showing the listed price here and charging more at
+// checkout is a bait-and-switch that costs real trust with advertisers who
+// notice, so the public widget and checkout must always agree.
+function availableSlotHtml(adCategory, categoryId, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
+  const advertiserPrice = Math.round(parseFloat(adCategory.price) * (1 + marginPercent / 100));
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}">
       <div class="sp-empty">
         <p class="sp-empty-name">Available Advertising Space</p>
         <p class="sp-empty-title">Price</p>
-        <p class="sp-empty-price">RWF ${adCategory.price}/month</p>
+        <p class="sp-empty-price">RWF ${advertiserPrice}/month</p>
         <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}" target="_blank" rel="noopener">Advertise Here</a>
       </div>
     </div>`;
@@ -157,14 +164,15 @@ function availableSlotHtml(adCategory, categoryId) {
 // still has open capacity, each pitching its own tier's price (so an
 // "Exclusive" spot advertises itself at the Exclusive price, not the
 // cheapest tier's), instead of one generic filler for the whole space.
-function tierFillerHtml(adCategory, categoryId, tier) {
+function tierFillerHtml(adCategory, categoryId, tier, marginPercent) {
   const FRONTEND = process.env.FRONTEND_URL || '';
+  const advertiserPrice = Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}">
       <div class="sp-empty">
         <p class="sp-empty-name">${escapeHtml(tier.label)} spot open</p>
         <p class="sp-empty-title">Price</p>
-        <p class="sp-empty-price">RWF ${tier.price}/month</p>
+        <p class="sp-empty-price">RWF ${advertiserPrice}/month</p>
         <a class="sp-empty-cta" href="${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}" target="_blank" rel="noopener">Advertise Here</a>
       </div>
     </div>`;
@@ -197,6 +205,8 @@ exports.displayAd = async (req, res) => {
     const isTiered = Array.isArray(pricingTiers) && pricingTiers.length > 0;
     if (!isTiered && !adsToShow.length) return res.json({ html: '' });
 
+    const { marginPercent } = await Pricing.getSettings();
+
     const adsHtml = adsToShow.map(ad => {
       try {
         const imageUrl = escapeHtml(ad.image_url || 'https://via.placeholder.com/1200x630/667eea/ffffff?text=Ad+Image');
@@ -228,11 +238,11 @@ exports.displayAd = async (req, res) => {
       adsToShow.forEach((ad) => { if (ad.tier) takenPerTier[ad.tier] = (takenPerTier[ad.tier] || 0) + 1; });
       openSlot = pricingTiers
         .filter((t) => (takenPerTier[t.key] || 0) < t.maxSlots)
-        .map((t) => tierFillerHtml(adCategory, categoryId, t))
+        .map((t) => tierFillerHtml(adCategory, categoryId, t, marginPercent))
         .join('');
     } else {
       openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
-        ? availableSlotHtml(adCategory, categoryId)
+        ? availableSlotHtml(adCategory, categoryId, marginPercent)
         : '';
     }
 

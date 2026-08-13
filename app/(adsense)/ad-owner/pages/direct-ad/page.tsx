@@ -69,8 +69,11 @@ function DirectAdvertise() {
   // Multi-tier ad spaces ("Shared/Featured/Exclusive"): pick a price from
   // whichever tier is selected instead of the space's flat price. Untiered
   // spaces (the vast majority) are completely unaffected — pricingTiers is
-  // absent, so this falls straight back to categoryInfo.price as before.
-  const pricingTiers: Array<{ key: string; label: string; price: number; maxSlots: number }> =
+  // absent, so this falls straight back to categoryInfo.advertiserPrice as
+  // before. Always advertiserPrice, never price — price is the owner's
+  // listed (100%) number; showing that here would display a lower amount
+  // than initiatePayment actually charges (which includes Yepper's margin).
+  const pricingTiers: Array<{ key: string; label: string; price: number; advertiserPrice: number; maxSlots: number }> =
     Array.isArray(categoryInfo?.pricingTiers) ? categoryInfo.pricingTiers : [];
   const tierAvailability: Array<{ key: string; maxSlots: number; slotsTaken: number }> =
     Array.isArray(categoryInfo?.tierAvailability) ? categoryInfo.tierAvailability : [];
@@ -80,8 +83,8 @@ function DirectAdvertise() {
   };
   const selectedTier = pricingTiers.find((t) => t.key === selectedTierKey) || null;
   const basePrice = pricingTiers.length > 0
-    ? (selectedTier?.price || 0)
-    : parseFloat(categoryInfo?.price || 0);
+    ? (selectedTier?.advertiserPrice || 0)
+    : parseFloat(categoryInfo?.advertiserPrice || 0);
   const displayPrice = pageSelectionEligible && selectedPages.length >= 2 ? basePrice * 2 : basePrice;
 
   useEffect(() => {
@@ -801,12 +804,12 @@ function DirectAdvertise() {
                           >
                             <span>
                               <span className="block text-sm font-semibold text-black">{t.label}</span>
-                              {t.key === 'exclusive' && (
+                              {t.key === 'custom' && (
                                 <span className="block text-[11px] text-subtle">Stays on screen longer</span>
                               )}
                             </span>
                             <span className="text-right shrink-0">
-                              <span className="block text-sm font-semibold text-black">RWF {t.price}</span>
+                              <span className="block text-sm font-semibold text-black">RWF {t.advertiserPrice}</span>
                               {avail && (
                                 <span className="block text-[11px] text-subtle">{avail.slotsTaken}/{avail.maxSlots} taken</span>
                               )}
@@ -820,7 +823,7 @@ function DirectAdvertise() {
                   <div className="space-y-2">
                     <div className="flex gap-2 text-sm">
                       <span className="text-subtle">Price:</span>
-                      <span className="font-semibold text-black">RWF {categoryInfo?.price}</span>
+                      <span className="font-semibold text-black">RWF {categoryInfo?.advertiserPrice}</span>
                     </div>
                     <div className="flex gap-2 text-sm">
                       <span className="text-subtle">Tier:</span>

@@ -85,6 +85,24 @@ function catToClient(c) {
   };
 }
 
+// Adds advertiserPrice (listed price + margin) alongside the existing
+// price/pricingTiers[].price fields — never replaces them, since owner-facing
+// screens (the dashboard) still need the listed 100% number. Any advertiser-
+// facing screen (the public ad-space widget, checkout, category browse) must
+// read advertiserPrice, never price — showing the listed number anywhere an
+// advertiser can see it is what ends up charging them more than they were shown.
+function withAdvertiserPrice(client, marginPercent) {
+  if (!client) return client;
+  const factor = 1 + marginPercent / 100;
+  return {
+    ...client,
+    advertiserPrice: Math.round(parseFloat(client.price) * factor),
+    pricingTiers: Array.isArray(client.pricingTiers)
+      ? client.pricingTiers.map((t) => ({ ...t, advertiserPrice: Math.round(parseFloat(t.price) * factor) }))
+      : client.pricingTiers,
+  };
+}
+
 const generateScriptTag = (categoryId) => {
   const BACKEND = process.env.BACKEND_URL || 'http://localhost:5000';
   const src = `${BACKEND}/api/ads/script/${categoryId}`;
@@ -670,7 +688,11 @@ exports.sendCategoryInvite = async (req, res) => {
     const safeSpaceName   = escapeHtml(spaceName);
     const safeWebsiteName = escapeHtml(websiteName);
     const safeSpaceType   = escapeHtml(category.space_type || '');
-    const price = Number(category.price || 0).toFixed(2);
+    // Invite recipient is a prospective advertiser — must see the same
+    // marked-up price checkout will actually charge, not the owner's listed
+    // price (see withAdvertiserPrice's note on why these can never diverge).
+    const { marginPercent } = await Pricing.getSettings();
+    const price = (Number(category.price || 0) * (1 + marginPercent / 100)).toFixed(2);
 
     // Real mockup of this exact placement (same image the dashboard shows
     // when the owner picked it), so the recipient sees what they'd actually
@@ -819,6 +841,8 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
       `SELECT COUNT(*) FROM ad_categories WHERE website_id=$1::uuid`, [websiteId]
     );
 
+    const { marginPercent } = await Pricing.getSettings();
+
     // Multi-tier spaces: figure out, per tier, how many of its maxSlots are
     // taken. Reuses the same "active ad actually sold on this website+
     // category" definition as current_user_count above (one batched query
@@ -858,7 +882,7 @@ exports.getCategoriesByWebsiteForAdvertisers = async (req, res) => {
     // the camelCase shape (_id, categoryName, ...) the advertiser UI expects —
     // without it, space._id/categoryName came back undefined.
     const enriched = categories.map(c => {
-      const client = catToClient(c);
+      const client = withAdvertiserPrice(catToClient(c), marginPercent);
       let tierAvailability = null;
       if (client.pricingTiers) {
         const activeAdIds = activeAdsByCategoryId[c.id] || [];
@@ -941,7 +965,8 @@ exports.getCategoryById = async (req, res) => {
   try {
     const category = await AdCategory.findById(req.params.categoryId);
     if (!category) return res.status(404).json({ message: 'Category not found' });
-    const client = catToClient(category);
+    const { marginPercent } = await Pricing.getSettings();
+    const client = withAdvertiserPrice(catToClient(category), marginPercent);
     // Multi-tier ad spaces: the direct-ad checkout page needs to know how
     // full each tier already is (to show "2/3 taken" and grey out a full
     // tier) — untiered spaces get tierAvailability: null, unchanged.

@@ -100,7 +100,9 @@ const SelectCategoriesForExistingAd = () => {
         categoriesByWebsite.forEach(website => {
           const category = website.categories.find(cat => cat._id === categoryId);
           if (category) {
-            total += category.price;
+            // advertiserPrice (listed + margin) — never the owner's listed
+            // price, which would total less than what checkout charges.
+            total += category.advertiserPrice ?? category.price;
           }
         });
       });
@@ -207,7 +209,7 @@ const SelectCategoriesForExistingAd = () => {
           const selection = {
             websiteId: website.websiteId,
             categoryId: categoryId,
-            price: parseFloat(category.price) || 0,
+            price: parseFloat(category.advertiserPrice ?? category.price) || 0,
             categoryName: category.categoryName || 'Unknown Category',
             websiteName: website.websiteName || 'Unknown Website'
           };
@@ -640,7 +642,7 @@ const SelectCategoriesForExistingAd = () => {
                                 <div className="flex items-center gap-6">
                                   <div className="flex items-center justify-center gap-2">
                                     <span className="text-lg font-semibold text-white">
-                                      RWF {category.price}
+                                      RWF {category.advertiserPrice ?? category.price}
                                     </span>
                                   </div>
                                   

@@ -274,6 +274,15 @@ exports.serveAdScript = async (req, res) => {
       .\${_px}-empty-price{font-size:12px;color:#666;margin:0;}
       .\${_px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;transition:background 0.2s;}
       .\${_px}-empty-cta:hover{background:#e84118;}
+
+      /* Multi-tier ad spaces: pricier of the 3 slots visibly looks pricier —
+         ranked by real price (AdDisplayController's tierRank), not by which
+         named slot this is. See SiteScriptController.js's injectStyles for
+         the matching rules on the primary site-wide script. */
+      .\${_px}-ad[data-tier-rank="1"]{border:2px solid #f5c451!important;box-shadow:0 8px 28px rgba(245,196,81,0.35)!important;}
+      .\${_px}-ad[data-tier-rank="2"]{border:2px solid #E8472B!important;box-shadow:0 10px 34px rgba(232,71,43,0.4)!important;}
+      .\${_px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#f5c451;color:#3d2b00;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+      .\${_px}-badge-top{background:#E8472B;color:#fff;}
     \`;
   }
 
@@ -401,6 +410,7 @@ exports.serveAdScript = async (req, res) => {
       .replace(/sp-text-content/g,_px+'-text')
       .replace(/sp-business-name/g,_px+'-title')
       .replace(/sp-description/g,_px+'-desc')
+      .replace(/sp-badge/g,_px+'-badge')
       .replace(/sp-cta/g,_px+'-cta');
 
     host.innerHTML=credit()+html;

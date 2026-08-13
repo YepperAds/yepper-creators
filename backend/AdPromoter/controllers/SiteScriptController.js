@@ -305,6 +305,15 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-empty-title{font-size:16px;font-weight:700;margin:2px 0 0;max-width:230px;line-height:1.35;color:#111;}
       .\${sp.px}-empty-price{font-size:12px;color:#666;margin:0;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;}
+
+      /* Multi-tier ad spaces: the pricier of the 3 slots doesn't just show
+         longer, it visibly looks pricier — ranked by real price (see
+         AdDisplayController's tierRank), not by which named slot this is,
+         so it's accurate no matter what the owner typed for the custom slot. */
+      .\${sp.px}-ad[data-tier-rank="1"]{border:2px solid #f5c451!important;box-shadow:0 8px 28px rgba(245,196,81,0.35)!important;}
+      .\${sp.px}-ad[data-tier-rank="2"]{border:2px solid #E8472B!important;box-shadow:0 10px 34px rgba(232,71,43,0.4)!important;}
+      .\${sp.px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#f5c451;color:#3d2b00;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+      .\${sp.px}-badge-top{background:#E8472B;color:#fff;}
     \`;
 
     root.appendChild(el);
@@ -446,6 +455,7 @@ exports.serveSiteScript = async (req, res) => {
       .replace(/sp-empty-price/g,sp.px+'-empty-price')
       .replace(/sp-empty-cta/g,sp.px+'-empty-cta')
       .replace(/sp-empty/g,sp.px+'-empty')
+      .replace(/sp-badge/g,sp.px+'-badge')
       .replace(/sp-cta/g,sp.px+'-cta');
 
     root.innerHTML='<div class="'+sp.px+'-credit">Ad by <a href="'+_f+'" target="_blank" rel="noopener">Yepper</a> · '+escHtml(sp.name)+'</div>'+html;

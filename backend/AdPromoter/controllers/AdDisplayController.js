@@ -114,6 +114,15 @@ async function resolveCategoryAndAds(categoryId, req) {
       ? JSON.parse(adCategory.ad_tier_assignments || '{}') : (adCategory.ad_tier_assignments || {});
     const takenPerTier = {};
     adsToShow = [];
+
+    // Visual rank by actual price (cheapest=0 .. priciest=2), not by which
+    // named slot (custom/elite/current) it is — "custom" is whatever the
+    // owner typed, so it isn't reliably the most expensive. This is what
+    // makes the pricier slot visibly look pricier no matter which slot that
+    // turns out to be for this particular space.
+    const rankByKey = {};
+    [...pricingTiers].sort((a, b) => a.price - b.price).forEach((t, i) => { rankByKey[t.key] = i; });
+
     // Walk in canonical tier order (shared -> featured -> exclusive) so the
     // rotation's slot order is stable and predictable, not insertion order.
     for (const t of pricingTiers) {
@@ -121,7 +130,7 @@ async function resolveCategoryAndAds(categoryId, req) {
         if (assignments[ad.id] !== t.key) continue;
         takenPerTier[t.key] = (takenPerTier[t.key] || 0) + 1;
         if (takenPerTier[t.key] > t.maxSlots) continue; // defensive: never show more than a tier's own capacity
-        adsToShow.push({ ...ad, tier: t.key, tierLabel: t.label, tierDwellSeconds: t.dwellSeconds });
+        adsToShow.push({ ...ad, tier: t.key, tierLabel: t.label, tierDwellSeconds: t.dwellSeconds, tierRank: rankByKey[t.key] ?? 0 });
       }
     }
   } else {
@@ -213,14 +222,26 @@ exports.displayAd = async (req, res) => {
         const targetUrl = escapeHtml((ad.business_link || '').startsWith('http') ? ad.business_link : `https://${ad.business_link}`);
         const businessName = escapeHtml(ad.business_name);
         const tierAttr = ad.tier ? ` data-tier="${escapeHtml(ad.tier)}"` : '';
+        const rankAttr = Number.isInteger(ad.tierRank) ? ` data-tier-rank="${ad.tierRank}"` : '';
+        // The pricier of the 3 tiers doesn't just show longer (see
+        // buildDwellByTier) — it visibly looks pricier: a small badge, plus
+        // border/shadow rules keyed off data-tier-rank in the site script's
+        // injected stylesheet (SiteScriptController.js's injectStyles).
+        // Ranked by real price, not by which named slot (custom/elite/
+        // current) this is, so it's always accurate regardless of what the
+        // owner typed for the custom slot.
+        const badge = ad.tierRank === 2 ? '<span class="sp-badge sp-badge-top">★ Exclusive</span>'
+          : ad.tierRank === 1 ? '<span class="sp-badge">Featured</span>'
+          : '';
         // Image-forward card: no business name/description text in the ad
         // itself — just the creative image (filling the whole box) and a
         // CTA button overlaid on it. businessName is still used for the
         // image's alt text (accessibility, not visible copy).
         return `
-          <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}"${tierAttr}>
+          <div class="sp-item" data-ad-id="${ad.id}" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}"${tierAttr}${rankAttr}>
             <a href="${targetUrl}" class="sp-link" target="_blank" rel="noopener" data-tracking="true">
               <div class="sp-content">
+                ${badge}
                 <div class="sp-image-wrapper"><img class="sp-image" src="${imageUrl}" alt="${businessName}" loading="lazy"></div>
                 <button class="sp-cta" type="button">Visit Website</button>
               </div>

@@ -74,7 +74,10 @@ async function resolveCategoryAndAds(categoryId, req) {
     ? adCategory.selected_ads
     : JSON.parse(adCategory.selected_ads || '[]');
 
-  if (!selectedAds.length) return { adCategory, website, ads: [], blocked: false };
+  // No early return for "nothing sold yet" — a brand-new multi-tier space
+  // with zero ads still needs its pricingTiers computed below so displayAd
+  // can show the right open-slot filler. `= ANY($1::uuid[])` with an empty
+  // array just returns zero rows, so this is safe with nothing sold too.
 
   // Ordered by position in selected_ads (the order ads were sold into this
   // category) — `id = ANY(...)` alone doesn't guarantee row order, and each
@@ -250,17 +253,27 @@ exports.displayAd = async (req, res) => {
       } catch (e) { return ''; }
     }).filter(Boolean).join('');
 
-    // Multi-tier spaces get one filler per tier that still has open
-    // capacity (each pitching its own tier's price); ordinary spaces keep
-    // today's single generic filler based on user_count.
+    // Multi-tier spaces only ever show ONE filler publicly, not one per open
+    // tier — showing all 3 side by side would let anyone browsing the site
+    // see the whole price ladder for the same physical spot, which is
+    // exactly what makes a premium buyer feel cheated if they compare notes
+    // with someone who paid less. Which one shows is the owner's own pick
+    // (displayed_tier_key, see setDisplayedTier) if they set one and it's
+    // still open; otherwise it defaults to the cheapest still-open tier —
+    // the one meant to always have an easy sale. Owners who want to sell a
+    // tier that *isn't* the one showing publicly use that tier's own direct
+    // link instead (see the copy-link buttons in the dashboard) — the
+    // checkout page still honors a specific tier from a direct link even
+    // when it's not the one on public display.
     let openSlot = '';
     if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
       const takenPerTier = {};
       adsToShow.forEach((ad) => { if (ad.tier) takenPerTier[ad.tier] = (takenPerTier[ad.tier] || 0) + 1; });
-      openSlot = pricingTiers
-        .filter((t) => (takenPerTier[t.key] || 0) < t.maxSlots)
-        .map((t) => tierFillerHtml(adCategory, categoryId, t, marginPercent))
-        .join('');
+      const openTiers = pricingTiers.filter((t) => (takenPerTier[t.key] || 0) < t.maxSlots);
+      const chosen = (adCategory.displayed_tier_key && openTiers.find((t) => t.key === adCategory.displayed_tier_key))
+        || [...openTiers].sort((a, b) => a.price - b.price)[0]
+        || null;
+      openSlot = chosen ? tierFillerHtml(adCategory, categoryId, chosen, marginPercent) : '';
     } else {
       openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
         ? availableSlotHtml(adCategory, categoryId, marginPercent)

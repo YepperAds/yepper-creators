@@ -82,6 +82,9 @@ function catToClient(c) {
     // single flat price, same as before this feature existed.
     pricingTiers: typeof c.pricing_tiers === 'string' ? JSON.parse(c.pricing_tiers) : (c.pricing_tiers || null),
     adTierAssignments: typeof c.ad_tier_assignments === 'string' ? JSON.parse(c.ad_tier_assignments) : (c.ad_tier_assignments || {}),
+    // Which of the 3 slots the owner picked to show publicly — null means
+    // automatic (the cheapest still-open tier, see AdDisplayController).
+    displayedTierKey: c.displayed_tier_key || null,
   };
 }
 
@@ -1058,6 +1061,44 @@ exports.updateCategoryTargetPath = async (req, res) => {
   } catch (error) {
     console.error('Error updating category target path:', error);
     res.status(500).json({ message: 'Error updating category target path', error: error.message });
+  }
+};
+
+// ── setDisplayedTier ─────────────────────────────────────────────────────────
+// Multi-tier ad spaces only: which of the 3 slots shows publicly on the
+// site right now. null resets to automatic (cheapest still-open tier — see
+// AdDisplayController.displayAd, which also falls back to that same
+// automatic behavior if the chosen tier is full or gone). Changeable any
+// time — this is a display preference, not a booking, so there's nothing to
+// undo when it changes.
+exports.setDisplayedTier = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required.' });
+    const { categoryId } = req.params;
+    const { tierKey } = req.body;
+
+    const category = await AdCategory.findById(categoryId);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+
+    const userId = (req.user.userId || req.user.id || req.user._id)?.toString();
+    if (category.owner_id?.toString() !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const pricingTiers = typeof category.pricing_tiers === 'string'
+      ? JSON.parse(category.pricing_tiers) : category.pricing_tiers;
+    if (!Array.isArray(pricingTiers) || pricingTiers.length === 0) {
+      return res.status(400).json({ message: 'This ad space is not split into tiers.' });
+    }
+    if (tierKey !== null && !pricingTiers.some((t) => t.key === tierKey)) {
+      return res.status(400).json({ message: `tierKey must be one of: ${pricingTiers.map((t) => t.key).join(', ')}, or null.` });
+    }
+
+    const updated = await AdCategory.update(categoryId, { displayedTierKey: tierKey || null });
+    res.status(200).json(catToClient(updated));
+  } catch (error) {
+    console.error('Error setting displayed tier:', error);
+    res.status(500).json({ message: 'Error setting displayed tier', error: error.message });
   }
 };
 

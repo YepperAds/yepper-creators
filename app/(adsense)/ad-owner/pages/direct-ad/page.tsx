@@ -96,9 +96,17 @@ function DirectAdvertise() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryInfo, websiteInfo]);
 
-  // Default to the first tier that still has room, once tier data loads.
+  // A direct link to one specific tier (from the web owner's copy-link
+  // button) always wins, even if that tier isn't the one showing publicly
+  // on the site — that's the whole point of sharing it directly instead of
+  // relying on whatever's currently on public display. Falls back to the
+  // first tier that still has room if there's no ?tier= in the URL, or it
+  // names a tier that's full/doesn't exist on this space.
   useEffect(() => {
     if (pricingTiers.length === 0) { setSelectedTierKey(null); return; }
+    const requestedKey = queryParams.get('tier');
+    const requested = requestedKey ? pricingTiers.find((t) => t.key === requestedKey && !isTierFull(t.key)) : null;
+    if (requested) { setSelectedTierKey(requested.key); return; }
     const firstOpen = pricingTiers.find((t) => !isTierFull(t.key));
     setSelectedTierKey(firstOpen ? firstOpen.key : pricingTiers[0].key);
     // eslint-disable-next-line react-hooks/exhaustive-deps

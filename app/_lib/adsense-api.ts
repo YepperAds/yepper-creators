@@ -153,6 +153,8 @@ export const categoryAPI = {
   updatePlacementMode:    (categoryId: string, data: unknown) => adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/placement-mode`, data),
   updateTargetPath:       (categoryId: string, targetPath: string | null) =>
     adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/target-path`, { targetPath }),
+  setDisplayedTier:       (categoryId: string, tierKey: string | null) =>
+    adsenseHttp.patch(`/api/ad-categories/category/${categoryId}/displayed-tier`, { tierKey }),
   duplicate:              (categoryId: string, data: unknown) => adsenseHttp.post(`/api/ad-categories/${categoryId}/duplicate`, data),
   delete:                 (categoryId: string)                => adsenseHttp.delete(`/api/ad-categories/${categoryId}`),
   sendInvite:             (categoryId: string, data: unknown)  => adsenseHttp.post(`/api/ad-categories/${categoryId}/send-invite`, data),

@@ -96,6 +96,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [duplicatePagePath, setDuplicatePagePath] = useState('');
   const [duplicateSubmitting, setDuplicateSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
+  const [displayedTierOverrides, setDisplayedTierOverrides] = useState<Record<string, string | null>>({});
+  const [copiedTierKey, setCopiedTierKey] = useState<string | null>(null);
 
   const websitePages = website?.pages || [];
 
@@ -109,6 +111,30 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
     } finally {
       setTogglingId(null);
     }
+  };
+
+  // Multi-tier ad spaces: which of the 3 slots shows publicly on the site,
+  // changeable any time. Optimistic + reverts on failure, so the picker
+  // feels instant instead of waiting on a round-trip.
+  const changeDisplayedTier = async (cat: any, tierKey: string | null) => {
+    const previous = displayedTierOverrides[cat._id] ?? cat.displayedTierKey ?? null;
+    setDisplayedTierOverrides((prev) => ({ ...prev, [cat._id]: tierKey }));
+    try {
+      await categoryAPI.setDisplayedTier(cat._id, tierKey);
+    } catch (e) {
+      alert('Failed to change which slot shows on your site. Please try again.');
+      setDisplayedTierOverrides((prev) => ({ ...prev, [cat._id]: previous }));
+    }
+  };
+
+  // Each slot gets its own direct booking link — lets an owner sell a slot
+  // that isn't the one currently showing publicly (e.g. show Elite, but
+  // still privately sell the cheap slot to someone via this link).
+  const copyTierLink = (cat: any, tierKey: string) => {
+    const link = `${window.location.origin}/ad-owner/pages/direct-ad?websiteId=${website?.id}&categoryId=${cat._id}&tier=${tierKey}`;
+    navigator.clipboard.writeText(link);
+    setCopiedTierKey(`${cat._id}:${tierKey}`);
+    setTimeout(() => setCopiedTierKey((k) => (k === `${cat._id}:${tierKey}` ? null : k)), 2000);
   };
 
   const toggleConnect = (categoryId: string) => {
@@ -304,6 +330,37 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         )}
                       </div>
 
+                      {/* Multi-tier ad spaces only: which of the 3 slots
+                          shows publicly on the site, changeable any time.
+                          Whichever one isn't showing can still be sold
+                          directly via its own copy-link button below. */}
+                      {Array.isArray(cat.pricingTiers) && cat.pricingTiers.length > 0 && (() => {
+                        const liveKey = displayedTierOverrides[cat._id] !== undefined
+                          ? displayedTierOverrides[cat._id]
+                          : (cat.displayedTierKey ?? [...cat.pricingTiers].sort((a: any, b: any) => a.price - b.price)[0]?.key);
+                        return (
+                          <div className="px-4 pt-3">
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5">Showing on your site</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {cat.pricingTiers.map((t: any) => (
+                                <button
+                                  key={t.key}
+                                  onClick={() => changeDisplayedTier(cat, t.key)}
+                                  title={`Show the ${t.label} slot publicly instead`}
+                                  className={`px-2 py-1 rounded text-xs font-medium border transition-all ${
+                                    liveKey === t.key
+                                      ? 'bg-orange-950 text-orange-400 border-orange-900'
+                                      : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300 hover:border-zinc-600'
+                                  }`}
+                                >
+                                  {t.label} · RWF {Number(t.advertiserPrice ?? t.price).toLocaleString()}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       <div className="p-4 pt-3 flex flex-wrap gap-2 mt-auto">
                         <button
                           onClick={() => toggleConnect(cat._id)}
@@ -335,6 +392,27 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                             <span>Invite</span>
                           </button>
                         )}
+                        {/* One direct booking link per slot — sells a slot
+                            that isn't the one currently showing publicly,
+                            without waiting on the Invite email flow. */}
+                        {Array.isArray(cat.pricingTiers) && cat.pricingTiers.map((t: any) => {
+                          const justCopied = copiedTierKey === `${cat._id}:${t.key}`;
+                          return (
+                            <button
+                              key={t.key}
+                              onClick={() => copyTierLink(cat, t.key)}
+                              title={`Copy a direct booking link for the ${t.label} slot`}
+                              className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-all border shrink-0 ${
+                                justCopied
+                                  ? 'bg-emerald-950 text-emerald-400 border-emerald-900'
+                                  : 'bg-zinc-800 hover:bg-emerald-950 text-zinc-500 hover:text-emerald-400 border-zinc-700 hover:border-emerald-900'
+                              }`}
+                            >
+                              {justCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              <span>{justCopied ? 'Copied' : `Copy ${t.label} link`}</span>
+                            </button>
+                          );
+                        })}
                         {onDeleteCategory && (
                           <button
                             onClick={() => onDeleteCategory(cat)}

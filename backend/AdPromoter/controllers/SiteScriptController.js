@@ -505,20 +505,23 @@ exports.serveSiteScript = async (req, res) => {
     /* Header only: the pricier of the 3 tiers doesn't just look pricier
        (border/badge/background, set in CSS above), it's physically a bigger
        box — cheapest stays the standard 728x90 banner, the middle tier is
-       noticeably wider and taller, the top tier bigger again but only a
-       modest step up from the middle one. !important on these inline styles
-       is required to beat the host's own !important width/height (added so
-       external page CSS can't shrink/crowd it) — an inline !important is the
-       one thing that legitimately outranks it. */
-    var HEADER_TIER_SIZE={1:{w:780,h:104},2:{w:810,h:112}};
+       noticeably wider and taller, the top tier is a near-full-width
+       billboard. !important on these inline styles is required to beat the
+       host's own !important width/height (added so external page CSS can't
+       shrink/crowd it) — an inline !important is the one thing that
+       legitimately outranks it. */
+    var HEADER_TIER_SIZE={1:{w:'820px',h:116},2:{w:'1600px',h:140}};
     function applyHeaderTierSize(el){
       if(!sp.spaceType||sp.spaceType.toLowerCase()!=='header')return;
       var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
       if(size){
         // min(...,100%) — a bare px width would overflow a phone-width
-        // viewport and cause horizontal scrolling; this caps it at the
-        // container's real width same as the base template already does.
-        var w='min('+size.w+'px, 100%)';
+        // viewport (or whatever real width this div's own parent has) and
+        // cause horizontal scrolling/overlap; capping at 100% of the parent
+        // is also exactly how "as wide as this container allows" is
+        // expressed, which for rank 2's large px ceiling means it stretches
+        // to fill essentially the whole width it's given.
+        var w='min('+size.w+', 100%)';
         host.style.setProperty('width',w,'important');
         host.style.setProperty('max-width',w,'important');
         host.style.setProperty('height',size.h+'px','important');

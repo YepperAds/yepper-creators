@@ -451,14 +451,16 @@ exports.serveAdScript = async (req, res) => {
     /* Header only: pricier tier = physically bigger box, not just a
        different border/badge. See the matching note in
        SiteScriptController.js's renderAds. */
-    var HEADER_TIER_SIZE={1:{w:780,h:104},2:{w:810,h:112}};
+    var HEADER_TIER_SIZE={1:{w:'820px',h:116},2:{w:'1600px',h:140}};
     function applyHeaderTierSize(el){
       if(!_sp||_sp.toLowerCase()!=='header')return;
       var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
       if(size){
         // min(...,100%) so a bare px width can't overflow a phone-width
-        // viewport and cause horizontal scrolling.
-        var w='min('+size.w+'px, 100%)';
+        // viewport and cause horizontal scrolling; for rank 2's large px
+        // ceiling this settles at ~100% of whatever this div's parent
+        // allows, i.e. essentially the full page width.
+        var w='min('+size.w+', 100%)';
         host.style.setProperty('width',w,'important');
         host.style.setProperty('max-width',w,'important');
         host.style.setProperty('height',size.h+'px','important');

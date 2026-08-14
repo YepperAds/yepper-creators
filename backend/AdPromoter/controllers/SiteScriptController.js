@@ -274,7 +274,7 @@ exports.serveSiteScript = async (req, res) => {
        are no longer consulted here for the same reason; still accepted and
        stored (the Customize Ads panel doesn't need a matching rewrite just
        because the renderer stopped reading a few of its fields), just inert. */
-    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;height:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
+    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;height:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;position:relative;}';
     slots.forEach(function(s,si){
       var sel='.'+sp.px+'-ad[data-slot="'+si+'"]';
       rulesCss+=\`
@@ -325,6 +325,22 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-ad[data-tier-rank="2"]{border:2px solid #E8472B!important;box-shadow:0 10px 34px rgba(232,71,43,0.4)!important;}
       .\${sp.px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#f5c451;color:#3d2b00;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
       .\${sp.px}-badge-top{background:#E8472B;color:#fff;}
+
+      /* Same escalation applied to an unsold slot's own pitch, not just a
+         sold ad — otherwise "Custom" and "Unverified" fillers are pixel
+         -identical apart from the number in the price line, which gives a
+         visitor (or a hesitating advertiser) no reason to believe the
+         pricier slot is actually worth more. */
+      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty,
+      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#fff9ec,#fbe6b8);}
+      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-cta{background:#f5c451;color:#3d2b00;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty,
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#211a16,#3a2620);}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-name{color:#e0b8a8;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-title,
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{color:#fff;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-price{color:#f0d9cf;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-cta{background:linear-gradient(135deg,#E8472B,#c2321a);color:#fff;}
     \`;
 
     root.appendChild(el);

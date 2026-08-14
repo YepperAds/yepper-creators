@@ -211,7 +211,7 @@ exports.serveAdScript = async (req, res) => {
     /* Safety net for any item whose slot index has no resolved bundle
        (customization fetch failed, or more items than configured slots) —
        plain white+shadow, same as the system default, instead of unstyled. */
-    var rulesCss='.'+_px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;}';
+    var rulesCss='.'+_px+'-ad{display:block;width:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;position:relative;}';
     slots.forEach(function(s,si){
       var isH=s.imagePosition==='left';
       var flexDir=isH?'row':'column';
@@ -290,6 +290,19 @@ exports.serveAdScript = async (req, res) => {
       .\${_px}-ad[data-tier-rank="2"]{border:2px solid #E8472B!important;box-shadow:0 10px 34px rgba(232,71,43,0.4)!important;}
       .\${_px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#f5c451;color:#3d2b00;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
       .\${_px}-badge-top{background:#E8472B;color:#fff;}
+
+      /* Same escalation applied to an unsold slot's own pitch — see the
+         matching note in SiteScriptController.js's injectStyles. */
+      .\${_px}-ad[data-tier-rank="1"] .\${_px}-empty,
+      .\${_px}-ad[data-tier-rank="1"] .\${_px}-empty-compact{background:linear-gradient(135deg,#fff9ec,#fbe6b8);}
+      .\${_px}-ad[data-tier-rank="1"] .\${_px}-empty-cta{background:#f5c451;color:#3d2b00;}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty,
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-compact{background:linear-gradient(135deg,#211a16,#3a2620);}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-name{color:#e0b8a8;}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-title,
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-compact .\${_px}-empty-price{color:#fff;}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-price{color:#f0d9cf;}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-cta{background:linear-gradient(135deg,#E8472B,#c2321a);color:#fff;}
     \`;
   }
 

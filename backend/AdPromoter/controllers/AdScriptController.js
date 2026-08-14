@@ -265,7 +265,10 @@ exports.serveAdScript = async (req, res) => {
     el.textContent=placementCss+fontCss+rulesCss+hostOverride+\`
       .\${_px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease;}
       .\${_px}-ad:hover .\${_px}-img{transform:scale(1.03);}
-      .\${_px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
+      /* Overlaid, not a flow row above the box — see the matching note in
+         SiteScriptController.js's injectStyles for why a separate row here
+         was quietly clipping the ad box's own bottom off. */
+      .\${_px}-credit{position:absolute;bottom:3px;right:6px;z-index:6;font-size:8px;line-height:1;color:rgba(0,0,0,0.4);background:rgba(255,255,255,0.72);padding:2px 6px;border-radius:6px;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
       .\${_px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
       .\${_px}-empty-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#ea580c;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}

@@ -297,7 +297,14 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-wrap{display:block;height:100%;}
       .\${sp.px}-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s;}
       .\${sp.px}-ad:hover .\${sp.px}-img{transform:scale(1.03);}
-      .\${sp.px}-credit{font-size:9px;color:rgba(0,0,0,0.4);padding:4px 8px;text-align:right;}
+      /* Used to sit as its own row above the ad box, which quietly added its
+         own height on top of the box's already-fixed dims — the host clips
+         at exactly that fixed height, so that extra row pushed the ad box's
+         own bottom past the clip line and got it cut off (the "header is
+         overlapping the ad" symptom was actually our own credit line eating
+         into the box's height budget). Overlaid on the box instead — zero
+         layout height, box gets the full space it was sized for. */
+      .\${sp.px}-credit{position:absolute;bottom:3px;right:6px;z-index:6;font-size:8px;line-height:1;color:rgba(0,0,0,0.4);background:rgba(255,255,255,0.72);padding:2px 6px;border-radius:6px;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
       .\${sp.px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
       .\${sp.px}-empty-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#ea580c;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
@@ -398,7 +405,7 @@ exports.serveSiteScript = async (req, res) => {
        the host's own real height (the fixed px value set in
        placementCSS/adSpaceLayout.js) and hands it down through
        .px-wrap/.px-ad/.px-inner below. */
-    host._ysContent.style.cssText='display:block;height:100%;';
+    host._ysContent.style.cssText='display:block;height:100%;position:relative;';
     host._ysRoot.appendChild(host._ysContent);
 
     /* Floating/Modal/Overlay render via position:fixed so they should pin to

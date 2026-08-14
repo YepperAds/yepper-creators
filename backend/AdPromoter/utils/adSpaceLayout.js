@@ -62,7 +62,16 @@ const FLOAT  = AD_SPACE_DIMENSIONS['Floating'];      // 340x400
 // takes them out of document flow entirely, so nothing else on the page can
 // push into or overlap them either way.
 const PLACEMENT_CSS_TEMPLATES = {
-  base: `.{{PX}}-host{display:block!important;width:100%!important;box-sizing:border-box!important;position:relative!important;overflow:visible!important;}`,
+  // Deliberately NOT !important: this is a default meant to be overridden by
+  // the specific template appended after it (that's what position:relative
+  // here becoming position:fixed for Floating/Modal below relies on — since
+  // !important always wins over a non-!important rule regardless of source
+  // order, making this base rule !important would make it override even our
+  // OWN later, more specific rule for the same property, which is exactly
+  // the bug that briefly knocked Floating out of its pinned corner and into
+  // normal page flow. Only the specific per-type rules below need
+  // !important, to resist the page's OWN external CSS.
+  base: `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
 
   'header':          `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:0 auto 24px!important;overflow:hidden!important;float:none!important;}`,
   'above the fold':  `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:0 auto 24px!important;overflow:hidden!important;float:none!important;}`,

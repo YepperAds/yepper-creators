@@ -448,6 +448,37 @@ exports.serveAdScript = async (req, res) => {
       el.setAttribute('data-slot',idx);
     });
 
+    /* Header only: pricier tier = physically bigger box, not just a
+       different border/badge. See the matching note in
+       SiteScriptController.js's renderAds. */
+    var HEADER_TIER_SIZE={1:{w:780,h:104},2:{w:810,h:112}};
+    function applyHeaderTierSize(el){
+      if(!_sp||_sp.toLowerCase()!=='header')return;
+      var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
+      if(size){
+        // min(...,100%) so a bare px width can't overflow a phone-width
+        // viewport and cause horizontal scrolling.
+        var w='min('+size.w+'px, 100%)';
+        host.style.setProperty('width',w,'important');
+        host.style.setProperty('max-width',w,'important');
+        host.style.setProperty('height',size.h+'px','important');
+        if(el){
+          el.style.setProperty('width',w,'important');
+          el.style.setProperty('height',size.h+'px','important');
+          el.style.setProperty('max-height',size.h+'px','important');
+        }
+      } else {
+        host.style.removeProperty('width');
+        host.style.removeProperty('max-width');
+        host.style.removeProperty('height');
+        if(el){
+          el.style.removeProperty('width');
+          el.style.removeProperty('max-height');
+        }
+      }
+    }
+    applyHeaderTierSize(items[0]);
+
     /* Track views + clicks */
     function trackView(adId){
       if(!adId||adId==='undefined')return;
@@ -498,6 +529,7 @@ exports.serveAdScript = async (req, res) => {
           items[cur].style.display='none';
           cur=(cur+1)%items.length;
           items[cur].style.display='block';
+          applyHeaderTierSize(items[cur]);
           var rotId = items[cur].dataset.adId;
           if(rotId && rotId !== 'undefined') trackView(rotId);
           scheduleNext();

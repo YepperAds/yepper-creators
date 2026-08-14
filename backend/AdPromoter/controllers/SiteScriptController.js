@@ -502,6 +502,46 @@ exports.serveSiteScript = async (req, res) => {
       el.setAttribute('data-slot',idx);
     });
 
+    /* Header only: the pricier of the 3 tiers doesn't just look pricier
+       (border/badge/background, set in CSS above), it's physically a bigger
+       box — cheapest stays the standard 728x90 banner, the middle tier is
+       noticeably wider and taller, the top tier bigger again but only a
+       modest step up from the middle one. !important on these inline styles
+       is required to beat the host's own !important width/height (added so
+       external page CSS can't shrink/crowd it) — an inline !important is the
+       one thing that legitimately outranks it. */
+    var HEADER_TIER_SIZE={1:{w:780,h:104},2:{w:810,h:112}};
+    function applyHeaderTierSize(el){
+      if(!sp.spaceType||sp.spaceType.toLowerCase()!=='header')return;
+      var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
+      if(size){
+        // min(...,100%) — a bare px width would overflow a phone-width
+        // viewport and cause horizontal scrolling; this caps it at the
+        // container's real width same as the base template already does.
+        var w='min('+size.w+'px, 100%)';
+        host.style.setProperty('width',w,'important');
+        host.style.setProperty('max-width',w,'important');
+        host.style.setProperty('height',size.h+'px','important');
+        if(el){
+          el.style.setProperty('width',w,'important');
+          el.style.setProperty('height',size.h+'px','important');
+          el.style.setProperty('max-height',size.h+'px','important');
+        }
+      } else {
+        host.style.removeProperty('width');
+        host.style.removeProperty('max-width');
+        host.style.removeProperty('height');
+        if(el){
+          el.style.removeProperty('width');
+          el.style.removeProperty('max-height');
+          /* height stays: the server already inline-styles it to the
+             standard banner height (see AdDisplayController's heightStyle),
+             which IS the correct rank-0 size — nothing to remove. */
+        }
+      }
+    }
+    applyHeaderTierSize(items[0]);
+
     function trackView(adId){
       if(!adId||adId==='undefined'||adId==='null')return;
       var _ev=_b+'/ev/'+adId+'?cid='+sp.id;
@@ -550,6 +590,7 @@ exports.serveSiteScript = async (req, res) => {
           items[cur].style.display='none';
           cur=(cur+1)%items.length;
           items[cur].style.display='block';
+          applyHeaderTierSize(items[cur]);
           var rotId=items[cur].dataset.adId;
           if(rotId&&rotId!=='undefined'&&rotId!=='null')trackView(rotId);
           scheduleNext();

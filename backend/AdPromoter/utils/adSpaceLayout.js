@@ -47,17 +47,31 @@ const FLOAT  = AD_SPACE_DIMENSIONS['Floating'];      // 340x400
 
 // CSS per canonical spaceType, keyed with a {{PX}} placeholder instead of an
 // interpolated prefix — used by both scripts (see comment above).
+// Every in-flow placement below (everything except Floating/Modal, which are
+// deliberate viewport-pinned overlays) forces its box dimensions and margin
+// with !important. A host div sitting inside someone else's page layout can
+// otherwise have its computed height/margin silently overridden by whatever
+// CSS that page already has (a reset, a flex/grid parent, load order — no
+// way to know in advance), which is exactly how a site's own header/nav can
+// end up sitting flush against (or visually "over") an ad box that never
+// actually got its real height and spacing. !important makes this box's
+// footprint in the document non-negotiable: the page can style its own
+// content into whatever's left, but it cannot shrink or crowd this box, and
+// this box in turn is guaranteed to never overlap anything before or after
+// it in the flow. Floating/Modal don't need this — position:fixed already
+// takes them out of document flow entirely, so nothing else on the page can
+// push into or overlap them either way.
 const PLACEMENT_CSS_TEMPLATES = {
-  base: `.{{PX}}-host{display:block;width:100%;box-sizing:border-box;position:relative;overflow:visible;}`,
+  base: `.{{PX}}-host{display:block!important;width:100%!important;box-sizing:border-box!important;position:relative!important;overflow:visible!important;}`,
 
-  'header':          `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 24px;overflow:hidden;}`,
-  'above the fold':  `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:0 auto 16px;overflow:hidden;}`,
-  'beneath title':   `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:12px auto 20px;overflow:hidden;}`,
-  'pro footer':      `.{{PX}}-host{width:100%;max-width:${BANNER.width}px;height:${BANNER.height}px;margin:24px auto 0;overflow:hidden;}`,
+  'header':          `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:0 auto 24px!important;overflow:hidden!important;float:none!important;}`,
+  'above the fold':  `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:0 auto 24px!important;overflow:hidden!important;float:none!important;}`,
+  'beneath title':   `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:12px auto 24px!important;overflow:hidden!important;float:none!important;}`,
+  'pro footer':      `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:24px auto 0!important;overflow:hidden!important;float:none!important;}`,
 
-  'inline content':  `.{{PX}}-host{float:right;width:${RECT.width}px;height:${RECT.height}px;margin:0 0 12px 20px;overflow:hidden;}@media(max-width:600px){.{{PX}}-host{float:none;width:100%;height:auto;max-height:${RECT.height}px;margin:12px 0;}}`,
-  'sidebar':         `.{{PX}}-host{width:${RECT.width}px;height:${RECT.height}px;margin:0 0 16px 0;max-width:100%;overflow:hidden;}`,
-  'sticky sidebar':  `.{{PX}}-host{position:sticky;top:80px;width:${RECT.width}px;height:${RECT.height}px;max-width:100%;z-index:100;overflow:hidden;}`,
+  'inline content':  `.{{PX}}-host{float:right!important;width:${RECT.width}px!important;height:${RECT.height}px!important;margin:0 0 12px 20px!important;overflow:hidden!important;}@media(max-width:600px){.{{PX}}-host{float:none!important;width:100%!important;height:auto!important;max-height:${RECT.height}px!important;margin:12px 0!important;}}`,
+  'sidebar':         `.{{PX}}-host{width:${RECT.width}px!important;height:${RECT.height}px!important;margin:0 0 16px 0!important;max-width:100%!important;overflow:hidden!important;float:none!important;}`,
+  'sticky sidebar':  `.{{PX}}-host{position:sticky!important;top:80px!important;width:${RECT.width}px!important;height:${RECT.height}px!important;max-width:100%!important;z-index:100!important;overflow:hidden!important;float:none!important;}`,
   // position:fixed pins this to the viewport (bottom-right corner) no matter
   // where in the page's markup the placeholder div actually sits — the div's
   // spot in the DOM never matters, only which page it's configured for.
@@ -66,7 +80,7 @@ const PLACEMENT_CSS_TEMPLATES = {
   // opening on the same page still layers above a Floating ad.
   'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${FLOAT.width}px;height:${FLOAT.height}px;max-height:80vh;z-index:99998;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);max-width:${FLOAT.width}px;left:16px;right:16px;bottom:16px;height:min(${FLOAT.height}px, 60vh);}}`,
 
-  'left rail':       `.{{PX}}-host{width:${RAIL.width}px;min-height:${RAIL.height}px;position:sticky;top:80px;margin-right:16px;}@media(max-width:768px){.{{PX}}-host{width:100%;min-height:0;position:static;}}`,
+  'left rail':       `.{{PX}}-host{width:${RAIL.width}px!important;min-height:${RAIL.height}px!important;position:sticky!important;top:80px!important;margin-right:16px!important;float:none!important;}@media(max-width:768px){.{{PX}}-host{width:100%!important;min-height:0!important;position:static!important;}}`,
 
   // position:fixed;inset:0 also pins Modal to the viewport regardless of the
   // div's DOM placement, same as Floating above. The ad itself is capped
@@ -76,9 +90,9 @@ const PLACEMENT_CSS_TEMPLATES = {
   // as an ad and not the page itself, and never overflows on small screens.
   'modal':           `.{{PX}}-host{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);}.{{PX}}-host>*{max-width:min(92vw,${MODAL.width}px);max-height:min(88vh,${MODAL.height}px);}`,
 
-  'pre-roll':        `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,
-  'mid-roll':         `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,
-  'pause':           `.{{PX}}-host{width:100%;max-width:640px;aspect-ratio:16/9;margin:16px auto;}`,
+  'pre-roll':        `.{{PX}}-host{width:100%!important;max-width:640px!important;aspect-ratio:16/9!important;margin:16px auto!important;float:none!important;}`,
+  'mid-roll':         `.{{PX}}-host{width:100%!important;max-width:640px!important;aspect-ratio:16/9!important;margin:16px auto!important;float:none!important;}`,
+  'pause':           `.{{PX}}-host{width:100%!important;max-width:640px!important;aspect-ratio:16/9!important;margin:16px auto!important;float:none!important;}`,
 };
 
 // canonicalSpace() returns the display-cased canonical name ("Left Rail") —

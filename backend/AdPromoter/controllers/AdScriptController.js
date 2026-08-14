@@ -448,18 +448,17 @@ exports.serveAdScript = async (req, res) => {
       el.setAttribute('data-slot',idx);
     });
 
-    /* Header only: pricier tier = physically bigger box, not just a
-       different border/badge. See the matching note in
+    /* Header only: pricier tier = physically bigger box, and all three are
+       taller than the plain 728x90 default so a creative image isn't
+       squeezed into an ultra-thin strip. See the matching note in
        SiteScriptController.js's renderAds. */
-    var HEADER_TIER_SIZE={1:{w:'820px',h:116},2:{w:'1600px',h:140}};
+    var HEADER_TIER_SIZE={0:{w:'728px',h:110},1:{w:'900px',h:140},2:{w:'1100px',h:170}};
     function applyHeaderTierSize(el){
       if(!_sp||_sp.toLowerCase()!=='header')return;
       var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
       if(size){
         // min(...,100%) so a bare px width can't overflow a phone-width
-        // viewport and cause horizontal scrolling; for rank 2's large px
-        // ceiling this settles at ~100% of whatever this div's parent
-        // allows, i.e. essentially the full page width.
+        // viewport and cause horizontal scrolling.
         var w='min('+size.w+', 100%)';
         host.style.setProperty('width',w,'important');
         host.style.setProperty('max-width',w,'important');
@@ -470,11 +469,14 @@ exports.serveAdScript = async (req, res) => {
           el.style.setProperty('max-height',size.h+'px','important');
         }
       } else {
+        // No data-tier-rank at all means an untiered space — leave it at
+        // the server's standard banner size.
         host.style.removeProperty('width');
         host.style.removeProperty('max-width');
         host.style.removeProperty('height');
         if(el){
           el.style.removeProperty('width');
+          el.style.removeProperty('height');
           el.style.removeProperty('max-height');
         }
       }

@@ -504,23 +504,22 @@ exports.serveSiteScript = async (req, res) => {
 
     /* Header only: the pricier of the 3 tiers doesn't just look pricier
        (border/badge/background, set in CSS above), it's physically a bigger
-       box — cheapest stays the standard 728x90 banner, the middle tier is
-       noticeably wider and taller, the top tier is a near-full-width
-       billboard. !important on these inline styles is required to beat the
-       host's own !important width/height (added so external page CSS can't
-       shrink/crowd it) — an inline !important is the one thing that
-       legitimately outranks it. */
-    var HEADER_TIER_SIZE={1:{w:'820px',h:116},2:{w:'1600px',h:140}};
+       box — and all three are taller than the plain 728x90 banner default,
+       not just wider, so an uploaded creative image isn't squeezed into an
+       ultra-thin strip. Top tier is bigger than the middle one but capped
+       well short of full page width — a very wide, thin box makes any image
+       in it look stretched/ugly. !important on these inline styles is
+       required to beat the host's own !important width/height (added so
+       external page CSS can't shrink/crowd it) — an inline !important is
+       the one thing that legitimately outranks it. */
+    var HEADER_TIER_SIZE={0:{w:'728px',h:110},1:{w:'900px',h:140},2:{w:'1100px',h:170}};
     function applyHeaderTierSize(el){
       if(!sp.spaceType||sp.spaceType.toLowerCase()!=='header')return;
       var size=HEADER_TIER_SIZE[el&&el.dataset&&el.dataset.tierRank];
       if(size){
         // min(...,100%) — a bare px width would overflow a phone-width
         // viewport (or whatever real width this div's own parent has) and
-        // cause horizontal scrolling/overlap; capping at 100% of the parent
-        // is also exactly how "as wide as this container allows" is
-        // expressed, which for rank 2's large px ceiling means it stretches
-        // to fill essentially the whole width it's given.
+        // cause horizontal scrolling/overlap.
         var w='min('+size.w+', 100%)';
         host.style.setProperty('width',w,'important');
         host.style.setProperty('max-width',w,'important');
@@ -531,15 +530,15 @@ exports.serveSiteScript = async (req, res) => {
           el.style.setProperty('max-height',size.h+'px','important');
         }
       } else {
+        // No data-tier-rank at all means an untiered space (not one of the
+        // 3 tiers) — leave it at the server's standard banner size.
         host.style.removeProperty('width');
         host.style.removeProperty('max-width');
         host.style.removeProperty('height');
         if(el){
           el.style.removeProperty('width');
+          el.style.removeProperty('height');
           el.style.removeProperty('max-height');
-          /* height stays: the server already inline-styles it to the
-             standard banner height (see AdDisplayController's heightStyle),
-             which IS the correct rank-0 size — nothing to remove. */
         }
       }
     }

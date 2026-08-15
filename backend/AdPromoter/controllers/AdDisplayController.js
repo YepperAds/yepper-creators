@@ -597,18 +597,14 @@ exports.reportZoneDetected = async (req, res) => {
     const fields = { lastDetectedZone: zone, zoneDetectionHistory: history };
 
     const isValidForZone = ZONE_VALID_TYPES[zone].includes(canonicalType);
-    console.log('[zone-debug]', { canonicalType, isValidForZone, historyLen: history.length });
     if (!isValidForZone) {
       const agreement = history.filter((z) => z === zone).length;
-      console.log('[zone-debug] agreement', agreement, 'threshold', ZONE_MAJORITY_THRESHOLD);
       if (agreement >= ZONE_MAJORITY_THRESHOLD) {
         const [activeAdIds, isTiered] = [await AdCategory.findActiveAdIds(categoryId), !!category.pricing_tiers];
-        console.log('[zone-debug] activeAdIds', activeAdIds, 'isTiered', isTiered);
         if (activeAdIds.length === 0 && !isTiered) {
           const newType = ZONE_DEFAULT_TYPE[zone];
           const tierPrices = await Pricing.getTierPrices(category.tier);
           const newPrice = tierPrices[newType];
-          console.log('[zone-debug] newType', newType, 'tier', category.tier, 'tierPrices', tierPrices, 'newPrice', newPrice);
           if (newPrice !== undefined) {
             fields.spaceType = newType;
             fields.price = newPrice;
@@ -623,9 +619,7 @@ exports.reportZoneDetected = async (req, res) => {
       }
     }
 
-    console.log('[zone-debug] final fields', fields);
-    const updated = await AdCategory.update(categoryId, fields);
-    console.log('[zone-debug] updated row space_type/price', updated && updated.space_type, updated && updated.price);
+    await AdCategory.update(categoryId, fields);
     res.status(200).json({ success: true });
   } catch (error) {
     // Beacon-fired, best-effort — never let this surface as a real error.

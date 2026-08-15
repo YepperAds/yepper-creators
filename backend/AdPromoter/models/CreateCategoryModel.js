@@ -101,7 +101,7 @@ const AdCategory = {
       `SELECT id FROM import_ads
        WHERE EXISTS (
          SELECT 1 FROM jsonb_array_elements(website_selections) AS sel
-         WHERE (sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true
+         WHERE ((sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true)
            AND EXISTS (
              SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
              WHERE cat_id = $1

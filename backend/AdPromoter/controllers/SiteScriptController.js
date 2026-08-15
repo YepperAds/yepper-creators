@@ -569,10 +569,15 @@ exports.serveSiteScript = async (req, res) => {
              so one bucket for all three made it impossible to ever tell
              them apart by position (see the note on ZONE_DEFAULT_TYPE in
              AdDisplayController.js). */
+          var bottomPct=absBottom/pageH;
+          /* Same idea at the bottom — Pro Footer and Footer are both real,
+             distinct types, so they get their own bands too instead of one
+             wide "footer" bucket. */
           var zone=(topPct<0.05)?'header'
             :(topPct<0.15)?'above-the-fold'
             :(topPct<0.25)?'beneath-title'
-            :(absBottom/pageH>0.90)?'footer'
+            :(bottomPct>0.90)?'footer'
+            :(bottomPct>0.78)?'pro-footer'
             :(rect.right/pageW>0.75)?'right'
             :(rect.left/pageW<0.25)?'left'
             :'center';

@@ -566,11 +566,23 @@ exports.reportSpaceSeen = async (req, res) => {
 // types are deliberately absent — they're viewport-pinned overlays or
 // video-player placements, not page-flow positioned, so geometry can't
 // validate them.
+// Same reasoning applies at the bottom of the page: Pro Footer and Footer
+// are both real, distinct "near the bottom" types, so they need their own
+// bands too, not one wide "footer" bucket — otherwise Pro Footer would
+// silently flatten down to Footer the same way Above The Fold/Beneath Title
+// used to flatten to Header.
 const ZONE_DEFAULT_TYPE = {
   header: 'Header', 'above-the-fold': 'Above The Fold', 'beneath-title': 'Beneath Title',
-  left: 'Left Rail', right: 'Right Rail', center: 'Inline Content', footer: 'Footer',
+  left: 'Left Rail', right: 'Right Rail', center: 'Inline Content',
+  'pro-footer': 'Pro Footer', footer: 'Footer',
 };
-const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause']);
+// Sidebar/Sticky Sidebar are deliberately absent from ZONE_DEFAULT_TYPE (so
+// they'd otherwise flatten to Left/Right Rail the moment they're detected on
+// either side) *and* added here as exempt: unlike every other pair on this
+// page, "Sidebar" has no inherent left-or-right identity to validate against
+// — it's equally correct on either side — so position can't determine
+// whether a given Sidebar is "wrong" the way it can for every other type.
+const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause', 'Sidebar', 'Sticky Sidebar']);
 const ZONE_HISTORY_LENGTH = 5;
 const ZONE_MAJORITY_THRESHOLD = 3;
 const TIER_KEY_ORDER = ['custom', 'elite', 'current'];

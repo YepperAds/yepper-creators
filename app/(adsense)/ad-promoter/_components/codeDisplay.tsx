@@ -7,7 +7,7 @@ import {
   Trash2, X, ChevronDown, Mail, Files, Link2,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
-import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
+import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 import { getLanguageFlagUrl, getLanguageLabel } from '@/app/_lib/languages';
 import ZoneMapPreview from './ZoneMapPreview';
 
@@ -267,33 +267,21 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                     const st = (cat.spaceType || '').toLowerCase();
                     const positionsSelf = st === 'floating' || st === 'modalpic';
                     const thumb = getAdSpaceImage(cat.spaceType, cat.categoryName);
-                    const description = cat.description || getAdSpaceDescription(cat.spaceType, cat.categoryName);
                     const isConnected = connectedIds.has(cat._id);
                     return (
                       <div key={cat._id} className="rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
-                      {/* Big framed preview image up top, everything else below it */}
+                      {/* Big framed preview image up top, everything else below it —
+                          name/description/price were dropped from here since the
+                          same info already shows further down the card. */}
                       {thumb && (
-                        <div className="p-3 pb-0 flex justify-center">
+                        <div className="p-3 pb-0">
                           <img
                             src={thumb}
                             alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                            className="max-h-52 w-auto max-w-full object-contain rounded-xl border border-zinc-800 bg-white"
+                            className="w-full h-72 object-contain rounded-xl border border-zinc-800 bg-white"
                           />
                         </div>
                       )}
-
-                      {/* Name / description / price, matching the booking gallery's look */}
-                      <div className="px-4 pt-3 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-base font-bold text-zinc-900 truncate">{cat.categoryName || cat.spaceType}</p>
-                          {description && (
-                            <p className="text-xs text-zinc-600 mt-1 leading-relaxed">{description}</p>
-                          )}
-                        </div>
-                        <span className="text-orange-500 font-bold text-sm whitespace-nowrap shrink-0">
-                          RWF {Number(cat.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
 
                       {/* Meta: index, space type, page targeting */}
                       <div className="px-4 pt-3 flex items-center gap-2 flex-wrap">

@@ -22,7 +22,7 @@ const ZoneMapPreview = ({ zone }: { zone?: string | null }) => {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-36 h-24 rounded-lg border border-zinc-700 overflow-hidden shrink-0 flex flex-col bg-zinc-900">
+      <div className="w-44 h-28 rounded-lg border border-zinc-700 overflow-hidden shrink-0 flex flex-col bg-zinc-900">
         <div
           className="h-[20%] w-full"
           style={{ background: zone === 'header' ? ZONES[0].color : '#3f3f46' }}

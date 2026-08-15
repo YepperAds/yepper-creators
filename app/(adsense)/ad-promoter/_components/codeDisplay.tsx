@@ -272,18 +272,17 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       <div key={cat._id} className="rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
                       {/* Big framed preview image up top, everything else below it —
                           name/description/price were dropped from here since the
-                          same info already shows further down the card. Boxed to
-                          roughly this space type's own real aspect ratio (e.g. a
-                          wide short banner for Header, a tall narrow strip for a
-                          Rail) instead of one generic box shape for every type, so
-                          the preview actually reads as "this is the space's shape". */}
+                          same info already shows further down the card. Fixed,
+                          generous box size (not locked to the real ad space's own
+                          aspect ratio — a 728x90 banner scaled to card width comes
+                          out as a barely-visible sliver, which isn't what "bigger"
+                          means here) so the mockup screen is actually legible. */}
                       {thumb && (
                         <div className="p-3 pb-0">
                           <img
                             src={thumb}
                             alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                            style={cat.recommendedSize ? { aspectRatio: `${cat.recommendedSize.width} / ${cat.recommendedSize.height}` } : undefined}
-                            className="w-full max-h-72 object-contain rounded-xl border border-zinc-800 bg-white"
+                            className="w-full h-80 object-contain rounded-xl border border-zinc-800 bg-white"
                           />
                         </div>
                       )}

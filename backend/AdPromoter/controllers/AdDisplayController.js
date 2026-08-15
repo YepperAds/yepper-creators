@@ -549,24 +549,51 @@ exports.reportSpaceSeen = async (req, res) => {
 
 // Which canonical space_types make sense inside each geometric zone (a zone
 // can have several valid types so we never flip-flop between near-synonyms —
-// e.g. Header vs Above The Fold are both legitimately "near the top"), and
-// which single type a category gets reclassified into when it's confirmed to
-// be in the wrong zone. Floating/Modal/video types are deliberately absent —
-// they're viewport-pinned overlays or video-player placements, not
-// page-flow positioned, so geometry can't validate them.
-const ZONE_VALID_TYPES = {
-  header: ['Header', 'Above The Fold', 'Beneath Title'],
-  left:   ['Left Rail', 'Sidebar', 'Sticky Sidebar'],
-  right:  ['Right Rail', 'Sidebar', 'Sticky Sidebar'],
-  center: ['Inline Content'],
-  footer: ['Pro Footer', 'Footer'],
-};
+// Strict, one-type-per-zone — a category is only ever "correct" if its own
+// type is the exact type that zone means. Deliberately NOT a set of
+// near-synonyms: an owner who puts a Header div where a Right Rail should be
+// wants it to become a Right Rail, with a Right Rail's own name and price,
+// not just "close enough because it's some top-of-page type". Floating/
+// Modal/video types are deliberately absent — they're viewport-pinned
+// overlays or video-player placements, not page-flow positioned, so
+// geometry can't validate them.
 const ZONE_DEFAULT_TYPE = {
   header: 'Header', left: 'Left Rail', right: 'Right Rail', center: 'Inline Content', footer: 'Footer',
 };
 const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause']);
 const ZONE_HISTORY_LENGTH = 5;
 const ZONE_MAJORITY_THRESHOLD = 3;
+const TIER_KEY_ORDER = ['custom', 'elite', 'current'];
+
+// Recomputes a tiered category's Elite/Current slot prices for a new space
+// type — same lookups createCategoryController.createCategory uses to build
+// them the first time (Pricing.getTierPrices('elite') / the website's real
+// current traffic tier, capped at Premium). The Custom slot is the owner's
+// own typed price, independent of space type, so it's left untouched.
+async function repriceTiersForType(category, newType) {
+  const tiers = Array.isArray(category.pricing_tiers) ? category.pricing_tiers : [];
+  if (!tiers.length) return null;
+
+  const website = await Website.findById(category.website_id);
+  const realTier = website?.traffic_tier === 'elite' ? 'premium' : (website?.traffic_tier || 'starter');
+  const [elitePrices, currentTierPrices] = await Promise.all([
+    Pricing.getTierPrices('elite'),
+    Pricing.getTierPrices(realTier),
+  ]);
+  const currentTierMeta = Pricing.TIERS.find((t) => t.key === realTier);
+
+  const repriced = tiers.map((t) => {
+    if (t.key === 'elite' && elitePrices[newType] !== undefined) {
+      return { ...t, price: elitePrices[newType] };
+    }
+    if (t.key === 'current' && currentTierPrices[newType] !== undefined) {
+      return { ...t, price: currentTierPrices[newType], label: currentTierMeta?.label || t.label };
+    }
+    return t; // custom, or no price configured yet for this type — leave as-is
+  });
+  repriced.sort((a, b) => TIER_KEY_ORDER.indexOf(a.key) - TIER_KEY_ORDER.indexOf(b.key));
+  return repriced;
+}
 
 // The site-wide script calls this once per render with a purely geometric
 // read of where the category's div actually landed on the page (top/left/
@@ -575,14 +602,14 @@ const ZONE_MAJORITY_THRESHOLD = 3;
 // rolling history of the last few detections has to agree before this acts,
 // so one mobile-vs-desktop layout difference can't flip a category by
 // itself, and a single forged beacon can't either. When a real, sustained
-// mismatch is confirmed, the category is only ever auto-reclassified (type +
-// price) if nothing has been sold on it yet and it isn't a multi-tier space
-// — otherwise it's left alone and the owner is just notified, exactly like
-// reportPageMismatch does for a wrong-page div.
+// mismatch is confirmed, the category is auto-reclassified (type + price,
+// including repricing a tiered space's Elite/Current slots) as long as
+// nothing has been sold on it yet — otherwise it's left alone and the owner
+// is just notified, exactly like reportPageMismatch does for a wrong-page div.
 exports.reportZoneDetected = async (req, res) => {
   try {
     const { categoryId, zone } = req.body || {};
-    if (!categoryId || !ZONE_VALID_TYPES[zone]) {
+    if (!categoryId || !ZONE_DEFAULT_TYPE[zone]) {
       return res.status(400).json({ success: false, message: 'categoryId and a valid zone are required' });
     }
 
@@ -596,19 +623,26 @@ exports.reportZoneDetected = async (req, res) => {
     const history = [zone, ...priorHistory].slice(0, ZONE_HISTORY_LENGTH);
     const fields = { lastDetectedZone: zone, zoneDetectionHistory: history };
 
-    const isValidForZone = ZONE_VALID_TYPES[zone].includes(canonicalType);
+    const newType = ZONE_DEFAULT_TYPE[zone];
+    const isValidForZone = canonicalType === newType;
     if (!isValidForZone) {
       const agreement = history.filter((z) => z === zone).length;
       if (agreement >= ZONE_MAJORITY_THRESHOLD) {
-        const [activeAdIds, isTiered] = [await AdCategory.findActiveAdIds(categoryId), !!category.pricing_tiers];
-        if (activeAdIds.length === 0 && !isTiered) {
-          const newType = ZONE_DEFAULT_TYPE[zone];
+        const activeAdIds = await AdCategory.findActiveAdIds(categoryId);
+        if (activeAdIds.length === 0) {
           const tierPrices = await Pricing.getTierPrices(category.tier);
           const newPrice = tierPrices[newType];
           if (newPrice !== undefined) {
             fields.spaceType = newType;
             fields.price = newPrice;
             fields.lastReclassifiedAt = new Date().toISOString();
+            const repricedTiers = await repriceTiersForType(category, newType);
+            if (repricedTiers) fields.pricingTiers = repricedTiers;
+            // Only rename if the owner never customized the name beyond the
+            // default "this is what the type is called" — respects a real
+            // custom title, but a category still just named after its old
+            // type (the common case) should read as its new type too.
+            if (category.category_name === canonicalType) fields.categoryName = newType;
             notifyZoneReclassified(
               category.owner_id, categoryId, category.category_name, canonicalType, newType, newPrice,
             ).catch(() => {});

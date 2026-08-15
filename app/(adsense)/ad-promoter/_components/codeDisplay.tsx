@@ -273,11 +273,11 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       <div key={cat._id} className="rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
                       {/* Big framed preview image up top, everything else below it */}
                       {thumb && (
-                        <div className="p-3 pb-0">
+                        <div className="p-3 pb-0 flex justify-center">
                           <img
                             src={thumb}
                             alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                            className="w-full h-auto object-contain rounded-xl border border-zinc-800 bg-white"
+                            className="max-h-28 w-auto max-w-full object-contain rounded-xl border border-zinc-800 bg-white"
                           />
                         </div>
                       )}

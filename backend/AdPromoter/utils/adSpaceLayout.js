@@ -19,6 +19,8 @@ const AD_SPACE_DIMENSIONS = {
   'Above The Fold':       { width: 728, height: 90 },
   'Beneath Title':        { width: 728, height: 90 },
   'Pro Footer':           { width: 728, height: 90 },
+  // Plain footer slot, one notch below Pro Footer — same banner shape.
+  'Footer':               { width: 728, height: 90 },
   'Sidebar':              { width: 300, height: 250 },
   'Sticky Sidebar':       { width: 300, height: 250 },
   'Inline Content':       { width: 300, height: 250 },
@@ -26,6 +28,8 @@ const AD_SPACE_DIMENSIONS = {
   // deliberately bigger and taller-than-wide instead of a wide banner shape.
   'Floating':             { width: 340, height: 360 },
   'Left Rail':            { width: 160, height: 600 },
+  // Mirrors Left Rail exactly — same shape, opposite side of the page.
+  'Right Rail':           { width: 160, height: 600 },
   // Big enough to feel like the featured moment on the page without going
   // fullscreen (see placementCSS's viewport-relative cap below) — same 3:2
   // shape as before, just scaled up.
@@ -77,6 +81,7 @@ const PLACEMENT_CSS_TEMPLATES = {
   'above the fold':  `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:0 auto 24px!important;overflow:hidden!important;float:none!important;}`,
   'beneath title':   `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:12px auto 24px!important;overflow:hidden!important;float:none!important;}`,
   'pro footer':      `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:24px auto 0!important;overflow:hidden!important;float:none!important;}`,
+  'footer':          `.{{PX}}-host{width:100%!important;max-width:${BANNER.width}px!important;height:${BANNER.height}px!important;margin:24px auto 0!important;overflow:hidden!important;float:none!important;}`,
 
   'inline content':  `.{{PX}}-host{float:right!important;width:${RECT.width}px!important;height:${RECT.height}px!important;margin:0 0 12px 20px!important;overflow:hidden!important;}@media(max-width:600px){.{{PX}}-host{float:none!important;width:100%!important;height:auto!important;max-height:${RECT.height}px!important;margin:12px 0!important;}}`,
   'sidebar':         `.{{PX}}-host{width:${RECT.width}px!important;height:${RECT.height}px!important;margin:0 0 16px 0!important;max-width:100%!important;overflow:hidden!important;float:none!important;}`,
@@ -90,6 +95,9 @@ const PLACEMENT_CSS_TEMPLATES = {
   'floating':        `.{{PX}}-host{position:fixed;bottom:24px;right:24px;width:${FLOAT.width}px;height:${FLOAT.height}px;max-height:80vh;z-index:99998;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));}@media(max-width:480px){.{{PX}}-host{width:calc(100% - 32px);max-width:${FLOAT.width}px;left:16px;right:16px;bottom:16px;height:min(${FLOAT.height}px, 60vh);}}`,
 
   'left rail':       `.{{PX}}-host{width:${RAIL.width}px!important;min-height:${RAIL.height}px!important;position:sticky!important;top:80px!important;margin-right:16px!important;float:none!important;}@media(max-width:768px){.{{PX}}-host{width:100%!important;min-height:0!important;position:static!important;}}`,
+  // Mirrors Left Rail — same shape/behavior, just margin-left instead of
+  // margin-right since it sits on the opposite side of the page.
+  'right rail':      `.{{PX}}-host{width:${RAIL.width}px!important;min-height:${RAIL.height}px!important;position:sticky!important;top:80px!important;margin-left:16px!important;float:none!important;}@media(max-width:768px){.{{PX}}-host{width:100%!important;min-height:0!important;position:static!important;}}`,
 
   // position:fixed;inset:0 also pins Modal to the viewport regardless of the
   // div's DOM placement, same as Floating above. The ad itself is capped

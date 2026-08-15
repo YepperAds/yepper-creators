@@ -9,6 +9,7 @@ import {
   Sidebar as SidebarIcon,
   Layers,
   PanelLeft,
+  PanelRight,
   AlignJustify,
   PanelBottom,
   PieChart,
@@ -287,6 +288,12 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       spaceType: 'Left Rail', description: 'Ad space along the left side of the webpage',
       category: 'sidebar', position: 'left', image: getAdSpaceImage('Left Rail') ?? '',
     },
+    rightRail: {
+      name: 'Right Rail', icon: <PanelRight className="w-6 h-6" />,
+      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
+      spaceType: 'Right Rail', description: 'Ad space along the right side of the webpage',
+      category: 'sidebar', position: 'right', image: getAdSpaceImage('Right Rail') ?? '',
+    },
     modalPic: {
       name: 'Modal', icon: <Info className="w-6 h-6" />,
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
@@ -298,6 +305,12 @@ const AddNewCategory: React.FC<AddNewCategoryProps> = ({
       infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
       spaceType: 'proFooter', description: 'Premium ad space in the footer section',
       category: 'secondary', position: 'bottom', image: getAdSpaceImage('Pro Footer') ?? '',
+    },
+    footer: {
+      name: 'Footer', icon: <PanelBottom className="w-6 h-6" />,
+      infoIcon: <Info className="w-5 h-5 text-blue cursor-pointer" />,
+      spaceType: 'Footer', description: 'Standard ad space in the footer section',
+      category: 'secondary', position: 'bottom', image: getAdSpaceImage('Footer') ?? '',
     },
     sidebar: {
       name: 'Sidebar', icon: <SidebarIcon className="w-6 h-6" />,

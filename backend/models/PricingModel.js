@@ -5,8 +5,8 @@ const { query } = require('../config/db');
 // Canonical ordered list of spaces (highest → lowest visibility).
 const SPACE_TYPES = [
   'Header', 'Above The Fold', 'Sticky Sidebar',
-  'Floating', 'Modal', 'Left Rail', 'Sidebar',
-  'Inline Content', 'Beneath Title', 'Pro Footer',
+  'Floating', 'Modal', 'Left Rail', 'Right Rail', 'Sidebar',
+  'Inline Content', 'Beneath Title', 'Pro Footer', 'Footer',
   // Video-player placements (movie/video-content sites).
   'Pre-roll', 'Mid-roll', 'Pause',
 ];
@@ -27,10 +27,11 @@ const SPACE_ALIASES = {
   'header':'Header','above the fold':'Above The Fold','sticky sidebar':'Sticky Sidebar',
   'stickysidebar':'Sticky Sidebar','floating':'Floating',
   'modal':'Modal','modalpic':'Modal','left rail':'Left Rail','leftrail':'Left Rail',
+  'right rail':'Right Rail','rightrail':'Right Rail',
   'sidebar':'Sidebar',
   'inline content':'Inline Content',
   'inlinecontent':'Inline Content','beneath title':'Beneath Title','beneathtitle':'Beneath Title',
-  'pro footer':'Pro Footer','profooter':'Pro Footer',
+  'pro footer':'Pro Footer','profooter':'Pro Footer','footer':'Footer',
   'preroll':'Pre-roll','pre-roll':'Pre-roll','pre roll':'Pre-roll',
   'midroll':'Mid-roll','mid-roll':'Mid-roll','mid roll':'Mid-roll',
   'pause':'Pause',

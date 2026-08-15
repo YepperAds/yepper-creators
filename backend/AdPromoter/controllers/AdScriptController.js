@@ -483,6 +483,30 @@ exports.serveAdScript = async (req, res) => {
     }
     applyHeaderTierSize(items[0]);
 
+    /* Where does this space's div actually sit on the page — purely
+       geometric, not tag/class based. See the matching, more detailed note
+       in SiteScriptController.js's renderAds. */
+    var ZONE_EXEMPT={floating:1,modal:1,modalpic:1,'pre-roll':1,'mid-roll':1,pause:1};
+    if(_sp&&!ZONE_EXEMPT[_sp.toLowerCase()]){
+      setTimeout(function(){
+        try{
+          var rect=host.getBoundingClientRect();
+          var pageH=document.documentElement.scrollHeight||1;
+          var pageW=document.documentElement.clientWidth||1;
+          var absTop=rect.top+window.scrollY, absBottom=rect.bottom+window.scrollY;
+          var zone=(absTop/pageH<0.12)?'header'
+            :(absBottom/pageH>0.90)?'footer'
+            :(rect.right/pageW>0.75)?'right'
+            :(rect.left/pageW<0.25)?'left'
+            :'center';
+          var payload=JSON.stringify({categoryId:_i,zone:zone});
+          var url=_b+'/zone-detected';
+          if(navigator.sendBeacon){navigator.sendBeacon(url,new Blob([payload],{type:'application/json'}));}
+          else{fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:payload,mode:'cors',credentials:'omit'}).catch(function(){});}
+        }catch(e){}
+      },300);
+    }
+
     /* Track views + clicks */
     function trackView(adId){
       if(!adId||adId==='undefined')return;

@@ -9,6 +9,7 @@ import {
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import { getLanguageFlagUrl, getLanguageLabel } from '@/app/_lib/languages';
+import ZoneMapPreview from './ZoneMapPreview';
 
 // Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
@@ -329,6 +330,16 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           </button>
                         )}
                       </div>
+
+                      {/* Where the script last found this space's div
+                          actually rendering — geometric zone check, see
+                          AdDisplayController.reportZoneDetected. Only shows
+                          once the site's had at least one real visitor. */}
+                      {cat.lastDetectedZone && (
+                        <div className="px-4 pt-3">
+                          <ZoneMapPreview zone={cat.lastDetectedZone} />
+                        </div>
+                      )}
 
                       {/* Multi-tier ad spaces only: which of the 3 slots
                           shows publicly on the site, changeable any time.

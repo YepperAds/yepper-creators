@@ -544,6 +544,34 @@ exports.serveSiteScript = async (req, res) => {
     }
     applyHeaderTierSize(items[0]);
 
+    /* Where does this space's div actually sit on the page — purely
+       geometric (% of real rendered page height/width), not tag/class based,
+       since real sites don't reliably use <header>/<footer> semantically.
+       Fires once per render; the server only acts once several of these
+       agree (see reportZoneDetected / AdDisplayController.reportZoneDetected)
+       so a single reading — including this one, taken a moment after mount
+       so late-loading fonts/content have settled — can't flip anything by
+       itself. Floating/Modal/video types are skipped entirely: they're
+       viewport-pinned overlays or video placements, not page-flow
+       positioned, so this geometry doesn't mean anything for them. */
+    var ZONE_EXEMPT={floating:1,modal:1,modalpic:1,'pre-roll':1,'mid-roll':1,pause:1};
+    if(!ZONE_EXEMPT[(sp.spaceType||'').toLowerCase()]){
+      setTimeout(function(){
+        try{
+          var rect=host.getBoundingClientRect();
+          var pageH=document.documentElement.scrollHeight||1;
+          var pageW=document.documentElement.clientWidth||1;
+          var absTop=rect.top+window.scrollY, absBottom=rect.bottom+window.scrollY;
+          var zone=(absTop/pageH<0.12)?'header'
+            :(absBottom/pageH>0.90)?'footer'
+            :(rect.right/pageW>0.75)?'right'
+            :(rect.left/pageW<0.25)?'left'
+            :'center';
+          reportZoneDetected(sp,zone);
+        }catch(e){}
+      },300);
+    }
+
     function trackView(adId){
       if(!adId||adId==='undefined'||adId==='null')return;
       var _ev=_b+'/ev/'+adId+'?cid='+sp.id;
@@ -628,6 +656,16 @@ exports.serveSiteScript = async (req, res) => {
     try{
       var payload=JSON.stringify({categoryId:sp.id,path:location.pathname});
       var url=_b+'/space-seen';
+      if(navigator.sendBeacon){navigator.sendBeacon(url,new Blob([payload],{type:'application/json'}));}
+      else{fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:payload,mode:'cors',credentials:'omit'}).catch(function(){});}
+    }catch(e){}
+  }
+
+  /* ── Report where this space's div geometrically landed on the page ── */
+  function reportZoneDetected(sp,zone){
+    try{
+      var payload=JSON.stringify({categoryId:sp.id,zone:zone});
+      var url=_b+'/zone-detected';
       if(navigator.sendBeacon){navigator.sendBeacon(url,new Blob([payload],{type:'application/json'}));}
       else{fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:payload,mode:'cors',credentials:'omit'}).catch(function(){});}
     }catch(e){}

@@ -85,6 +85,12 @@ function catToClient(c) {
     // Which of the 3 slots the owner picked to show publicly — null means
     // automatic (the cheapest still-open tier, see AdDisplayController).
     displayedTierKey: c.displayed_tier_key || null,
+    // Where the injected script last found this space's div actually
+    // rendering, as of the last real visitor's pageview (see
+    // AdDisplayController.reportZoneDetected) — drives the dashboard's zone
+    // map preview. Null until the site has been visited at least once.
+    lastDetectedZone: c.last_detected_zone || null,
+    lastReclassifiedAt: c.last_reclassified_at || null,
   };
 }
 
@@ -606,23 +612,12 @@ exports.deleteCategory = async (req, res) => {
     if (category.owner_id.toString() !== ownerId) return res.status(403).json({ message: 'Unauthorized' });
 
     // Check for active/confirmed ads via JSONB
-    const { rows: existingAds } = await query(
-      `SELECT id FROM import_ads
-       WHERE EXISTS (
-         SELECT 1 FROM jsonb_array_elements(website_selections) AS sel
-         WHERE (sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true
-           AND EXISTS (
-             SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
-             WHERE cat_id = $1
-           )
-       )`,
-      [categoryId]
-    );
+    const activeAdIds = await AdCategory.findActiveAdIds(categoryId);
 
-    if (existingAds.length > 0) {
+    if (activeAdIds.length > 0) {
       return res.status(400).json({
         message: 'Cannot delete category with active or confirmed ads',
-        affectedAds: existingAds.map(a => a.id)
+        affectedAds: activeAdIds
       });
     }
 

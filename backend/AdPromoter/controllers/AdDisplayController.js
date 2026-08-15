@@ -5,7 +5,7 @@ const Website    = require('../models/CreateWebsiteModel');
 const ImportAd   = require('../../AdOwner/models/WebAdvertiseModel');
 const Pricing    = require('../../models/PricingModel');
 const { getDimensions } = require('../utils/adSpaceLayout');
-const { notifyDomainMismatch, notifyPageMismatch } = require('../../creators/utils/notificationUtils');
+const { notifyDomainMismatch, notifyPageMismatch, notifyZoneMismatch, notifyZoneReclassified } = require('../../creators/utils/notificationUtils');
 
 function extractDomain(url) {
   try {
@@ -540,6 +540,92 @@ exports.reportSpaceSeen = async (req, res) => {
       return res.status(400).json({ success: false, message: 'categoryId and path are required' });
     }
     await AdCategory.recordDetectedPage(categoryId, path);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    // Beacon-fired, best-effort — never let this surface as a real error.
+    res.status(200).json({ success: false });
+  }
+};
+
+// Which canonical space_types make sense inside each geometric zone (a zone
+// can have several valid types so we never flip-flop between near-synonyms —
+// e.g. Header vs Above The Fold are both legitimately "near the top"), and
+// which single type a category gets reclassified into when it's confirmed to
+// be in the wrong zone. Floating/Modal/video types are deliberately absent —
+// they're viewport-pinned overlays or video-player placements, not
+// page-flow positioned, so geometry can't validate them.
+const ZONE_VALID_TYPES = {
+  header: ['Header', 'Above The Fold', 'Beneath Title'],
+  left:   ['Left Rail', 'Sidebar', 'Sticky Sidebar'],
+  right:  ['Right Rail', 'Sidebar', 'Sticky Sidebar'],
+  center: ['Inline Content'],
+  footer: ['Pro Footer', 'Footer'],
+};
+const ZONE_DEFAULT_TYPE = {
+  header: 'Header', left: 'Left Rail', right: 'Right Rail', center: 'Inline Content', footer: 'Footer',
+};
+const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause']);
+const ZONE_HISTORY_LENGTH = 5;
+const ZONE_MAJORITY_THRESHOLD = 3;
+
+// The site-wide script calls this once per render with a purely geometric
+// read of where the category's div actually landed on the page (top/left/
+// center/right/bottom, as a % of real page height/width — see detectZone in
+// SiteScriptController.js). A single pageview can't change anything: a
+// rolling history of the last few detections has to agree before this acts,
+// so one mobile-vs-desktop layout difference can't flip a category by
+// itself, and a single forged beacon can't either. When a real, sustained
+// mismatch is confirmed, the category is only ever auto-reclassified (type +
+// price) if nothing has been sold on it yet and it isn't a multi-tier space
+// — otherwise it's left alone and the owner is just notified, exactly like
+// reportPageMismatch does for a wrong-page div.
+exports.reportZoneDetected = async (req, res) => {
+  try {
+    const { categoryId, zone } = req.body || {};
+    if (!categoryId || !ZONE_VALID_TYPES[zone]) {
+      return res.status(400).json({ success: false, message: 'categoryId and a valid zone are required' });
+    }
+
+    const category = await AdCategory.findById(categoryId);
+    if (!category) return res.status(200).json({ success: false });
+
+    const canonicalType = Pricing.canonicalSpace(category.space_type);
+    if (ZONE_EXEMPT_TYPES.has(canonicalType)) return res.status(200).json({ success: true, exempt: true });
+
+    const priorHistory = Array.isArray(category.zone_detection_history) ? category.zone_detection_history : [];
+    const history = [zone, ...priorHistory].slice(0, ZONE_HISTORY_LENGTH);
+    const fields = { lastDetectedZone: zone, zoneDetectionHistory: history };
+
+    const isValidForZone = ZONE_VALID_TYPES[zone].includes(canonicalType);
+    console.log('[zone-debug]', { canonicalType, isValidForZone, historyLen: history.length });
+    if (!isValidForZone) {
+      const agreement = history.filter((z) => z === zone).length;
+      console.log('[zone-debug] agreement', agreement, 'threshold', ZONE_MAJORITY_THRESHOLD);
+      if (agreement >= ZONE_MAJORITY_THRESHOLD) {
+        const [activeAdIds, isTiered] = [await AdCategory.findActiveAdIds(categoryId), !!category.pricing_tiers];
+        console.log('[zone-debug] activeAdIds', activeAdIds, 'isTiered', isTiered);
+        if (activeAdIds.length === 0 && !isTiered) {
+          const newType = ZONE_DEFAULT_TYPE[zone];
+          const tierPrices = await Pricing.getTierPrices(category.tier);
+          const newPrice = tierPrices[newType];
+          console.log('[zone-debug] newType', newType, 'tier', category.tier, 'tierPrices', tierPrices, 'newPrice', newPrice);
+          if (newPrice !== undefined) {
+            fields.spaceType = newType;
+            fields.price = newPrice;
+            fields.lastReclassifiedAt = new Date().toISOString();
+            notifyZoneReclassified(
+              category.owner_id, categoryId, category.category_name, canonicalType, newType, newPrice,
+            ).catch(() => {});
+          }
+        } else {
+          notifyZoneMismatch(category.owner_id, categoryId, category.category_name, canonicalType, zone).catch(() => {});
+        }
+      }
+    }
+
+    console.log('[zone-debug] final fields', fields);
+    const updated = await AdCategory.update(categoryId, fields);
+    console.log('[zone-debug] updated row space_type/price', updated && updated.space_type, updated && updated.price);
     res.status(200).json({ success: true });
   } catch (error) {
     // Beacon-fired, best-effort — never let this surface as a real error.

@@ -227,6 +227,15 @@ async function startServer() {
     console.warn('⚠️  Migration 20260807_drop_gsc_columns skipped:', err.message?.split('\n')[0]);
   }
 
+  // Add ad_categories zone-detection columns + Right Rail/Footer pricing.
+  try {
+    const { up: addZoneDetection } = require('./migrations/20260815_ad_zone_detection');
+    await addZoneDetection();
+    console.log('✓ zone detection ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260815_ad_zone_detection skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

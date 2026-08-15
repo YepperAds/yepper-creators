@@ -45,10 +45,12 @@ const AD_SPACE_DESCRIPTIONS: Record<string, string> = {
   'floating': 'Floats on screen as you scroll',
   'modal': 'Pop-up ad in its own window',
   'left rail': 'Ad along the left edge of the page',
+  'right rail': 'Ad along the right edge of the page',
   'sidebar': 'Ad in the side column',
   'inline content': 'Placed inside the article text',
   'beneath title': 'Just below the page title',
   'pro footer': 'Premium spot in the footer',
+  'footer': 'Standard spot in the footer',
   // Video-player placements.
   'pre-roll': 'Plays before the video starts',
   'preroll': 'Plays before the video starts',

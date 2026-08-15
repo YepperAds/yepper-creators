@@ -14,6 +14,7 @@ import {
     Sidebar as SidebarIcon,
     Layers,
     PanelLeft,
+    PanelRight,
     AlignJustify,
     PanelBottom,
     PieChart,
@@ -295,6 +296,17 @@ const CategoryCreation = () => {
           position: "left",
           image: getAdSpaceImage('Left Rail')
       },
+      rightRail: {
+          name: 'Right Rail',
+          icon: <PanelRight className="w-6 h-6" />,
+          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
+          spaceType: "Right Rail",
+          description: "Ad space along the right side of the webpage",
+          visualization: "/api/placeholder/300/120",
+          category: "sidebar",
+          position: "right",
+          image: getAdSpaceImage('Right Rail')
+      },
       modalPic: {
           name: 'Modal',
           icon: <Info className="w-6 h-6" />,
@@ -316,6 +328,17 @@ const CategoryCreation = () => {
           category: "secondary",
           position: "bottom",
           image: getAdSpaceImage('Pro Footer')
+      },
+      footer: {
+          name: 'Footer',
+          icon: <PanelBottom className="w-6 h-6" />,
+          infoIcon: <Info className="w-5 h-5 text-blue-500 hover:text-blue cursor-pointer" />,
+          spaceType: "Footer",
+          description: "Standard ad space in the footer section",
+          visualization: "/api/placeholder/300/120",
+          category: "secondary",
+          position: "bottom",
+          image: getAdSpaceImage('Footer')
       },
       sidebar: {
           name: 'Sidebar',

@@ -91,6 +91,26 @@ const AdCategory = {
       [id, path]
     );
   },
+  // "Does this category have anything actually sold on it" — an import_ads
+  // row with an approved/confirmed website_selections entry referencing it.
+  // Shared by deleteCategory (won't delete a category someone's actively
+  // advertising on) and zone-detected reclassification (won't silently
+  // change the type/price out from under an existing advertiser).
+  async findActiveAdIds(categoryId) {
+    const { rows } = await query(
+      `SELECT id FROM import_ads
+       WHERE EXISTS (
+         SELECT 1 FROM jsonb_array_elements(website_selections) AS sel
+         WHERE (sel->>'approved')::boolean = true OR (sel->>'confirmed')::boolean = true
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements_text(sel->'categories') cat_id
+             WHERE cat_id = $1
+           )
+       )`,
+      [categoryId]
+    );
+    return rows.map((r) => r.id);
+  },
 };
 function toSnake(s){ return s.replace(/[A-Z]/g,c=>`_${c.toLowerCase()}`); }
 module.exports = AdCategory;

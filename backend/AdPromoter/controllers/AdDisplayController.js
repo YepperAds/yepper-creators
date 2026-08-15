@@ -547,18 +547,28 @@ exports.reportSpaceSeen = async (req, res) => {
   }
 };
 
-// Which canonical space_types make sense inside each geometric zone (a zone
-// can have several valid types so we never flip-flop between near-synonyms —
 // Strict, one-type-per-zone — a category is only ever "correct" if its own
 // type is the exact type that zone means. Deliberately NOT a set of
 // near-synonyms: an owner who puts a Header div where a Right Rail should be
 // wants it to become a Right Rail, with a Right Rail's own name and price,
-// not just "close enough because it's some top-of-page type". Floating/
-// Modal/video types are deliberately absent — they're viewport-pinned
-// overlays or video-player placements, not page-flow positioned, so
-// geometry can't validate them.
+// not just "close enough because it's some top-of-page type".
+//
+// The top of the page is split into 3 narrow bands (header / above-the-fold
+// / beneath-title) rather than one wide "near the top" bucket — collapsing
+// all three into a single zone meant that once a div got classified as
+// Header, it could never become Above The Fold or Beneath Title again: those
+// two types weren't a valid target for *any* zone, and Header was accepted
+// as correct for the whole band regardless of how far down within it the div
+// actually sat, so moving a div back to a lower position within that same
+// wide band silently did nothing. Narrower bands make position, not just
+// "roughly near the top", the actual signal — see detectZone in
+// SiteScriptController.js for the exact thresholds. Floating/Modal/video
+// types are deliberately absent — they're viewport-pinned overlays or
+// video-player placements, not page-flow positioned, so geometry can't
+// validate them.
 const ZONE_DEFAULT_TYPE = {
-  header: 'Header', left: 'Left Rail', right: 'Right Rail', center: 'Inline Content', footer: 'Footer',
+  header: 'Header', 'above-the-fold': 'Above The Fold', 'beneath-title': 'Beneath Title',
+  left: 'Left Rail', right: 'Right Rail', center: 'Inline Content', footer: 'Footer',
 };
 const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause']);
 const ZONE_HISTORY_LENGTH = 5;

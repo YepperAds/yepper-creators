@@ -494,7 +494,12 @@ exports.serveAdScript = async (req, res) => {
           var pageH=document.documentElement.scrollHeight||1;
           var pageW=document.documentElement.clientWidth||1;
           var absTop=rect.top+window.scrollY, absBottom=rect.bottom+window.scrollY;
-          var zone=(absTop/pageH<0.12)?'header'
+          var topPct=absTop/pageH;
+          /* Same 3-band split as SiteScriptController.js's detectZone — see
+             the note there and on ZONE_DEFAULT_TYPE in AdDisplayController.js. */
+          var zone=(topPct<0.05)?'header'
+            :(topPct<0.15)?'above-the-fold'
+            :(topPct<0.25)?'beneath-title'
             :(absBottom/pageH>0.90)?'footer'
             :(rect.right/pageW>0.75)?'right'
             :(rect.left/pageW<0.25)?'left'

@@ -562,7 +562,16 @@ exports.serveSiteScript = async (req, res) => {
           var pageH=document.documentElement.scrollHeight||1;
           var pageW=document.documentElement.clientWidth||1;
           var absTop=rect.top+window.scrollY, absBottom=rect.bottom+window.scrollY;
-          var zone=(absTop/pageH<0.12)?'header'
+          var topPct=absTop/pageH;
+          /* The top of the page gets 3 narrow bands instead of one wide
+             "near the top" bucket — Header/Above The Fold/Beneath Title are
+             all real, distinct types that all happen to sit near the top,
+             so one bucket for all three made it impossible to ever tell
+             them apart by position (see the note on ZONE_DEFAULT_TYPE in
+             AdDisplayController.js). */
+          var zone=(topPct<0.05)?'header'
+            :(topPct<0.15)?'above-the-fold'
+            :(topPct<0.25)?'beneath-title'
             :(absBottom/pageH>0.90)?'footer'
             :(rect.right/pageW>0.75)?'right'
             :(rect.left/pageW<0.25)?'left'

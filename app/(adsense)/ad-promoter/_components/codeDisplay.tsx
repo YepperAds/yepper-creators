@@ -277,7 +277,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           <img
                             src={thumb}
                             alt={`${cat.categoryName || cat.spaceType} placement preview`}
-                            className="max-h-28 w-auto max-w-full object-contain rounded-xl border border-zinc-800 bg-white"
+                            className="max-h-52 w-auto max-w-full object-contain rounded-xl border border-zinc-800 bg-white"
                           />
                         </div>
                       )}

@@ -38,7 +38,7 @@ const ZoneMapPreview = ({ zone }: { zone?: string | null }) => {
         />
       </div>
       <span className="text-xs text-zinc-500">
-        Last seen in: <span className="font-semibold text-white">{active?.label || zone}</span> zone
+        Last seen in: <span className="font-semibold text-zinc-900">{active?.label || zone}</span> zone
         <span className="block text-[10px] text-zinc-600">as of your site's last visitor</span>
       </span>
     </div>

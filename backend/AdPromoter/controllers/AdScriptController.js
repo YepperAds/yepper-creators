@@ -623,10 +623,24 @@ exports.serveAdScript = async (req, res) => {
     }catch(e){}
   }
 
+  /* Keep an already-live space fresh — placeSpace() deliberately skips a
+     space once it has a live host, right for its own job but wrong for a
+     tab left open a while (see the matching note in
+     SiteScriptController.js's refreshLiveSpaces). */
+  function refreshLiveSpace(){
+    var host=getHost();
+    if(!host)return;
+    fetch(_b+'/feed?categoryId='+_i+'&path='+encodeURIComponent(location.pathname)+'&r='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(data){renderAds(host,data);})
+      .catch(function(){});
+  }
+
   function init(){
     injectAnimCSS();
     placeSpace();
     hookSpaNavigation();
+    setInterval(refreshLiveSpace,180000);
 
     /* Listen for live customization refreshes */
     try{

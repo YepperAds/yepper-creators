@@ -115,6 +115,24 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
         } finally { setLoading(false); }
     };
 
+    // Background refresh — no loading spinner, no error banner — so category
+    // cards (space type, price, zone map, tier prices) pick up server-side
+    // changes like zone-detection reclassification on their own instead of
+    // needing a manual page reload. Silently no-ops on failure; the next
+    // tick just tries again.
+    const refreshCategoriesQuietly = async () => {
+        try {
+            const cr = await api.get(`/api/ad-categories/${websiteId}`);
+            setCategories((cr.data as any).categories);
+        } catch { /* keep showing what we already have */ }
+    };
+
+    useEffect(() => {
+        if (!websiteId) return;
+        const interval = setInterval(refreshCategoriesQuietly, 20000);
+        return () => clearInterval(interval);
+    }, [websiteId]);
+
     const fetchAdsData = async () => {
         setAdsLoading(true);
         try {

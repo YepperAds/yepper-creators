@@ -924,6 +924,20 @@ exports.serveSiteScript = async (req, res) => {
     }catch(e){}
   }
 
+  /* ── Keep already-rendered spaces fresh ───────────────────
+     placeAllSpaces() deliberately skips a space once it has a live host
+     (data-yid set) — right for its own job (filling in divs that are
+     missing), wrong for a tab left open a while: a visitor who loaded the
+     page before a backend change (e.g. zone-detection reclassifying a
+     space's type/price) would otherwise keep seeing the old content until
+     they manually reload. This re-fetches every currently-live space's
+     content on a timer instead of waiting for that reload. */
+  function refreshLiveSpaces(){
+    _spaces.forEach(function(sp){
+      if(D.querySelector('[data-yid="'+sp.id+'"]'))loadSpace(sp);
+    });
+  }
+
   /* ── Init ──────────────────────────────────────────────── */
   function init(){
     injectAnimCSS();
@@ -931,6 +945,7 @@ exports.serveSiteScript = async (req, res) => {
     firePageview();
     hookSpaNavigation();
     hookDomWatcher();
+    setInterval(refreshLiveSpaces,180000);
   }
 
   D.readyState==='loading'

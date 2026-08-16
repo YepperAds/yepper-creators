@@ -290,7 +290,20 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                       {/* Meta: index, space type, page targeting */}
                       <div className="px-4 pt-3 flex items-center gap-2 flex-wrap">
                         <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">{idx + 1}</span>
-                        <span className="text-xs text-white bg-zinc-800 px-1.5 py-0.5 rounded capitalize">{cat.spaceType}</span>
+                        <span
+                          className="text-xs text-white bg-zinc-800 px-1.5 py-0.5 rounded capitalize"
+                          title="What you originally chose when creating this ad space"
+                        >
+                          {cat.originalSpaceType || cat.spaceType}
+                        </span>
+                        {cat.spaceType !== cat.originalSpaceType && (
+                          <span
+                            className="text-xs text-orange-400 bg-orange-950 border border-orange-900 px-1.5 py-0.5 rounded"
+                            title="Auto-corrected based on where this ad space's div actually renders on your page"
+                          >
+                            → now {cat.spaceType} · RWF {Number(cat.price || 0).toLocaleString()}
+                          </span>
+                        )}
                         <select
                           value={cat.targetPath || ''}
                           onChange={(e) => handleTargetPathChange(cat, e.target.value || null)}

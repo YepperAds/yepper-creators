@@ -583,8 +583,12 @@ const ZONE_DEFAULT_TYPE = {
 // — it's equally correct on either side — so position can't determine
 // whether a given Sidebar is "wrong" the way it can for every other type.
 const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause', 'Sidebar', 'Sticky Sidebar']);
-const ZONE_HISTORY_LENGTH = 5;
-const ZONE_MAJORITY_THRESHOLD = 3;
+// 2-of-3 instead of 3-of-5 — still requires more than one stray reading to
+// act, but on a low-traffic site waiting for 3 separate real pageviews to
+// line up could realistically take hours; 2 is reachable after a single
+// extra reload instead of two.
+const ZONE_HISTORY_LENGTH = 3;
+const ZONE_MAJORITY_THRESHOLD = 2;
 const TIER_KEY_ORDER = ['custom', 'elite', 'current'];
 
 // Recomputes a tiered category's Elite/Current slot prices for a new space

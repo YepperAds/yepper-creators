@@ -91,6 +91,13 @@ function catToClient(c) {
     // map preview. Null until the site has been visited at least once.
     lastDetectedZone: c.last_detected_zone || null,
     lastReclassifiedAt: c.last_reclassified_at || null,
+    // What the owner originally picked at creation — kept even after
+    // zone-detection reclassification updates spaceType/categoryName to
+    // match where the div actually renders, so the dashboard can show the
+    // original pick as the headline with a note about what it's currently
+    // acting as (see ZoneMapPreview / codeDisplay.tsx).
+    originalSpaceType: c.original_space_type || c.space_type,
+    originalCategoryName: c.original_category_name || c.category_name,
   };
 }
 
@@ -345,6 +352,11 @@ exports.createCategory = async (req, res) => {
       description,
       price: finalPrice,
       spaceType,
+      // Canonical form, so a later `spaceType !== originalSpaceType` check
+      // (used to show "originally X, currently acting as Y" in the
+      // dashboard) compares like-for-like instead of tripping on casing.
+      originalSpaceType: canonical,
+      originalCategoryName: categoryName,
       pricingTiers: normalizedPricingTiers,
       // A specific targetPath is what actually scopes this to one page (the
       // site-wide script matches it against location.pathname) — placementMode

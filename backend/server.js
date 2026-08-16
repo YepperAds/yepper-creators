@@ -236,6 +236,16 @@ async function startServer() {
     console.warn('⚠️  Migration 20260815_ad_zone_detection skipped:', err.message?.split('\n')[0]);
   }
 
+  // Preserve the ad space type/name an owner originally chose, separate
+  // from what zone-detection reclassification later updates it to.
+  try {
+    const { up: addOriginalSpaceType } = require('./migrations/20260815b_ad_original_space_type');
+    await addOriginalSpaceType();
+    console.log('✓ original space type tracking ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20260815b_ad_original_space_type skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

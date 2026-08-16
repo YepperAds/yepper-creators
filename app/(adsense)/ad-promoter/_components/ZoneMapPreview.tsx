@@ -27,7 +27,7 @@ const ZoneMapPreview = ({ zone }: { zone?: string | null }) => {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-44 h-28 rounded-lg border border-zinc-700 overflow-hidden shrink-0 flex flex-col bg-zinc-900">
+      <div className="w-44 h-28 border border-zinc-700 overflow-hidden shrink-0 flex flex-col bg-zinc-900">
         {['header', 'above-the-fold', 'beneath-title'].map((key) => {
           const z = byKey(key);
           return (

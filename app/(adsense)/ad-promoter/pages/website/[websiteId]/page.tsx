@@ -10,12 +10,10 @@ import {
     AlertCircle,
     Plus,
     Check,
-    Palette,
     XCircle,
     RefreshCw,
     Code2,
     Megaphone,
-    Settings2,
     Activity,
     Radio,
     CheckCircle,
@@ -38,7 +36,6 @@ import WebsiteAnalyticsPanel from '@/app/(adsense)/ad-promoter/_components/Websi
 const TABS = [
     { id: 'spaces',    label: 'Ad Spaces',     icon: Code2 },
     { id: 'ads',       label: 'Ads',           icon: Megaphone },
-    { id: 'customize', label: 'Customize Ads', icon: Settings2 },
     { id: 'analytics', label: 'Analytics',     icon: Activity },
 ];
 
@@ -340,6 +337,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                                 onDeleteCategory={handleDeleteCategory}
                                 onSendInvite={handleSendInvite}
                                 onSetLanguage={handleOpenLanguageModal}
+                                onCustomize={handleOpenCustomization}
                                 onTargetPathChange={(categoryId, targetPath) =>
                                     setCategories(categories.map(c => c._id === categoryId ? { ...c, targetPath } : c))
                                 }
@@ -451,72 +449,6 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
                         </div>
                     )}
 
-                    {/* ══════════════════════ CUSTOMIZE ADS TAB ══ */}
-                    {activeTab === 'customize' && (
-                        <div>
-                            <div className="mb-6">
-                                <h2 className="text-xl font-bold text-white">Customize Your Ad Spaces</h2>
-                                <p className="text-sm text-muted mt-1">Design how ads appear on your website. Each space can have its own unique styling.</p>
-                            </div>
-                            {categories.length > 0 ? (
-                                <div className={`grid grid-cols-1 ${embedded ? '' : 'sm:grid-cols-2 lg:grid-cols-3'} gap-4`}>
-                                    {categories.map((category: any) => (
-                                        <div key={category._id} className="border border-border bg-surface-1 flex flex-col">
-                                            <div className="p-4 border-b border-border flex items-start justify-between gap-3">
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="inline-block text-xs font-bold text-white bg-surface-2 border border-border px-2 py-0.5 mb-2 capitalize">{category.spaceType}</span>
-                                                    <p className="font-semibold text-white text-sm truncate">{category.categoryName}</p>
-                                                    <p className="text-xs text-muted mt-0.5">{category.customization ? 'Custom styling applied' : 'Default styling'}</p>
-                                                </div>
-                                                <Palette size={16} className="text-muted shrink-0 mt-1" />
-                                            </div>
-                                            {category.customization && (
-                                                <div className="px-4 py-3 bg-surface-2/50 border-b border-border grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                                    <div className="flex justify-between gap-1">
-                                                        <span className="text-muted">Size</span>
-                                                        <span className="text-white font-medium">{category.customization.width}×{category.customization.height}px</span>
-                                                    </div>
-                                                    <div className="flex justify-between gap-1">
-                                                        <span className="text-muted">Layout</span>
-                                                        <span className="text-white font-medium capitalize">{category.customization.orientation || 'horizontal'}</span>
-                                                    </div>
-                                                    <div className="flex justify-between gap-1">
-                                                        <span className="text-muted">Radius</span>
-                                                        <span className="text-white font-medium">{category.customization.borderRadius || 16}px</span>
-                                                    </div>
-                                                    <div className="flex justify-between gap-1">
-                                                        <span className="text-muted">Effect</span>
-                                                        <span className="text-white font-medium">{category.customization.glassmorphism ? 'Glass' : 'Solid'}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="p-4 mt-auto">
-                                                <button
-                                                    onClick={() => handleOpenCustomization(category._id)}
-                                                    className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium border border-border text-white hover:bg-surface-2 transition-colors"
-                                                >
-                                                    <Palette size={13} />
-                                                    {category.customization ? 'Edit Customization' : 'Customize Ad Space'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border text-center">
-                                    <Palette size={38} className="text-muted mb-4" />
-                                    <p className="text-base font-semibold text-white mb-1">No Ad Spaces to Customize</p>
-                                    <p className="text-sm text-muted mb-6 max-w-xs">Create an ad space first, then customize how ads appear.</p>
-                                    <button
-                                        onClick={() => { setActiveTab('spaces'); handleOpenCategoriesForm(); }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white text-background text-sm font-semibold hover:opacity-90 transition-colors"
-                                    >
-                                        <Plus size={13} /> Create Ad Space
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     {/* ══════════════════════════ ANALYTICS TAB ══ */}
                     {activeTab === 'analytics' && (

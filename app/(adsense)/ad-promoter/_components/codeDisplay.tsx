@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code,
-  Trash2, X, ChevronDown, Mail, Files, Link2,
+  Trash2, X, ChevronDown, Mail, Files, Link2, Palette,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
@@ -88,7 +88,7 @@ const CodeBlock = ({ code }) => (
 );
 
 // ── Main integration component ────────────────────────────────────────────────
-export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onSetLanguage, onTargetPathChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
+export const MasterIntegration = ({ website, categories = [], onAddSpace, onDeleteCategory, onSendInvite, onSetLanguage, onCustomize, onTargetPathChange, onDuplicated, earningsSummary, scriptInstalled = false }) => {
   const [open, setOpen]           = useState(true);
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -432,6 +432,16 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           <Files className="w-3 h-3" />
                           <span>Duplicate</span>
                         </button>
+                        {onCustomize && (
+                          <button
+                            onClick={() => onCustomize(cat._id)}
+                            title={cat.customization ? 'Edit this ad space\'s custom styling' : 'Customize how this ad space looks'}
+                            className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-purple-950 text-white hover:text-purple-400 transition-all border border-zinc-700 hover:border-purple-900 shrink-0"
+                          >
+                            <Palette className="w-3 h-3" />
+                            <span>{cat.customization ? 'Edit Customization' : 'Customize'}</span>
+                          </button>
+                        )}
                         {/* Tiered spaces get an Invite button per slot, inside
                             each slot's own box above — a single space-wide
                             Invite here would be ambiguous about which slot's

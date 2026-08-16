@@ -291,13 +291,25 @@ exports.createCategory = async (req, res) => {
     // 3-tier split — omitting pricingTiers keeps every ad space's behavior
     // exactly as above (one Starter-then-promoted price). When present,
     // it's always exactly 3 fixed slots:
-    //   custom  — the owner's own typed price, no ceiling, server trusts it as-is
+    //   custom  — the owner's own typed price, capped (see FLUTTERWAVE_MAX_CHARGE_RWF below)
     //   elite   — always the Elite price for this space type, server-computed, never client-editable
     //   current — always this website's real current tier's price for this
     //             space type (capped at Premium — Elite is reserved for the
     //             elite slot above), server-computed, never client-editable
     const TIER_ORDER = ['custom', 'elite', 'current'];
     const DEFAULT_DWELL_SECONDS = { custom: 35, elite: 20, current: 15 };
+    // Flutterwave's real per-transaction ceiling for Rwanda mobile-money
+    // collections is RWF 7,000,000 (confirmed against their own docs,
+    // https://flutterwave.com/gb/support/payments/flutterwave-limits — card
+    // payments are benchmarked to the same ~$5,000 USD figure). This is
+    // "custom"'s only real constraint: elite/current are already bounded by
+    // our own pricing_rules table, which never gets anywhere near this. A
+    // margin buffer below the hard ceiling absorbs FX drift (Flutterwave's
+    // own docs note local-currency limits move with the market) and leaves
+    // no risk of a checkout ever needing to split into multiple Flutterwave
+    // transactions — which would both cost the advertiser extra provider
+    // fees per transaction and reopen the door to a double-charge bug.
+    const FLUTTERWAVE_MAX_CHARGE_RWF = 6500000;
     let normalizedPricingTiers = null;
     if (Array.isArray(pricingTiers) && pricingTiers.length > 0) {
       if (pricingTiers.length > 3) {
@@ -305,11 +317,16 @@ exports.createCategory = async (req, res) => {
       }
       const website = await Website.findById(websiteId);
       const realTier = website?.traffic_tier === 'elite' ? 'premium' : (website?.traffic_tier || 'starter');
-      const [elitePrices, currentTierPrices] = await Promise.all([
+      const [elitePrices, currentTierPrices, { marginPercent }] = await Promise.all([
         Pricing.getTierPrices('elite'),
         Pricing.getTierPrices(realTier),
+        Pricing.getSettings(),
       ]);
       const currentTierMeta = Pricing.TIERS.find((t) => t.key === realTier);
+      // The cap is on what the ADVERTISER gets charged (listed price + margin
+      // at checkout), not the listed price itself — so the ceiling on what
+      // an owner can type is the charge limit backed out through the margin.
+      const maxCustomListedPrice = Math.floor(FLUTTERWAVE_MAX_CHARGE_RWF / (1 + marginPercent / 100));
 
       const seen = new Set();
       normalizedPricingTiers = [];
@@ -326,6 +343,11 @@ exports.createCategory = async (req, res) => {
           label = raw.label || 'Custom';
           if (!Number.isFinite(tierPrice) || tierPrice <= 0) {
             return res.status(400).json({ message: 'The custom tier needs a real price above 0.' });
+          }
+          if (tierPrice > maxCustomListedPrice) {
+            return res.status(400).json({
+              message: `The custom tier can't be priced above RWF ${maxCustomListedPrice.toLocaleString()} — above that, the advertiser's charge at checkout would exceed what a single payment can process.`,
+            });
           }
         } else if (key === 'elite') {
           tierPrice = elitePrices[canonical];

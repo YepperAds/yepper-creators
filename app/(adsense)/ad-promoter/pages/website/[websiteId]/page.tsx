@@ -129,7 +129,7 @@ const WebsiteDetails = ({ websiteId: websiteIdProp, embedded }: { websiteId?: st
 
     useEffect(() => {
         if (!websiteId) return;
-        const interval = setInterval(refreshCategoriesQuietly, 20000);
+        const interval = setInterval(refreshCategoriesQuietly, 5000);
         return () => clearInterval(interval);
     }, [websiteId]);
 

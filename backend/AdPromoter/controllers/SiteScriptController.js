@@ -945,7 +945,7 @@ exports.serveSiteScript = async (req, res) => {
     firePageview();
     hookSpaNavigation();
     hookDomWatcher();
-    setInterval(refreshLiveSpaces,180000);
+    setInterval(refreshLiveSpaces,20000);
   }
 
   D.readyState==='loading'

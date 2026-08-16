@@ -640,7 +640,7 @@ exports.serveAdScript = async (req, res) => {
     injectAnimCSS();
     placeSpace();
     hookSpaNavigation();
-    setInterval(refreshLiveSpace,180000);
+    setInterval(refreshLiveSpace,20000);
 
     /* Listen for live customization refreshes */
     try{

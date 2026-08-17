@@ -49,6 +49,11 @@ function DirectAdvertise() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [selectedPages, setSelectedPages] = useState<string[]>([]);
   const [selectedTierKey, setSelectedTierKey] = useState<string | null>(null);
+  // True when the visitor arrived via one specific tier's own copy-link
+  // (?tier=X naming an open tier) — the whole point of that link is selling
+  // just that one slot, so showing the other two as alternatives would let
+  // someone shown an "Elite" link buy the cheaper "Starter" slot instead.
+  const [lockedToTier, setLockedToTier] = useState(false);
   const fileInputRef = useRef(null);
 
   // "All Pages" ad spaces (categoryInfo.targetPath === null) let the
@@ -103,10 +108,11 @@ function DirectAdvertise() {
   // first tier that still has room if there's no ?tier= in the URL, or it
   // names a tier that's full/doesn't exist on this space.
   useEffect(() => {
-    if (pricingTiers.length === 0) { setSelectedTierKey(null); return; }
+    if (pricingTiers.length === 0) { setSelectedTierKey(null); setLockedToTier(false); return; }
     const requestedKey = queryParams.get('tier');
     const requested = requestedKey ? pricingTiers.find((t) => t.key === requestedKey && !isTierFull(t.key)) : null;
-    if (requested) { setSelectedTierKey(requested.key); return; }
+    if (requested) { setSelectedTierKey(requested.key); setLockedToTier(true); return; }
+    setLockedToTier(false);
     const firstOpen = pricingTiers.find((t) => !isTierFull(t.key));
     setSelectedTierKey(firstOpen ? firstOpen.key : pricingTiers[0].key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -793,6 +799,34 @@ function DirectAdvertise() {
                 <p className="text-base mb-2 text-black"><span className='font-medium'>{categoryInfo?.categoryName}:</span> {categoryInfo?.description}</p>
 
                 {pricingTiers.length > 0 ? (
+                  lockedToTier ? (
+                    // Arrived via that tier's own direct link — show just
+                    // this one slot, not the other two as alternatives.
+                    (() => {
+                      const t = pricingTiers.find((p) => p.key === selectedTierKey);
+                      if (!t) return null;
+                      const avail = tierAvailability.find((a) => a.key === t.key);
+                      return (
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-subtle">Tier:</span>
+                          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-coral bg-coral/10">
+                            <span>
+                              <span className="block text-sm font-semibold text-black">{t.label}</span>
+                              {t.key === 'custom' && (
+                                <span className="block text-[11px] text-subtle">Stays on screen longer</span>
+                              )}
+                            </span>
+                            <span className="text-right shrink-0">
+                              <span className="block text-sm font-semibold text-black">RWF {t.advertiserPrice}</span>
+                              {avail && (
+                                <span className="block text-[11px] text-subtle">{avail.slotsTaken}/{avail.maxSlots} taken</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
                   <div className="space-y-2">
                     <span className="text-xs font-medium text-subtle">Choose a tier:</span>
                     <div className="grid grid-cols-1 gap-2">
@@ -827,6 +861,7 @@ function DirectAdvertise() {
                       })}
                     </div>
                   </div>
+                  )
                 ) : (
                   <div className="space-y-2">
                     <div className="flex gap-2 text-sm">

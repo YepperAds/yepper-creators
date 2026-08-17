@@ -209,13 +209,26 @@ exports.initiatePayment = async (req, res) => {
       } else {
         basePrice = parseFloat(category.price);
       }
-      // listedPrice is the owner's 100% cut (what the sheet calls "what the
-      // web owner receives") — chargedPrice is what the advertiser actually
-      // pays, with Yepper's margin added ON TOP, never deducted from the
-      // owner's side. The wallet only ever gets credited listedPrice; see
-      // the metadata.listedPrice read at every "payment succeeded" site.
-      const listedPrice  = basePrice * priceMultiplier;
-      const chargedPrice = listedPrice * (1 + marginPercent / 100);
+      // Margin direction depends on who set the price. For every
+      // system-computed price (Elite, Current, untiered/Starter — anything
+      // the owner never typed themselves) listedPrice is the owner's 100%
+      // cut and the margin is added ON TOP for the advertiser, same as
+      // always. The "custom" tier is the one number an owner actually types
+      // in and expects to see honored literally — so for that one, the
+      // typed price IS what the advertiser sees and pays, and Yepper's cut
+      // comes OUT of it instead: the owner's wallet credit (listedPrice) is
+      // the derived, smaller figure this time. Either way the wallet only
+      // ever gets credited listedPrice; see the metadata.listedPrice read at
+      // every "payment succeeded" site — that code doesn't need to know
+      // which direction produced it.
+      let listedPrice, chargedPrice;
+      if (tierKey === 'custom') {
+        chargedPrice = basePrice * priceMultiplier;
+        listedPrice  = chargedPrice * (1 - marginPercent / 100);
+      } else {
+        listedPrice  = basePrice * priceMultiplier;
+        chargedPrice = listedPrice * (1 + marginPercent / 100);
+      }
 
       totalAmount += chargedPrice;
       validatedSelections.push({

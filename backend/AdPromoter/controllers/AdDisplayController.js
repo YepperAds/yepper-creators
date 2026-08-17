@@ -210,7 +210,14 @@ function availableSlotHtml(adCategory, categoryId, marginPercent) {
 // cheapest tier's), instead of one generic filler for the whole space.
 function tierFillerHtml(adCategory, categoryId, tier, marginPercent, rank) {
   const FRONTEND = process.env.FRONTEND_URL || '';
-  const advertiserPrice = Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
+  // Custom is charged to the advertiser exactly as the owner typed it —
+  // margin comes out of it rather than adding on top (see
+  // PaymentController.initiatePayment) — so the public pitch shows that
+  // number as-is instead of marking it up, same exception as
+  // withAdvertiserPrice/sendCategoryInvite.
+  const advertiserPrice = tier.key === 'custom'
+    ? Math.round(parseFloat(tier.price))
+    : Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
   const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}`;
   // See the same note in availableSlotHtml above — inline height always wins.
   const dims = getDimensions(adCategory.space_type);

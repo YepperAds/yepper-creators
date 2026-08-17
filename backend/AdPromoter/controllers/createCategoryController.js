@@ -113,8 +113,17 @@ function withAdvertiserPrice(client, marginPercent) {
   return {
     ...client,
     advertiserPrice: Math.round(parseFloat(client.price) * factor),
+    // The "custom" tier is the one owner-typed number in the system —
+    // PaymentController.initiatePayment charges it literally as typed and
+    // takes the margin OUT of it instead of adding margin on top (see the
+    // note there), so its advertiserPrice must equal price exactly, not a
+    // markup — otherwise this is exactly the bait-and-switch mismatch the
+    // advertiserPrice field exists to prevent, just pointed the other way.
     pricingTiers: Array.isArray(client.pricingTiers)
-      ? client.pricingTiers.map((t) => ({ ...t, advertiserPrice: Math.round(parseFloat(t.price) * factor) }))
+      ? client.pricingTiers.map((t) => ({
+          ...t,
+          advertiserPrice: t.key === 'custom' ? Math.round(parseFloat(t.price)) : Math.round(parseFloat(t.price) * factor),
+        }))
       : client.pricingTiers,
   };
 }
@@ -317,16 +326,17 @@ exports.createCategory = async (req, res) => {
       }
       const website = await Website.findById(websiteId);
       const realTier = website?.traffic_tier === 'elite' ? 'premium' : (website?.traffic_tier || 'starter');
-      const [elitePrices, currentTierPrices, { marginPercent }] = await Promise.all([
+      const [elitePrices, currentTierPrices] = await Promise.all([
         Pricing.getTierPrices('elite'),
         Pricing.getTierPrices(realTier),
-        Pricing.getSettings(),
       ]);
       const currentTierMeta = Pricing.TIERS.find((t) => t.key === realTier);
-      // The cap is on what the ADVERTISER gets charged (listed price + margin
-      // at checkout), not the listed price itself — so the ceiling on what
-      // an owner can type is the charge limit backed out through the margin.
-      const maxCustomListedPrice = Math.floor(FLUTTERWAVE_MAX_CHARGE_RWF / (1 + marginPercent / 100));
+      // The custom tier is charged to the advertiser exactly as typed (see
+      // PaymentController.initiatePayment — margin comes OUT of it, isn't
+      // added on top), so the cap is just the Flutterwave ceiling itself,
+      // not backed out through the margin factor the way it would be if the
+      // typed number were a listed price getting marked up.
+      const maxCustomListedPrice = FLUTTERWAVE_MAX_CHARGE_RWF;
 
       const seen = new Set();
       normalizedPricingTiers = [];
@@ -730,10 +740,15 @@ exports.sendCategoryInvite = async (req, res) => {
     const safeWebsiteName = escapeHtml(websiteName);
     const safeSpaceType   = escapeHtml(category.space_type || '');
     // Invite recipient is a prospective advertiser — must see the same
-    // marked-up price checkout will actually charge, not the owner's listed
-    // price (see withAdvertiserPrice's note on why these can never diverge).
+    // price checkout will actually charge, not the owner's listed price
+    // (see withAdvertiserPrice's note on why these can never diverge). The
+    // custom tier is the one exception: it's charged to the advertiser
+    // exactly as the owner typed it, margin taken out rather than added on
+    // top (see PaymentController.initiatePayment), so it's shown as-is here too.
     const { marginPercent } = await Pricing.getSettings();
-    const price = (Number((tier ? tier.price : category.price) || 0) * (1 + marginPercent / 100)).toFixed(2);
+    const price = tier && tier.key === 'custom'
+      ? Number(tier.price || 0).toFixed(2)
+      : (Number((tier ? tier.price : category.price) || 0) * (1 + marginPercent / 100)).toFixed(2);
 
     // Real mockup of this exact placement (same image the dashboard shows
     // when the owner picked it), so the recipient sees what they'd actually

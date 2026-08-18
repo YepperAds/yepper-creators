@@ -28,6 +28,15 @@ export default function AdminProspectWebsites() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Send-invite modal — opened from a specific Advertiser Interests row, since
+  // that's the proof ("someone actually wants to advertise here") worth
+  // emailing the real site owner about.
+  const [inviteModal, setInviteModal] = useState(null); // { websiteId, websiteName }
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSent, setInviteSent] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -99,6 +108,31 @@ export default function AdminProspectWebsites() {
       load();
     } catch (e) {
       window.alert(e.message);
+    }
+  };
+
+  const openInvite = (websiteId, websiteName) => {
+    setInviteModal({ websiteId, websiteName });
+    setInviteEmail('');
+    setInviteError('');
+    setInviteSent(false);
+  };
+  const closeInvite = () => setInviteModal(null);
+
+  const sendInvite = async () => {
+    if (!inviteEmail.trim()) return setInviteError('Enter a recipient email.');
+    setInviteSending(true);
+    setInviteError('');
+    try {
+      await adminFetch(`/prospect-websites/${inviteModal.websiteId}/send-invite`, {
+        method: 'POST',
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      }, adminHeaders);
+      setInviteSent(true);
+    } catch (e) {
+      setInviteError(e.message);
+    } finally {
+      setInviteSending(false);
     }
   };
 
@@ -201,16 +235,16 @@ export default function AdminProspectWebsites() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead style={{ background: '#fafafa' }}>
             <tr>
-              {['Advertiser', 'Website', 'Ad Space', 'Requested'].map((h) => (
+              {['Advertiser', 'Website', 'Ad Space', 'Requested', ''].map((h) => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
             ) : interests.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No interest yet</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No interest yet</td></tr>
             ) : interests.map((i) => (
               <tr key={i.id} style={{ borderBottom: '1px solid #f7f7f7' }}>
                 <td style={{ padding: '12px 16px', fontWeight: 500 }}>
@@ -222,11 +256,76 @@ export default function AdminProspectWebsites() {
                 </td>
                 <td style={{ padding: '12px 16px', color: '#555' }}>{i.space_type || i.category_name || '—'}</td>
                 <td style={{ padding: '12px 16px', color: '#888', fontSize: 13 }}>{new Date(i.created_at).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  <button
+                    onClick={() => openInvite(i.website_id, i.website_name)}
+                    style={{ fontSize: 12, color: '#1d4ed8', border: '1px solid #bfdbfe', background: '#fff', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Send Invite
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {inviteModal && (
+        <div
+          onClick={closeInvite}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.15)', padding: 24, width: 380, maxWidth: '90vw' }}
+          >
+            {inviteSent ? (
+              <>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: 17, fontWeight: 700 }}>Invite sent</h3>
+                <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: 14 }}>
+                  {inviteModal.websiteName} — the claim link was emailed to {inviteEmail}.
+                </p>
+                <button type="button" onClick={closeInvite} style={{ ...btnPrimary, width: '100%' }}>Done</button>
+              </>
+            ) : (
+              <>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 17, fontWeight: 700 }}>Send claim invite</h3>
+                <p style={{ margin: '0 0 16px 0', color: '#888', fontSize: 13 }}>
+                  Emails the real owner of <strong>{inviteModal.websiteName}</strong> a link to claim this listing — the ad spaces and advertiser interest already recorded come along with it.
+                </p>
+                <label style={label}>Recipient email</label>
+                <input
+                  type="email"
+                  autoFocus
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="owner@realsite.com"
+                  style={{ ...input, marginBottom: 12 }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') sendInvite(); }}
+                />
+                {inviteError && <div style={{ color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>{inviteError}</div>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={closeInvite}
+                    style={{ flex: 1, border: '1.5px solid #e2e8f0', background: '#fff', color: '#333', padding: '10px 0', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={sendInvite}
+                    disabled={inviteSending}
+                    style={{ ...btnPrimary, flex: 1, opacity: inviteSending ? 0.6 : 1 }}
+                  >
+                    {inviteSending ? 'Sending…' : 'Send'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

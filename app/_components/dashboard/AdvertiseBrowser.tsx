@@ -390,8 +390,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       />
 
       <div>
-        <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Advertise on Yepper</h3>
-        <p className="text-sm text-subtle">Browse by category, then pick a website or channel to advertise with.</p>
+        <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Choose Platforms</h3>
       </div>
 
       {categories.length === 0 ? (

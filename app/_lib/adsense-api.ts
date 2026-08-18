@@ -135,6 +135,10 @@ export const websiteAPI = {
   updateName:           (id: string, data: unknown) => adsenseHttp.patch(`/api/createWebsite/${id}/name`, data),
   updatePages:          (id: string, pages: { label: string; path: string }[]) =>
     adsenseHttp.patch(`/api/createWebsite/${id}/pages`, { pages }),
+
+  // Prospect claim flow
+  getProspect:          (id: string) => adsenseHttp.get(`/api/createWebsite/prospect/${id}`),
+  claimProspect:        (id: string) => adsenseHttp.post(`/api/createWebsite/prospect/${id}/claim`),
 };
 
 // ═══════════════════════════════════════════════════════════════

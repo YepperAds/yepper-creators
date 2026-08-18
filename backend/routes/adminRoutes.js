@@ -74,5 +74,6 @@ router.get('/prospect-websites',        adminAuth, prospects.listProspectWebsite
 router.post('/prospect-websites',       adminAuth, prospects.createProspectWebsite);
 router.delete('/prospect-websites/:id', adminAuth, prospects.deleteProspectWebsite);
 router.get('/prospect-interests',       adminAuth, prospects.listProspectInterests);
+router.post('/prospect-websites/:id/send-invite', adminAuth, prospects.sendProspectInvite);
 
 module.exports = router;

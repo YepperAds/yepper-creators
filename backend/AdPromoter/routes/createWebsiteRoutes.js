@@ -6,9 +6,16 @@ const earningsController = require('../controllers/earningsController');
 const authMiddleware = require('../../middleware/authmiddleware');
 const { generateSiteScript } = require('../controllers/SiteScriptController');
 const Website = require('../models/CreateWebsiteModel');
+const prospects = require('../../controllers/prospectController');
 
 // createWebsiteRoutes.js
 router.post('/', websiteController.createWebsite);
+
+// Prospect claim flow — public landing-page data (no auth: the real owner
+// isn't signed in yet when they click the email link), then the actual
+// ownership transfer once they are. See backend/controllers/prospectController.js.
+router.get('/prospect/:id',        prospects.getProspectWebsitePublic);
+router.post('/prospect/:id/claim', authMiddleware, prospects.claimProspectWebsite);
 router.post('/prepareWebsite', websiteController.prepareWebsite);
 router.post('/initiate-verification', websiteController.initiateVerification);
 router.post('/verify-domain', websiteController.verifyDomain);

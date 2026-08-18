@@ -22,7 +22,7 @@ type State = 'checking' | 'authorized' | 'unauthorized' | 'error';
 // auth prompt and resume themselves after login, so the blanket redirect-to
 // -/login here would otherwise strand the visitor's in-progress ad/payment
 // flow and bounce them to the dashboard instead.
-const PUBLIC_PATHS = ['/ad-owner/pages/direct-ad'];
+const PUBLIC_PATHS = ['/ad-owner/pages/direct-ad', '/ad-promoter/pages/claim-prospect'];
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();

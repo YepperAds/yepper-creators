@@ -13,14 +13,32 @@ import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
+interface PricingTier {
+  key: string;
+  label: string;
+  price: number;
+  advertiserPrice?: number;
+  maxSlots: number;
+  dwellSeconds?: number;
+}
+
+interface TierAvailability {
+  key: string;
+  maxSlots: number;
+  slotsTaken: number;
+}
+
 interface AdSpace {
   _id: string;
   categoryName: string;
   spaceType?: string;
   description?: string;
   price: number;
+  advertiserPrice?: number;
   tier?: string;
   isFullyBooked?: boolean;
+  pricingTiers?: PricingTier[] | null;
+  tierAvailability?: TierAvailability[] | null;
 }
 
 interface CategoryBucket {
@@ -182,9 +200,10 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const chooseAdSpace = (categoryId: string) => {
+  const chooseAdSpace = (categoryId: string, tierKey?: string) => {
     if (!activeWebsite) return;
-    router.push(`/ad-owner/pages/direct-ad?websiteId=${activeWebsite.id}&categoryId=${categoryId}`);
+    const tierParam = tierKey ? `&tier=${encodeURIComponent(tierKey)}` : '';
+    router.push(`/ad-owner/pages/direct-ad?websiteId=${activeWebsite.id}&categoryId=${categoryId}${tierParam}`);
   };
 
   // Step 2: pick an ad space on the chosen website, then hand off to the
@@ -271,6 +290,54 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
             {adSpaces.map((space) => {
               const img = getAdSpaceImage(space.spaceType, space.categoryName);
               const description = space.description || getAdSpaceDescription(space.spaceType, space.categoryName);
+              const tiers = space.pricingTiers;
+
+              // Tiered ad space (Custom/Elite/Current-style slots): the site
+              // only has the one physical placement, but it's sold as several
+              // separate slots at different prices — show each slot as its
+              // own clickable option instead of one ambiguous card, so the
+              // choice made here is the exact one direct-ad locks onto next
+              // (see its ?tier= handling).
+              if (Array.isArray(tiers) && tiers.length > 0) {
+                const availabilityByKey = new Map((space.tierAvailability || []).map((t) => [t.key, t]));
+                return (
+                  <div key={space._id} className="flex flex-col rounded-2xl border-2 border-border overflow-hidden bg-surface-1">
+                    <div className="relative aspect-[4/3] w-full bg-white">
+                      {img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt={`${space.categoryName} ad placement preview`} className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                      {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
+                      <div className="space-y-2 mt-3">
+                        {tiers.map((tier) => {
+                          const avail = availabilityByKey.get(tier.key);
+                          const full = !!avail && avail.slotsTaken >= avail.maxSlots;
+                          return (
+                            <button
+                              key={tier.key}
+                              onClick={() => chooseAdSpace(space._id, tier.key)}
+                              disabled={full}
+                              className="w-full flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
+                            >
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold text-white">{tier.label}</span>
+                                {full && <span className="block text-xs text-muted">Fully booked</span>}
+                              </span>
+                              <span className="text-sm font-bold text-coral-text shrink-0">RWF {tier.advertiserPrice ?? tier.price}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <button
                   key={space._id}
@@ -291,12 +358,9 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                      {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
-                    </div>
-                    <p className="text-sm font-bold text-coral-text shrink-0">RWF {space.price}</p>
+                  <div className="p-4">
+                    <p className="text-sm font-bold text-white">{space.categoryName}</p>
+                    {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
                   </div>
                 </button>
               );

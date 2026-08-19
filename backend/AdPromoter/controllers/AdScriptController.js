@@ -300,11 +300,7 @@ exports.serveAdScript = async (req, res) => {
       .\${_px}-ad[data-tier-rank="1"] .\${_px}-empty-compact{background:linear-gradient(135deg,#fff9ec,#fbe6b8);}
       .\${_px}-ad[data-tier-rank="1"] .\${_px}-empty-cta{background:#f5c451;color:#3d2b00;}
       .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty,
-      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-compact{background:linear-gradient(135deg,#211a16,#3a2620);}
-      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-name{color:#e0b8a8;}
-      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-title,
-      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-compact .\${_px}-empty-price{color:#fff;}
-      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-price{color:#f0d9cf;}
+      .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-compact{background:linear-gradient(135deg,#fff5f0,#ffe0d6);}
       .\${_px}-ad[data-tier-rank="2"] .\${_px}-empty-cta{background:linear-gradient(135deg,#E8472B,#c2321a);color:#fff;}
     \`;
   }

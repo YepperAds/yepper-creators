@@ -342,11 +342,7 @@ exports.serveSiteScript = async (req, res) => {
       .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#fff9ec,#fbe6b8);}
       .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-cta{background:#f5c451;color:#3d2b00;}
       .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty,
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#211a16,#3a2620);}
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-name{color:#e0b8a8;}
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-title,
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{color:#fff;}
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-price{color:#f0d9cf;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#fff5f0,#ffe0d6);}
       .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-cta{background:linear-gradient(135deg,#E8472B,#c2321a);color:#fff;}
     \`;
 

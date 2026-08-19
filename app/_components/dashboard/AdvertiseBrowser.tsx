@@ -65,37 +65,6 @@ function tierDescription(tier: PricingTier): string {
     : 'A dedicated slot in this ad space.';
 }
 
-// Same rank-by-real-price convention the live on-site widget already uses
-// (see AdDisplayController's tierFillerHtml / SiteScriptController's
-// data-tier-rank CSS) — ranked by what the tier actually costs, not by
-// which named slot it is, so the escalation stays honest no matter what an
-// owner types into the "Custom" slot. 0 = plain, 1 = featured, 2 = premium.
-function tierRank(tiers: PricingTier[], key: string): number {
-  const sorted = [...tiers].sort((a, b) => a.price - b.price);
-  return Math.min(sorted.findIndex((t) => t.key === key), 2);
-}
-
-const TIER_RANK_STYLE = [
-  {
-    border: 'border-border',
-    ring: '',
-    badge: null as string | null,
-    cta: 'bg-black text-white',
-  },
-  {
-    border: 'border-[#f5c451]',
-    ring: 'shadow-[0_8px_28px_rgba(245,196,81,0.25)]',
-    badge: 'Featured spot',
-    cta: 'bg-[#f5c451] text-[#3d2b00]',
-  },
-  {
-    border: 'border-[#E8472B]',
-    ring: 'shadow-[0_10px_34px_rgba(232,71,43,0.3)]',
-    badge: '★ Premium spot',
-    cta: 'bg-gradient-to-br from-[#E8472B] to-[#c2321a] text-white',
-  },
-];
-
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -343,14 +312,12 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                 return tiers.map((tier) => {
                   const avail = availabilityByKey.get(tier.key);
                   const full = !!avail && avail.slotsTaken >= avail.maxSlots;
-                  const rank = tierRank(tiers, tier.key);
-                  const style = TIER_RANK_STYLE[rank];
                   return (
                     <button
                       key={`${space._id}:${tier.key}`}
                       onClick={() => chooseAdSpace(space._id, tier.key)}
                       disabled={full}
-                      className={`relative flex flex-col rounded-2xl border-2 overflow-hidden text-left bg-surface-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${style.border} ${style.ring} ${rank === 2 ? 'sm:col-span-2' : ''}`}
+                      className="flex flex-col rounded-2xl border-2 border-border overflow-hidden text-left bg-surface-1 hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
                     >
                       <div className="relative aspect-[4/3] w-full bg-white">
                         {img ? (
@@ -359,26 +326,18 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
                         )}
-                        {style.badge && (
-                          <span className={`absolute top-2 left-2 z-[1] inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide shadow ${style.cta}`}>
-                            {style.badge}
-                          </span>
-                        )}
                         {full && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                             <p className="text-xs font-bold text-white uppercase tracking-wide">Fully booked</p>
                           </div>
                         )}
                       </div>
-                      <div className={`flex items-center justify-between gap-3 ${rank === 2 ? 'p-5' : 'p-4'}`}>
+                      <div className="flex items-center justify-between gap-3 p-4">
                         <div className="min-w-0">
-                          <p className={`font-bold text-white ${rank === 2 ? 'text-base' : 'text-sm'}`}>{space.categoryName} — {tier.label}</p>
+                          <p className="text-sm font-bold text-white">{space.categoryName} — {tier.label}</p>
                           <p className="text-xs text-muted mt-0.5">{tierDescription(tier)}</p>
-                          <p className="text-xs font-semibold text-coral-text mt-1">RWF {tier.advertiserPrice ?? tier.price}</p>
                         </div>
-                        <span className={`shrink-0 inline-flex items-center rounded-lg font-semibold ${rank === 2 ? 'text-sm px-5 py-2.5' : 'text-xs px-4 py-2'} ${style.cta}`}>
-                          Continue
-                        </span>
+                        <p className="text-sm font-bold text-coral-text shrink-0">RWF {tier.advertiserPrice ?? tier.price}</p>
                       </div>
                     </button>
                   );

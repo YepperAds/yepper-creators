@@ -56,6 +56,46 @@ function titleCase(s: string): string {
   return s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Tiers within the same ad space share one physical placement, so what
+// actually differs between them is real, data-backed: how long the ad stays
+// on screen before rotating (dwellSeconds) — not invented marketing copy.
+function tierDescription(tier: PricingTier): string {
+  return tier.dwellSeconds
+    ? `Stays on screen for ${tier.dwellSeconds}s per rotation.`
+    : 'A dedicated slot in this ad space.';
+}
+
+// Same rank-by-real-price convention the live on-site widget already uses
+// (see AdDisplayController's tierFillerHtml / SiteScriptController's
+// data-tier-rank CSS) — ranked by what the tier actually costs, not by
+// which named slot it is, so the escalation stays honest no matter what an
+// owner types into the "Custom" slot. 0 = plain, 1 = featured, 2 = premium.
+function tierRank(tiers: PricingTier[], key: string): number {
+  const sorted = [...tiers].sort((a, b) => a.price - b.price);
+  return Math.min(sorted.findIndex((t) => t.key === key), 2);
+}
+
+const TIER_RANK_STYLE = [
+  {
+    border: 'border-border',
+    ring: '',
+    badge: null as string | null,
+    cta: 'bg-black text-white',
+  },
+  {
+    border: 'border-[#f5c451]',
+    ring: 'shadow-[0_8px_28px_rgba(245,196,81,0.25)]',
+    badge: 'Featured spot',
+    cta: 'bg-[#f5c451] text-[#3d2b00]',
+  },
+  {
+    border: 'border-[#E8472B]',
+    ring: 'shadow-[0_10px_34px_rgba(232,71,43,0.3)]',
+    badge: '★ Premium spot',
+    cta: 'bg-gradient-to-br from-[#E8472B] to-[#c2321a] text-white',
+  },
+];
+
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -287,58 +327,66 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           )
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {adSpaces.map((space) => {
+            {adSpaces.flatMap((space) => {
               const img = getAdSpaceImage(space.spaceType, space.categoryName);
-              const description = space.description || getAdSpaceDescription(space.spaceType, space.categoryName);
               const tiers = space.pricingTiers;
 
               // Tiered ad space (Custom/Elite/Current-style slots): the site
               // only has the one physical placement, but it's sold as several
               // separate slots at different prices — show each slot as its
-              // own clickable option instead of one ambiguous card, so the
+              // own full card (own title, own description, own price)
+              // instead of nesting them inside one ambiguous card, so the
               // choice made here is the exact one direct-ad locks onto next
               // (see its ?tier= handling).
               if (Array.isArray(tiers) && tiers.length > 0) {
                 const availabilityByKey = new Map((space.tierAvailability || []).map((t) => [t.key, t]));
-                return (
-                  <div key={space._id} className="flex flex-col rounded-2xl border-2 border-border overflow-hidden bg-surface-1">
-                    <div className="relative aspect-[4/3] w-full bg-white">
-                      {img ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={`${space.categoryName} ad placement preview`} className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <p className="text-sm font-bold text-white">{space.categoryName}</p>
-                      {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
-                      <div className="space-y-2 mt-3">
-                        {tiers.map((tier) => {
-                          const avail = availabilityByKey.get(tier.key);
-                          const full = !!avail && avail.slotsTaken >= avail.maxSlots;
-                          return (
-                            <button
-                              key={tier.key}
-                              onClick={() => chooseAdSpace(space._id, tier.key)}
-                              disabled={full}
-                              className="w-full flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left hover:border-coral/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
-                            >
-                              <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-white">{tier.label}</span>
-                                {full && <span className="block text-xs text-muted">Fully booked</span>}
-                              </span>
-                              <span className="text-sm font-bold text-coral-text shrink-0">RWF {tier.advertiserPrice ?? tier.price}</span>
-                            </button>
-                          );
-                        })}
+                return tiers.map((tier) => {
+                  const avail = availabilityByKey.get(tier.key);
+                  const full = !!avail && avail.slotsTaken >= avail.maxSlots;
+                  const rank = tierRank(tiers, tier.key);
+                  const style = TIER_RANK_STYLE[rank];
+                  return (
+                    <button
+                      key={`${space._id}:${tier.key}`}
+                      onClick={() => chooseAdSpace(space._id, tier.key)}
+                      disabled={full}
+                      className={`relative flex flex-col rounded-2xl border-2 overflow-hidden text-left bg-surface-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${style.border} ${style.ring} ${rank === 2 ? 'sm:col-span-2' : ''}`}
+                    >
+                      <div className="relative aspect-[4/3] w-full bg-white">
+                        {img ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={img} alt={`${space.categoryName} — ${tier.label} ad placement preview`} className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
+                        )}
+                        {style.badge && (
+                          <span className={`absolute top-2 left-2 z-[1] inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide shadow ${style.cta}`}>
+                            {style.badge}
+                          </span>
+                        )}
+                        {full && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                            <p className="text-xs font-bold text-white uppercase tracking-wide">Fully booked</p>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                );
+                      <div className={`flex items-center justify-between gap-3 ${rank === 2 ? 'p-5' : 'p-4'}`}>
+                        <div className="min-w-0">
+                          <p className={`font-bold text-white ${rank === 2 ? 'text-base' : 'text-sm'}`}>{space.categoryName} — {tier.label}</p>
+                          <p className="text-xs text-muted mt-0.5">{tierDescription(tier)}</p>
+                          <p className="text-xs font-semibold text-coral-text mt-1">RWF {tier.advertiserPrice ?? tier.price}</p>
+                        </div>
+                        <span className={`shrink-0 inline-flex items-center rounded-lg font-semibold ${rank === 2 ? 'text-sm px-5 py-2.5' : 'text-xs px-4 py-2'} ${style.cta}`}>
+                          Continue
+                        </span>
+                      </div>
+                    </button>
+                  );
+                });
               }
 
-              return (
+              const description = space.description || getAdSpaceDescription(space.spaceType, space.categoryName);
+              return [(
                 <button
                   key={space._id}
                   onClick={() => chooseAdSpace(space._id)}
@@ -363,7 +411,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
                     {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
                   </div>
                 </button>
-              );
+              )];
             })}
           </div>
         )}

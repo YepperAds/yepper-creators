@@ -208,27 +208,19 @@ function availableSlotHtml(adCategory, categoryId, marginPercent) {
 // still has open capacity, each pitching its own tier's price (so an
 // "Exclusive" spot advertises itself at the Exclusive price, not the
 // cheapest tier's), instead of one generic filler for the whole space.
-function tierFillerHtml(adCategory, categoryId, tier, marginPercent, rank) {
+function tierFillerHtml(adCategory, categoryId, tier, rank) {
   const FRONTEND = process.env.FRONTEND_URL || '';
-  // Custom is charged to the advertiser exactly as the owner typed it —
-  // margin comes out of it rather than adding on top (see
-  // PaymentController.initiatePayment) — so the public pitch shows that
-  // number as-is instead of marking it up, same exception as
-  // withAdvertiserPrice/sendCategoryInvite.
-  const advertiserPrice = tier.key === 'custom'
-    ? Math.round(parseFloat(tier.price))
-    : Math.round(parseFloat(tier.price) * (1 + marginPercent / 100));
   const link = `${FRONTEND}/ad-owner/pages/direct-ad?websiteId=${adCategory.website_id}&categoryId=${categoryId}&tier=${escapeHtml(tier.key)}`;
   // See the same note in availableSlotHtml above — inline height always wins.
   const dims = getDimensions(adCategory.space_type);
   const heightStyle = dims ? ` style="height:${dims.height}px;max-height:${dims.height}px;"` : '';
 
   // Same rank-based escalation the sold-ad markup gets (see the tierRank
-  // badge/border logic above) — otherwise an empty Custom/Exclusive pitch
-  // looks identical to the cheapest tier's, and a visitor (or the advertiser
-  // deciding whether it's worth paying more) has no visual reason to believe
-  // the pricier slot is actually worth more. Ranked by real price, not by
-  // slot name, same as the sold-ad badge.
+  // badge/box-shadow logic above) — otherwise an empty Custom/Exclusive
+  // pitch looks identical to the cheapest tier's, and a visitor (or the
+  // advertiser deciding whether it's worth paying more) has no visual
+  // reason to believe the pricier slot is actually worth more. Ranked by
+  // real price, not by slot name, same as the sold-ad badge.
   const rankAttr = rank != null ? ` data-tier-rank="${rank}"` : '';
   const badge = rank === 2 ? '<span class="sp-badge sp-badge-top">★ Premium spot</span>'
     : rank === 1 ? '<span class="sp-badge">Featured spot</span>'
@@ -239,8 +231,8 @@ function tierFillerHtml(adCategory, categoryId, tier, marginPercent, rank) {
       <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${rankAttr}${heightStyle}>
         <div class="sp-empty sp-empty-compact">
           ${badge}
-          <span class="sp-empty-price">${escapeHtml(tier.label)} spot — RWF ${advertiserPrice}/month</span>
-          <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
+          <span class="sp-empty-price">Advertise Here</span>
+          <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Continue</a>
         </div>
       </div>`;
   }
@@ -248,10 +240,8 @@ function tierFillerHtml(adCategory, categoryId, tier, marginPercent, rank) {
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${rankAttr}${heightStyle}>
       <div class="sp-empty">
         ${badge}
-        <p class="sp-empty-name">${escapeHtml(tier.label)} spot open</p>
-        <p class="sp-empty-title">Price</p>
-        <p class="sp-empty-price">RWF ${advertiserPrice}/month</p>
-        <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Advertise Here</a>
+        <p class="sp-empty-title">Advertise Here</p>
+        <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Continue</a>
       </div>
     </div>`;
 }
@@ -342,7 +332,7 @@ exports.displayAd = async (req, res) => {
       const chosenRank = chosen
         ? [...pricingTiers].sort((a, b) => a.price - b.price).findIndex((t) => t.key === chosen.key)
         : null;
-      openSlot = chosen ? tierFillerHtml(adCategory, categoryId, chosen, marginPercent, chosenRank) : '';
+      openSlot = chosen ? tierFillerHtml(adCategory, categoryId, chosen, chosenRank) : '';
     } else {
       openSlot = adsToShow.length < (adCategory.user_count || adsToShow.length)
         ? availableSlotHtml(adCategory, categoryId, marginPercent)

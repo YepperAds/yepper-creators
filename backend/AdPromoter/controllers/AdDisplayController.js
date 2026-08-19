@@ -216,21 +216,17 @@ function tierFillerHtml(adCategory, categoryId, tier, rank) {
   const heightStyle = dims ? ` style="height:${dims.height}px;max-height:${dims.height}px;"` : '';
 
   // Same rank-based escalation the sold-ad markup gets (see the tierRank
-  // badge/box-shadow logic above) — otherwise an empty Custom/Exclusive
-  // pitch looks identical to the cheapest tier's, and a visitor (or the
+  // box-shadow logic above) — otherwise an empty Custom/Exclusive pitch
+  // looks identical to the cheapest tier's, and a visitor (or the
   // advertiser deciding whether it's worth paying more) has no visual
   // reason to believe the pricier slot is actually worth more. Ranked by
   // real price, not by slot name, same as the sold-ad badge.
   const rankAttr = rank != null ? ` data-tier-rank="${rank}"` : '';
-  const badge = rank === 2 ? '<span class="sp-badge sp-badge-top">★ Premium spot</span>'
-    : rank === 1 ? '<span class="sp-badge">Featured spot</span>'
-    : '';
 
   if (isBannerShape(adCategory.space_type)) {
     return `
       <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${rankAttr}${heightStyle}>
         <div class="sp-empty sp-empty-compact">
-          ${badge}
           <span class="sp-empty-price">Advertise Here</span>
           <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Continue</a>
         </div>
@@ -239,7 +235,6 @@ function tierFillerHtml(adCategory, categoryId, tier, rank) {
   return `
     <div class="sp-item" data-category-id="${categoryId}" data-website-id="${adCategory.website_id}" data-tier="${escapeHtml(tier.key)}"${rankAttr}${heightStyle}>
       <div class="sp-empty">
-        ${badge}
         <p class="sp-empty-title">Advertise Here</p>
         <a class="sp-empty-cta" href="${link}" target="_blank" rel="noopener">Continue</a>
       </div>

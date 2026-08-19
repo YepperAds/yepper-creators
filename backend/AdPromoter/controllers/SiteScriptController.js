@@ -306,10 +306,10 @@ exports.serveSiteScript = async (req, res) => {
          layout height, box gets the full space it was sized for. */
       .\${sp.px}-credit{position:absolute;bottom:3px;right:6px;z-index:6;font-size:8px;line-height:1;color:rgba(0,0,0,0.4);background:rgba(255,255,255,0.72);padding:2px 6px;border-radius:6px;}
       .\${sp.px}-credit a{color:inherit;text-decoration:none;}
-      .\${sp.px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:12px;width:100%;height:100%;box-sizing:border-box;}
+      .\${sp.px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:16px;width:100%;height:100%;box-sizing:border-box;}
       .\${sp.px}-empty-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#ea580c;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
       .\${sp.px}-empty-name{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:2px 0 0;}
-      .\${sp.px}-empty-title{font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;margin:2px 0 0;max-width:230px;line-height:1.3;color:#111;}
+      .\${sp.px}-empty-title{font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:400;margin:2px 0 0;max-width:230px;line-height:1.3;color:#111;}
       .\${sp.px}-empty-price{font-size:12px;color:#666;margin:0;}
       .\${sp.px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;}
 
@@ -317,40 +317,42 @@ exports.serveSiteScript = async (req, res) => {
          Pro Footer — 90px tall) don't have room for the 4-line filler
          above without the button getting clipped, so they get a single row
          instead: pitch text on the left, button on the right, both
-         vertically centered. A shaded background + full-height row makes
-         the row actually fill the 90px box instead of sitting as small
-         centered text in a mostly-blank white banner. */
-      .\${sp.px}-empty-compact{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;padding:0 24px;text-align:left;border-radius:0;box-shadow:none;background:linear-gradient(135deg,#fafafa,#efefef);}
-      .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#111;margin:0;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+         vertically centered. Same rounded corners as the full card (not the
+         old border-radius:0 full-bleed strip) so the tier box-shadow ring
+         below lines up with the card's own edge instead of poking past it
+         at the corners. */
+      .\${sp.px}-empty-compact{flex-direction:row;justify-content:space-between;align-items:center;gap:16px;padding:0 24px;text-align:left;border-radius:16px;box-shadow:none;background:#fff;}
+      .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:400;color:#111;margin:0;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .\${sp.px}-empty-compact .\${sp.px}-empty-cta{margin-top:0;padding:13px 28px;font-size:14px;flex-shrink:0;}
 
       /* Multi-tier ad spaces: the pricier of the 3 slots doesn't just show
          longer, it visibly looks pricier — ranked by real price (see
          AdDisplayController's tierRank), not by which named slot this is,
          so it's accurate no matter what the owner typed for the custom slot.
-         Box-shadow rings instead of a hard border — reads the same as a
-         border but doesn't shift the box's own layout width/height. */
-      .\${sp.px}-ad[data-tier-rank="1"]{border:none!important;box-shadow:0 0 0 2px #f5c451,0 10px 26px rgba(0,0,0,0.35)!important;}
-      .\${sp.px}-ad[data-tier-rank="2"]{border:none!important;box-shadow:0 0 0 2px #E8472B,0 10px 26px rgba(255,138,128,0.45)!important;}
-      .\${sp.px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#f5c451;color:#3d2b00;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+         Box-shadow ring instead of a hard border, radius pinned explicitly
+         (not left to inherit) so the ring always matches the card's own
+         rounded corners instead of showing square. Card background stays
+         plain white for every tier — only the button and this ring carry
+         the tier color. */
+      .\${sp.px}-ad[data-tier-rank="1"]{border:none!important;border-radius:16px!important;box-shadow:0 0 0 2px #FFD500,0 10px 26px rgba(0,0,0,0.35)!important;}
+      .\${sp.px}-ad[data-tier-rank="2"]{border:none!important;border-radius:16px!important;box-shadow:0 0 0 2px #E8472B,0 10px 26px rgba(255,138,128,0.45)!important;}
+      /* Still used by a sold ad's own tier badge (see AdDisplayController's
+         displayAd) — the empty-pitch filler no longer renders one, but a
+         paid "Featured"/"Exclusive" ad still does. */
+      .\${sp.px}-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#FFD500;color:#000;font-size:10px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.25);}
       .\${sp.px}-badge-top{background:#E8472B;color:#fff;}
 
       /* Same escalation applied to an unsold slot's own pitch, not just a
-         sold ad — otherwise "Custom" and "Unverified" fillers are pixel
-         -identical, which gives a visitor (or a hesitating advertiser) no
-         reason to believe the pricier slot is actually worth more. Rank 1's
-         button carries a thin black inset ring (gold with a touch of
-         black); rank 2's fades from red into a soft pink at one edge (red
-         with a little pink in it) — same idea, opposite direction. */
-      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty,
-      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#fff9ec,#fbe6b8);}
+         sold ad — each tier also gets its own distinct font on "Advertise
+         Here" so the three read as visibly different products, not the
+         same card recolored. Rank 1's button carries a thin black inset
+         ring (yellow with a touch of black); rank 2's fades from red into
+         a soft pink at one edge (red with a little pink in it). */
       .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-title,
-      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-size:23px;}
-      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-cta{background:#f5c451;color:#3d2b00;box-shadow:0 0 0 1.5px rgba(0,0,0,0.55) inset;}
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty,
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact{background:linear-gradient(135deg,#fff5f0,#ffe0d6);}
+      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:400;}
+      .\${sp.px}-ad[data-tier-rank="1"] .\${sp.px}-empty-cta{background:#FFD500;color:#000;box-shadow:0 0 0 1.5px rgba(0,0,0,0.55) inset;}
       .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-title,
-      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-size:26px;}
+      .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-compact .\${sp.px}-empty-price{font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:400;}
       .\${sp.px}-ad[data-tier-rank="2"] .\${sp.px}-empty-cta{background:linear-gradient(135deg,#E8472B,#ff9a8b);color:#fff;}
     \`;
 

@@ -574,7 +574,24 @@ const ZONE_DEFAULT_TYPE = {
 // page, "Sidebar" has no inherent left-or-right identity to validate against
 // — it's equally correct on either side — so position can't determine
 // whether a given Sidebar is "wrong" the way it can for every other type.
-const ZONE_EXEMPT_TYPES = new Set(['Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause', 'Sidebar', 'Sticky Sidebar']);
+//
+// Left/Right Rail and Above The Fold/Beneath Title are exempt too, for a
+// different reason: the site-wide script renders every space exactly where
+// its div sits in the page's normal document flow — it never applies any
+// rail-style positioning (sticky/floated aside) on the owner's behalf. So an
+// owner who pastes a Left Rail div right under the header, in a single-column
+// layout with no actual side column, gets geometry that reads as "top of
+// page, full width" (above-the-fold), not "left edge" — even though the
+// space was correctly created as, and is meant to stay, a Left Rail. Only
+// Header/Footer/Pro Footer/Inline Content keep real geometric validation:
+// those are exactly where the owner's markup normally puts them regardless
+// of layout, so a mismatch there is a real placement mistake worth
+// reclassifying, not a false positive from a page with no side rail to place
+// it in.
+const ZONE_EXEMPT_TYPES = new Set([
+  'Floating', 'Modal', 'Pre-roll', 'Mid-roll', 'Pause', 'Sidebar', 'Sticky Sidebar',
+  'Above The Fold', 'Beneath Title', 'Left Rail', 'Right Rail',
+]);
 // Instant — the very first mismatched reading commits (still gated on zero
 // active ads, which is the real safety net; the multi-reading debounce this
 // used to have made testing/repositioning painfully slow, and the owner
@@ -589,6 +606,8 @@ const TIER_KEY_ORDER = ['custom', 'elite', 'current'];
 // them the first time (Pricing.getTierPrices('elite') / the website's real
 // current traffic tier, capped at Premium). The Custom slot is the owner's
 // own typed price, independent of space type, so it's left untouched.
+exports.ZONE_EXEMPT_TYPES = ZONE_EXEMPT_TYPES;
+
 async function repriceTiersForType(category, newType) {
   const tiers = Array.isArray(category.pricing_tiers) ? category.pricing_tiers : [];
   if (!tiers.length) return null;
@@ -613,6 +632,7 @@ async function repriceTiersForType(category, newType) {
   repriced.sort((a, b) => TIER_KEY_ORDER.indexOf(a.key) - TIER_KEY_ORDER.indexOf(b.key));
   return repriced;
 }
+exports.repriceTiersForType = repriceTiersForType;
 
 // The site-wide script calls this once per render with a purely geometric
 // read of where the category's div actually landed on the page (top/left/

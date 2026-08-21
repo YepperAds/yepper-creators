@@ -27,9 +27,12 @@ const AD_SPACE_DIMENSIONS = {
   // Vertical rectangle, close to square, sized up from the old 300x250 —
   // deliberately bigger and taller-than-wide instead of a wide banner shape.
   'Floating':             { width: 340, height: 360 },
-  'Left Rail':            { width: 160, height: 600 },
+  // Widened from the original 160x600 "wide skyscraper" — 160 was too
+  // narrow for a creative image to read well; 300x600 ("half page") gives
+  // images real width while keeping the tall rail shape.
+  'Left Rail':            { width: 300, height: 600 },
   // Mirrors Left Rail exactly — same shape, opposite side of the page.
-  'Right Rail':           { width: 160, height: 600 },
+  'Right Rail':           { width: 300, height: 600 },
   // Big enough to feel like the featured moment on the page without going
   // fullscreen (see placementCSS's viewport-relative cap below) — same 3:2
   // shape as before, just scaled up.
@@ -45,7 +48,7 @@ function getDimensions(spaceType) {
 
 const BANNER = AD_SPACE_DIMENSIONS['Header'];       // 728x90
 const RECT   = AD_SPACE_DIMENSIONS['Sidebar'];       // 300x250
-const RAIL   = AD_SPACE_DIMENSIONS['Left Rail'];     // 160x600
+const RAIL   = AD_SPACE_DIMENSIONS['Left Rail'];     // 300x600
 const MODAL  = AD_SPACE_DIMENSIONS['Modal'];         // 900x600
 const FLOAT  = AD_SPACE_DIMENSIONS['Floating'];      // 340x400
 

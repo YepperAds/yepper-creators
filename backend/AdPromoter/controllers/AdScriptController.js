@@ -270,10 +270,10 @@ exports.serveAdScript = async (req, res) => {
          was quietly clipping the ad box's own bottom off. */
       .\${_px}-credit{position:absolute;bottom:3px;right:6px;z-index:6;font-size:8px;line-height:1;color:rgba(0,0,0,0.4);background:rgba(255,255,255,0.72);padding:2px 6px;border-radius:6px;}
       .\${_px}-credit a{color:inherit;text-decoration:none;}
-      .\${_px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 22px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:16px;width:100%;height:100%;box-sizing:border-box;}
+      .\${_px}-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px 28px;text-align:center;background:#fff;box-shadow:0 8px 32px rgba(31,38,135,0.18);border-radius:16px;width:100%;height:100%;box-sizing:border-box;}
       .\${_px}-empty-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#ea580c;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
       .\${_px}-empty-name{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#999;margin:2px 0 0;}
-      .\${_px}-empty-title{font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:400;margin:2px 0 0;max-width:230px;line-height:1.3;color:#111;}
+      .\${_px}-empty-title{font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:400;margin:2px 0 0;max-width:260px;line-height:1.3;color:#111;}
       .\${_px}-empty-price{font-size:12px;color:#666;margin:0;}
       .\${_px}-empty-cta{display:inline-flex;align-items:center;flex-shrink:0;background:#000;color:#fff;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-top:6px;transition:background 0.2s;}
       .\${_px}-empty-cta:hover{background:#e84118;}

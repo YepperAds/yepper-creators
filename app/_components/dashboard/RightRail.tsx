@@ -7,52 +7,6 @@ import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon, PlusIcon } from '@he
 import { fetchDashboardAds, type OwnWebsite, type MyAd, type YoutubeChannel } from '@/app/_lib/my-ads';
 import SidebarToggleIcon from './SidebarToggleIcon';
 
-// Choosing "Website" or "YouTube channel" routes to the same analytics tab
-// that already handles both viewing what's connected and adding a new one,
-// so the modal is just a fork in the road, not a duplicate add-flow.
-function PlatformPickerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const router = useRouter();
-  if (!open) return null;
-
-  const go = (href: string) => {
-    onClose();
-    router.push(href, { scroll: false });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-surface-2 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-sm font-bold text-white mb-1">Continue with</h3>
-        <p className="text-xs text-muted mb-4">Pick a platform to view or connect.</p>
-        <div className="space-y-2">
-          <button
-            onClick={() => go('/?panel=websites')}
-            className="w-full flex items-center gap-3 rounded-xl border border-border bg-background p-3 hover:border-coral/40 transition-colors text-left"
-          >
-            <GlobeAltIcon className="w-5 h-5 text-coral shrink-0" />
-            <span className="text-sm font-semibold text-white">Website</span>
-          </button>
-          <button
-            onClick={() => go('/?panel=youtube')}
-            className="w-full flex items-center gap-3 rounded-xl border border-border bg-background p-3 hover:border-coral/40 transition-colors text-left"
-          >
-            <PlayCircleIcon className="w-5 h-5 text-coral shrink-0" />
-            <span className="text-sm font-semibold text-white">YouTube channel</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // A handful of big, slightly-tilted polaroid-style cards fanned out inside a
 // dark tray, reads as "a stack of your ad creatives" at a glance rather than
 // a plain list.
@@ -148,14 +102,14 @@ function PlatformsBox({
   channels,
   loading,
   collapsed,
-  onOpenPicker,
 }: {
   websites: OwnWebsite[];
   channels: YoutubeChannel[];
   loading: boolean;
   collapsed: boolean;
-  onOpenPicker: () => void;
 }) {
+  const router = useRouter();
+  const goToWebsites = () => router.push('/?panel=websites', { scroll: false });
   const total = websites.length + channels.length;
   const items: PlatformItem[] = [
     ...websites.map((w): PlatformItem => ({ key: `w-${w.id}`, kind: 'website', label: w.websiteName, avatar: w.imageUrl })),
@@ -173,13 +127,13 @@ function PlatformsBox({
     return (
       <div className="group/box relative">
         <button
-          onClick={onOpenPicker}
+          onClick={goToWebsites}
           className="w-full flex items-center justify-center p-3 rounded-xl border border-border bg-surface-2 hover:bg-surface-3 transition-colors"
         >
           <GlobeAltIcon className="w-5 h-5 text-white" />
         </button>
         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-surface-3 text-white border border-border text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/box:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
-          Your platforms
+          Your websites
         </div>
       </div>
     );
@@ -189,15 +143,15 @@ function PlatformsBox({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpenPicker}
-      onKeyDown={(e) => { if (e.key === 'Enter') onOpenPicker(); }}
+      onClick={goToWebsites}
+      onKeyDown={(e) => { if (e.key === 'Enter') goToWebsites(); }}
       className="cursor-pointer rounded-2xl border border-border bg-surface-2 p-4 transition-colors hover:bg-surface-3"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Your platforms</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Your websites</h3>
         <button
-          onClick={(e) => { e.stopPropagation(); onOpenPicker(); }}
-          title="Add a website or YouTube channel"
+          onClick={(e) => { e.stopPropagation(); goToWebsites(); }}
+          title="Add your website"
           className="flex items-center justify-center w-5 h-5 rounded-full bg-background text-white hover:bg-coral transition-colors shrink-0"
         >
           <PlusIcon className="w-3.5 h-3.5" />
@@ -248,7 +202,6 @@ export default function RightRail() {
   const [youtubeChannels, setYoutubeChannels] = useState<YoutubeChannel[]>([]);
   const [loading, setLoading]               = useState(true);
   const [collapsed, setCollapsed]           = useState(false);
-  const [pickerOpen, setPickerOpen]         = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,13 +243,10 @@ export default function RightRail() {
           channels={youtubeChannels}
           loading={loading}
           collapsed={collapsed}
-          onOpenPicker={() => setPickerOpen(true)}
         />
 
         <MyAdsBox ads={myAds} loading={loading} collapsed={collapsed} />
       </div>
-
-      <PlatformPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </aside>
   );
 }

@@ -144,7 +144,16 @@ exports.serveSiteScript = async (req, res) => {
       _pcssT=${placementTemplatesJSON},
       _rotAd=7000,
       _rotEmpty=3000,
-      _pageLoadTs=Date.now();
+      _pageLoadTs=Date.now(),
+      /* Set by the dashboard's "Check live placement" link/button
+         (?yepperHighlight=<categoryId> on the real live page URL) — see
+         showZoneHighlight below. Absent on every normal pageview. */
+      _hl=(function(){
+        try{
+          var m=/[?&]yepperHighlight=([^&]+)/.exec(location.search);
+          return m?decodeURIComponent(m[1]):null;
+        }catch(e){return null;}
+      })();
 
   /* ── Positioning CSS for a category discovered via a data-yepper-space
      div that wasn't in the pre-baked _spaces list (manual-mode Floating/
@@ -227,6 +236,63 @@ exports.serveSiteScript = async (req, res) => {
     return String(s==null?'':s).replace(/[&<>"']/g,function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
+  }
+
+  /* ── "Check live placement" overlay ─────────────────────
+     Only runs for the one space whose id matches ?yepperHighlight=... in
+     the URL (see _hl above), which the dashboard sets when the owner opens
+     their real live page from a "Check live placement" link. Draws two
+     boxes directly on the real page: an orange dashed outline around where
+     the space's div actually rendered, and (type permitting) a translucent
+     blue band showing where that type is expected to sit — the exact same
+     page-height/width bands detectZone below uses to decide whether to
+     reclassify, so what the owner sees here is what the server itself would
+     judge it against. Viewport-pinned types (Floating/Modal/...) have no
+     fixed page position to compare against, so they only get the "actual"
+     box. Absolute-positioned, appended to <body>, never touches the page's
+     own layout. */
+  var ZONE_BAND_BY_TYPE={
+    'header':          function(pw,ph){return {x:0,       y:0,        w:pw,      h:ph*0.05};},
+    'above the fold':  function(pw,ph){return {x:0,       y:ph*0.05,  w:pw,      h:ph*0.10};},
+    'beneath title':   function(pw,ph){return {x:0,       y:ph*0.15,  w:pw,      h:ph*0.10};},
+    'pro footer':      function(pw,ph){return {x:0,       y:ph*0.78,  w:pw,      h:ph*0.12};},
+    'footer':          function(pw,ph){return {x:0,       y:ph*0.90,  w:pw,      h:ph*0.10};},
+    'left rail':       function(pw,ph){return {x:0,       y:ph*0.25,  w:pw*0.25, h:ph*0.53};},
+    'right rail':      function(pw,ph){return {x:pw*0.75, y:ph*0.25,  w:pw*0.25, h:ph*0.53};},
+    'inline content':  function(pw,ph){return {x:pw*0.25, y:ph*0.25,  w:pw*0.5,  h:ph*0.53};}
+  };
+  function showZoneHighlight(host,sp){
+    try{
+      var rect=host.getBoundingClientRect();
+      var pageH=D.documentElement.scrollHeight||1, pageW=D.documentElement.clientWidth||1;
+      var absTop=rect.top+window.scrollY, absLeft=rect.left+window.scrollX;
+
+      var actual=D.createElement('div');
+      actual.style.cssText='position:absolute;top:'+absTop+'px;left:'+absLeft+'px;width:'+
+        rect.width+'px;height:'+rect.height+'px;border:3px dashed #ff6600;box-sizing:border-box;'+
+        'z-index:2147483000;pointer-events:none;';
+      var actualLabel=D.createElement('div');
+      actualLabel.textContent='Actual: '+sp.name+' renders here';
+      actualLabel.style.cssText='position:absolute;top:-24px;left:0;background:#ff6600;color:#fff;'+
+        'font:600 11px/1.4 Arial,sans-serif;padding:2px 8px;border-radius:4px;white-space:nowrap;';
+      actual.appendChild(actualLabel);
+      D.body.appendChild(actual);
+
+      var bandFn=ZONE_BAND_BY_TYPE[(sp.spaceType||'').toLowerCase()];
+      if(bandFn){
+        var b=bandFn(pageW,pageH);
+        var expected=D.createElement('div');
+        expected.style.cssText='position:absolute;top:'+b.y+'px;left:'+b.x+'px;width:'+
+          b.w+'px;height:'+b.h+'px;background:rgba(37,99,235,0.16);border:2px solid rgba(37,99,235,0.65);'+
+          'box-sizing:border-box;z-index:2147483000;pointer-events:none;';
+        var expectedLabel=D.createElement('div');
+        expectedLabel.textContent='Expected: where a '+sp.spaceType+' should sit';
+        expectedLabel.style.cssText='position:absolute;top:6px;left:6px;background:#2563eb;color:#fff;'+
+          'font:600 11px/1.4 Arial,sans-serif;padding:2px 8px;border-radius:4px;white-space:nowrap;';
+        expected.appendChild(expectedLabel);
+        D.body.appendChild(expected);
+      }
+    }catch(e){}
   }
 
   /* ── Inject styles for a space ───────────────────────── */
@@ -468,6 +534,11 @@ exports.serveSiteScript = async (req, res) => {
   function renderAds(host, sp, data){
     var lang=getLang(sp.lang);
     var root=host._ysContent||host;
+
+    if(_hl&&_hl===sp.id&&!host.dataset.ywHighlighted){
+      host.dataset.ywHighlighted='1';
+      setTimeout(function(){showZoneHighlight(host,sp);},350);
+    }
 
     if(!data||!data.html){
       root.innerHTML=

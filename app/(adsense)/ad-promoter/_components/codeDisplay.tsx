@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import {
   Copy, Check, Plus, Code,
-  Trash2, X, ChevronDown, Mail, Files, Link2, Palette,
+  Trash2, X, ChevronDown, Mail, Files, Link2, Palette, Eye,
 } from 'lucide-react';
 import { categoryAPI } from '@/app/_lib/adsense-api';
 import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
@@ -25,6 +25,29 @@ import ZoneMapPreview from './ZoneMapPreview';
 // etc.), existing ones already pasted keep working via /api/p/embed, but new
 // spaces all get a div now for the same tracking every other type gets.
 const isPageScoped = (cat) => !!cat.targetPath;
+
+// ── "Check live placement" link ─────────────────────────────────────────────
+// Points straight at the real page the div renders on (its own targetPath,
+// or — for an "All Pages" space — the first page the site-wide script has
+// actually confirmed the div on, see detectedPages/reportSpaceSeen), with
+// ?yepperHighlight=<categoryId> appended. The site-wide script (already
+// installed there) recognizes that flag and draws two boxes right on the
+// live page: an orange outline around where the div actually is, and (for
+// page-flow types) a blue band showing where that type is expected to sit —
+// see showZoneHighlight in SiteScriptController.js. A real new tab rather
+// than an iframe here on purpose: an iframe would need the owner's own site
+// to explicitly allow being framed, a real navigation needs nothing.
+function buildLiveCheckUrl(website, cat) {
+  const rawDomain = website?.website_link || website?.websiteLink || website?.website_url || website?.domain;
+  if (!rawDomain) return null;
+  const path = cat.targetPath || (Array.isArray(cat.detectedPages) && cat.detectedPages[0]) || null;
+  if (!path) return null;
+  const domain = rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`;
+  const base = domain.replace(/\/$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const sep = normalizedPath.includes('?') ? '&' : '?';
+  return `${base}${normalizedPath}${sep}yepperHighlight=${cat._id}`;
+}
 
 // ── Plain <script> tag ──────────────────────────────────────────────────────
 // A tag, not code, dropped directly in a page's markup/JSX return, exactly
@@ -432,6 +455,22 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           <Files className="w-3 h-3" />
                           <span>Duplicate</span>
                         </button>
+                        {(() => {
+                          const liveUrl = buildLiveCheckUrl(website, cat);
+                          return (
+                            <button
+                              onClick={() => liveUrl && window.open(liveUrl, '_blank', 'noopener')}
+                              disabled={!liveUrl}
+                              title={liveUrl
+                                ? 'Open your live site with this space\'s actual position circled in orange, and (for page-flow types) where it should sit circled in blue'
+                                : 'No confirmed page yet for this space — visit your site once with the ad script installed, then try again'}
+                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-white hover:text-orange-400 transition-all border border-zinc-700 hover:border-orange-900 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800 disabled:hover:text-white"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Check live placement</span>
+                            </button>
+                          );
+                        })()}
                         {onCustomize && (
                           <button
                             onClick={() => onCustomize(cat._id)}

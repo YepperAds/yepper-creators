@@ -25,6 +25,12 @@ async function getBrowser() {
   browserPromise = puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    // A cold first launch (fresh Chromium binary, e.g. right after a deploy
+    // or on a machine that scans new executables before letting them run)
+    // can take well over Puppeteer's 30s default before printing its
+    // DevTools endpoint. Only the very first request pays this cost — the
+    // browser instance above is reused after that.
+    timeout: 90000,
   });
   return browserPromise;
 }
@@ -108,6 +114,15 @@ exports.capturePlacement = async (req, res) => {
     console.error('Error capturing live placement screenshot:', error);
     res.status(502).json({ success: false, message: 'Could not load the live page — it may be down or blocking automated visits.' });
   } finally {
-    if (page) await page.close().catch(() => {});
+    // Closing a page that's still mid-navigation (e.g. after the goto above
+    // timed out) can itself hang instead of rejecting — bounded so a slow
+    // close can never delay the response that already went out above, and
+    // can't pile up open pages on the shared browser instance either.
+    if (page) {
+      await Promise.race([
+        page.close().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    }
   }
 };

@@ -122,8 +122,38 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [duplicateError, setDuplicateError] = useState('');
   const [displayedTierOverrides, setDisplayedTierOverrides] = useState<Record<string, string | null>>({});
   const [copiedTierKey, setCopiedTierKey] = useState<string | null>(null);
+  // "Check live placement" — shown as a screenshot right here instead of a
+  // second tab (see buildLiveUrl/capturePlacement in ScreenshotController.js
+  // for why this can't just be an iframe: most real sites refuse to be
+  // framed by another origin).
+  const [screenshotModal, setScreenshotModal] = useState<{ categoryId: string; label: string; liveUrl: string | null } | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
 
   const websitePages = website?.pages || [];
+
+  const openLivePlacement = async (cat: any, liveUrl: string | null) => {
+    setScreenshotModal({ categoryId: cat._id, label: cat.categoryName || cat.category_name || 'Ad space', liveUrl });
+    setScreenshotUrl(null);
+    setScreenshotError(null);
+    setScreenshotLoading(true);
+    try {
+      const blob = await categoryAPI.getLiveScreenshot(cat._id);
+      setScreenshotUrl(URL.createObjectURL(blob as Blob));
+    } catch (err: any) {
+      setScreenshotError(err?.message || 'Could not load the live page.');
+    } finally {
+      setScreenshotLoading(false);
+    }
+  };
+
+  const closeLivePlacement = () => {
+    if (screenshotUrl) URL.revokeObjectURL(screenshotUrl);
+    setScreenshotModal(null);
+    setScreenshotUrl(null);
+    setScreenshotError(null);
+  };
 
   const handleTargetPathChange = async (cat: any, targetPath: string | null) => {
     setTogglingId(cat._id);
@@ -459,10 +489,10 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           const liveUrl = buildLiveCheckUrl(website, cat);
                           return (
                             <button
-                              onClick={() => liveUrl && window.open(liveUrl, '_blank', 'noopener')}
+                              onClick={() => liveUrl && openLivePlacement(cat, liveUrl)}
                               disabled={!liveUrl}
                               title={liveUrl
-                                ? 'Open your live site with this space\'s actual position circled in orange, and (for page-flow types) where it should sit circled in blue'
+                                ? 'Preview your live site right here, with this space\'s actual position circled in orange, and (for page-flow types) where it should sit circled in blue'
                                 : 'No confirmed page yet for this space — visit your site once with the ad script installed, then try again'}
                               className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-white hover:text-orange-400 transition-all border border-zinc-700 hover:border-orange-900 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800 disabled:hover:text-white"
                             >
@@ -589,6 +619,57 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
               </div>
             </>
           )}
+        </div>
+      )}
+      {screenshotModal && (
+        <div
+          className="fixed inset-0 z-[999] bg-black/70 flex items-center justify-center p-4"
+          onClick={closeLivePlacement}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3 gap-3">
+              <h3 className="text-sm font-semibold text-white truncate">Live placement — {screenshotModal.label}</h3>
+              <div className="flex items-center gap-3 shrink-0">
+                {screenshotModal.liveUrl && (
+                  <a
+                    href={screenshotModal.liveUrl}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-xs text-orange-400 hover:text-orange-300 underline whitespace-nowrap"
+                  >
+                    Open in new tab
+                  </a>
+                )}
+                <button onClick={closeLivePlacement} className="text-zinc-400 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {screenshotLoading && (
+              <div className="flex items-center justify-center h-64 text-zinc-400 text-sm">Loading your live page…</div>
+            )}
+            {screenshotError && !screenshotLoading && (
+              <div className="flex flex-col items-center justify-center h-64 text-center gap-2 px-6">
+                <p className="text-sm text-red-400">{screenshotError}</p>
+                {screenshotModal.liveUrl && (
+                  <a
+                    href={screenshotModal.liveUrl}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-xs text-orange-400 hover:text-orange-300 underline"
+                  >
+                    Try opening it directly instead
+                  </a>
+                )}
+              </div>
+            )}
+            {screenshotUrl && !screenshotLoading && (
+              <img src={screenshotUrl} alt="Live ad placement" className="w-full h-auto rounded-lg border border-zinc-800" />
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -84,6 +84,34 @@ async function adsenseRequest<T = unknown>(
   }
 }
 
+// ── Binary GET (screenshots, images) ───────────────────────────────────────
+// adsenseRequest always calls res.json(), which breaks on a PNG body — this
+// mirrors its auth/proxy setup but returns a Blob (or throws with whatever
+// JSON error message the backend sent) instead.
+async function adsenseGetBlob(path: string): Promise<Blob> {
+  const url = typeof window !== 'undefined' ? `/api/proxy${path}` : `${ADSENSE_BASE_URL}${path}`;
+  const token = typeof window !== 'undefined'
+    ? (document.cookie.match(/(?:^|;\s*)yepper_token=([^;]+)/)?.[1] ?? localStorage.getItem('token'))
+    : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const res = await fetch(url, { method: 'GET', headers, credentials: 'include', signal: controller.signal, cache: 'no-store' });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error((json as { message?: string }).message ?? res.statusText);
+    }
+    return res.blob();
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
 // Convenience shorthands matching the original axios api object
 const adsenseHttp = {
   get:    <T>(path: string)                        => adsenseRequest<T>(path, { method: 'GET' }),
@@ -162,6 +190,7 @@ export const categoryAPI = {
   duplicate:              (categoryId: string, data: unknown) => adsenseHttp.post(`/api/ad-categories/${categoryId}/duplicate`, data),
   delete:                 (categoryId: string)                => adsenseHttp.delete(`/api/ad-categories/${categoryId}`),
   sendInvite:             (categoryId: string, data: unknown)  => adsenseHttp.post(`/api/ad-categories/${categoryId}/send-invite`, data),
+  getLiveScreenshot:      (categoryId: string)                => adsenseGetBlob(`/api/ad-categories/${categoryId}/live-screenshot`),
 
   // Wallet
   getWallet:            ()                                 => adsenseHttp.get('/api/ad-categories/wallet'),

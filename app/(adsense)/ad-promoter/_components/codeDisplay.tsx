@@ -11,6 +11,7 @@ import { categoryAPI } from '@/app/_lib/adsense-api';
 import { getAdSpaceImage } from '@/app/_lib/ad-spaces';
 import { getLanguageFlagUrl, getLanguageLabel } from '@/app/_lib/languages';
 import ZoneMapPreview from './ZoneMapPreview';
+import InstallGuidePanel from './InstallGuidePanel';
 
 // Every space type now uses the same mechanism: a <div data-yepper-space>
 // placeholder, checked against a configured target page (see
@@ -123,6 +124,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [duplicateError, setDuplicateError] = useState('');
   const [displayedTierOverrides, setDisplayedTierOverrides] = useState<Record<string, string | null>>({});
   const [copiedTierKey, setCopiedTierKey] = useState<string | null>(null);
+  const [installGuide, setInstallGuide] = useState<{ categoryId: string; scriptSrc: string; label: string } | null>(null);
   const router = useRouter();
 
   const websitePages = website?.pages || [];
@@ -486,7 +488,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                         <button
                           onClick={() => {
                             const label = cat.categoryName || cat.category_name || 'Ad space';
-                            router.push(`/ad-promoter/pages/install-guide/${cat._id}?scriptSrc=${encodeURIComponent(rawSrc)}&label=${encodeURIComponent(label)}`);
+                            setInstallGuide({ categoryId: cat._id, scriptSrc: rawSrc, label });
                           }}
                           title="Step-by-step guide for pasting the script and this space's div, for Next.js, plain HTML, WordPress, React, and Wix/Squarespace"
                           className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-emerald-950 text-white hover:text-emerald-400 transition-all border border-zinc-700 hover:border-emerald-900 shrink-0"
@@ -614,6 +616,13 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
           )}
         </div>
       )}
+      <InstallGuidePanel
+        open={!!installGuide}
+        onClose={() => setInstallGuide(null)}
+        categoryId={installGuide?.categoryId || ''}
+        scriptSrc={installGuide?.scriptSrc || ''}
+        label={installGuide?.label || ''}
+      />
     </div>
   );
 };

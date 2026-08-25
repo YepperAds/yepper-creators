@@ -8,9 +8,22 @@
 // in a headless browser on the server, lets the site-wide script draw its
 // usual "Check live placement" highlight boxes (see showZoneHighlight in
 // SiteScriptController.js), and ships back a PNG of the result.
-const puppeteer = require('puppeteer');
 const AdCategory = require('../models/CreateCategoryModel');
 const Website = require('../models/CreateWebsiteModel');
+
+// Full `puppeteer` bundles a real desktop Chromium — great for local dev
+// (Windows/Mac included) but on a constrained Linux host like Render it
+// routinely fails to launch at all: the plain Node buildpack is missing
+// shared libraries (libnss3, libatk-bridge, libgbm, …) a full Chrome build
+// expects, and the binary itself is heavier than these hosts' free/starter
+// memory tiers comfortably allow. @sparticuz/chromium ships a Chromium build
+// made specifically for exactly this kind of environment (same lineage as
+// AWS Lambda's), so production uses that + puppeteer-core instead — local
+// dev keeps using the full package since @sparticuz/chromium only ships a
+// Linux binary.
+const isProd = process.env.NODE_ENV === 'production';
+const puppeteer = isProd ? require('puppeteer-core') : require('puppeteer');
+const chromium = isProd ? require('@sparticuz/chromium') : null;
 
 // One headless browser reused across requests — launching Chromium (a few
 // hundred ms to seconds) on every single screenshot would make this endpoint
@@ -22,16 +35,22 @@ async function getBrowser() {
     if (existing && existing.isConnected()) return existing;
     browserPromise = null;
   }
-  browserPromise = puppeteer.launch({
+  const launchOptions = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     // A cold first launch (fresh Chromium binary, e.g. right after a deploy
     // or on a machine that scans new executables before letting them run)
     // can take well over Puppeteer's 30s default before printing its
     // DevTools endpoint. Only the very first request pays this cost — the
     // browser instance above is reused after that.
     timeout: 90000,
-  });
+  };
+  if (isProd) {
+    launchOptions.args = chromium.args;
+    launchOptions.executablePath = await chromium.executablePath();
+  } else {
+    launchOptions.args = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+  }
+  browserPromise = puppeteer.launch(launchOptions);
   return browserPromise;
 }
 

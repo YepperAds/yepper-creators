@@ -6,7 +6,6 @@ const categoryController   = require('../controllers/createCategoryController');
 const WalletController     = require('../controllers/WalletController');
 const WithdrawalController = require('../controllers/WithdrawalController');
 const adRejectionController = require('../controllers/AdRejectionController');
-const screenshotController = require('../controllers/ScreenshotController');
 const authMiddleware  = require('../../middleware/authmiddleware');
 const earningsController = require('../controllers/earningsController');
 const {
@@ -81,7 +80,6 @@ router.post('/', categoryController.createCategory);
 router.get('/', categoryController.getCategories);
 
 router.get('/earnings/:categoryId', earningsController.getCategoryEarnings);
-router.get('/:categoryId/live-screenshot', screenshotController.capturePlacement);
 router.get('/pending-rejections', adRejectionController.getPendingRejections);
 router.get('/active-ads', categoryController.getActiveAds);
 

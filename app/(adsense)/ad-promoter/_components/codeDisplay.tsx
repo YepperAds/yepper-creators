@@ -2,7 +2,6 @@
 // @ts-nocheck
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Copy, Check, Plus, Code,
   Trash2, X, ChevronDown, Mail, Files, Link2, Palette, Eye, BookOpen,
@@ -125,19 +124,8 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
   const [displayedTierOverrides, setDisplayedTierOverrides] = useState<Record<string, string | null>>({});
   const [copiedTierKey, setCopiedTierKey] = useState<string | null>(null);
   const [installGuide, setInstallGuide] = useState<{ categoryId: string; scriptSrc: string; label: string } | null>(null);
-  const router = useRouter();
 
   const websitePages = website?.pages || [];
-
-  // "Check live placement" — its own page (see
-  // app/(adsense)/ad-promoter/pages/live-placement/[categoryId]) instead of a
-  // second tab or a modal here. liveUrl/label are passed through the URL so
-  // that page doesn't need to refetch the website/category just to show them;
-  // the screenshot itself is fetched there, authenticated, by categoryId.
-  const openLivePlacement = (cat: any, liveUrl: string) => {
-    const label = cat.categoryName || cat.category_name || 'Ad space';
-    router.push(`/ad-promoter/pages/live-placement/${cat._id}?liveUrl=${encodeURIComponent(liveUrl)}&label=${encodeURIComponent(label)}`);
-  };
 
   const handleTargetPathChange = async (cat: any, targetPath: string | null) => {
     setTogglingId(cat._id);
@@ -473,10 +461,10 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                           const liveUrl = buildLiveCheckUrl(website, cat);
                           return (
                             <button
-                              onClick={() => liveUrl && openLivePlacement(cat, liveUrl)}
+                              onClick={() => liveUrl && window.open(liveUrl, '_blank', 'noopener')}
                               disabled={!liveUrl}
                               title={liveUrl
-                                ? 'Preview your live site right here, with this space\'s actual position circled in orange, and (for page-flow types) where it should sit circled in blue'
+                                ? 'Open your live site with this space\'s actual position circled in orange, and (for page-flow types) where it should sit circled in blue'
                                 : 'No confirmed page yet for this space — visit your site once with the ad script installed, then try again'}
                               className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-white hover:text-orange-400 transition-all border border-zinc-700 hover:border-orange-900 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800 disabled:hover:text-white"
                             >

@@ -21,9 +21,16 @@ const Website = require('../models/CreateWebsiteModel');
 // AWS Lambda's), so production uses that + puppeteer-core instead — local
 // dev keeps using the full package since @sparticuz/chromium only ships a
 // Linux binary.
-const isProd = process.env.NODE_ENV === 'production';
-const puppeteer = isProd ? require('puppeteer-core') : require('puppeteer');
-const chromium = isProd ? require('@sparticuz/chromium') : null;
+// Deciding this off NODE_ENV === 'production' is a trap: whether that's
+// actually set depends on the host's own config, which isn't something this
+// code can see or control — get it wrong and this silently falls back to
+// full `puppeteer` in production, i.e. exactly the thing that doesn't work
+// there. The platform itself is the real signal: local dev here is Windows,
+// every real host (Render included) is Linux, and @sparticuz/chromium only
+// ships a Linux binary anyway — so this can't get it wrong.
+const isLinux = process.platform === 'linux';
+const puppeteer = isLinux ? require('puppeteer-core') : require('puppeteer');
+const chromium = isLinux ? require('@sparticuz/chromium') : null;
 
 // One headless browser reused across requests — launching Chromium (a few
 // hundred ms to seconds) on every single screenshot would make this endpoint
@@ -44,7 +51,7 @@ async function getBrowser() {
     // browser instance above is reused after that.
     timeout: 90000,
   };
-  if (isProd) {
+  if (isLinux) {
     launchOptions.args = chromium.args;
     launchOptions.executablePath = await chromium.executablePath();
   } else {

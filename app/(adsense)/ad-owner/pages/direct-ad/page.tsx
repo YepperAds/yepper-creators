@@ -334,6 +334,18 @@ function DirectAdvertise() {
     if (selectedFile.type.startsWith('image/')) {
       const dimCheck = await checkImageDimensions(selectedFile);
       if (!dimCheck.ok) {
+        // A GIF can't go through the crop modal below — it exports via
+        // <canvas>.toBlob, which only ever captures the single frame the
+        // <img> happens to be showing at that instant, so "resizing" a GIF
+        // there would silently flatten it into a static PNG. Rather than
+        // do that invisibly, ask for a correctly-shaped GIF instead.
+        if (selectedFile.type === 'image/gif') {
+          setError(
+            (dimCheck.message || 'This GIF doesn\'t fit this ad space.') +
+            ' GIFs can\'t be auto-resized here without losing their animation — please crop it to size first, or use a static image instead.'
+          );
+          return;
+        }
         // Instead of just rejecting it, let them see it against the actual
         // required size and drag/resize it to fit, Canva/Figma-style.
         setError(null);

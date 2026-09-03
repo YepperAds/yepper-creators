@@ -868,7 +868,6 @@ ${bodyHtml}
   }
 };
 
-
 // // AdScriptController.js
 // // Universal one-script ad loader — works on any framework/language.
 // // Supports multiple spaces per site, smart auto-placement by spaceType,

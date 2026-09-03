@@ -1417,6 +1417,7 @@ exports.getDetailedEarnings = async (req, res) => {
 };
 
 
+
 // // createCategoryController.js  — PostgreSQL version (no Mongoose)
 // const { query, getClient } = require('../../config/db');
 // const AdCategory          = require('../models/CreateCategoryModel');

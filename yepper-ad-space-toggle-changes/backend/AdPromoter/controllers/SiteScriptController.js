@@ -798,10 +798,25 @@ exports.serveSiteScript = async (req, res) => {
        result as if the div were removed or commented out of the page.
        No box, no reserved space, no host is ever built here. Reopening it
        (sp.active goes back to true on a later pageview/reload) just runs
-       this function normally again, since ph itself was never touched. */
+       this function normally again, since ph itself was never touched.
+       Exception: the owner is here via "Check placement" specifically to
+       confirm THIS div is positioned correctly (?yepperHighlight=sp.id) —
+       that's exactly the moment a wrongly-placed div needs to be visible
+       and outlined, closed or not, so it doesn't get missed and left
+       silently in the wrong spot. Build and size the box like normal and
+       show it as an empty slot (same look a freshly-opened, not-yet-sold
+       space has) — skip the feed fetch entirely, since the backend would
+       just say "closed" again for this same categoryId. */
     if(sp.active===false){
-      ph.style.setProperty('display','none','important');
-      ph.setAttribute('data-yepper-closed','1');
+      if(_hl!==sp.id){
+        ph.style.setProperty('display','none','important');
+        ph.setAttribute('data-yepper-closed','1');
+        return;
+      }
+      var hostHl=getHost(sp);
+      if(!hostHl)return;
+      injectStyles(sp,{slots:[],fontImports:[]},hostHl._ysRoot||hostHl);
+      renderAds(hostHl,sp,null);
       return;
     }
 

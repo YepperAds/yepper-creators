@@ -504,7 +504,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
                               className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-orange-950 text-white hover:text-orange-400 transition-all border border-zinc-700 hover:border-orange-900 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800 disabled:hover:text-white"
                             >
                               <Eye className="w-3 h-3" />
-                              <span>Check live placement</span>
+                              <span>Check placement</span>
                             </button>
                           );
                         })()}
@@ -652,6 +652,7 @@ export const MasterIntegration = ({ website, categories = [], onAddSpace, onDele
 
 const CodeDisplay = () => null;
 export default CodeDisplay;
+
 
 
 

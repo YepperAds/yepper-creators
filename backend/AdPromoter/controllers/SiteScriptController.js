@@ -803,24 +803,24 @@ exports.serveSiteScript = async (req, res) => {
        confirm THIS div is positioned correctly (?yepperHighlight=sp.id) —
        that's exactly the moment a wrongly-placed div needs to be visible
        and outlined, closed or not, so it doesn't get missed and left
-       silently in the wrong spot. Build and size the box like normal and
-       show it as an empty slot (same look a freshly-opened, not-yet-sold
-       space has) — skip the feed fetch entirely, since the backend would
-       just say "closed" again for this same categoryId. */
+       silently in the wrong spot. Falls through to the exact same fetch
+       flow below (just with &preview=1 on the feed call, so the backend
+       resolves it like an open space — see resolveCategoryAndAds) so what
+       the owner sees while checking is whatever's really configured there
+       — a sold ad, or the true "available" filler — the same as it'll
+       look the moment it's reopened, not a generic stand-in. */
+    var previewClosed=false;
     if(sp.active===false){
       if(_hl!==sp.id){
         ph.style.setProperty('display','none','important');
         ph.setAttribute('data-yepper-closed','1');
         return;
       }
-      var hostHl=getHost(sp);
-      if(!hostHl)return;
-      injectStyles(sp,{slots:[],fontImports:[]},hostHl._ysRoot||hostHl);
-      renderAds(hostHl,sp,null);
-      return;
+      previewClosed=true;
     }
 
     var ck='?z='+sp.id+'&r='+Math.random().toString(36).slice(2);
+    var feedQs='&path='+encodeURIComponent(location.pathname)+(previewClosed?'&preview=1':'');
 
     fetch(_c+'/ads/customization/'+sp.id+ck,{cache:'no-store'})
       .then(function(r){return r.ok?r.json():Promise.resolve({slots:[],fontImports:[]});})
@@ -829,7 +829,7 @@ exports.serveSiteScript = async (req, res) => {
         if(!host)return; /* manual with no placeholder — skip */
         injectStyles(sp,d,host._ysRoot||host);
 
-        fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname)+'&r='+Date.now(),{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+sp.id+feedQs+'&r='+Date.now(),{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,sp,data);})
           .catch(function(){renderAds(host,sp,null);});
@@ -838,7 +838,7 @@ exports.serveSiteScript = async (req, res) => {
         var host=getHost(sp);
         if(!host)return;
         injectStyles(sp,{slots:[],fontImports:[]},host._ysRoot||host);
-        fetch(_b+'/feed?categoryId='+sp.id+'&path='+encodeURIComponent(location.pathname),{cache:'no-store'})
+        fetch(_b+'/feed?categoryId='+sp.id+feedQs,{cache:'no-store'})
           .then(function(r){return r.ok?r.json():null;})
           .then(function(data){renderAds(host,sp,data);})
           .catch(function(){renderAds(host,sp,null);});

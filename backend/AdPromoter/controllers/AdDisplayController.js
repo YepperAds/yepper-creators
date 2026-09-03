@@ -53,7 +53,7 @@ function filterAdsByPage(ads, websiteId, categoryId, path) {
 // embed endpoint (AdScriptController.serveAdEmbed) — both need the exact
 // same "is this category allowed to show ads on this referer, and which
 // ones" resolution, just rendered into a different envelope.
-async function resolveCategoryAndAds(categoryId, req) {
+async function resolveCategoryAndAds(categoryId, req, opts = {}) {
   const adCategory = await AdCategory.findById(categoryId);
   if (!adCategory) return { adCategory: null, website: null, ads: [], blocked: false };
 
@@ -63,7 +63,13 @@ async function resolveCategoryAndAds(categoryId, req) {
   // (that filler is for an open space with nothing sold yet, which this
   // isn't — the owner turned it off on purpose). `inactive: true` is what
   // tells displayAd/serveAdEmbed to skip building any filler at all.
-  if (adCategory.is_active === false) {
+  // Exception: opts.preview — set only for the dashboard's "Check
+  // placement" pageview (?yepperHighlight=<id> — see SiteScriptController's
+  // loadSpace) — resolves and renders exactly like an open space would, so
+  // what the owner sees while checking a closed space's position matches
+  // what it'll actually look like once reopened, instead of always showing
+  // the same generic filler regardless of what's really configured there.
+  if (adCategory.is_active === false && !opts.preview) {
     return { adCategory, website: null, ads: [], blocked: false, inactive: true, pricingTiers: null };
   }
 
@@ -266,10 +272,10 @@ function buildDwellByTier(pricingTiers) {
 
 exports.displayAd = async (req, res) => {
   try {
-    const { categoryId } = req.query;
+    const { categoryId, preview } = req.query;
     if (!categoryId) return res.json({ html: '' });
 
-    const { adCategory, ads: adsToShow, pricingTiers, inactive } = await resolveCategoryAndAds(categoryId, req);
+    const { adCategory, ads: adsToShow, pricingTiers, inactive } = await resolveCategoryAndAds(categoryId, req, { preview: preview === '1' });
     if (!adCategory) return res.json({ html: '' });
     // Closed by the owner — render nothing at all, not even the "Available
     // Advertising Space" filler (see resolveCategoryAndAds). The `inactive`
@@ -714,6 +720,7 @@ exports.reportZoneDetected = async (req, res) => {
     res.status(200).json({ success: false });
   }
 };
+
 
 
 

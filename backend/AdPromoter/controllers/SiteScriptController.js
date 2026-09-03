@@ -546,6 +546,15 @@ exports.serveSiteScript = async (req, res) => {
     }
 
     if(data&&data.inactive){
+      /* Closed by the owner after this script's already running (a live
+         feed refetch, not the pre-baked sp.active branch in loadSpace) —
+         collapse the same way: the original placeholder div, not just its
+         built host, goes to display:none so no space is reserved. */
+      var closedPh=D.querySelector('[data-yepper-space="'+sp.id+'"]');
+      if(closedPh){
+        closedPh.style.setProperty('display','none','important');
+        closedPh.setAttribute('data-yepper-closed','1');
+      }
       root.innerHTML='';
       return;
     }
@@ -785,14 +794,14 @@ exports.serveSiteScript = async (req, res) => {
     if(sp.targetPath&&sp.targetPath!==location.pathname){reportPageMismatch(sp);return;}
     if(!sp.targetPath)reportSpaceSeen(sp);
 
-    /* Closed by the owner: still size/position the box (so the page layout
-       doesn't jump when it's reopened), but skip fetching an ad or the
-       "buy this space" filler — render it blank straight away. */
+    /* Closed by the owner: collapse the placeholder to nothing — same end
+       result as if the div were removed or commented out of the page.
+       No box, no reserved space, no host is ever built here. Reopening it
+       (sp.active goes back to true on a later pageview/reload) just runs
+       this function normally again, since ph itself was never touched. */
     if(sp.active===false){
-      var hostOff=getHost(sp);
-      if(!hostOff)return;
-      injectStyles(sp,{slots:[],fontImports:[]},hostOff._ysRoot||hostOff);
-      renderAds(hostOff,sp,{html:'',inactive:true});
+      ph.style.setProperty('display','none','important');
+      ph.setAttribute('data-yepper-closed','1');
       return;
     }
 

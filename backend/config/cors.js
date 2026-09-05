@@ -11,6 +11,7 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'https://yepper-creators-admin.vercel.app',
+  'https://yepper-creators-admin.yepper.cc',
   'https://yepper-creators.onrender.com',
   'https://yepper.cc',
   'https://yepper-creators-api.onrender.com',

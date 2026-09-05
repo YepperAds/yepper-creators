@@ -565,15 +565,18 @@ function DirectAdvertise() {
         // PaymentController.js) — this modal is Flutterwave's own widget,
         // and it shows "test mode"/mocked transactions and enforces the
         // sandbox's RWF 200,000 cap purely based on which public_key it's
-        // given, regardless of anything the backend does. It was always
-        // getting the test key here, so flipping the backend's env var
-        // never actually took the checkout live. Set
+        // given, regardless of anything the backend does. Falls back to the
+        // old NEXT_PUBLIC_FLW_PUBLIC_KEY name so this doesn't silently break
+        // (button does nothing, no console error) for a deploy that hasn't
+        // added the new NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY /
+        // NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY env vars yet. Set
         // NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE=false and
         // NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY (from Flutterwave's live API keys
-        // page) on the frontend host to go live here too.
-        public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE === 'false'
+        // page) on the frontend host, then rebuild, to actually go live.
+        public_key: (process.env.NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE === 'false'
           ? process.env.NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY
-          : process.env.NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY,
+          : process.env.NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY)
+          || process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY,
         tx_ref,
         amount: totalAmount,
         currency: 'RWF',

@@ -550,33 +550,41 @@ function DirectAdvertise() {
 
       // Load Flutterwave inline SDK if not already loaded
       await new Promise((resolve, reject) => {
-        if ((window as any).FlutterwaveCheckout) { resolve(); return; }
+        if ((window as any).FlutterwaveCheckout) { resolve(undefined); return; }
         const script = document.createElement('script');
         script.src = 'https://checkout.flutterwave.com/v3.js';
-        script.onload = resolve;
-        script.onerror = reject;
+        script.onload = () => resolve(undefined);
+        script.onerror = () => reject(new Error('Could not load the Flutterwave checkout script. Check your connection or an ad blocker/extension may be blocking checkout.flutterwave.com.'));
         document.body.appendChild(script);
       });
 
+      if (typeof (window as any).FlutterwaveCheckout !== 'function') {
+        throw new Error('Flutterwave checkout script loaded but FlutterwaveCheckout is unavailable. Try refreshing the page.');
+      }
+
       setIsLoading(false);
+
+      // Resolved once, up front, so we can validate and log it — the SDK
+      // itself fails silently (no thrown error, no modal, nothing in our
+      // own console) when handed a missing or malformed public_key, which
+      // is indistinguishable from "the button does nothing" otherwise.
+      const flwPublicKey = (process.env.NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE === 'false'
+        ? process.env.NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY
+        : process.env.NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY)
+        || process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY;
+
+      if (!flwPublicKey) {
+        throw new Error('Payment configuration error: no Flutterwave public key is set for this build (check NEXT_PUBLIC_FLW_PUBLIC_KEY / NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY on the frontend host, then redeploy).');
+      }
+      // eslint-disable-next-line no-console
+      console.log('[Flutterwave] using public key:', flwPublicKey.slice(0, 12) + '…', '| test mode:', process.env.NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE !== 'false');
 
       const flwModal = (window as any).FlutterwaveCheckout({
         // Mirrors the backend's FLUTTERWAVE_TEST_MODE switch (see
-        // PaymentController.js) — this modal is Flutterwave's own widget,
-        // and it shows "test mode"/mocked transactions and enforces the
-        // sandbox's RWF 200,000 cap purely based on which public_key it's
-        // given, regardless of anything the backend does. Falls back to the
-        // old NEXT_PUBLIC_FLW_PUBLIC_KEY name so this doesn't silently break
-        // (button does nothing, no console error) for a deploy that hasn't
-        // added the new NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY /
-        // NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY env vars yet. Set
-        // NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE=false and
-        // NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY (from Flutterwave's live API keys
-        // page) on the frontend host, then rebuild, to actually go live.
-        public_key: (process.env.NEXT_PUBLIC_FLUTTERWAVE_TEST_MODE === 'false'
-          ? process.env.NEXT_PUBLIC_FLW_LIVE_PUBLIC_KEY
-          : process.env.NEXT_PUBLIC_FLW_TEST_PUBLIC_KEY)
-          || process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY,
+        // PaymentController.js) — resolved once above into flwPublicKey,
+        // logged and validated there so a missing/bad key surfaces as a
+        // real error instead of the button silently doing nothing.
+        public_key: flwPublicKey,
         tx_ref,
         amount: totalAmount,
         currency: 'RWF',
@@ -621,6 +629,20 @@ function DirectAdvertise() {
           setIsLoading(false);
         },
       });
+
+      // Flutterwave's SDK doesn't throw or reject when it can't actually
+      // mount the checkout iframe (e.g. an invalid/malformed public_key,
+      // or a browser extension stripping its container) — it just quietly
+      // does nothing, which looks identical to the button being broken.
+      // This checks the DOM for the iframe it's supposed to insert and
+      // surfaces a real, visible error if it never shows up.
+      setTimeout(() => {
+        const mounted = document.querySelector('iframe[src*="flutterwave.com"]');
+        if (!mounted) {
+          setError('The Flutterwave checkout window did not open. This usually means the public key rejected by Flutterwave (check the browser console for a "[Flutterwave] using public key" log line and compare it against Settings → API Keys on Flutterwave), or a browser extension is blocking checkout.flutterwave.com.');
+          setIsLoading(false);
+        }
+      }, 3000);
 
     } catch (err: unknown) {
       setError((err as { response?: { message?: string; error?: string } }).response?.error || (err as Error).message || 'Failed to initiate payment');

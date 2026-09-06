@@ -345,7 +345,7 @@ exports.serveSiteScript = async (req, res) => {
        are no longer consulted here for the same reason; still accepted and
        stored (the Customize Ads panel doesn't need a matching rewrite just
        because the renderer stopped reading a few of its fields), just inert. */
-    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;height:100%;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;box-shadow:0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;position:relative;}';
+    var rulesCss='.'+sp.px+'-ad{display:block;width:100%;height:100%;overflow:hidden;background:#fff;border:none;border-radius:16px;box-shadow:0 0 6px rgba(0,0,0,0.06),0 8px 32px rgba(31,38,135,0.18);box-sizing:border-box;text-decoration:none;color:inherit;position:relative;}';
     slots.forEach(function(s,si){
       var sel='.'+sp.px+'-ad[data-slot="'+si+'"]';
       rulesCss+=\`
@@ -400,13 +400,15 @@ exports.serveSiteScript = async (req, res) => {
          longer, it visibly looks pricier — ranked by real price (see
          AdDisplayController's tierRank), not by which named slot this is,
          so it's accurate no matter what the owner typed for the custom slot.
-         Box-shadow ring instead of a hard border, radius pinned explicitly
-         (not left to inherit) so the ring always matches the card's own
-         rounded corners instead of showing square. Card background stays
-         plain white for every tier — only the button and this ring carry
-         the tier color. */
-      .\${sp.px}-ad[data-tier-rank="1"]{border:none!important;border-radius:16px!important;box-shadow:0 0 0 2px #FFD500,0 10px 26px rgba(0,0,0,0.35)!important;}
-      .\${sp.px}-ad[data-tier-rank="2"]{border:none!important;border-radius:16px!important;box-shadow:0 0 0 2px #E8472B,0 10px 26px rgba(255,138,128,0.45)!important;}
+         A genuine soft, blurred glow — not a hard-edged ring. That first
+         version (0 0 0 2px, zero blur radius) rendered as a crisp solid
+         line around the card, visually identical to a real CSS border even
+         though it was technically a box-shadow; blur radius is what makes
+         a shadow actually read as a shadow instead of an outline. Card
+         background stays plain white for every tier — only the button and
+         this glow carry the tier color. */
+      .\${sp.px}-ad[data-tier-rank="1"]{border:none!important;border-radius:16px!important;box-shadow:0 0 18px 3px rgba(255,213,0,0.55),0 10px 26px rgba(0,0,0,0.35)!important;}
+      .\${sp.px}-ad[data-tier-rank="2"]{border:none!important;border-radius:16px!important;box-shadow:0 0 18px 3px rgba(232,71,43,0.5),0 10px 26px rgba(255,138,128,0.45)!important;}
       /* Still used by a sold ad's own tier badge (see AdDisplayController's
          displayAd) — the empty-pitch filler no longer renders one, but a
          paid "Featured"/"Exclusive" ad still does. */

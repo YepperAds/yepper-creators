@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import { MegaphoneIcon, CheckBadgeIcon } from '@heroicons/react/24/solid';
 
 // Static showcase of public sample ad creatives (not real advertiser ads) —
 // purely illustrative, so every card is non-interactive (no href/onClick,
@@ -7,21 +6,20 @@ import { MegaphoneIcon, CheckBadgeIcon } from '@heroicons/react/24/solid';
 // DashboardFeed / HotDealsSection. "Booked" is a static label (every slot
 // here is a filled example), not a live status.
 const SAMPLE_ADS: { src: string; business: string }[] = [
-  { src: '/ads-samples/ad1.jpg', business: 'Murukali' },
-  { src: '/ads-samples/ad2.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad3.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad4.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad5.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad6.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad7.jpg', business: 'Business name' },
-  { src: '/ads-samples/ad8.jpg', business: 'Business name' },
+  { src: '/ads-samples/ad1.jpg', business: 'Murukali Market' },
+  { src: '/ads-samples/ad2.jpg', business: 'Amys Candy' },
+  { src: '/ads-samples/ad3.jpg', business: 'Radiant' },
+  { src: '/ads-samples/ad4.jpg', business: 'Zion Temple' },
+  { src: '/ads-samples/ad5.jpg', business: 'Odoo Business Show' },
+  { src: '/ads-samples/ad6.jpg', business: 'SoulChild' },
+  { src: '/ads-samples/ad7.jpg', business: 'Murukali Market' },
+  { src: '/ads-samples/ad8.jpg', business: 'Serena Hotel' },
 ];
 
 export default function AdsSamplePanel() {
   return (
     <div className="rounded-3xl border border-(--color-coral)/15 bg-gradient-to-b from-(--color-coral)/[0.06] to-surface-2 p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-4">
-        <MegaphoneIcon className="w-4 h-4 text-(--color-coral)" />
         <p className="text-xs font-bold uppercase tracking-wide text-(--color-coral-text)">Sample Ads</p>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:gap-5">
@@ -44,7 +42,6 @@ export default function AdsSamplePanel() {
                 Ad
               </span>
               <span className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-(--color-coral) px-2.5 py-1 text-[10px] font-semibold text-white">
-                <CheckBadgeIcon className="w-3 h-3" />
                 Booked
               </span>
             </div>

@@ -55,7 +55,7 @@ export default function HomeExplore({
     <div className="h-full flex flex-col overflow-hidden">
       <PageHeader title="Explore Hot Deals, Websites & Broadcast Media" />
 
-      <div className="shrink-0 flex items-center justify-center gap-2 pb-4 pt-2">
+      <div className="shrink-0 flex flex-wrap items-center justify-center gap-2 pb-4 pt-2">
         {TABS.map((t) => (
           <TabPill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
@@ -63,10 +63,10 @@ export default function HomeExplore({
         ))}
       </div>
 
-      <div className="shrink-0 flex items-center justify-between gap-2 pb-4 px-2">
+      <div className="shrink-0 flex flex-wrap items-center justify-center sm:justify-between gap-2 pb-4 px-2">
         <Link
           href="/?panel=advertise"
-          className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-background hover:opacity-90 transition-colors"
+          className="flex items-center gap-1.5 rounded-full bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-background hover:opacity-90 transition-colors"
         >
           <MegaphoneIcon className="w-4 h-4" />
           Advertise
@@ -74,7 +74,7 @@ export default function HomeExplore({
 
         <Link
           href="/?panel=add-website"
-          className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-background hover:opacity-90 transition-colors"
+          className="flex items-center gap-1.5 rounded-full bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-background hover:opacity-90 transition-colors"
         >
           <PlusCircleIcon className="w-4 h-4" />
           Add Your Website

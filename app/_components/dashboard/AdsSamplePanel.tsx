@@ -38,11 +38,11 @@ export default function AdsSamplePanel() {
                 Ad
               </span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-2.5">
+            <div className="flex items-center gap-2 px-3 py-2.5 min-w-0">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--color-coral)/20 text-[10px] font-bold text-(--color-coral-text)">
                 {ad.business.charAt(0)}
               </span>
-              <span className="truncate text-xs font-medium text-white">{ad.business}</span>
+              <span className="min-w-0 truncate text-xs font-medium text-white">{ad.business}</span>
             </div>
           </div>
         ))}

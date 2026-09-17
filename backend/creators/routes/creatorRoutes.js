@@ -41,9 +41,14 @@ router.post('/api/social/disconnect/:provider', controller.disconnectSocial);
 router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
 
 // ─── Ad posts ─────────────────────────────────────────────────────────────────
-router.post('/api/social/post-ad/:provider',            controller.postAdVideo);
+router.post(
+  '/api/social/post-ad/:provider',
+  videoUpload.fields([{ name: 'video', maxCount: 1 }]),
+  controller.postAdVideo,
+);
 router.post('/api/social/post-ad/:provider/confirm/:id', controller.confirmAdVideoPost);
-router.get('/api/social/post-ad/jobs/:id',      controller.getAdVideoJobStatus);
+router.get('/api/social/post-ad/jobs/:id',               controller.getAdVideoJobStatus);
+router.get('/api/social/post-ad/jobs/:id/download',      controller.downloadAdVideoJob);
 router.get('/api/social/ad-posts',              controller.getAdPosts);
 
 // ─── Ad spaces (advertiser claims a creator's intro/middle/end slot) ─────────
@@ -103,7 +108,6 @@ router.patch('/api/wallet/withdrawal-request/:requestId/cancel', controller.canc
 router.get('/api/webhooks/instagram',         controller.instagramWebhook);
 
 module.exports = router;
-
 
 
 // 'use strict';

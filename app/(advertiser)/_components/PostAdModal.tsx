@@ -10,9 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
 
-// The creator never uploads their video file to Yepper anymore — they
-// publish it themselves and confirm the link back to us — so this is just a
-// couple of small JSON calls straight to the main API.
+// The video file goes straight to the backend (multipart), not through the
+// Vercel frontend proxy, since it can be multiple GB.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 // Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
@@ -50,13 +49,12 @@ function downloadImage(url: string) {
 
 // Extracted from connect-accounts/page.tsx's inline "Post Ad" modal so the
 // dashboard's right-rail "Add ad" action can reuse the exact same upload
-// flow (POST /api/social/post-ad/:provider, cookie auth, no other inputs
-// required) without duplicating it.
+// flow (POST /api/social/post-ad/:provider, cookie auth, multipart video)
+// without duplicating it.
 //
-// Advertisers' creatives never get burned into the video on Yepper's servers.
-// The creator downloads the claimed image(s) here, edits them into the
-// video themselves with their own tools, and uploads the finished file. This
-// route is a plain relay to YouTube; it doesn't inspect the video at all.
+// The creator uploads their raw video; Yepper injects the claimed
+// creative(s) server-side (ffmpeg, see runAdVideoJob) and the creator
+// downloads the processed file to publish themselves on YouTube.
 export default function PostAdModal({
   provider,
   open,
@@ -76,9 +74,11 @@ export default function PostAdModal({
   const [adUploadResult, setAdUploadResult]     = useState<{ trackingCode: string; videoUrl: string | null } | null>(null);
   const [adUploadError, setAdUploadError]       = useState('');
 
-  // Yepper no longer uploads on the creator's behalf — 'code' is the pending
-  // post (with a tracking code to paste into the description), waiting for
-  // them to publish it on their own channel and paste the link back here.
+  // Yepper injects the claimed creative(s) into the video server-side.
+  // 'job' tracks that processing job; once it's done, 'pendingPost' holds the
+  // tracking code (to paste into the description) and the download is ready.
+  const [jobId, setJobId]                       = useState<string | null>(null);
+  const [jobStatus, setJobStatus]               = useState<{ status: string; stage_message?: string; progress?: number } | null>(null);
   const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string } | null>(null);
   const [publishedUrl, setPublishedUrl]         = useState('');
   const [confirming, setConfirming]             = useState(false);
@@ -104,6 +104,8 @@ export default function PostAdModal({
       setAdUploading(false);
       setAdUploadResult(null);
       setAdUploadError('');
+      setJobId(null);
+      setJobStatus(null);
       setPendingPost(null);
       setPublishedUrl('');
       setConfirming(false);
@@ -114,6 +116,36 @@ export default function PostAdModal({
       setPendingClaims([]);
     }
   }, [open, provider]);
+
+  // Poll the processing job until it's done (or errors out).
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`);
+        const json = await res.json();
+        if (cancelled || !json?.success) return;
+        setJobStatus(json.data);
+        if (json.data.status === 'done') {
+          const result = json.data.result ? (typeof json.data.result === 'string' ? JSON.parse(json.data.result) : json.data.result) : null;
+          if (result) setPendingPost(result);
+          setAdUploading(false);
+        } else if (json.data.status === 'error') {
+          setAdUploadError(json.data.error_message || 'Processing failed, please try again');
+          setAdUploading(false);
+          setJobId(null);
+        } else {
+          setTimeout(tick, 2000);
+        }
+      } catch {
+        if (!cancelled) setTimeout(tick, 3000);
+      }
+    };
+    tick();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
 
   // Pull any ad spaces an advertiser has already claimed for this creator,
   // shown immediately, independent of picking a video, so the creator can
@@ -176,30 +208,35 @@ export default function PostAdModal({
     });
   };
 
-  // Step 1: get a tracking code. No file is sent — Yepper never touches the
-  // video itself, the creator publishes it on their own channel.
-  const handleGetCode = async () => {
-    if (!provider || adUploading) return;
+  // Step 1: upload the raw video — Yepper injects the claimed creative(s)
+  // server-side and queues a processing job.
+  const handleUpload = async () => {
+    if (!provider || !adFile || adUploading) return;
     setAdUploading(true);
     setAdUploadError('');
     try {
+      const form = new FormData();
+      form.append('video', adFile);
+      form.append('title', adTitle.trim() || adFile.name.replace(/\.[^.]+$/, '') || 'Ad Video');
+      form.append('description', adDescription.trim());
+      form.append('privacy', adPrivacy);
+      if (hasRelevantClaims && includedSlots.length) {
+        form.append('claimedSlotTypes', JSON.stringify(includedSlots));
+      }
       const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: adTitle.trim() || adFile?.name.replace(/\.[^.]+$/, '') || 'Ad Video',
-          description: adDescription.trim(),
-        }),
+        body: form,
       });
       const json = await res.json();
-      if (!json?.success || !json.data?.postId) {
-        setAdUploadError(json?.message || 'Could not get a tracking code, please try again');
+      if (!json?.success || !json.data?.jobId) {
+        setAdUploadError(json?.message || 'Could not start processing, please try again');
+        setAdUploading(false);
         return;
       }
-      setPendingPost(json.data);
+      setJobId(String(json.data.jobId));
+      setJobStatus({ status: 'queued', stage_message: 'Queued…', progress: 0 });
     } catch {
       setAdUploadError('Something went wrong, please try again');
-    } finally {
       setAdUploading(false);
     }
   };
@@ -249,15 +286,40 @@ export default function PostAdModal({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-lg font-bold text-(--color-white)">Post Ad: {provider.charAt(0).toUpperCase() + provider.slice(1)}</h3>
-            <p className="text-xs text-(--color-muted) mt-0.5">You publish the video yourself — we just give you a tracking code and verify it.</p>
+            <p className="text-xs text-(--color-muted) mt-0.5">Upload your video — we inject the ad, you download it and publish it yourself.</p>
           </div>
           <button onClick={close} disabled={adUploading} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
             <XMarkIcon className="w-5 h-5 text-(--color-muted)" />
           </button>
         </div>
 
-        {pendingPost ? (
+        {jobId && !pendingPost ? (
           <div className="space-y-4">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 text-center space-y-3">
+              <FilmIcon className="w-8 h-8 text-(--color-muted) mx-auto animate-pulse" />
+              <p className="text-sm font-medium text-(--color-white)">{jobStatus?.stage_message || 'Processing…'}</p>
+              <div className="w-full h-2 rounded-full bg-(--color-surface-3) overflow-hidden">
+                <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${jobStatus?.progress ?? 0}%` }} />
+              </div>
+              <p className="text-[10px] text-(--color-muted)">This can take a while for long videos — you can close this and check back.</p>
+            </div>
+            {adUploadError && (
+              <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
+            )}
+            <button onClick={close} className="w-full py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white)">
+              Close
+            </button>
+          </div>
+        ) : pendingPost ? (
+          <div className="space-y-4">
+            <a
+              href={`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              Download processed video
+            </a>
+
             <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-2">
               <p className="text-xs font-bold text-(--color-muted) uppercase">1. Add this to your description</p>
               <div className="flex items-start gap-2">
@@ -266,7 +328,7 @@ export default function PostAdModal({
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <p className="text-[10px] text-(--color-muted)">Publish your edited video on YouTube ({adPrivacy}) with this in the description.</p>
+              <p className="text-[10px] text-(--color-muted)">Publish the downloaded video on YouTube ({adPrivacy}) with this in the description.</p>
             </div>
 
             <div>
@@ -322,7 +384,7 @@ export default function PostAdModal({
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
                 <p className="text-xs font-bold text-emerald-400">Ad images ready for you to use</p>
                 <p className="text-[10px] text-(--color-muted)">
-                  Download these and edit them into your video yourself, then upload the finished file below.
+                  Claimed for your channel — pick the video below and Yepper will inject these automatically.
                 </p>
                 <div className="space-y-1.5">
                   {pendingClaims.map((claim) => (
@@ -346,7 +408,7 @@ export default function PostAdModal({
 
             {/* File picker */}
             <div>
-              <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Video File (optional — just to detect slots)</label>
+              <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Video File *</label>
               <input
                 ref={fileRef}
                 type="file"
@@ -360,10 +422,10 @@ export default function PostAdModal({
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-(--color-border) bg-(--color-surface-2) hover:bg-(--color-surface-3) transition-colors text-sm text-(--color-muted) disabled:opacity-50"
               >
                 <FilmIcon className="w-5 h-5 shrink-0" />
-                <span className="truncate">{adFile ? adFile.name : 'Choose your edited video file…'}</span>
+                <span className="truncate">{adFile ? adFile.name : 'Choose your raw video file…'}</span>
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
-              <p className="text-[10px] text-(--color-muted) mt-1">This file stays on your device — pick it only so we can figure out which ad slots apply. You&apos;ll publish it to YouTube yourself.</p>
+              <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}
@@ -449,12 +511,12 @@ export default function PostAdModal({
                 Cancel
               </button>
               <button
-                onClick={handleGetCode}
-                disabled={adUploading}
+                onClick={handleUpload}
+                disabled={!adFile || adUploading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white disabled:opacity-40"
               >
                 <CloudArrowUpIcon className="w-4 h-4" />
-                {adUploading ? 'Getting code…' : 'Get Tracking Code'}
+                {adUploading ? 'Uploading…' : 'Upload & Process'}
               </button>
             </div>
           </div>

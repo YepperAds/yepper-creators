@@ -34,6 +34,30 @@ const allowNullOriginPaths = [
 const normalizeOrigin = (origin) => (!origin ? null : origin.endsWith('/') ? origin.slice(0, -1) : origin);
 const shouldAllowNull = (path) => allowNullOriginPaths.some((p) => path.startsWith(p));
 
+const isAllowedHostname = (origin) => {
+  try {
+    const { hostname } = new URL(origin);
+    const host = hostname.toLowerCase();
+    const allowedHostnames = [
+      'localhost',
+      '127.0.0.1',
+      'yepper.cc',
+      'www.yepper.cc',
+      'yepper-creators-admin.yepper.cc',
+      'yepper-creators.onrender.com',
+      'yepper-creators-api.onrender.com',
+      'yepper-creators-admin.vercel.app',
+    ];
+
+    return allowedHostnames.includes(host)
+      || host.endsWith('.yepper.cc')
+      || host.endsWith('.vercel.app')
+      || host.endsWith('.onrender.com');
+  } catch {
+    return false;
+  }
+};
+
 function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
 
@@ -56,7 +80,7 @@ function corsMiddleware(req, res, next) {
     return next();
   }
 
-  if (allowedOrigins.includes(normalizedOrigin)) {
+  if (allowedOrigins.includes(normalizedOrigin) || isAllowedHostname(normalizedOrigin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');

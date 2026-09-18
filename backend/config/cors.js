@@ -14,6 +14,7 @@ const allowedOrigins = [
   'https://yepper-creators-admin.yepper.cc',
   'https://yepper-creators.onrender.com',
   'https://yepper.cc',
+  'https://www.yepper.cc',
   'https://yepper-creators-api.onrender.com',
   process.env.FRONTEND_URL,
   process.env.FRONTEND_ORIGIN,

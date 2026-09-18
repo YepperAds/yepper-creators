@@ -96,7 +96,7 @@ export default function HomeExplore({
             />
             <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
               <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
-              <DashboardFeed websites={displayWebsites} />
+              <DashboardFeed websites={displayWebsites} creators={displayCreators} />
             </div>
           </>
         ) : tab === 'deals' ? (
@@ -111,6 +111,7 @@ export default function HomeExplore({
     </div>
   );
 }
+
 
 
 

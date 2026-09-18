@@ -372,6 +372,37 @@ exports.logout = (req, res) => {
 
 // ─── Social stats ─────────────────────────────────────────────────────────────
 
+// Google verification for the youtube.readonly scope is still pending, so
+// "Connect YouTube" via OAuth shows Google's unverified-app warning to real
+// users. Until that clears, creators can add their channel manually instead
+// — same social_connections row, just no access_token, so nothing here
+// depends on Google's review finishing.
+exports.manualConnectSocial = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+  const { provider } = req.params;
+  if (!['youtube', 'tiktok'].includes(provider)) {
+    return res.status(400).json({ success: false, message: 'Unsupported provider' });
+  }
+  const { username, followers, avatar } = req.body;
+  if (!username || !String(username).trim()) {
+    return res.status(400).json({ success: false, message: 'Channel name is required' });
+  }
+  try {
+    await query(
+      `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, access_token, refresh_token, total_views, total_posts)
+       VALUES ($1,$2,$3,$4,$5,NULL,NULL,0,0)
+       ON CONFLICT (creator_id, provider) DO UPDATE SET
+         username=EXCLUDED.username, followers_count=EXCLUDED.followers_count, profile_url=EXCLUDED.profile_url`,
+      [session, provider, String(username).trim(), Number(followers) || 0, avatar ? String(avatar).trim() : null],
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[creators] manualConnectSocial error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save channel' });
+  }
+};
+
 exports.getSocialStats = async (req, res) => {
   const userUuid = req.query.user_uuid;
   if (!userUuid) return res.status(400).json({ success: false, message: 'user_uuid required' });

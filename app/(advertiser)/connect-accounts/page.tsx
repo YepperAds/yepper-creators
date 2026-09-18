@@ -81,10 +81,10 @@ const TIER_BADGE: Record<string, string> = {
 };
 
 const PLATFORMS = [
-  { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, statLabel: 'Subscribers' },
-  { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, statLabel: 'Followers' },
-  { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, statLabel: 'Followers' },
-  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, statLabel: 'Followers' },
+  { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, manual: true, statLabel: 'Subscribers' },
+  { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, manual: false, statLabel: 'Followers' },
+  { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, manual: false, statLabel: 'Followers' },
+  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, manual: true, statLabel: 'Followers' },
 ] as const;
 
 function PlatformIcon({ id }: { id: string }) {
@@ -136,6 +136,17 @@ export default function ConnectAccountsPage() {
   const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
   const [adTypeSaving, setAdTypeSaving] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+
+  // Google's OAuth verification for youtube.readonly is still pending — real
+  // (non-test) users hit Google's "unverified app" warning if we send them
+  // through the popup. Until that clears, YouTube (and TikTok, same OAuth
+  // review status) connect manually instead: no Google/TikTok auth at all.
+  const [manualProvider, setManualProvider] = useState<string | null>(null);
+  const [manualUsername, setManualUsername] = useState('');
+  const [manualFollowers, setManualFollowers] = useState('');
+  const [manualAvatar, setManualAvatar] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualError, setManualError] = useState('');
 
 
   const popupRef = useRef<Window | null>(null);
@@ -287,6 +298,15 @@ export default function ConnectAccountsPage() {
       return;
     }
 
+    if (platform?.manual) {
+      setManualProvider(provider);
+      setManualUsername('');
+      setManualFollowers('');
+      setManualAvatar('');
+      setManualError('');
+      return;
+    }
+
     // user.id is the creator's integer ID (always present in the session response)
     const creatorId = user?.id;
     if (!creatorId) { setError('Session missing. Please refresh and try again.'); return; }
@@ -346,6 +366,35 @@ export default function ConnectAccountsPage() {
       }, 1000);
     } catch {
       setError(`Failed to initiate ${provider} connection.`);
+    }
+  };
+
+  const handleManualConnect = async () => {
+    if (!manualProvider || !manualUsername.trim() || manualSaving) return;
+    setManualSaving(true);
+    setManualError('');
+    try {
+      const res = await fetch(`/api/social/manual-connect/${manualProvider}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: manualUsername.trim(),
+          followers: manualFollowers ? Number(manualFollowers) : 0,
+          avatar: manualAvatar.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!json?.success) {
+        setManualError(json?.message || 'Could not save that channel');
+        return;
+      }
+      setManualProvider(null);
+      fetchAll();
+    } catch {
+      setManualError('Network error, please try again');
+    } finally {
+      setManualSaving(false);
     }
   };
 
@@ -411,7 +460,7 @@ export default function ConnectAccountsPage() {
                   {platform.comingSoon && <span className="rounded bg-(--color-surface-3) px-1.5 py-0.5 text-[9px] font-bold uppercase text-(--color-muted)">Coming soon</span>}
                 </div>
                 <p className="text-[11px] text-(--color-muted)">
-                  {connected ? 'View analysis' : platform.comingSoon ? ' ' : socialLocked ? 'Locked for web developer flow' : `Connect ${platform.label}`}
+                  {connected ? 'View analysis' : platform.comingSoon ? ' ' : socialLocked ? 'Locked for web developer flow' : platform.manual ? `Add ${platform.label} manually` : `Connect ${platform.label}`}
                 </p>
               </div>
               {!connected && !platform.comingSoon && !socialLocked && <PlusCircleIcon className="w-5 h-5 text-(--color-muted)" />}
@@ -426,6 +475,60 @@ export default function ConnectAccountsPage() {
 
   return (
     <div className="relative">
+      {manualProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-(--color-white)">Add your {PLATFORMS.find(p => p.id === manualProvider)?.label} channel</h3>
+              <button onClick={() => setManualProvider(null)} className="p-1 rounded-full hover:bg-(--color-surface-2)">
+                <XMarkIcon className="w-6 h-6 text-(--color-muted)" />
+              </button>
+            </div>
+            <p className="text-xs text-(--color-muted) mb-4">
+              We're not pulling this automatically yet, so add it yourself — you can still claim ad slots, get paid, and post ads either way.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-(--color-muted) uppercase mb-1">Channel name *</label>
+                <input
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value)}
+                  placeholder="Your channel name"
+                  className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-(--color-muted) uppercase mb-1">Subscribers</label>
+                <input
+                  value={manualFollowers}
+                  onChange={(e) => setManualFollowers(e.target.value.replace(/[^\d]/g, ''))}
+                  placeholder="e.g. 12000"
+                  inputMode="numeric"
+                  className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-(--color-muted) uppercase mb-1">Profile picture URL (optional)</label>
+                <input
+                  value={manualAvatar}
+                  onChange={(e) => setManualAvatar(e.target.value)}
+                  placeholder="https://…"
+                  className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none"
+                />
+              </div>
+            </div>
+            {manualError && <p className="text-xs text-red-400 mt-3">{manualError}</p>}
+            <button
+              onClick={handleManualConnect}
+              disabled={!manualUsername.trim() || manualSaving}
+              className="mt-5 w-full py-3 rounded-xl bg-(--color-white) text-black text-sm font-bold disabled:opacity-40"
+            >
+              {manualSaving ? 'Saving…' : 'Add Channel'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {disconnectingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl w-full max-w-md p-6">
@@ -666,6 +769,7 @@ export default function ConnectAccountsPage() {
     </div>
   );
 }
+
 
 
 

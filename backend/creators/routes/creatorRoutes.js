@@ -36,6 +36,7 @@ router.get('/api/creators/public',              controller.getPublicCreators);
 
 // ─── Social stats ─────────────────────────────────────────────────────────────
 router.get('/api/social/stats',                 controller.getSocialStats);
+router.post('/api/social/manual-connect/:provider', controller.manualConnectSocial);
 router.get('/api/social/video-stats',           controller.getSocialVideoStats);
 router.post('/api/social/disconnect/:provider', controller.disconnectSocial);
 router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);

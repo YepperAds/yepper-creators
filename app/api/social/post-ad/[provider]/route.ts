@@ -3,22 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 const ADSENSE_API = process.env.ADSENSE_BACKEND_URL ?? 'http://localhost:5000';
 
 // Stream the multipart video upload directly to the backend without buffering it in memory.
-export async function POST(req: NextRequest, { params }: { params: any }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const resolvedParams = await params;
   const provider      = resolvedParams.provider;
   const cookieHeader  = req.headers.get('cookie') ?? '';
   const contentType   = req.headers.get('content-type') ?? '';
+  const authorization = req.headers.get('authorization');
 
   try {
     const upstream = await fetch(
       `${ADSENSE_API}/api/social/post-ad/${encodeURIComponent(provider)}`,
       {
         method:  'POST',
-        headers: { 'Content-Type': contentType, 'cookie': cookieHeader },
-        // @ts-ignore: readable stream body with duplex streaming
+        headers: {
+          'Content-Type': contentType,
+          'cookie': cookieHeader,
+          ...(authorization ? { authorization } : {}),
+        },
         body:    req.body,
         duplex:  'half',
-      } as RequestInit,
+      } as RequestInit & { duplex: 'half' },
     );
 
     const text        = await upstream.text();

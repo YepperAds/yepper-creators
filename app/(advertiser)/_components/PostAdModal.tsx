@@ -10,10 +10,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
 
-// The video file goes straight to the backend (multipart), not through the
-// Vercel frontend proxy, since it can be multiple GB.
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
-
 // Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
 // no choice. 5 minutes or longer: three candidate slots open up (just after
 // the 5-minute mark, the middle, and the 80%-through point), and an
@@ -95,6 +91,15 @@ export default function PostAdModal({
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  const authedFetch = (url: string, init: RequestInit = {}) => {
+    const token = getToken();
+    return fetch(url, {
+      ...init,
+      credentials: 'include',
+      headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  };
+
   useEffect(() => {
     if (open) {
       setAdFile(null);
@@ -123,7 +128,7 @@ export default function PostAdModal({
     let cancelled = false;
     const tick = async () => {
       try {
-        const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`);
+        const res = await authedFetch(`/api/social/post-ad/jobs/${jobId}`);
         const json = await res.json();
         if (cancelled || !json?.success) return;
         setJobStatus(json.data);
@@ -199,15 +204,6 @@ export default function PostAdModal({
 
   const close = () => { if (!adUploading) onClose(); };
 
-  const authedFetch = (url: string, init: RequestInit = {}) => {
-    const token = getToken();
-    return fetch(url, {
-      ...init,
-      credentials: 'include',
-      headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-  };
-
   // Step 1: upload the raw video — Yepper injects the claimed creative(s)
   // server-side and queues a processing job.
   const handleUpload = async () => {
@@ -223,7 +219,7 @@ export default function PostAdModal({
       if (hasRelevantClaims && includedSlots.length) {
         form.append('claimedSlotTypes', JSON.stringify(includedSlots));
       }
-      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}`, {
+      const res = await authedFetch(`/api/social/post-ad/${provider}`, {
         method: 'POST',
         body: form,
       });
@@ -249,7 +245,7 @@ export default function PostAdModal({
     setConfirming(true);
     setAdUploadError('');
     try {
-      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
+      const res = await authedFetch(`/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -313,7 +309,7 @@ export default function PostAdModal({
         ) : pendingPost ? (
           <div className="space-y-4">
             <a
-              href={`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`}
+              href={`/api/social/post-ad/jobs/${jobId}/download`}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white"
             >
               <ArrowDownTrayIcon className="w-4 h-4" />

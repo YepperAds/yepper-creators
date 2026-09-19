@@ -279,6 +279,29 @@ export default function PostAdModal({
     });
   };
 
+  const downloadProcessedVideo = async () => {
+    if (!jobId) return;
+    setAdUploadError('');
+    try {
+      const response = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`);
+      if (!response.ok) {
+        const message = await response.json().catch(() => null);
+        setAdUploadError(message?.message || `Download failed (${response.status})`);
+        return;
+      }
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'yepper-processed-video.mp4';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      setAdUploadError('Could not download the processed video, please try again');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -312,13 +335,14 @@ export default function PostAdModal({
           </div>
         ) : pendingPost ? (
           <div className="space-y-4">
-            <a
-              href={`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`}
+            <button
+              type="button"
+              onClick={downloadProcessedVideo}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white"
             >
               <ArrowDownTrayIcon className="w-4 h-4" />
               Download processed video
-            </a>
+            </button>
 
             <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-2">
               <p className="text-xs font-bold text-(--color-muted) uppercase">1. Add this to your description</p>

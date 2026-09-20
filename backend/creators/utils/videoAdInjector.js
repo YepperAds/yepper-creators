@@ -16,7 +16,7 @@ const FADE_SEC      = 0.4;
 const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
 
 function getAdSlots(duration) {
-  if (duration < SHORT_VIDEO_THRESHOLD_SEC) {
+  if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
     return [{ key: 'middle', time: duration / 2 }];
   }
   return [
@@ -164,9 +164,7 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
       .sort((a, b) => a.time - b.time);
 
     if (!activeSlots.length) {
-      fs.copyFileSync(srcPath, outPath);
-      onProgress(100, 'Done');
-      return;
+      throw new Error('Selected ad claims do not match any available slot in this video');
     }
 
     onProgress(15, 'Downloading creative(s)…');

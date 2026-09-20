@@ -30,7 +30,7 @@ interface AdSlot { key: string; label: string; time: number; }
 interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
 
 function getAdSlots(duration: number): AdSlot[] {
-  if (duration < SHORT_VIDEO_THRESHOLD_SEC) {
+  if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
     return [{ key: 'middle', label: `Middle (${formatTime(duration / 2)})`, time: duration / 2 }];
   }
   return [
@@ -184,7 +184,7 @@ export default function PostAdModal({
   }, [adFile]);
 
   const claimedSlotKeys      = new Set(pendingClaims.map((c) => c.slotType));
-  const isShortVideo         = videoDuration != null && videoDuration < SHORT_VIDEO_THRESHOLD_SEC;
+  const isShortVideo         = videoDuration != null && videoDuration <= SHORT_VIDEO_THRESHOLD_SEC;
   const adSlots               = videoDuration != null ? getAdSlots(videoDuration) : [];
   const relevantClaimedSlots = adSlots.filter((s) => claimedSlotKeys.has(s.key));
   const hasRelevantClaims    = relevantClaimedSlots.length > 0;

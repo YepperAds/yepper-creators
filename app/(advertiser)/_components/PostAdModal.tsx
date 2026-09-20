@@ -10,9 +10,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
 
-// Use the same-origin Next.js proxy so browser uploads, polling, and downloads
-// never depend on a cross-origin backend URL or a stale Render CORS config.
-// The proxy forwards the streaming multipart body and authorization header.
+// Large videos go directly to the paid backend so they do not pass through
+// the frontend deployment's request-size and execution limits.
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 // Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
 // no choice. 5 minutes or longer: three candidate slots open up (just after
@@ -132,7 +132,7 @@ export default function PostAdModal({
     let cancelled = false;
     const tick = async () => {
       try {
-        const res = await authedFetch(`/api/social/post-ad/jobs/${jobId}`);
+        const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`);
         const json = await res.json();
         if (cancelled || !json?.success) return;
         setJobStatus(json.data);
@@ -223,7 +223,7 @@ export default function PostAdModal({
       if (hasRelevantClaims && includedSlots.length) {
         form.append('claimedSlotTypes', JSON.stringify(includedSlots));
       }
-      const res = await authedFetch(`/api/social/post-ad/${provider}`, {
+      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}`, {
         method: 'POST',
         body: form,
       });
@@ -249,7 +249,7 @@ export default function PostAdModal({
     setConfirming(true);
     setAdUploadError('');
     try {
-      const res = await authedFetch(`/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
+      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -283,7 +283,7 @@ export default function PostAdModal({
     if (!jobId) return;
     setAdUploadError('');
     try {
-      const response = await authedFetch(`/api/social/post-ad/jobs/${jobId}/download`);
+      const response = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`);
       if (!response.ok) {
         const message = await response.json().catch(() => null);
         setAdUploadError(message?.message || `Download failed (${response.status})`);

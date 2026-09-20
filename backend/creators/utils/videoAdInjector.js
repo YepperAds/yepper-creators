@@ -12,6 +12,7 @@ const FFMPEG  = process.env.FFMPEG_PATH  || 'ffmpeg';
 const FFPROBE = process.env.FFPROBE_PATH || 'ffprobe';
 const AD_WINDOW_SEC = 6;       // how long the creative stays on screen per slot
 const FADE_SEC      = 0.4;
+const INTRO_SLOT_SEC = 30;
 
 const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
 
@@ -20,7 +21,7 @@ function getAdSlots(duration) {
     return [{ key: 'middle', time: duration / 2 }];
   }
   return [
-    { key: 'intro',  time: SHORT_VIDEO_THRESHOLD_SEC },
+    { key: 'intro',  time: INTRO_SLOT_SEC },
     { key: 'middle', time: duration / 2 },
     { key: 'end',    time: duration * 0.8 },
   ];
@@ -101,7 +102,8 @@ function buildOverlayFilter({ adType, adSize, segDuration }) {
 // final concat (-c copy) doesn't choke on mismatched streams.
 async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize, videoCodec, audioCodec, outPath }) {
   const { filter, inputsPerSlot } = buildOverlayFilter({ adType, adSize, segDuration: dur });
-  const imageInputs = inputsPerSlot === 2 ? ['-i', imagePath, '-i', imagePath] : ['-i', imagePath];
+  const imageInput = ['-loop', '1', '-framerate', '30', '-i', imagePath];
+  const imageInputs = inputsPerSlot === 2 ? [...imageInput, ...imageInput] : imageInput;
   const vOutLabel = inputsPerSlot === 2 ? '[vout]' : '[vout]';
 
   const args = [
@@ -113,6 +115,7 @@ async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize,
     '-c:v', videoCodec === 'h264' ? 'libx264' : 'libx264',
     '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',
+    '-shortest',
     outPath,
   ];
   await run(FFMPEG, args);

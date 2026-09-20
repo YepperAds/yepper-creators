@@ -19,6 +19,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 // the 5-minute mark, the middle, and the 80%-through point), and an
 // advertiser can claim any one of them.
 const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
+const INTRO_SLOT_SEC = 30;
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -34,7 +35,7 @@ function getAdSlots(duration: number): AdSlot[] {
     return [{ key: 'middle', label: `Middle (${formatTime(duration / 2)})`, time: duration / 2 }];
   }
   return [
-    { key: 'intro',  label: `After intro (${formatTime(SHORT_VIDEO_THRESHOLD_SEC)})`, time: SHORT_VIDEO_THRESHOLD_SEC },
+    { key: 'intro',  label: `After intro (${formatTime(INTRO_SLOT_SEC)})`, time: INTRO_SLOT_SEC },
     { key: 'middle', label: `Middle (${formatTime(duration / 2)})`,                   time: duration / 2 },
     { key: 'end',    label: `Near the end (${formatTime(duration * 0.8)})`,           time: duration * 0.8 },
   ];

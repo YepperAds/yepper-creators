@@ -16,10 +16,8 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 15 * 60;
 
-// Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
-// no choice. 5 minutes or longer: three candidate slots open up (just after
-// the 5-minute mark, the middle, and the 80%-through point), and an
-// advertiser can claim any one of them.
+// Videos longer than 30 seconds always expose the claimed intro slot at 0:30.
+// Videos over five minutes also expose middle and end candidates.
 const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
 const INTRO_SLOT_SEC = 30;
 
@@ -34,7 +32,7 @@ interface PendingClaim { slotType: string; imageUrl: string; adType: string; adS
 
 function getAdSlots(duration: number): AdSlot[] {
   if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
-    return [{ key: 'middle', label: `Middle (${formatTime(duration / 2)})`, time: duration / 2 }];
+    return [{ key: 'intro', label: `After intro (${formatTime(INTRO_SLOT_SEC)})`, time: INTRO_SLOT_SEC }];
   }
   return [
     { key: 'intro',  label: `After intro (${formatTime(INTRO_SLOT_SEC)})`, time: INTRO_SLOT_SEC },
@@ -475,7 +473,7 @@ export default function PostAdModal({
             {showSlotConfirmPanel && (
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-3 space-y-3">
                 {isShortVideo ? (
-                  <p className="text-xs text-(--color-white)">This video is under 5 minutes, so it only has the middle slot.</p>
+                  <p className="text-xs text-(--color-white)">This video uses the intro slot at 0:30.</p>
                 ) : (
                   <p className="text-xs font-bold text-(--color-white)">Which placements did you include in this edit?</p>
                 )}

@@ -18,7 +18,7 @@ const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
 
 function getAdSlots(duration) {
   if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
-    return [{ key: 'middle', time: duration / 2 }];
+    return [{ key: 'intro', time: INTRO_SLOT_SEC }];
   }
   return [
     { key: 'intro',  time: INTRO_SLOT_SEC },

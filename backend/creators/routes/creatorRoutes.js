@@ -9,6 +9,8 @@ const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
 const claimPayment = require('../controllers/youtubeClaimPaymentController');
 
+const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 750);
+
 const videoUpload = multer({
   // The creator edits the advertiser's creative into their video themselves
   // (downloaded from their pending claims) before uploading it here — this
@@ -17,10 +19,10 @@ const videoUpload = multer({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
     filename:    (req, file, cb) => cb(null, `ypr_ad_video_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
   }),
-  // 2GB — multer's diskStorage streams straight to disk rather than
+  // Multer's diskStorage streams straight to disk rather than
   // buffering in memory, so this is just a ceiling on source footage size,
-  // not a RAM concern. Needed for multi-hour creator uploads.
-  limits:     { fileSize: 2 * 1024 * 1024 * 1024 },
+  // not a RAM concern. Keep the default conservative for small Render plans.
+  limits:     { fileSize: MAX_VIDEO_SIZE_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => (file.mimetype.startsWith('video/') ? cb(null, true) : cb(new Error('Only video files allowed'))),
 });
 

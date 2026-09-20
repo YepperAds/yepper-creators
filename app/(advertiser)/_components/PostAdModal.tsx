@@ -13,6 +13,8 @@ import { getToken } from '@/app/(adsense)/utils/token';
 // Large videos go directly to the paid backend so they do not pass through
 // the frontend deployment's request-size and execution limits.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
+const MAX_VIDEO_DURATION_SEC = 15 * 60;
 
 // Under 5 minutes: the video gets exactly one ad slot, forced to the middle;
 // no choice. 5 minutes or longer: three candidate slots open up (just after
@@ -178,6 +180,9 @@ export default function PostAdModal({
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
+      if (video.duration > MAX_VIDEO_DURATION_SEC) {
+        setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
+      }
       URL.revokeObjectURL(url);
     };
     video.src = url;
@@ -213,6 +218,18 @@ export default function PostAdModal({
   // server-side and queues a processing job.
   const handleUpload = async () => {
     if (!provider || !adFile || adUploading) return;
+    if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
+      setAdUploadError('Video is too large. Please choose a file no larger than 750 MB.');
+      return;
+    }
+    if (videoDuration == null) {
+      setAdUploadError('Still reading the video length. Please try again in a moment.');
+      return;
+    }
+    if (videoDuration > MAX_VIDEO_DURATION_SEC) {
+      setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
+      return;
+    }
     setAdUploading(true);
     setAdUploadError('');
     try {
@@ -451,6 +468,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
+              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB and 15 minutes. Desktop Chrome or Edge recommended.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

@@ -1,0 +1,19 @@
+# Only deploy the root Next.js app. These are backend, legacy app, or local-only files.
+backend/
+AdminPanelFrontend/
+app/photos/
+md Plans/
+Microsoft/
+db/
+yepper-adspace-images/
+TNT Advertising Rates.pdf
+README.md
+structure.txt
+tsc-errors.txt
+app.zip
+
+# Local/build metadata
+.git/
+.next/
+node_modules/
+.vercel/

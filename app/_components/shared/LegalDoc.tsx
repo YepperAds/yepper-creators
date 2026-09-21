@@ -1,6 +1,27 @@
 import HomeHeader from '@/app/_components/home/HomeHeader';
 import type { LegalSection } from './LegalContent';
 
+// Turns plain-text URLs inside a policy point into real links (needed so
+// Google's reviewers can click through to the YouTube Terms / Google Privacy
+// Policy / permissions page referenced in the policy text).
+function linkify(text: string) {
+  return text.split(/(https?:\/\/[^\s)]+)/g).map((part, i) =>
+    i % 2 === 1 ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline text-[color:var(--mkt-ink)] break-words"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 // Big editorial legal-document layout shared by /privacy and /terms: a
 // short label + huge headline + intro up top, then each section as a
 // title/numbered-points row, matching how real legal pages (not fake
@@ -51,7 +72,7 @@ export default function LegalDoc({
                 {section.title}
               </h2>
               <ol className="space-y-4 text-base text-[color:var(--mkt-ink-muted)] leading-relaxed list-decimal list-outside pl-5 marker:font-bold marker:text-[color:var(--mkt-ink)]">
-                {section.points.map((point, i) => <li key={i} className="pl-1">{point}</li>)}
+                {section.points.map((point, i) => <li key={i} className="pl-1">{linkify(point)}</li>)}
               </ol>
             </div>
           ))}

@@ -15,6 +15,8 @@ import { getToken } from '@/app/(adsense)/utils/token';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 15 * 60;
+const MAX_VIDEO_WIDTH = 1920;
+const MAX_VIDEO_HEIGHT = 1080;
 
 // Videos longer than 30 seconds always expose the claimed intro slot at 0:30.
 // Videos over five minutes also expose middle and end candidates.
@@ -89,6 +91,7 @@ export default function PostAdModal({
   // (via "Collaborate with [creator]" on the homepage), downloadable here so
   // the creator can edit them into their video before uploading it.
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
+  const [videoResolutionValid, setVideoResolutionValid] = useState<boolean | null>(null);
   const [includedSlots, setIncludedSlots]       = useState<string[]>([]);
   const [pendingClaims, setPendingClaims]       = useState<PendingClaim[]>([]);
 
@@ -121,6 +124,7 @@ export default function PostAdModal({
       setConfirming(false);
       setCopied(false);
       setVideoDuration(null);
+      setVideoResolutionValid(null);
       setIncludedSlots([]);
       setPrevSlotsKey('');
       setPendingClaims([]);
@@ -172,7 +176,7 @@ export default function PostAdModal({
   // decides whether this is a "forced single mid-roll" video (<5min) or a
   // "pick your slots" video (5min+).
   useEffect(() => {
-    if (!adFile) { setVideoDuration(null); return; }
+    if (!adFile) { setVideoDuration(null); setVideoResolutionValid(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -180,6 +184,12 @@ export default function PostAdModal({
       setVideoDuration(video.duration);
       if (video.duration > MAX_VIDEO_DURATION_SEC) {
         setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
+        setVideoResolutionValid(false);
+      } else if (video.videoWidth > MAX_VIDEO_WIDTH || video.videoHeight > MAX_VIDEO_HEIGHT) {
+        setAdUploadError('Video resolution is too high. Please export it at 1080p or lower.');
+        setVideoResolutionValid(false);
+      } else {
+        setVideoResolutionValid(true);
       }
       URL.revokeObjectURL(url);
     };
@@ -228,6 +238,7 @@ export default function PostAdModal({
       setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
       return;
     }
+    if (videoResolutionValid === false) return;
     setAdUploading(true);
     setAdUploadError('');
     try {
@@ -466,7 +477,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB and 15 minutes. Desktop Chrome or Edge recommended.</p>
+              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 15 minutes, and 1080p. Desktop Chrome or Edge recommended.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

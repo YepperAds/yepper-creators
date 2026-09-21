@@ -1290,7 +1290,10 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
   } catch (err) {
     cleanup();
     console.error(`[creators] adVideoJob#${jobId} error:`, err?.stack || err);
-    await updateAdVideoJob(jobId, { status: 'error', error_message: 'Processing failed unexpectedly' }).catch(() => {});
+    await updateAdVideoJob(jobId, {
+      status: 'error',
+      error_message: err?.message || 'Processing failed unexpectedly',
+    }).catch(() => {});
   } finally {
     clearInterval(memSampler);
     console.log(`[memlog] adVideoJob#${jobId}:PEAK RSS = ${(peakRss / 1024 / 1024).toFixed(1)}MB`);

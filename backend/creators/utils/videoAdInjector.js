@@ -110,10 +110,12 @@ async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize,
     '-y',
     '-ss', String(start), '-t', String(dur), '-i', srcPath,
     ...imageInputs,
+    '-filter_complex_threads', '1',
+    '-filter_threads', '1',
     '-filter_complex', filter,
     '-map', vOutLabel, '-map', '0:a?',
-    '-c:v', videoCodec === 'h264' ? 'libx264' : 'libx264',
-    '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p',
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast', '-threads', '1', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',
     '-shortest',
     outPath,
@@ -153,6 +155,10 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
     const duration = parseFloat(info.format?.duration || '0');
     const vStream = (info.streams || []).find((s) => s.codec_type === 'video');
     const videoCodec = vStream?.codec_name || 'h264';
+
+    if (vStream?.width > 1920 || vStream?.height > 1080) {
+      throw new Error('Video resolution is too high; export the video at 1080p or lower');
+    }
 
     if (!duration || !claims.length) {
       fs.copyFileSync(srcPath, outPath);

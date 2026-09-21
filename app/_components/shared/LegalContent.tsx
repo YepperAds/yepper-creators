@@ -24,10 +24,19 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     ],
   },
   {
+    title: 'Video processing',
+    points: [
+      'If you upload a video for Yepper to insert an advertiser\u2019s ad creative into, that file is processed on our servers solely to add the ad.',
+      'Yepper does not publish, upload, or post that video anywhere. The finished file is made available for you to download and publish yourself, on your own channel, at your own discretion.',
+      'Your original uploaded file is deleted from our servers as soon as processing finishes. The finished (ad-inserted) file is kept for 24 hours so you have time to download it, then automatically deleted.',
+    ],
+  },
+  {
     title: 'Google user data & the API Services User Data Policy',
     points: [
       'Yepper\u2019s use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.',
-      'Data obtained through Google sign-in or the YouTube API (such as your channel and video statistics) is used only to power the features you see in Yepper \u2014 connecting your channel, showing analytics, and matching you with ad bookings.',
+      'Where you connect your channel, we read your channel\u2019s subscriber count and profile picture through the YouTube API, using the access you\u2019ve granted, to display them on your Yepper dashboard.',
+      'Separately, to track the performance of an ad you\u2019ve published, we look up the public view and engagement statistics of that specific video through the YouTube Data API, using its video ID \u2014 this uses a general API key, not your personal Google account access, and only looks up videos identified by their tracking code.',
       'We do not use Google user data to serve ads, and we do not sell, rent, or transfer it to third parties, except where necessary to run the service (e.g. our payment processor for payouts) or where required by law.',
       'Access to Google user data within our systems is limited to the staff and automated processes that need it to operate the feature it supports.',
       'You can revoke Yepper\u2019s access to your Google account at any time from your Google Account permissions page.',
@@ -90,6 +99,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     points: [
       'You must own or have the right to list any website or channel you connect.',
       'Any ad creative you post must comply with the destination platform\u2019s own policies (e.g. YouTube\u2019s ad and content guidelines).',
+      'If you upload a video for Yepper to insert an ad creative into, you confirm you own or have the right to use that video, and you are responsible for publishing the finished result yourself, in compliance with the destination platform\u2019s policies.',
     ],
   },
   {
@@ -143,7 +153,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Contact us',
     points: [
-      'Questions about these terms can be sent to support@yepper.cc.',
+      'Questions about these terms can be sent to yepperads@gmail.com',
     ],
   },
 ];

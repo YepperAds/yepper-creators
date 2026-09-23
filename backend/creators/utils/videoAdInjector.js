@@ -93,10 +93,6 @@ function buildOverlayFilter({ adType, adSize, segDuration }) {
     inputsPerSlot: 1,
     filter:
       `[1:v]scale=iw*${ratio}:-1,pad=iw+16:ih+16:8:8:color=white,format=rgba,` +
-      `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lt(X,22)*lt(Y,22)\\,if(gt((X-22)*(X-22)+(Y-22)*(Y-22)\\,22*22)\\,0\\,255)\\,` +
-      `if(gt(X,W-22)*lt(Y,22)\\,if(gt((X-(W-22))*(X-(W-22))+(Y-22)*(Y-22)\\,22*22)\\,0\\,255)\\,` +
-      `if(lt(X,22)*gt(Y,H-22)\\,if(gt((X-22)*(X-22)+(Y-(H-22))*(Y-(H-22))\\,22*22)\\,0\\,255)\\,` +
-      `if(gt(X,W-22)*gt(Y,H-22)\\,if(gt((X-(W-22))*(X-(W-22))+(Y-(H-22))*(Y-(H-22))\\,22*22)\\,0\\,255)\\,255)))),` +
       `fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1[badge];` +
       `[0:v][badge]overlay=x=W-w-20:y=H-h-20[vout]`,
   };

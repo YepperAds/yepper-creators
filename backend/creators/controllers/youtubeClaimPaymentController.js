@@ -52,6 +52,21 @@ exports.initiateClaimPayment = async (req, res) => {
     if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
     const adType = creatorRes.rows[0].ad_type_preference || 'corner';
 
+    // Leaving Flutterwave before payment verification means its callback never
+    // runs, so the unpaid row would otherwise hold the slot's unique lock
+    // forever. A retry by the same advertiser may replace its own abandoned
+    // checkout; unpaid checkouts from anyone else expire after 15 minutes.
+    await query(
+      `UPDATE youtube_ad_claims
+       SET status = 'cancelled', payment_status = 'cancelled'
+       WHERE creator_id = $1
+         AND slot_type = $2
+         AND status = 'pending'
+         AND payment_status <> 'paid'
+         AND (advertiser_id = $3 OR created_at < NOW() - INTERVAL '15 minutes')`,
+      [creatorId, slotType, String(advertiserId)],
+    );
+
     const subsRes = await query(
       `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
       [creatorId],

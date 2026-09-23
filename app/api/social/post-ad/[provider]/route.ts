@@ -25,12 +25,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pro
       } as RequestInit & { duplex: 'half' },
     );
 
-    const text        = await upstream.text();
-    const jsonContent = upstream.headers.get('content-type')?.includes('application/json');
-    if (jsonContent) {
-      return NextResponse.json(JSON.parse(text), { status: upstream.status });
+    const text = await upstream.text();
+    const contentType = upstream.headers.get('content-type') ?? '';
+    const isJson = contentType.includes('application/json');
+
+    if (!text) {
+      return NextResponse.json({ success: upstream.ok }, { status: upstream.status });
     }
-    return NextResponse.json({ success: upstream.ok }, { status: upstream.status });
+
+    if (isJson || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try {
+        const payload = JSON.parse(text);
+        return NextResponse.json(payload, { status: upstream.status });
+      } catch {
+        return NextResponse.json({ success: false, message: text, error: text }, { status: upstream.status });
+      }
+    }
+
+    return NextResponse.json({ success: upstream.ok, message: text }, { status: upstream.status });
   } catch (err) {
     console.error('[proxy] post-ad error:', err);
     return NextResponse.json({ success: false, message: 'Upload proxy error' }, { status: 500 });

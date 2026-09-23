@@ -118,6 +118,7 @@ async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize,
     '-c:v', 'libx264',
     '-preset', 'ultrafast', '-threads', '1', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',
+    '-avoid_negative_ts', 'make_zero',
     '-shortest',
     outPath,
   ];
@@ -129,7 +130,7 @@ async function cutSegmentCopy({ srcPath, start, end, outPath }) {
   const args = ['-y'];
   if (start != null) args.push('-ss', String(start));
   args.push('-i', srcPath);
-  if (end != null) args.push('-to', String(end - (start || 0)));
+  if (end != null) args.push('-t', String(end - (start || 0)));
   args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero', outPath);
   await run(FFMPEG, args);
 }
@@ -137,7 +138,7 @@ async function cutSegmentCopy({ srcPath, start, end, outPath }) {
 async function concatCopy(pieces, outPath) {
   const listPath = outPath + '.list.txt';
   fs.writeFileSync(listPath, pieces.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'));
-  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outPath]);
+  await run(FFMPEG, ['-y', '-fflags', '+genpts', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-avoid_negative_ts', 'make_zero', outPath]);
   fs.unlinkSync(listPath);
 }
 

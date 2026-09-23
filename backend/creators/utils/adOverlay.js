@@ -15,9 +15,9 @@ const AD_FORMATS = {
     label: 'Corner Badge',
     description: 'A small badge that pops up in a corner of the video and fades in/out without covering the content.',
     sizes: {
-      small:  { ratio: 0.15 },
-      medium: { ratio: 0.22 },
-      large:  { ratio: 0.30 },
+      small:  { ratio: 0.20 },
+      medium: { ratio: 0.28 },
+      large:  { ratio: 0.36 },
     },
   },
   lbar: {

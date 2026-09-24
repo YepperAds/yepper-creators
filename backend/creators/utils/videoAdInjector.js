@@ -164,18 +164,18 @@ function buildContinuousOverlayFilter({ activeSlots, duration }) {
       inputs.push({ imagePath: slot.imagePath });
       inputs.push({ imagePath: slot.imagePath });
       filters.push(
-        `[${leftInput}:v]scale=iw*${sizes.vRatio}:ih,format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS+${start}/TB${leftLabel};`,
-        `[${bottomInput}:v]scale=iw:ih*${sizes.hRatio},format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS+${start}/TB${bottomLabel};`,
-        `${currentVideo}${leftLabel}overlay=x=0:y=0:eof_action=pass:repeatlast=0[tmp${slotIndex}];`,
-        `[tmp${slotIndex}]${bottomLabel}overlay=x=0:y=H-h:eof_action=pass:repeatlast=0${outputLabel}`,
+        `[${leftInput}:v]scale=iw*${sizes.vRatio}:ih,format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS-STARTPTS+${start}/TB${leftLabel};`,
+        `[${bottomInput}:v]scale=iw:ih*${sizes.hRatio},format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS-STARTPTS+${start}/TB${bottomLabel};`,
+        `${currentVideo}${leftLabel}overlay=x=0:y=0:enable='between(t,${start},${end})':eof_action=pass:repeatlast=0[tmp${slotIndex}];`,
+        `[tmp${slotIndex}]${bottomLabel}overlay=x=0:y=H-h:enable='between(t,${start},${end})':eof_action=pass:repeatlast=0${outputLabel}`,
       );
     } else {
       const badgeLabel = `[badge${slotIndex}]`;
       const imageInput = inputIndex++;
       inputs.push({ imagePath: slot.imagePath });
       filters.push(
-        `[${imageInput}:v]scale=iw*${sizes.ratio}:-1,pad=iw+16:ih+16:8:8:color=white,format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS+${start}/TB${badgeLabel};`,
-        `${currentVideo}${badgeLabel}overlay=x=W-w-20:y=H-h-20:eof_action=pass:repeatlast=0${outputLabel}`,
+        `[${imageInput}:v]scale=iw*${sizes.ratio}:-1,pad=iw+16:ih+16:8:8:color=white,format=rgba,fade=t=in:st=0:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1,trim=duration=${end - start},setpts=PTS-STARTPTS+${start}/TB${badgeLabel};`,
+        `${currentVideo}${badgeLabel}overlay=x=W-w-20:y=H-h-20:enable='between(t,${start},${end})':eof_action=pass:repeatlast=0${outputLabel}`,
       );
     }
     currentVideo = outputLabel;
@@ -249,4 +249,4 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
   }
 }
 
-module.exports = { injectAds, getAdSlots, AD_WINDOW_SEC };
+module.exports = { injectAds, getAdSlots, AD_WINDOW_SEC, buildContinuousOverlayFilter };

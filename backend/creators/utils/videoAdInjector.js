@@ -142,6 +142,61 @@ async function concatCopy(pieces, outPath) {
   fs.unlinkSync(listPath);
 }
 
+function buildContinuousOverlayFilter({ activeSlots, duration }) {
+  const filters = [];
+  const inputs = [];
+  let currentVideo = '[0:v]';
+  let inputIndex = 1;
+
+  activeSlots.forEach((slot, slotIndex) => {
+    const start = Number(slot.time.toFixed(3));
+    const end = Number(Math.min(duration, slot.time + AD_WINDOW_SEC).toFixed(3));
+    const fadeOutStart = Math.max(start, end - FADE_SEC).toFixed(3);
+    const fmt = AD_FORMATS[slot.claim.adType] || AD_FORMATS.corner;
+    const sizes = fmt.sizes[slot.claim.adSize] || fmt.sizes.medium;
+    const outputLabel = `[overlay${slotIndex}]`;
+
+    if (slot.claim.adType === 'lbar') {
+      const leftLabel = `[left${slotIndex}]`;
+      const bottomLabel = `[bottom${slotIndex}]`;
+      const leftInput = inputIndex++;
+      const bottomInput = inputIndex++;
+      inputs.push({ imagePath: slot.imagePath });
+      inputs.push({ imagePath: slot.imagePath });
+      filters.push(
+        `[${leftInput}:v]scale=iw*${sizes.vRatio}:ih,format=rgba,fade=t=in:st=${start}:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1${leftLabel};`,
+        `[${bottomInput}:v]scale=iw:ih*${sizes.hRatio},format=rgba,fade=t=in:st=${start}:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1${bottomLabel};`,
+        `${currentVideo}${leftLabel}overlay=x=0:y=0:enable='between(t\\,${start}\\,${end})'[tmp${slotIndex}];`,
+        `[tmp${slotIndex}]${bottomLabel}overlay=x=0:y=H-h:enable='between(t\\,${start}\\,${end})'${outputLabel}`,
+      );
+    } else {
+      const badgeLabel = `[badge${slotIndex}]`;
+      const imageInput = inputIndex++;
+      inputs.push({ imagePath: slot.imagePath });
+      filters.push(
+        `[${imageInput}:v]scale=iw*${sizes.ratio}:-1,pad=iw+16:ih+16:8:8:color=white,format=rgba,fade=t=in:st=${start}:d=${FADE_SEC}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SEC}:alpha=1${badgeLabel};`,
+        `${currentVideo}${badgeLabel}overlay=x=W-w-20:y=H-h-20:enable='between(t\\,${start}\\,${end})'${outputLabel}`,
+      );
+    }
+    currentVideo = outputLabel;
+  });
+
+  return { filter: filters.join(''), inputs, outputLabel: currentVideo };
+}
+
+async function renderContinuousVideo({ srcPath, outPath, activeSlots, duration }) {
+  const { filter, inputs, outputLabel } = buildContinuousOverlayFilter({ activeSlots, duration });
+  const args = ['-y', '-i', srcPath];
+  for (const input of inputs) args.push('-loop', '1', '-framerate', '30', '-i', input.imagePath);
+  args.push(
+    '-filter_complex_threads', '1', '-filter_threads', '1', '-filter_complex', filter,
+    '-map', outputLabel, '-map', '0:a?', '-c:v', 'libx264', '-preset', 'ultrafast',
+    '-threads', '1', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
+    '-t', String(duration), '-avoid_negative_ts', 'make_zero', outPath,
+  );
+  await run(FFMPEG, args);
+}
+
 /**
  * Injects each claimed slot's creative into `srcPath` and writes the result
  * to `outPath`. `claims` is [{ slotType, imageUrl, adType, adSize }].
@@ -185,42 +240,9 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
       await downloadToFile(slot.claim.imageUrl, slot.imagePath);
     }
 
-    const pieces = [];
-    let cursor = 0;
-    let stepsDone = 0;
-    const totalSteps = activeSlots.length * 2 + 1;
-
-    for (const slot of activeSlots) {
-      const winStart = Math.max(cursor, slot.time);
-      const winEnd   = Math.min(duration, winStart + AD_WINDOW_SEC);
-
-      if (winStart > cursor) {
-        const beforePath = path.join(tmpDir, `piece_${pieces.length}.mp4`);
-        await cutSegmentCopy({ srcPath, start: cursor, end: winStart, outPath: beforePath });
-        pieces.push(beforePath);
-      }
-      stepsDone++; onProgress(15 + Math.round((stepsDone / totalSteps) * 70), `Placing ${slot.key} ad…`);
-
-      const adPath = path.join(tmpDir, `ad_${pieces.length}.mp4`);
-      await renderAdSegment({
-        srcPath, start: winStart, dur: winEnd - winStart,
-        imagePath: slot.imagePath, adType: slot.claim.adType, adSize: slot.claim.adSize,
-        videoCodec, outPath: adPath,
-      });
-      pieces.push(adPath);
-      stepsDone++; onProgress(15 + Math.round((stepsDone / totalSteps) * 70), `Placing ${slot.key} ad…`);
-
-      cursor = winEnd;
-    }
-
-    if (cursor < duration) {
-      const afterPath = path.join(tmpDir, `piece_${pieces.length}.mp4`);
-      await cutSegmentCopy({ srcPath, start: cursor, end: null, outPath: afterPath });
-      pieces.push(afterPath);
-    }
-
-    onProgress(90, 'Stitching final video…');
-    await concatCopy(pieces, outPath);
+    onProgress(40, 'Rendering ad overlay…');
+    await renderContinuousVideo({ srcPath, outPath, activeSlots, duration });
+    onProgress(90, 'Finishing video…');
     onProgress(100, 'Done');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });

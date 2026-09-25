@@ -84,7 +84,7 @@ const PLATFORMS = [
   { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, manual: process.env.NEXT_PUBLIC_YOUTUBE_OAUTH_DEMO !== 'true', statLabel: 'Subscribers' },
   { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, manual: false, statLabel: 'Followers' },
   { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, manual: false, statLabel: 'Followers' },
-  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, manual: true, statLabel: 'Followers' },
+  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, manual: false, statLabel: 'Followers' },
 ] as const;
 
 function PlatformIcon({ id }: { id: string }) {

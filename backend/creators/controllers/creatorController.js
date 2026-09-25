@@ -56,6 +56,8 @@ function getCreatorId(req) {
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || 'sbaw7xz2iq34fb7t40';
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '1TNmQ4srBF5ZlaIJIsiwCKVwiF9RFYEi';
+const TIKTOK_AUTH_URL = process.env.TIKTOK_AUTH_URL || 'https://www.tiktok.com/v2/auth/authorize/';
+const TIKTOK_TOKEN_URL = process.env.TIKTOK_TOKEN_URL || 'https://open.tiktokapis.com/v2/oauth/token/';
 
 async function sendEmail(to, subject, html) {
   try {
@@ -937,7 +939,7 @@ exports.socialConnect = (req, res) => {
     const redirectUri = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
     if (!clientId) return res.status(500).json({ error: 'TikTok client key not configured' });
 
-    const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/');
+    const authUrl = new URL(TIKTOK_AUTH_URL);
     authUrl.searchParams.set('client_key', clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
@@ -1085,20 +1087,29 @@ exports.socialConnectCallback = async (req, res) => {
     const creatorId = String(parsedId);
 
     try {
-      const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+      const form = new URLSearchParams({
+        client_key: clientId,
+        client_secret: clientSecret,
+        code: String(code || ''),
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      });
+      if (req.query.code_verifier) form.set('code_verifier', String(req.query.code_verifier));
+
+      const tokenRes = await fetch(TIKTOK_TOKEN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: new URLSearchParams({
-          client_key: clientId,
-          client_secret: clientSecret,
-          code,
-          grant_type: 'authorization_code',
-          redirect_uri: redirectUri,
-        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form,
       });
       const tokenData = await tokenRes.json().catch(() => null);
       if (!tokenData || !tokenData.access_token) {
-        console.error('[creators] TikTok token exchange failed', { tokenData });
+        console.error('[creators] TikTok token exchange failed', {
+          status: tokenRes.status,
+          redirectUri,
+          tokenData,
+          gaveClientKey: !!clientId,
+          gaveClientSecret: !!clientSecret,
+        });
         return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 

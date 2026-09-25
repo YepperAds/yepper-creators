@@ -54,6 +54,8 @@ function getCreatorId(req) {
 // ─── SMTP (creators-specific mailer) ─────────────────────────────────────────
 
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || 'sbaw7xz2iq34fb7t40';
+const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '1TNmQ4srBF5ZlaIJIsiwCKVwiF9RFYEi';
 
 async function sendEmail(to, subject, html) {
   try {
@@ -473,20 +475,21 @@ exports.getPublicCreators = async (req, res) => {
     const result = await query(
       `SELECT
          c.id, c.username, c.full_name, c.avatar, c.what_they_do,
-         sc.username    AS channel_name,
+         sc.provider AS provider,
+         sc.username AS channel_name,
          sc.profile_url AS channel_url,
          sc.followers_count AS subscribers,
          COALESCE(sc.total_views, 0) AS total_views,
          COALESCE(v.videos, '[]'::json) AS videos
        FROM creators c
-       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider IN ('youtube', 'tiktok')
        LEFT JOIN LATERAL (
          SELECT json_agg(t) AS videos FROM (
            SELECT DISTINCT ON (COALESCE(video_url, title))
              title, views, likes, published_at,
              thumbnail_url AS thumbnail, video_url AS url
            FROM social_video_stats
-           WHERE creator_id = c.id AND provider = 'youtube'
+           WHERE creator_id = c.id AND provider = sc.provider
            ORDER BY COALESCE(video_url, title), published_at DESC NULLS LAST, id DESC
            LIMIT 4
          ) t
@@ -497,6 +500,7 @@ exports.getPublicCreators = async (req, res) => {
 
     const data = result.rows.map(r => ({
       id:          String(r.id),
+      provider:    r.provider || 'youtube',
       username:    r.username ?? '',
       name:        r.full_name || r.username || 'Creator',
       avatar:      r.avatar || null,
@@ -927,6 +931,21 @@ exports.socialConnect = (req, res) => {
     authUrl.searchParams.set('state',         user_uuid || '');
     return res.redirect(authUrl.toString());
   }
+
+  if (provider === 'tiktok') {
+    const clientId    = process.env.TIKTOK_CLIENT_KEY || TIKTOK_CLIENT_KEY;
+    const redirectUri = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
+    if (!clientId) return res.status(500).json({ error: 'TikTok client key not configured' });
+
+    const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/');
+    authUrl.searchParams.set('client_key', clientId);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', 'user.info.basic');
+    authUrl.searchParams.set('state', user_uuid || '');
+    return res.redirect(authUrl.toString());
+  }
+
   return res.status(400).json({ error: `Unsupported provider: ${provider}` });
 };
 
@@ -1048,6 +1067,75 @@ exports.socialConnectCallback = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/oauth-callback?error=server_error`);
     }
   }
+
+  if (provider === 'tiktok') {
+    const clientId     = process.env.TIKTOK_CLIENT_KEY || TIKTOK_CLIENT_KEY;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET || TIKTOK_CLIENT_SECRET;
+    const redirectUri  = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
+
+    if (!clientId || !clientSecret) {
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=config_missing`);
+    }
+
+    const parsedId = parseInt(userUuid, 10);
+    if (!userUuid || isNaN(parsedId)) {
+      console.error('[creators] TikTok callback: invalid or missing creator ID in state', { userUuid });
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=session_missing`);
+    }
+    const creatorId = String(parsedId);
+
+    try {
+      const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: new URLSearchParams({
+          client_key: clientId,
+          client_secret: clientSecret,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+        }),
+      });
+      const tokenData = await tokenRes.json().catch(() => null);
+      if (!tokenData || !tokenData.access_token) {
+        console.error('[creators] TikTok token exchange failed', { tokenData });
+        return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
+      }
+
+      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      const userData = await userRes.json().catch(() => null);
+      const tiktokUser = userData?.data?.user || userData?.data || null;
+      const username = tiktokUser?.display_name || tiktokUser?.nickname || `@creator-${creatorId}`;
+      const profileUrl = tiktokUser?.profile_url || `https://www.tiktok.com/@${String(username).replace(/^@/, '')}`;
+      const avatarUrl = tiktokUser?.avatar_url || '';
+      const followers = Number(tiktokUser?.follower_count || 0);
+
+      await query(
+        `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, avatar_url, access_token, refresh_token, total_views, total_posts)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (creator_id, provider) DO UPDATE SET
+           username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
+           profile_url=EXCLUDED.profile_url, avatar_url=EXCLUDED.avatar_url,
+           access_token=EXCLUDED.access_token, refresh_token=EXCLUDED.refresh_token,
+           total_views=EXCLUDED.total_views, total_posts=EXCLUDED.total_posts,
+           connected_at=NOW()`,
+        [creatorId, 'tiktok', String(username).trim(), followers, profileUrl, avatarUrl, tokenData.access_token || null, tokenData.refresh_token || null, 0, 0],
+      );
+
+      createNotification(creatorId, 'social_connected', 'TikTok Connected',
+        `${String(username).trim()} connected successfully`,
+        { provider: 'tiktok', channel_name: String(username).trim(), profile_url: profileUrl }
+      ).catch(() => {});
+
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?success=tiktok`);
+    } catch (err) {
+      console.error('[creators] TikTok callback error:', err && err.stack ? err.stack : err);
+      return res.redirect(`${FRONTEND_URL}/oauth-callback?error=server_error`);
+    }
+  }
+
   return res.redirect(`${FRONTEND_URL}/oauth-callback?error=unsupported_provider`);
 };
 
@@ -1063,7 +1151,7 @@ const { injectAds } = require('../utils/videoAdInjector');
 const AD_OUTPUT_DIR = process.env.AD_VIDEO_OUTPUT_DIR || path.join(os.tmpdir(), 'ypr_ad_output');
 fs.mkdirSync(AD_OUTPUT_DIR, { recursive: true });
 
-const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB' };
+const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB', tiktok: 'TT' };
 
 function trackingCode(provider, num) {
   const prefix = TRACKING_PREFIXES[provider] || provider.toUpperCase().slice(0, 2);
@@ -1118,7 +1206,7 @@ exports.postAdVideo = async (req, res) => {
   const { title = '', description = '', privacy = 'public' } = req.body;
   const videoFile = req.files?.video?.[0];
 
-  if (provider !== 'youtube') {
+  if (!['youtube', 'tiktok'].includes(provider)) {
     const label = provider.charAt(0).toUpperCase() + provider.slice(1);
     return res.status(400).json({ success: false, message: `${label} isn't supported yet` });
   }
@@ -1155,6 +1243,24 @@ exports.confirmAdVideoPost = async (req, res) => {
 
   const { provider, id } = req.params;
   const { videoUrl, claimedSlotTypes } = req.body;
+
+  if (provider === 'tiktok') {
+    const postRes = await query(
+      `SELECT id, tracking_code FROM ad_video_posts WHERE id=$1 AND creator_id=$2 AND status='pending_publish'`,
+      [id, session],
+    );
+    if (!postRes.rowCount) return res.status(404).json({ success: false, message: 'No pending post found — request a new tracking code' });
+    const { tracking_code: code } = postRes.rows[0];
+
+    await query(
+      `UPDATE ad_video_posts
+       SET video_url=$1, status='live', posted_at=NOW(), last_stats_at=NOW()
+       WHERE id=$2`,
+      [String(videoUrl || '').trim() || null, id],
+    );
+
+    return res.json({ success: true, data: { trackingCode: code, videoUrl: String(videoUrl || '').trim() || null } });
+  }
 
   if (provider !== 'youtube') return res.status(400).json({ success: false, message: 'Unsupported provider' });
 

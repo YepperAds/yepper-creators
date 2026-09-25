@@ -97,7 +97,7 @@ async function initCreatorsDatabase() {
        provider  VARCHAR(50) PRIMARY KEY,
        last_id   INTEGER DEFAULT 0
      )`,
-    `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ('youtube',0),('instagram',0),('facebook',0) ON CONFLICT DO NOTHING`,
+    `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ('youtube',0),('instagram',0),('facebook',0),('tiktok',0) ON CONFLICT DO NOTHING`,
     `CREATE TABLE IF NOT EXISTS ad_video_posts (
        id                 SERIAL PRIMARY KEY,
        creator_id         INTEGER REFERENCES creators(id) ON DELETE CASCADE,

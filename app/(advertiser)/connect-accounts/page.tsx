@@ -616,7 +616,7 @@ export default function ConnectAccountsPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--color-surface-3) border border-(--color-border) text-xs font-bold text-(--color-white) hover:bg-(--color-surface-2) transition-colors"
                     >
                       <CloudArrowUpIcon className="w-3.5 h-3.5" />
-                      Post Ad
+                      {account.provider === 'youtube' ? 'Add adverts in your video' : 'Post Ad'}
                     </button>
                     <button onClick={() => setDisconnectingProvider(account.provider)} className="text-[10px] font-bold text-red-500/70 hover:text-red-500 uppercase tracking-widest">
                       Disconnect

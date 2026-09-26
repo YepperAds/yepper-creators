@@ -54,10 +54,13 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
 // off the URL and auto-opens that creator's ad-space chooser.
 function CreatorCard({ creator, onOpen }: { creator: PublicCreator; onOpen: (creator: PublicCreator) => void }) {
   const formatCount = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n));
+  const platformLabel = creator.provider === 'tiktok' ? 'TikTok' : 'YouTube';
+  const metricLabel = creator.provider === 'tiktok' ? 'followers' : 'subscribers';
+  const followerCount = creator.followers ?? creator.subscribers ?? 0;
   return (
     <div className="rounded-2xl border border-border bg-surface-2 p-4 sm:p-5 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 gap-2">
-        <p className="text-sm font-bold text-white">YouTube</p>
+        <p className="text-sm font-bold text-white">{platformLabel}</p>
       </div>
 
       <button onClick={() => onOpen(creator)} className="relative flex items-center gap-3 w-full aspect-[4/3] shrink-0 text-left mb-4 rounded-lg overflow-hidden border border-border bg-surface-3 p-4">
@@ -70,7 +73,7 @@ function CreatorCard({ creator, onOpen }: { creator: PublicCreator; onOpen: (cre
         )}
         <div className="min-w-0">
           <p className="text-sm font-bold text-white truncate">{creator.channelName || creator.name}</p>
-          <p className="text-xs text-muted">{formatCount(creator.subscribers)} subscribers</p>
+          <p className="text-xs text-muted">{formatCount(followerCount)} {metricLabel}</p>
         </div>
         <span className="absolute bottom-1.5 right-1.5 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-[#fff]">Choose ad space</span>
       </button>

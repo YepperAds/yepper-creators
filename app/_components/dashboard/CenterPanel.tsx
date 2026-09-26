@@ -94,7 +94,7 @@ export default function CenterPanel({
   } else if (panel === 'youtube') {
     content = (
       <div className="h-full flex flex-col overflow-hidden">
-        <PageHeader title="YouTube" onBack={backToFeed} />
+        <PageHeader title="Social Media" onBack={backToFeed} />
         <div className="flex-1 overflow-y-auto py-4">
           <ConnectAccountsPage />
         </div>

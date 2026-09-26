@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   { label: 'Home',          panel: null,             icon: OutlineHome,      activeIcon: SolidHome },
   { label: 'Ads',           panel: 'ads',            icon: OutlineMegaphone, activeIcon: SolidMegaphone },
   { label: 'Websites',      panel: 'websites',       icon: OutlineGlobe,     activeIcon: SolidGlobe },
-  { label: 'YouTube',       panel: 'youtube',        icon: OutlineFilm,      activeIcon: SolidFilm },
+  { label: 'Social Media',  panel: 'youtube',        icon: OutlineFilm,      activeIcon: SolidFilm },
   { label: 'Hot Deals',     panel: 'deals',          icon: OutlineFire,      activeIcon: SolidFire },
   { label: 'Wallet',        panel: 'wallet',         icon: OutlineBanknotes, activeIcon: SolidBanknotes },
   { label: 'Analytics',     panel: 'analytics',      icon: OutlineChart,     activeIcon: SolidChart },

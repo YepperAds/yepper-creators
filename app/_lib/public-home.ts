@@ -25,8 +25,11 @@ export interface PublicVideo {
   url: string | null;
 }
 
+export type SocialPlatform = 'youtube' | 'tiktok';
+
 export interface PublicCreator {
   id: string;
+  provider?: SocialPlatform;
   username: string;
   name: string;
   avatar: string | null;
@@ -34,6 +37,7 @@ export interface PublicCreator {
   channelName: string;
   channelUrl: string | null;
   subscribers: number;
+  followers?: number;
   totalViews: number;
   videos: PublicVideo[];
 }

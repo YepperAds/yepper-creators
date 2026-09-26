@@ -96,6 +96,8 @@ function buildCategories(websites: PublicWebsite[], creators: PublicCreator[]): 
 
 function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator; onCollaborate: (creator: PublicCreator) => void }) {
   const videos = (creator.videos || []).slice(0, 3);
+  const metricLabel = creator.provider === 'tiktok' ? 'followers' : 'subscribers';
+  const followerCount = creator.followers ?? creator.subscribers ?? 0;
   return (
     <button
       onClick={() => onCollaborate(creator)}
@@ -110,7 +112,7 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
         )}
         <div className="min-w-0">
           <p className="text-xs font-bold text-white truncate">{creator.name}</p>
-          <p className="text-[10px] text-muted truncate">{formatCount(creator.subscribers)} subscribers</p>
+          <p className="text-[10px] text-muted truncate">{formatCount(followerCount)} {metricLabel}</p>
         </div>
       </div>
       {videos.length > 0 && (

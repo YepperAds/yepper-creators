@@ -150,6 +150,22 @@ function formatCountdown(targetDate) {
   return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }
 
+function normalizeSocialFollowerCount(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.round(value));
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const numeric = Number(trimmed.replace(/[,\s]/g, ''));
+    if (Number.isFinite(numeric)) return Math.max(0, Math.round(numeric));
+  }
+  if (typeof value === 'object') {
+    const nested = value.value ?? value.count ?? value.total ?? value.follower_count ?? value.followers_count ?? value.followerCount ?? value.followers ?? value.data;
+    if (nested !== undefined && nested !== null && nested !== value) return normalizeSocialFollowerCount(nested);
+  }
+  return 0;
+}
+
 async function summarizeWebsiteTraffic(creatorId, domain) {
   const result = await query(
     `WITH events AS (
@@ -420,7 +436,7 @@ exports.getSocialStats = async (req, res) => {
     const data = result.rows.map(r => ({
       provider:  r.provider,
       username:  r.username || '',
-      followers: Number(r.followers_count || 0),
+      followers: normalizeSocialFollowerCount(r.followers_count),
       avatar:    r.avatar_url || '',
       channelUrl: r.profile_url || '',
       analysis: {
@@ -500,19 +516,23 @@ exports.getPublicCreators = async (req, res) => {
        LIMIT 60`,
     );
 
-    const data = result.rows.map(r => ({
-      id:          String(r.id),
-      provider:    r.provider || 'youtube',
-      username:    r.username ?? '',
-      name:        r.full_name || r.username || 'Creator',
-      avatar:      r.avatar || null,
-      whatTheyDo:  r.what_they_do || null,
-      channelName: r.channel_name || r.full_name || '',
-      channelUrl:  r.channel_url || null,
-      subscribers: Number(r.subscribers || 0),
-      totalViews:  Number(r.total_views || 0),
-      videos:      r.videos || [],
-    }));
+    const data = result.rows.map(r => {
+      const followers = normalizeSocialFollowerCount(r.subscribers);
+      return {
+        id:          String(r.id),
+        provider:    r.provider || 'youtube',
+        username:    r.username ?? '',
+        name:        r.full_name || r.username || 'Creator',
+        avatar:      r.avatar || null,
+        whatTheyDo:  r.what_they_do || null,
+        channelName: r.channel_name || r.full_name || '',
+        channelUrl:  r.channel_url || null,
+        subscribers: followers,
+        followers,
+        totalViews:  Number(r.total_views || 0),
+        videos:      r.videos || [],
+      };
+    });
 
     return res.json({ success: true, data });
   } catch (err) {
@@ -1113,15 +1133,23 @@ exports.socialConnectCallback = async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 
-      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name', {
+      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,profile_deep_link,follower_count,following_count,likes_count', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
       const userData = await userRes.json().catch(() => null);
       const tiktokUser = userData?.data?.user || userData?.data || null;
       const username = tiktokUser?.display_name || tiktokUser?.nickname || `@creator-${creatorId}`;
-      const profileUrl = tiktokUser?.profile_url || `https://www.tiktok.com/@${String(username).replace(/^@/, '')}`;
+      const profileUrl = tiktokUser?.profile_url || tiktokUser?.profile_deep_link || `https://www.tiktok.com/@${String(username).replace(/^@/, '')}`;
       const avatarUrl = tiktokUser?.avatar_url || '';
-      const followers = Number(tiktokUser?.follower_count || 0);
+      const followers = normalizeSocialFollowerCount(
+        tiktokUser?.follower_count ??
+        tiktokUser?.followers_count ??
+        tiktokUser?.followerCount ??
+        tiktokUser?.stats?.follower_count ??
+        tiktokUser?.stats?.followers_count ??
+        tiktokUser?.stats?.followerCount ??
+        0,
+      );
 
       await query(
         `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, avatar_url, access_token, refresh_token, total_views, total_posts)

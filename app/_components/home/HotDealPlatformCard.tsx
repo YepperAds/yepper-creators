@@ -24,6 +24,8 @@ function getDomain(link: string): string {
 // cartoonish website tile next to it; the avatar/video themselves are real.
 function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
+  const metricLabel = creator.provider === 'tiktok' ? 'followers' : 'subscribers';
+  const followerCount = creator.followers ?? creator.subscribers ?? 0;
   return (
     <div className="w-24 shrink-0">
       <div className="h-9 flex items-center gap-1.5 mb-1.5">
@@ -38,7 +40,7 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
             <p className="text-[11px] font-bold text-black truncate">{creator.channelName || creator.name}</p>
             <CheckBadgeIcon className="w-2.5 h-2.5 text-[#3ea6ff] shrink-0" />
           </div>
-          <p className="text-[9px] text-black/55">{formatCount(creator.subscribers)} subscribers</p>
+          <p className="text-[9px] text-black/55">{formatCount(followerCount)} {metricLabel}</p>
         </div>
       </div>
       <div className="relative aspect-video rounded-xl overflow-hidden bg-black ring-2 ring-[#ff0000]/20">

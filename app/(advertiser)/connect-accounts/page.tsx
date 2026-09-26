@@ -498,7 +498,7 @@ export default function ConnectAccountsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-(--color-muted) uppercase mb-1">Subscribers</label>
+                <label className="block text-[11px] font-bold text-(--color-muted) uppercase mb-1">Followers</label>
                 <input
                   value={manualFollowers}
                   onChange={(e) => setManualFollowers(e.target.value.replace(/[^\d]/g, ''))}
@@ -606,7 +606,7 @@ export default function ConnectAccountsPage() {
                     <div>
                       <h3 className="text-lg font-bold text-(--color-white)">@{account.username}</h3>
                       <p className="text-xs text-(--color-muted)">
-                        {platform.statLabel}: <span className="text-(--color-white) font-bold">{formatCount(account.followers)}</span>
+                        {platform.statLabel || 'Followers'}: <span className="text-(--color-white) font-bold">{formatCount(account.followers)}</span>
                       </p>
                     </div>
                   </div>
@@ -626,7 +626,7 @@ export default function ConnectAccountsPage() {
                 {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-(--color-border)">
                 <div className="p-5 border-r border-(--color-border)">
-                  <span className="text-[10px] font-bold text-(--color-muted) uppercase">Subscribers</span>
+                  <span className="text-[10px] font-bold text-(--color-muted) uppercase">{platform.statLabel || 'Followers'}</span>
                   <p className="text-xl font-bold text-(--color-white)">{formatCount(account.followers)}</p>
                 </div>
                 <div className="p-5 border-r border-(--color-border)">
@@ -714,7 +714,7 @@ export default function ConnectAccountsPage() {
                         <div>
                           <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide">Ad Pricing</p>
                           <p className="text-[11px] text-(--color-muted) mt-0.5">
-                            Based on {formatCount(account.followers)} subscribers
+                            Based on {formatCount(account.followers)} {account.provider === 'youtube' ? 'subscribers' : 'followers'}
                           </p>
                         </div>
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${TIER_BADGE[ytPricing.tier] ?? 'bg-zinc-700/60 text-zinc-300'}`}>

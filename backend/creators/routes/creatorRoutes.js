@@ -70,6 +70,11 @@ router.post(
   adSpaces.imageUpload.single('image'),
   claimPayment.initiateClaimPayment,
 );
+router.post(
+  '/api/social/youtube/ad-spaces/:creatorId/campaign/initiate',
+  adSpaces.imageUpload.single('image'),
+  controller.createAdCampaign,
+);
 router.post('/api/social/youtube/ad-spaces/claim/verify',     claimPayment.verifyClaimPayment);
 router.get('/api/social/ad-claims/pending',                   adSpaces.getPendingClaims);
 

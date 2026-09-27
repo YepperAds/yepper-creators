@@ -195,7 +195,7 @@ exports.verifyClaimPayment = async (req, res) => {
     let payment = tx_ref ? await Payment.findByTxRef(tx_ref) : null;
     if (!payment && transaction_id) payment = await Payment.findByPaymentId(String(transaction_id));
     if (!payment) return res.status(404).json({ success: false, message: 'Payment record not found' });
-    if (payment.metadata?.kind !== 'youtube_claim') {
+    if (payment.metadata?.kind !== 'youtube_claim' && payment.metadata?.kind !== 'youtube_campaign') {
       return res.status(400).json({ success: false, message: 'Not a YouTube ad-slot payment' });
     }
     if (payment.status === 'successful') {
@@ -214,6 +214,9 @@ exports.verifyClaimPayment = async (req, res) => {
           [JSON.stringify(flwData), payment.id],
         );
         await client.query(`UPDATE youtube_ad_claims SET payment_status = 'paid' WHERE tx_ref = $1`, [payment.tx_ref]);
+        if (payment.metadata?.kind === 'youtube_campaign') {
+          await client.query(`UPDATE ad_campaigns SET payment_status = 'paid' WHERE tx_ref = $1`, [payment.tx_ref]);
+        }
 
         // Wallet was only checked at initiate time, not yet debited — commit
         // that portion now that the gateway side has actually succeeded.

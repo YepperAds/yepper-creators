@@ -137,6 +137,7 @@ export default function ConnectAccountsPage() {
   const [adType, setAdType] = useState('corner');
   const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
   const [adTypeSaving, setAdTypeSaving] = useState(false);
+  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; hasHistory: boolean; isEstimated: boolean } | null>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const popupRef = useRef<Window | null>(null);
@@ -222,6 +223,7 @@ export default function ConnectAccountsPage() {
           setAdSpaces(json.data?.slots ?? []);
           setActiveSlots(json.data?.activeSlots ?? []);
           setAdType(json.data?.adType ?? 'corner');
+          setPostingFrequency(json.data?.postingFrequency ?? null);
           setYoutubePricing(
             json.data?.tier && json.data?.pricingRows
               ? { tier: json.data.tier, rows: json.data.pricingRows }
@@ -601,6 +603,11 @@ export default function ConnectAccountsPage() {
                           </span>
                         </label>
                       ))}
+                    </div>
+
+                    <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-1) px-3 py-2">
+                      <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-1">Posting frequency</p>
+                      <p className="text-xs font-semibold text-(--color-white)">{postingFrequency?.label || 'Not enough posting history yet'}</p>
                     </div>
 
                     <div className="mb-3">

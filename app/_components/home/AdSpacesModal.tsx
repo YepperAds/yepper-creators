@@ -64,7 +64,10 @@ export default function AdSpacesModal({
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
+  const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('single');
+  const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean } | null>(null);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -87,6 +90,7 @@ export default function AdSpacesModal({
         setAdTypeDescription(spacesJson?.data?.adTypeDescription ?? '');
         setTier(spacesJson?.data?.tier ?? '');
         setPricingRows(spacesJson?.data?.pricingRows ?? []);
+        setPostingFrequency(spacesJson?.data?.postingFrequency ?? null);
         const types: AdFormatType[] = formatsJson?.data?.types ?? [];
         setSizes(types.find((t) => t.type === type)?.sizes ?? ['small', 'medium', 'large']);
       })
@@ -110,6 +114,17 @@ export default function AdSpacesModal({
     return (row as any)[adType] ?? null;
   };
 
+  const price = priceForSelection();
+
+  const estimatedInsertions = (() => {
+    if (!postingFrequency) return 0;
+    const average = Number(postingFrequency.averageDaysBetweenPosts || 0);
+    if (!average || !Number.isFinite(average)) return 0;
+    const packageDays = { '1 month': 30, '3 months': 90, '6 months': 180 } as const;
+    return Math.max(1, Math.floor(packageDays[packageLength] / average));
+  })();
+
+  const campaignTotal = price !== null ? price * estimatedInsertions : null;
   const canSubmit = !!pendingFile;
 
   const submitClaim = async () => {
@@ -125,12 +140,18 @@ export default function AdSpacesModal({
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
       formData.append('durationBand', durationBand);
+      if (purchaseMode === 'campaign') {
+        formData.append('packageLength', packageLength);
+      }
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
       // backend's; it won't ride along on this cross-origin request, so
       // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
       const token = getToken();
-      const res = await fetch(`${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim/initiate`, {
+      const endpoint = purchaseMode === 'campaign'
+        ? `${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/campaign/initiate`
+        : `${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim/initiate`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -141,7 +162,7 @@ export default function AdSpacesModal({
       if (res.status === 401) {
         setNeedsLogin(true);
       } else if (!json.success) {
-        setError(json.message || 'Failed to claim ad space');
+        setError(json.message || (purchaseMode === 'campaign' ? 'Failed to start campaign' : 'Failed to claim ad space'));
       } else if (json.allPaid) {
         setSlots((prev) => prev.map((s) => (s.slotType === slotType ? { ...s, status: 'claimed' } : s)));
         setClaimedJustNow(slotType);
@@ -152,13 +173,11 @@ export default function AdSpacesModal({
         setError('Payment could not be started.');
       }
     } catch {
-      setError('Failed to claim ad space');
+      setError(purchaseMode === 'campaign' ? 'Failed to start campaign' : 'Failed to claim ad space');
     } finally {
       setClaimingSlot(null);
     }
   };
-
-  const price = priceForSelection();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -192,6 +211,13 @@ export default function AdSpacesModal({
           </div>
         )}
 
+        {!loading && postingFrequency && (
+          <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) px-3 py-2">
+            <p className="text-[10px] font-bold text-(--color-muted) uppercase">Posting frequency</p>
+            <p className="text-xs font-semibold text-(--color-white)">{postingFrequency.label}</p>
+          </div>
+        )}
+
         {!loading && tier && (
           <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) px-3 py-2 flex items-center justify-between">
             <p className="text-[10px] font-bold text-(--color-muted) uppercase">Pricing tier</p>
@@ -206,6 +232,24 @@ export default function AdSpacesModal({
         )}
         {error && (
           <p className="mb-3 text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{error}</p>
+        )}
+
+        {!loading && (
+          <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) px-3 py-2">
+            <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-2">Purchase type</p>
+            <div className="flex gap-2">
+              {(['single', 'campaign'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setPurchaseMode(mode)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${purchaseMode === mode ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
+                >
+                  {mode === 'single' ? 'Single insertion' : 'Campaign (multiple insertions)'}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {loading ? (
@@ -276,11 +320,37 @@ export default function AdSpacesModal({
                       </div>
                     </div>
 
+                    {purchaseMode === 'campaign' && (
+                      <div>
+                        <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Package length</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {(['1 month', '3 months', '6 months'] as const).map((length) => (
+                            <button
+                              key={length}
+                              onClick={() => setPackageLength(length)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${packageLength === length ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
+                            >
+                              {length}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Price */}
                     {price !== null && (
-                      <div className="rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 flex items-center justify-between">
+                      <div className="rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 flex items-center justify-between gap-2">
                         <span className="text-[10px] font-bold text-(--color-muted) uppercase">You pay</span>
-                        <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF per insertion</span>
+                        {purchaseMode === 'campaign' ? (
+                          <span className="text-right text-sm font-bold text-emerald-400">
+                            {campaignTotal?.toLocaleString() ?? price.toLocaleString()} RWF total
+                            <span className="block text-[10px] text-(--color-muted) font-medium">
+                              (~{estimatedInsertions} insertions{postingFrequency?.hasHistory ? '' : ' estimated'})
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF per insertion</span>
+                        )}
                       </div>
                     )}
 
@@ -301,7 +371,11 @@ export default function AdSpacesModal({
                       disabled={!canSubmit || claimingSlot === slot.slotType}
                       className="w-full py-2 rounded-lg bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
                     >
-                      {claimingSlot === slot.slotType ? 'Processing…' : price !== null ? `Pay ${price.toLocaleString()} RWF & Claim` : 'Pay & Claim'}
+                      {claimingSlot === slot.slotType
+                        ? 'Processing…'
+                        : purchaseMode === 'campaign'
+                          ? (campaignTotal !== null ? `Pay ${campaignTotal.toLocaleString()} RWF & Start Campaign` : 'Pay & Start Campaign')
+                          : (price !== null ? `Pay ${price.toLocaleString()} RWF & Claim` : 'Pay & Claim')}
                     </button>
                   </div>
                 )}

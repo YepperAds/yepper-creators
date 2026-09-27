@@ -87,6 +87,67 @@ exports.uploadCreativeToCloudinary = uploadCreativeToCloudinary;
 exports.SLOT_TYPES = SLOT_TYPES;
 exports.SLOT_LABELS = SLOT_LABELS;
 
+async function getCreatorPostingFrequency(creatorId) {
+  const postsRes = await query(
+    `SELECT posted_at
+     FROM ad_video_posts
+     WHERE creator_id = $1 AND provider = 'youtube'
+       AND posted_at >= NOW() - INTERVAL '90 days'
+     ORDER BY posted_at ASC`,
+    [creatorId],
+  );
+
+  const timestamps = (postsRes.rows || [])
+    .map((row) => new Date(row.posted_at).getTime())
+    .filter((value) => Number.isFinite(value));
+
+  if (timestamps.length >= 5) {
+    const gaps = [];
+    for (let i = 1; i < timestamps.length; i += 1) {
+      const gapDays = (timestamps[i] - timestamps[i - 1]) / 86_400_000;
+      if (gapDays > 0) gaps.push(gapDays);
+    }
+
+    if (gaps.length) {
+      const averageDaysBetweenPosts = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
+      const rounded = Number((Math.round(averageDaysBetweenPosts * 10) / 10).toFixed(1));
+      const isDaily = rounded <= 1.2;
+      return {
+        count: timestamps.length,
+        averageDaysBetweenPosts: rounded,
+        label: isDaily ? 'Posts daily' : `Posts roughly every ${rounded} days`,
+        isEstimated: false,
+        hasHistory: true,
+      };
+    }
+  }
+
+  const creatorRes = await query(
+    `SELECT posting_pace_days FROM creators WHERE id = $1`,
+    [creatorId],
+  );
+  const selfReported = Number(creatorRes.rows[0]?.posting_pace_days || 0);
+  if (selfReported > 0) {
+    const safeValue = Number(Math.max(1, selfReported).toFixed(1));
+    return {
+      count: timestamps.length,
+      averageDaysBetweenPosts: safeValue,
+      label: `Posts roughly every ${safeValue} days (estimated)`,
+      isEstimated: true,
+      hasHistory: false,
+    };
+  }
+
+  return {
+    count: timestamps.length,
+    averageDaysBetweenPosts: 30,
+    label: 'Not enough posting history yet',
+    isEstimated: true,
+    hasHistory: false,
+  };
+}
+exports.getCreatorPostingFrequency = getCreatorPostingFrequency;
+
 // GET /api/social/youtube/ad-formats — format/size catalog, with descriptions,
 // so the claim UI doesn't have to hardcode any of this.
 exports.getAdFormats = (req, res) => {
@@ -130,6 +191,7 @@ exports.getAdSpaces = async (req, res) => {
     );
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
     const { tier, rows: pricingRows } = getYoutubeTierPricing(subscribers);
+    const postingFrequency = await getCreatorPostingFrequency(creatorId);
 
     return res.json({
       success: true,
@@ -141,6 +203,7 @@ exports.getAdSpaces = async (req, res) => {
         activeSlots,
         tier,
         pricingRows,
+        postingFrequency,
       },
     });
   } catch (err) {

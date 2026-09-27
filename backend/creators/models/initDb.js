@@ -151,8 +151,29 @@ async function initCreatorsDatabase() {
     // business_categories/business_category_other on import_ads.
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_categories JSONB DEFAULT '[]'`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_category_other TEXT`,
+    `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES ad_campaigns(id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
+    `CREATE TABLE IF NOT EXISTS ad_campaigns (
+       id                    SERIAL PRIMARY KEY,
+       creator_id            INTEGER REFERENCES creators(id) ON DELETE CASCADE,
+       advertiser_id          VARCHAR(255) NOT NULL,
+       slot_type             VARCHAR(20) NOT NULL,
+       total_insertions      INTEGER NOT NULL,
+       fulfilled_insertions   INTEGER NOT NULL DEFAULT 0,
+       amount_total          NUMERIC(12,2),
+       amount_per_insertion  NUMERIC(12,2),
+       currency              VARCHAR(8) DEFAULT 'RWF',
+       status                VARCHAR(20) NOT NULL DEFAULT 'active',
+       expires_at            TIMESTAMP WITH TIME ZONE NOT NULL,
+       refunded_amount       NUMERIC(12,2) DEFAULT 0,
+       tx_ref               VARCHAR(255),
+       payment_status       VARCHAR(20) NOT NULL DEFAULT 'pending',
+       business_categories   JSONB DEFAULT '[]',
+       business_category_other TEXT,
+       created_at            TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       updated_at            TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )`,
     // Tracks the burn-in + platform-upload pipeline in the background so the
     // HTTP request that kicks it off can return immediately — see postAdVideo
     // in creatorController.js. Without this, the whole pipeline ran inside one

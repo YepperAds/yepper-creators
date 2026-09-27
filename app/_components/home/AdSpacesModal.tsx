@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckCircleIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { PublicCreator } from '@/app/_lib/public-home';
 import { getToken } from '@/app/(adsense)/utils/token';
-import { BUSINESS_CATEGORIES } from '@/app/_lib/business-categories';
-import CategoryCard from '@/app/_components/shared/CategoryCard';
 
 // The claim upload includes an image file and can land close to the Next.js
 // API route proxy's ~4.5MB Vercel body cap, so go straight to the backend
@@ -67,8 +65,6 @@ export default function AdSpacesModal({
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [businessCategories, setBusinessCategories] = useState<string[]>([]);
-  const [businessCategoryOther, setBusinessCategoryOther] = useState('');
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -105,13 +101,7 @@ export default function AdSpacesModal({
     setAdSize('medium');
     setDurationBand(DURATION_BANDS[1]);
     setPendingFile(null);
-    setBusinessCategories([]);
-    setBusinessCategoryOther('');
     setError('');
-  };
-
-  const toggleBusinessCategory = (id: string) => {
-    setBusinessCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   };
 
   const priceForSelection = (): number | null => {
@@ -120,21 +110,10 @@ export default function AdSpacesModal({
     return (row as any)[adType] ?? null;
   };
 
-  const canSubmit =
-    !!pendingFile &&
-    businessCategories.length > 0 &&
-    (!businessCategories.includes('other') || businessCategoryOther.trim().length > 0);
+  const canSubmit = !!pendingFile;
 
   const submitClaim = async () => {
     if (!expandedSlot || !pendingFile) return;
-    if (!businessCategories.length) {
-      setError('Select at least one business category.');
-      return;
-    }
-    if (businessCategories.includes('other') && !businessCategoryOther.trim()) {
-      setError('Please describe your "Others" business category.');
-      return;
-    }
     const slotType = expandedSlot;
     setClaimingSlot(slotType);
     setError('');
@@ -146,8 +125,6 @@ export default function AdSpacesModal({
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
       formData.append('durationBand', durationBand);
-      formData.append('businessCategories', JSON.stringify(businessCategories));
-      formData.append('businessCategoryOther', businessCategoryOther.trim());
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
       // backend's; it won't ride along on this cross-origin request, so
@@ -299,36 +276,11 @@ export default function AdSpacesModal({
                       </div>
                     </div>
 
-                    {/* Business category */}
-                    <div>
-                      <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">
-                        Business Category <span className="text-red-400">*</span>
-                      </p>
-                      <div className="flex gap-2 flex-wrap">
-                        {BUSINESS_CATEGORIES.map((cat) => (
-                          <CategoryCard
-                            key={cat.id}
-                            id={cat.id}
-                            selected={businessCategories.includes(cat.id)}
-                            onClick={() => toggleBusinessCategory(cat.id)}
-                          />
-                        ))}
-                      </div>
-                      {businessCategories.includes('other') && (
-                        <input
-                          value={businessCategoryOther}
-                          onChange={(e) => setBusinessCategoryOther(e.target.value)}
-                          placeholder='Describe your "Others" category…'
-                          className="mt-2 w-full bg-(--color-surface-1) border border-(--color-border) rounded-lg px-3 py-2 text-xs text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30"
-                        />
-                      )}
-                    </div>
-
                     {/* Price */}
                     {price !== null && (
                       <div className="rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-(--color-muted) uppercase">Price</span>
-                        <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF</span>
+                        <span className="text-[10px] font-bold text-(--color-muted) uppercase">You pay</span>
+                        <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF per insertion</span>
                       </div>
                     )}
 

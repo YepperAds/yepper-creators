@@ -42,6 +42,28 @@ const SLOT_LABELS = {
   '65pct': '65%',
   '85pct': '85%',
 };
+const DEFAULT_ACTIVE_SLOTS = [...SLOT_TYPES];
+
+function normalizeActiveSlots(input) {
+  if (!Array.isArray(input)) return [...DEFAULT_ACTIVE_SLOTS];
+  const unique = [...new Set(input.filter((slot) => SLOT_TYPES.includes(slot)))];
+  return unique.length ? unique : [...DEFAULT_ACTIVE_SLOTS];
+}
+
+function getActiveSlotConfigValue(rawValue) {
+  if (!rawValue) return [...DEFAULT_ACTIVE_SLOTS];
+  if (typeof rawValue === 'string') {
+    try {
+      return normalizeActiveSlots(JSON.parse(rawValue));
+    } catch {
+      return [...DEFAULT_ACTIVE_SLOTS];
+    }
+  }
+  if (Array.isArray(rawValue)) return normalizeActiveSlots(rawValue);
+  return [...DEFAULT_ACTIVE_SLOTS];
+}
+
+exports.normalizeActiveSlots = normalizeActiveSlots;
 
 const imageUpload = multer({
   storage: multer.memoryStorage(),
@@ -84,9 +106,11 @@ exports.getAdFormats = (req, res) => {
 exports.getAdSpaces = async (req, res) => {
   const { creatorId } = req.params;
   try {
-    const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
+    const creatorRes = await query(`SELECT ad_type_preference, active_ad_slots FROM creators WHERE id = $1`, [creatorId]);
     if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
     const adType = creatorRes.rows[0].ad_type_preference || 'corner';
+    const activeSlots = getActiveSlotConfigValue(creatorRes.rows[0].active_ad_slots);
+    const activeSet = new Set(activeSlots);
 
     const claimed = await query(
       `SELECT slot_type FROM youtube_ad_claims
@@ -94,7 +118,7 @@ exports.getAdSpaces = async (req, res) => {
       [creatorId],
     );
     const claimedSet = new Set(claimed.rows.map((r) => r.slot_type));
-    const slots = SLOT_TYPES.map((slotType) => ({
+    const slots = SLOT_TYPES.filter((slotType) => activeSet.has(slotType)).map((slotType) => ({
       slotType,
       label: SLOT_LABELS[slotType],
       status: claimedSet.has(slotType) ? 'claimed' : 'open',
@@ -114,6 +138,7 @@ exports.getAdSpaces = async (req, res) => {
         adTypeLabel: AD_FORMATS[adType]?.label,
         adTypeDescription: AD_FORMATS[adType]?.description,
         slots,
+        activeSlots,
         tier,
         pricingRows,
       },
@@ -222,6 +247,34 @@ exports.setAdTypePreference = async (req, res) => {
   } catch (err) {
     console.error('[adSpaces] setAdTypePreference error:', err);
     return res.status(500).json({ success: false, message: 'Failed to save ad type preference' });
+  }
+};
+
+exports.getActiveSlots = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to manage ad slots' });
+  try {
+    const result = await query(`SELECT active_ad_slots FROM creators WHERE id = $1`, [creatorId]);
+    if (!result.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
+    const activeSlots = getActiveSlotConfigValue(result.rows[0].active_ad_slots);
+    return res.json({ success: true, data: { activeSlots } });
+  } catch (err) {
+    console.error('[adSpaces] getActiveSlots error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load ad slots' });
+  }
+};
+
+exports.setActiveSlots = async (req, res) => {
+  const creatorId = getSessionUserId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to manage ad slots' });
+  const rawSlots = Array.isArray(req.body?.activeSlots) ? req.body.activeSlots : [];
+  const activeSlots = normalizeActiveSlots(rawSlots);
+  try {
+    await query(`UPDATE creators SET active_ad_slots = $1 WHERE id = $2`, [JSON.stringify(activeSlots), creatorId]);
+    return res.json({ success: true, data: { activeSlots } });
+  } catch (err) {
+    console.error('[adSpaces] setActiveSlots error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save ad slots' });
   }
 };
 

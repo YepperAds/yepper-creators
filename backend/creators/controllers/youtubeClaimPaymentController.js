@@ -19,7 +19,6 @@ const {
 } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
-const { validateBusinessCategories } = require('../utils/businessCategories');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./adSpaceController');
 
 const CREATOR_SHARE = 0.70; // creator keeps 70%, Yepper takes the rest
@@ -31,21 +30,13 @@ exports.initiateClaimPayment = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
 
   const { creatorId } = req.params;
-  const { slotType, durationBand, businessCategoryOther } = req.body;
+  const { slotType, durationBand } = req.body;
   const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
 
-  // Same business-category requirement as buying website ad space — sent as
-  // a JSON-stringified array, same shape as businessCategories on /api/web-advertise.
-  let businessCategories;
-  try {
-    businessCategories = JSON.parse(req.body.businessCategories || '[]');
-  } catch {
-    return res.status(400).json({ success: false, message: 'Invalid businessCategories' });
-  }
-  const categoryError = validateBusinessCategories(businessCategories, businessCategoryOther);
-  if (categoryError) return res.status(400).json({ success: false, message: categoryError });
+  const businessCategories = [];
+  const businessCategoryOther = null;
 
   try {
     const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);

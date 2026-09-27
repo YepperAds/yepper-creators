@@ -1,6 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
+const { normalizeActiveSlots } = require('../controllers/adSpaceController');
+
+test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
+  assert.deepStrictEqual(normalizeActiveSlots(['25pct', 'bogus', '85pct']), ['25pct', '85pct']);
+  assert.deepStrictEqual(normalizeActiveSlots([]), ['8pct', '25pct', '45pct', '65pct', '85pct']);
+});
 
 test('getAdSlots uses fixed percentage markers for every video length', () => {
   assert.deepStrictEqual(getAdSlots(120), [

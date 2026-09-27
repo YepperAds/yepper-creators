@@ -130,8 +130,10 @@ export default function ConnectAccountsPage() {
   const [adPostCounts, setAdPostCounts] = useState<Record<string, number>>({});
   const [postAdProvider, setPostAdProvider] = useState<string | null>(null);
   const [adSpaces, setAdSpaces] = useState<{ slotType: string; label: string; status: string }[]>([]);
+  const [activeSlots, setActiveSlots] = useState<string[]>([]);
   const [adSpacesLoading, setAdSpacesLoading] = useState(true);
   const [adSpacesError, setAdSpacesError] = useState('');
+  const [slotSaving, setSlotSaving] = useState(false);
   const [adType, setAdType] = useState('corner');
   const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
   const [adTypeSaving, setAdTypeSaving] = useState(false);
@@ -218,6 +220,7 @@ export default function ConnectAccountsPage() {
       .then((json) => {
         if (json?.success) {
           setAdSpaces(json.data?.slots ?? []);
+          setActiveSlots(json.data?.activeSlots ?? []);
           setAdType(json.data?.adType ?? 'corner');
           setYoutubePricing(
             json.data?.tier && json.data?.pricingRows
@@ -235,6 +238,13 @@ export default function ConnectAccountsPage() {
       .then((r) => r.json())
       .then((json) => setAdFormatCatalog(json?.data?.types ?? []))
       .catch(() => {});
+
+    fetch('/api/social/youtube/ad-slots', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success) setActiveSlots(json.data?.activeSlots ?? []);
+      })
+      .catch(() => {});
   }, [user?.id]);
 
   const handleAdTypeChange = async (nextType: string) => {
@@ -251,6 +261,29 @@ export default function ConnectAccountsPage() {
       if (json.success) setAdType(nextType);
     } finally {
       setAdTypeSaving(false);
+    }
+  };
+
+  const handleSlotToggle = async (slotKey: string) => {
+    if (!user?.id) return;
+    const next = activeSlots.includes(slotKey)
+      ? activeSlots.filter((slot) => slot !== slotKey)
+      : [...activeSlots, slotKey];
+    setSlotSaving(true);
+    try {
+      const res = await fetch('/api/social/youtube/ad-slots', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeSlots: next }),
+      });
+      const json = await res.json();
+      if (json?.success) {
+        setActiveSlots(json.data?.activeSlots ?? next);
+        setAdSpaces((prev) => prev.filter((slot) => (json.data?.activeSlots ?? next).includes(slot.slotType)));
+      }
+    } finally {
+      setSlotSaving(false);
     }
   };
 
@@ -568,6 +601,31 @@ export default function ConnectAccountsPage() {
                           </span>
                         </label>
                       ))}
+                    </div>
+
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Available Insert Slots</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['8pct', '25pct', '45pct', '65pct', '85pct'].map((slotKey) => {
+                          const isActive = activeSlots.includes(slotKey);
+                          const label = slotKey.replace('pct', '%');
+                          return (
+                            <button
+                              key={slotKey}
+                              type="button"
+                              onClick={() => handleSlotToggle(slotKey)}
+                              disabled={slotSaving}
+                              className={`px-2.5 py-1.5 rounded-full border text-[10px] font-bold uppercase transition-colors ${
+                                isActive
+                                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
+                                  : 'border-(--color-border) bg-(--color-surface-1) text-(--color-muted)'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mb-2">

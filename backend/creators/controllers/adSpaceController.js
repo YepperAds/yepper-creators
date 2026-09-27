@@ -34,8 +34,14 @@ function getSessionUserId(req) {
 }
 exports.getSessionUserId = getSessionUserId;
 
-const SLOT_TYPES  = ['intro', 'middle', 'end'];
-const SLOT_LABELS = { intro: 'After intro (5:00)', middle: 'Middle', end: 'Near the end (80%)' };
+const SLOT_TYPES  = ['8pct', '25pct', '45pct', '65pct', '85pct'];
+const SLOT_LABELS = {
+  '8pct': '8%',
+  '25pct': '25%',
+  '45pct': '45%',
+  '65pct': '65%',
+  '85pct': '85%',
+};
 
 const imageUpload = multer({
   storage: multer.memoryStorage(),

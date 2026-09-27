@@ -18,10 +18,13 @@ const MAX_VIDEO_DURATION_SEC = 15 * 60;
 const MAX_VIDEO_WIDTH = 1920;
 const MAX_VIDEO_HEIGHT = 1080;
 
-// Videos longer than 30 seconds always expose the claimed intro slot at 0:30.
-// Videos over five minutes also expose middle and end candidates.
-const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
-const INTRO_SLOT_SEC = 30;
+const PERCENTAGE_SLOTS = [
+  { key: '8pct', label: '8%' },
+  { key: '25pct', label: '25%' },
+  { key: '45pct', label: '45%' },
+  { key: '65pct', label: '65%' },
+  { key: '85pct', label: '85%' },
+] as const;
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,14 +36,11 @@ interface AdSlot { key: string; label: string; time: number; }
 interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
 
 function getAdSlots(duration: number): AdSlot[] {
-  if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
-    return [{ key: 'intro', label: `After intro (${formatTime(INTRO_SLOT_SEC)})`, time: INTRO_SLOT_SEC }];
-  }
-  return [
-    { key: 'intro',  label: `After intro (${formatTime(INTRO_SLOT_SEC)})`, time: INTRO_SLOT_SEC },
-    { key: 'middle', label: `Middle (${formatTime(duration / 2)})`,                   time: duration / 2 },
-    { key: 'end',    label: `Near the end (${formatTime(duration * 0.8)})`,           time: duration * 0.8 },
-  ];
+  return PERCENTAGE_SLOTS.map((slot) => ({
+    key: slot.key,
+    label: `${slot.label} (${formatTime(duration * (Number(slot.key.replace(/pct$/, '')) / 100))})`,
+    time: duration * (Number(slot.key.replace(/pct$/, '')) / 100),
+  }));
 }
 
 function downloadImage(url: string) {
@@ -172,9 +172,9 @@ export default function PostAdModal({
       .catch(() => setPendingClaims([]));
   }, [open]);
 
-  // Once the video is picked, read its duration client-side: that's what
-  // decides whether this is a "forced single mid-roll" video (<5min) or a
-  // "pick your slots" video (5min+).
+  // Once the video is picked, read its duration client-side so the creator can
+  // either select one or many of the fixed percentage slots that Yupper will
+  // inject at runtime.
   useEffect(() => {
     if (!adFile) { setVideoDuration(null); setVideoResolutionValid(null); return; }
     const url = URL.createObjectURL(adFile);
@@ -198,14 +198,12 @@ export default function PostAdModal({
   }, [adFile]);
 
   const claimedSlotKeys      = new Set(pendingClaims.map((c) => c.slotType));
-  const isShortVideo         = videoDuration != null && videoDuration <= SHORT_VIDEO_THRESHOLD_SEC;
   const adSlots               = videoDuration != null ? getAdSlots(videoDuration) : [];
   const relevantClaimedSlots = adSlots.filter((s) => claimedSlotKeys.has(s.key));
   const hasRelevantClaims    = relevantClaimedSlots.length > 0;
 
-  // Defaults to every relevant claimed slot once they're known: for a short
-  // video there's only one possible slot, so it's pre-checked automatically.
-  // Adjusted during render (not an effect) per https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  // Defaults to every relevant claimed slot once they're known. The creator can
+  // choose one or several percentage-based slots instead of a single forced position.
   const relevantSlotsKey = relevantClaimedSlots.map((s) => s.key).join(',');
   if (relevantSlotsKey !== prevSlotsKey) {
     setPrevSlotsKey(relevantSlotsKey);
@@ -483,11 +481,7 @@ export default function PostAdModal({
             {/* Confirm which claimed placements this edit actually includes */}
             {showSlotConfirmPanel && (
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-3 space-y-3">
-                {isShortVideo ? (
-                  <p className="text-xs text-(--color-white)">This video uses the intro slot at 0:30.</p>
-                ) : (
-                  <p className="text-xs font-bold text-(--color-white)">Which placements did you include in this edit?</p>
-                )}
+                <p className="text-xs font-bold text-(--color-white)">Which percentage slots did you include in this edit?</p>
                 <div className="space-y-1.5">
                   {relevantClaimedSlots.map((slot) => {
                     const claim = pendingClaims.find((c) => c.slotType === slot.key);

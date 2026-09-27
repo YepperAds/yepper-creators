@@ -12,19 +12,20 @@ const FFMPEG  = process.env.FFMPEG_PATH  || 'ffmpeg';
 const FFPROBE = process.env.FFPROBE_PATH || 'ffprobe';
 const AD_WINDOW_SEC = 6;       // how long the creative stays on screen per slot
 const FADE_SEC      = 0.4;
-const INTRO_SLOT_SEC = 30;
 
-const SHORT_VIDEO_THRESHOLD_SEC = 5 * 60;
+const PERCENTAGE_SLOTS = [
+  { key: '8pct', percent: 8 },
+  { key: '25pct', percent: 25 },
+  { key: '45pct', percent: 45 },
+  { key: '65pct', percent: 65 },
+  { key: '85pct', percent: 85 },
+];
 
 function getAdSlots(duration) {
-  if (duration <= SHORT_VIDEO_THRESHOLD_SEC) {
-    return [{ key: 'intro', time: INTRO_SLOT_SEC }];
-  }
-  return [
-    { key: 'intro',  time: INTRO_SLOT_SEC },
-    { key: 'middle', time: duration / 2 },
-    { key: 'end',    time: duration * 0.8 },
-  ];
+  return PERCENTAGE_SLOTS.map(({ key, percent }) => ({
+    key,
+    time: duration * (percent / 100),
+  }));
 }
 
 function run(cmd, args) {

@@ -87,63 +87,131 @@ exports.uploadCreativeToCloudinary = uploadCreativeToCloudinary;
 exports.SLOT_TYPES = SLOT_TYPES;
 exports.SLOT_LABELS = SLOT_LABELS;
 
-async function getCreatorPostingFrequency(creatorId) {
-  const postsRes = await query(
-    `SELECT posted_at
-     FROM ad_video_posts
-     WHERE creator_id = $1 AND provider = 'youtube'
-       AND posted_at >= NOW() - INTERVAL '90 days'
-     ORDER BY posted_at ASC`,
-    [creatorId],
-  );
+const POSTING_PACE_TO_DAYS = {
+  daily: 1,
+  every_few_days: 3,
+  weekly: 7,
+  irregular: 14,
+};
 
-  const timestamps = (postsRes.rows || [])
-    .map((row) => new Date(row.posted_at).getTime())
+async function getPostingEstimate(creatorId) {
+  const [postsRes, statsRes, paceRes] = await Promise.all([
+    query(
+      `SELECT posted_at FROM ad_video_posts
+       WHERE creator_id = $1 AND provider = 'youtube'
+         AND posted_at >= NOW() - INTERVAL '90 days'
+       ORDER BY posted_at ASC`,
+      [creatorId],
+    ),
+    query(
+      `SELECT published_at FROM social_video_stats
+       WHERE creator_id = $1 AND provider = 'youtube'
+         AND published_at >= NOW() - INTERVAL '90 days'
+       ORDER BY published_at ASC`,
+      [creatorId],
+    ),
+    query(
+      `SELECT posting_pace FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
+      [creatorId],
+    ),
+  ]);
+
+  const combined = [...(postsRes.rows || []), ...(statsRes.rows || [])]
+    .map((row) => new Date(row.posted_at || row.published_at).getTime())
     .filter((value) => Number.isFinite(value));
 
-  if (timestamps.length >= 5) {
+  const uniqueSortedTimestamps = [...new Set(combined)].sort((a, b) => a - b);
+
+  if (uniqueSortedTimestamps.length >= 5) {
     const gaps = [];
-    for (let i = 1; i < timestamps.length; i += 1) {
-      const gapDays = (timestamps[i] - timestamps[i - 1]) / 86_400_000;
+    for (let i = 1; i < uniqueSortedTimestamps.length; i += 1) {
+      const gapDays = (uniqueSortedTimestamps[i] - uniqueSortedTimestamps[i - 1]) / 86_400_000;
       if (gapDays > 0) gaps.push(gapDays);
     }
 
     if (gaps.length) {
-      const averageDaysBetweenPosts = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
-      const rounded = Number((Math.round(averageDaysBetweenPosts * 10) / 10).toFixed(1));
-      const isDaily = rounded <= 1.2;
+      const avgDaysBetweenPosts = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
+      const rounded = Number((Math.round(avgDaysBetweenPosts * 10) / 10).toFixed(1));
+      const estimates = {
+        30: Math.floor(30 / Math.max(rounded, 1)),
+        90: Math.floor(90 / Math.max(rounded, 1)),
+        180: Math.floor(180 / Math.max(rounded, 1)),
+      };
       return {
-        count: timestamps.length,
-        averageDaysBetweenPosts: rounded,
-        label: isDaily ? 'Posts daily' : `Posts roughly every ${rounded} days`,
-        isEstimated: false,
-        hasHistory: true,
+        avgDaysBetweenPosts: rounded,
+        source: 'measured',
+        estimates,
       };
     }
   }
 
-  const creatorRes = await query(
-    `SELECT posting_pace_days FROM creators WHERE id = $1`,
-    [creatorId],
-  );
-  const selfReported = Number(creatorRes.rows[0]?.posting_pace_days || 0);
-  if (selfReported > 0) {
-    const safeValue = Number(Math.max(1, selfReported).toFixed(1));
+  const statedPace = paceRes.rows[0]?.posting_pace;
+  const statedDays = statedPace ? POSTING_PACE_TO_DAYS[statedPace] : null;
+  if (statedDays) {
+    const estimates = {
+      30: Math.floor(30 / statedDays),
+      90: Math.floor(90 / statedDays),
+      180: Math.floor(180 / statedDays),
+    };
     return {
-      count: timestamps.length,
-      averageDaysBetweenPosts: safeValue,
-      label: `Posts roughly every ${safeValue} days (estimated)`,
-      isEstimated: true,
-      hasHistory: false,
+      avgDaysBetweenPosts: statedDays,
+      source: 'stated',
+      estimates,
     };
   }
 
   return {
-    count: timestamps.length,
+    avgDaysBetweenPosts: null,
+    source: 'none',
+    estimates: null,
+  };
+}
+exports.getPostingEstimate = getPostingEstimate;
+
+async function getCreatorPostingFrequency(creatorId) {
+  const estimate = await getPostingEstimate(creatorId);
+  const count = estimate.source === 'measured'
+    ? (await query(
+        `SELECT COUNT(*)::int AS total
+         FROM (
+           SELECT posted_at FROM ad_video_posts WHERE creator_id = $1 AND provider = 'youtube' AND posted_at >= NOW() - INTERVAL '90 days'
+           UNION ALL
+           SELECT published_at FROM social_video_stats WHERE creator_id = $1 AND provider = 'youtube' AND published_at >= NOW() - INTERVAL '90 days'
+         ) t`,
+        [creatorId],
+      )).rows[0]?.total || 0
+    : 0;
+
+  if (estimate.source === 'measured' && estimate.avgDaysBetweenPosts) {
+    const rounded = Number((Math.round(estimate.avgDaysBetweenPosts * 10) / 10).toFixed(1));
+    return {
+      count,
+      averageDaysBetweenPosts: rounded,
+      label: rounded <= 1.2 ? 'Posts daily' : `Posts roughly every ${rounded} days`,
+      isEstimated: false,
+      hasHistory: true,
+      source: 'measured',
+    };
+  }
+
+  if (estimate.source === 'stated' && estimate.avgDaysBetweenPosts) {
+    return {
+      count,
+      averageDaysBetweenPosts: Number(estimate.avgDaysBetweenPosts),
+      label: `Posts roughly every ${estimate.avgDaysBetweenPosts} days (estimated)`,
+      isEstimated: true,
+      hasHistory: false,
+      source: 'stated',
+    };
+  }
+
+  return {
+    count: 0,
     averageDaysBetweenPosts: 30,
     label: 'Not enough posting history yet',
     isEstimated: true,
     hasHistory: false,
+    source: 'none',
   };
 }
 exports.getCreatorPostingFrequency = getCreatorPostingFrequency;
@@ -179,11 +247,28 @@ exports.getAdSpaces = async (req, res) => {
       [creatorId],
     );
     const claimedSet = new Set(claimed.rows.map((r) => r.slot_type));
-    const slots = SLOT_TYPES.filter((slotType) => activeSet.has(slotType)).map((slotType) => ({
-      slotType,
-      label: SLOT_LABELS[slotType],
-      status: claimedSet.has(slotType) ? 'claimed' : 'open',
-    }));
+    const campaignRes = await query(
+      `SELECT slot_type, expires_at
+       FROM ad_campaigns
+       WHERE creator_id = $1 AND status = 'active' AND expires_at > NOW()`,
+      [creatorId],
+    );
+    const campaignBySlot = Object.fromEntries(
+      (campaignRes.rows || []).map((row) => [row.slot_type, row.expires_at]),
+    );
+    const slots = SLOT_TYPES.filter((slotType) => activeSet.has(slotType)).map((slotType) => {
+      const campaignUntil = campaignBySlot[slotType] || null;
+      const isClaimed = claimedSet.has(slotType) || !!campaignUntil;
+      return {
+        slotType,
+        label: SLOT_LABELS[slotType],
+        status: isClaimed ? 'claimed' : 'open',
+        campaignUntil: campaignUntil ? new Date(campaignUntil).toISOString() : null,
+        statusText: campaignUntil
+          ? `Campaign until ${new Date(campaignUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+          : null,
+      };
+    });
 
     const subsRes = await query(
       `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
@@ -191,6 +276,7 @@ exports.getAdSpaces = async (req, res) => {
     );
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
     const { tier, rows: pricingRows } = getYoutubeTierPricing(subscribers);
+    const postingEstimate = await getPostingEstimate(creatorId);
     const postingFrequency = await getCreatorPostingFrequency(creatorId);
 
     return res.json({
@@ -203,6 +289,7 @@ exports.getAdSpaces = async (req, res) => {
         activeSlots,
         tier,
         pricingRows,
+        postingEstimate,
         postingFrequency,
       },
     });

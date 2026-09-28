@@ -11,6 +11,11 @@ import { getToken } from '@/app/(adsense)/utils/token';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 const DURATION_BANDS = ['5–15s', '15–30s'] as const;
+const CAMPAIGN_PACKAGE_OPTIONS = [
+  { value: '1 month', months: 1, days: 30 },
+  { value: '3 months', months: 3, days: 90 },
+  { value: '6 months', months: 6, days: 180 },
+] as const;
 
 interface AdSlot {
   slotType: string;
@@ -62,12 +67,14 @@ export default function AdSpacesModal({
   const [claimedJustNow, setClaimedJustNow] = useState<string | null>(null);
 
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
+  const [campaignSlot, setCampaignSlot] = useState<string | null>(null);
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
   const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('single');
   const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean } | null>(null);
+  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
+  const [postingEstimate, setPostingEstimate] = useState<{ avgDaysBetweenPosts: number | null; source: 'measured' | 'stated' | 'none'; estimates: Record<number, number> | null } | null>(null);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -91,6 +98,7 @@ export default function AdSpacesModal({
         setTier(spacesJson?.data?.tier ?? '');
         setPricingRows(spacesJson?.data?.pricingRows ?? []);
         setPostingFrequency(spacesJson?.data?.postingFrequency ?? null);
+        setPostingEstimate(spacesJson?.data?.postingEstimate ?? null);
         const types: AdFormatType[] = formatsJson?.data?.types ?? [];
         setSizes(types.find((t) => t.type === type)?.sizes ?? ['small', 'medium', 'large']);
       })
@@ -116,20 +124,22 @@ export default function AdSpacesModal({
 
   const price = priceForSelection();
 
+  const packageEstimateDays = { '1 month': 30, '3 months': 90, '6 months': 180 } as const;
   const estimatedInsertions = (() => {
-    if (!postingFrequency) return 0;
-    const average = Number(postingFrequency.averageDaysBetweenPosts || 0);
-    if (!average || !Number.isFinite(average)) return 0;
-    const packageDays = { '1 month': 30, '3 months': 90, '6 months': 180 } as const;
-    return Math.max(1, Math.floor(packageDays[packageLength] / average));
+    if (!postingEstimate || !postingEstimate.estimates) return 0;
+    const days = packageEstimateDays[packageLength];
+    return Number(postingEstimate.estimates[days] ?? 0) || 0;
   })();
 
   const campaignTotal = price !== null ? price * estimatedInsertions : null;
-  const canSubmit = !!pendingFile;
+  const campaignSlotLabel = campaignSlot ? slots.find((slot) => slot.slotType === campaignSlot)?.label ?? 'Selected slot' : 'Select a slot';
+  const selectedCampaignSlotPosition = campaignSlot ? Number.parseInt(campaignSlot.replace('pct', ''), 10) : 0;
+  const canSubmit = purchaseMode === 'campaign' ? !!(pendingFile && campaignSlot && campaignTotal !== null) : !!(pendingFile && expandedSlot);
 
   const submitClaim = async () => {
-    if (!expandedSlot || !pendingFile) return;
-    const slotType = expandedSlot;
+    if (!pendingFile) return;
+    const slotType = purchaseMode === 'campaign' ? campaignSlot : expandedSlot;
+    if (!slotType) return;
     setClaimingSlot(slotType);
     setError('');
     setNeedsLogin(false);
@@ -141,7 +151,7 @@ export default function AdSpacesModal({
       formData.append('adSize', adSize);
       formData.append('durationBand', durationBand);
       if (purchaseMode === 'campaign') {
-        formData.append('packageLength', packageLength);
+        formData.append('package_months', String(CAMPAIGN_PACKAGE_OPTIONS.find((option) => option.value === packageLength)?.months ?? 3));
       }
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
@@ -242,10 +252,16 @@ export default function AdSpacesModal({
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setPurchaseMode(mode)}
+                  onClick={() => {
+                    setPurchaseMode(mode);
+                    if (mode === 'single') {
+                      setCampaignSlot(null);
+                      setExpandedSlot(null);
+                    }
+                  }}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${purchaseMode === mode ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
                 >
-                  {mode === 'single' ? 'Single insertion' : 'Campaign (multiple insertions)'}
+                  {mode === 'single' ? 'Single insertion' : 'Campaign (1 / 3 / 6 months)'}
                 </button>
               ))}
             </div>
@@ -255,6 +271,127 @@ export default function AdSpacesModal({
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-(--color-surface-2) animate-pulse" />)}
+          </div>
+        ) : purchaseMode === 'campaign' ? (
+          <div className="space-y-3">
+            {!postingEstimate || postingEstimate.source === 'none' ? (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                This creator has no posting pace yet, so campaign purchase is unavailable. Switch to Single insertion.
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Package length</p>
+                  <div className="space-y-2">
+                    {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
+                      const isSelected = packageLength === option.value;
+                      const visibleCount = postingEstimate.estimates?.[option.days] ?? 0;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setPackageLength(option.value)}
+                          className={`w-full rounded-xl border px-3 py-2 text-left ${isSelected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-(--color-border) bg-(--color-surface-1)'}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-(--color-white)">{option.value}</span>
+                            <span className="text-[10px] text-(--color-muted)">~{visibleCount} insertions</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[10px] text-(--color-muted)">
+                    {postingEstimate.source === 'measured'
+                      ? `Based on about every ${postingEstimate.avgDaysBetweenPosts} days in recent posts.`
+                      : `Based on the creator’s stated pace: ${postingEstimate.avgDaysBetweenPosts === 1 ? 'daily' : postingEstimate.avgDaysBetweenPosts === 3 ? 'every few days' : postingEstimate.avgDaysBetweenPosts === 7 ? 'weekly' : 'irregular'} estimation.`}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Slot position</p>
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map((slot) => {
+                      const disabled = slot.status !== 'open';
+                      const isActive = campaignSlot === slot.slotType;
+                      return (
+                        <button
+                          key={slot.slotType}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setCampaignSlot(slot.slotType)}
+                          className={`min-w-[3.5rem] px-2 py-1.5 rounded-lg border text-xs font-bold ${isActive ? 'bg-(--color-white) text-black border-transparent' : disabled ? 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border) opacity-45' : 'bg-(--color-surface-1) text-(--color-white) border-(--color-border)'}`}
+                        >
+                          {slot.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Duration</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {DURATION_BANDS.map((band) => (
+                      <button
+                        key={band}
+                        onClick={() => setDurationBand(band)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border font-mono ${durationBand === band ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
+                      >
+                        {band}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Size</p>
+                  <div className="flex gap-2">
+                    {sizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setAdSize(size)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border capitalize ${adSize === size ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) px-3 py-2 space-y-2">
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase">Summary</p>
+                  <p className="text-sm font-bold text-emerald-400">
+                    {estimatedInsertions.toLocaleString()} insertions × {price?.toLocaleString() ?? '0'} RWF = {campaignTotal?.toLocaleString() ?? '0'} RWF
+                  </p>
+                  <p className="text-[10px] text-(--color-muted)">
+                    {campaignSlotLabel} • {CAMPAIGN_PACKAGE_OPTIONS.find((option) => option.value === packageLength)?.value ?? '3 months'} • {durationBand}
+                  </p>
+                  <p className="text-[10px] text-(--color-muted)">
+                    Estimated campaign length: {selectedCampaignSlotPosition || 45}% of each post, delivered up to ~{estimatedInsertions.toLocaleString()} videos.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Your Ad Image</p>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-(--color-border) bg-(--color-surface-1) text-xs text-(--color-muted) hover:bg-(--color-surface-3)"
+                  >
+                    <PhotoIcon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{pendingFile ? pendingFile.name : 'Choose image…'}</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={submitClaim}
+                  disabled={!canSubmit || claimingSlot === campaignSlot}
+                  className="w-full py-2 rounded-lg bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  {claimingSlot === campaignSlot ? 'Processing…' : `Pay ${campaignTotal?.toLocaleString() ?? '0'} RWF & Start Campaign`}
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -288,7 +425,6 @@ export default function AdSpacesModal({
 
                 {expandedSlot === slot.slotType && (
                   <div className="mt-3 pt-3 border-t border-(--color-border) space-y-3">
-                    {/* Duration */}
                     <div>
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Duration</p>
                       <div className="flex gap-2 flex-wrap">
@@ -304,7 +440,6 @@ export default function AdSpacesModal({
                       </div>
                     </div>
 
-                    {/* Size */}
                     <div>
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Size</p>
                       <div className="flex gap-2">
@@ -320,41 +455,13 @@ export default function AdSpacesModal({
                       </div>
                     </div>
 
-                    {purchaseMode === 'campaign' && (
-                      <div>
-                        <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Package length</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {(['1 month', '3 months', '6 months'] as const).map((length) => (
-                            <button
-                              key={length}
-                              onClick={() => setPackageLength(length)}
-                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${packageLength === length ? 'bg-(--color-white) text-black border-transparent' : 'bg-(--color-surface-1) text-(--color-muted) border-(--color-border)'}`}
-                            >
-                              {length}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Price */}
                     {price !== null && (
                       <div className="rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 flex items-center justify-between gap-2">
                         <span className="text-[10px] font-bold text-(--color-muted) uppercase">You pay</span>
-                        {purchaseMode === 'campaign' ? (
-                          <span className="text-right text-sm font-bold text-emerald-400">
-                            {campaignTotal?.toLocaleString() ?? price.toLocaleString()} RWF total
-                            <span className="block text-[10px] text-(--color-muted) font-medium">
-                              (~{estimatedInsertions} insertions{postingFrequency?.hasHistory ? '' : ' estimated'})
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF per insertion</span>
-                        )}
+                        <span className="text-sm font-bold text-emerald-400">{price.toLocaleString()} RWF per insertion</span>
                       </div>
                     )}
 
-                    {/* Creative + submit */}
                     <div>
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase mb-1.5">Your Ad Image</p>
                       <button
@@ -371,11 +478,7 @@ export default function AdSpacesModal({
                       disabled={!canSubmit || claimingSlot === slot.slotType}
                       className="w-full py-2 rounded-lg bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
                     >
-                      {claimingSlot === slot.slotType
-                        ? 'Processing…'
-                        : purchaseMode === 'campaign'
-                          ? (campaignTotal !== null ? `Pay ${campaignTotal.toLocaleString()} RWF & Start Campaign` : 'Pay & Start Campaign')
-                          : (price !== null ? `Pay ${price.toLocaleString()} RWF & Claim` : 'Pay & Claim')}
+                      {claimingSlot === slot.slotType ? 'Processing…' : (price !== null ? `Pay ${price.toLocaleString()} RWF & Claim` : 'Pay & Claim')}
                     </button>
                   </div>
                 )}

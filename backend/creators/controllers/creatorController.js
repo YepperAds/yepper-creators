@@ -12,7 +12,7 @@ const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification 
 const sendEmailNotification = require('../../controllers/emailService');
 const WithdrawalRequest = require('../../AdPromoter/models/WithdrawalModel');
 const { getWithdrawalCooldown, getEarningsHold } = require('../../AdPromoter/utils/withdrawalCooldown');
-const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./adSpaceController');
+const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES, getPostingEstimate } = require('./adSpaceController');
 const { generateFlutterwavePaymentUrl, verifyFlutterwaveTransaction, upsertWallet, generateUniqueTransactionRef } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
@@ -552,35 +552,56 @@ async function getCreatorPostingFrequency(creatorId) {
   };
 }
 
+exports.setPostingPace = async (req, res) => {
+  const creatorId = getCreatorId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to set posting pace' });
+
+  const pace = String(req.body?.postingPace || '').trim();
+  const valid = ['daily', 'every_few_days', 'weekly', 'irregular'].includes(pace);
+  if (!valid) return res.status(400).json({ success: false, message: 'Invalid posting pace' });
+
+  try {
+    await query(
+      `UPDATE social_connections
+       SET posting_pace = $1
+       WHERE creator_id = $2 AND provider = 'youtube'`,
+      [pace, creatorId],
+    );
+
+    return res.json({ success: true, postingPace: pace });
+  } catch (err) {
+    console.error('[creators] setPostingPace error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save posting pace' });
+  }
+};
+
 exports.createAdCampaign = async (req, res) => {
   const advertiserId = getSessionUserId(req);
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to start a campaign' });
 
   const { creatorId } = req.params;
-  const { slotType, durationBand, packageLength, adSize } = req.body;
+  const rawPackageMonths = Number(req.body?.package_months ?? req.body?.packageMonths ?? req.body?.packageLength ?? 3);
+  const { slotType, durationBand, adSize } = req.body;
+
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
-
-  const normalizedPackage = ['1 month', '3 months', '6 months'].includes(packageLength) ? packageLength : '3 months';
-  const packageDaysMap = { '1 month': 30, '3 months': 90, '6 months': 180 };
-  const packageDays = packageDaysMap[normalizedPackage] || 90;
+  if (![1, 3, 6].includes(rawPackageMonths)) return res.status(400).json({ success: false, message: 'Invalid package length' });
 
   try {
-    const creatorRes = await query(`SELECT ad_type_preference, posting_pace_days FROM creators WHERE id = $1`, [creatorId]);
+    const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
     if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
     const adType = creatorRes.rows[0].ad_type_preference || 'corner';
-    const selfReportedDays = Number(creatorRes.rows[0].posting_pace_days || 0);
 
-    await query(
-      `UPDATE youtube_ad_claims
-       SET status = 'cancelled', payment_status = 'cancelled'
-       WHERE creator_id = $1
-         AND slot_type = $2
-         AND status = 'pending'
-         AND payment_status <> 'paid'
-         AND (advertiser_id = $3 OR created_at < NOW() - INTERVAL '15 minutes')`,
-      [creatorId, slotType, String(advertiserId)],
-    );
+    const postingEstimate = await getPostingEstimate(creatorId);
+    if (postingEstimate.source === 'none' || !postingEstimate.estimates) {
+      return res.status(400).json({ success: false, message: 'Campaigns are unavailable until this creator sets a posting pace.' });
+    }
+
+    const packageDays = rawPackageMonths * 30;
+    const totalInsertions = Number(postingEstimate.estimates[packageDays] ?? Math.floor(packageDays / Math.max(postingEstimate.avgDaysBetweenPosts || 1, 1)));
+    if (!totalInsertions || totalInsertions < 1) {
+      return res.status(400).json({ success: false, message: 'Posting estimate is too low to create a campaign' });
+    }
 
     const subsRes = await query(
       `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
@@ -590,11 +611,7 @@ exports.createAdCampaign = async (req, res) => {
     const priced = priceFor(subscribers, durationBand, adType);
     if (!priced) return res.status(400).json({ success: false, message: 'Invalid duration' });
 
-    const postingFrequency = await getCreatorPostingFrequency(creatorId);
-    const averageDays = Number(postingFrequency.averageDaysBetweenPosts || selfReportedDays || 30);
-    const estimatedInsertions = Math.max(1, Math.floor(packageDays / Math.max(averageDays, 1)));
-    const totalCost = Math.round(priced.amount * estimatedInsertions);
-
+    const totalCost = Math.round(priced.amount * totalInsertions);
     const advertiser = await Creator.findById(advertiserId);
     const wallet = await Wallet.findByOwner(String(advertiserId), 'advertiser');
     const walletBalance = wallet ? parseFloat(wallet.balance) : 0;
@@ -603,91 +620,86 @@ exports.createAdCampaign = async (req, res) => {
     const creatorEarnings = Math.round(totalCost * 0.70);
     const yepperCut = totalCost - creatorEarnings;
     const imageUrl = await uploadCreativeToCloudinary(req.file);
+    const tx_ref = generateUniqueTransactionRef('yt_campaign_flw', advertiserId, `${creatorId}_${slotType}_${rawPackageMonths}`);
+    const expiresAt = new Date(Date.now() + (packageDays * 24 * 60 * 60 * 1000));
 
-    const tx_ref = generateUniqueTransactionRef('yt_campaign_flw', advertiserId, `${creatorId}_${slotType}_${normalizedPackage}`);
-  const claimColumns = `creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size,
-       duration_band, tier, amount, creator_earnings, yepper_cut, currency,
-       business_categories, business_category_other, tx_ref, campaign_id`;
+    const client = await getClient();
+    let campaignId = null;
+    let claimId = null;
+    try {
+      await client.query('BEGIN');
 
-  const client = await getClient();
-  let campaignId = null;
-  try {
-    await client.query('BEGIN');
-
-    const campaignRes = await client.query(
-      `INSERT INTO ad_campaigns (
-         creator_id, advertiser_id, slot_type, total_insertions, fulfilled_insertions,
-         amount_total, amount_per_insertion, currency, status, expires_at,
-         tx_ref, payment_status, business_categories, business_category_other
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',NOW() + ($9 || ' days')::interval,$10,'pending','[]'::jsonb,NULL)
-       RETURNING id`,
-      [creatorId, String(advertiserId), slotType, estimatedInsertions, 0, totalCost, priced.amount, 'RWF', String(packageDays), tx_ref],
-    );
-    campaignId = campaignRes.rows[0].id;
-
-    const claimRes = await client.query(
-      `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending') RETURNING id`,
-      [creatorId, String(advertiserId), slotType, imageUrl, adType, AD_SIZES.includes(adSize) ? adSize : 'medium', durationBand, priced.tier, totalCost, creatorEarnings, yepperCut, 'RWF', JSON.stringify([]), null, tx_ref, campaignId],
-    );
-
-    if (remainingAmount <= 0.01) {
-      if (walletToUse > 0) {
-        await client.query(
-          `UPDATE wallets SET balance = balance - $1, total_spent = total_spent + $1, last_updated = NOW() WHERE id = $2`,
-          [walletToUse, wallet.id],
-        );
-      }
-      if (creatorEarnings > 0) {
-        await upsertWallet(client, String(creatorId), 'webOwner', null, creatorEarnings, creatorEarnings, 0);
-      }
-
-      await client.query(
-        `UPDATE ad_campaigns SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`,
-        [campaignId],
+      const campaignRes = await client.query(
+        `INSERT INTO ad_campaigns (
+           creator_id, advertiser_id, slot_type, total_insertions, fulfilled_insertions,
+           amount_total, amount_per_insertion, currency, status, expires_at,
+           tx_ref, payment_status, business_categories, business_category_other
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,$10,'pending','[]'::jsonb,NULL)
+         RETURNING id`,
+        [creatorId, String(advertiserId), slotType, totalInsertions, 0, totalCost, priced.amount, 'RWF', expiresAt.toISOString(), tx_ref],
       );
-      await client.query(
-        `UPDATE youtube_ad_claims SET payment_status = 'paid' WHERE id = $1`,
-        [claimRes.rows[0].id],
+      campaignId = campaignRes.rows[0].id;
+
+      const claimColumns = `creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size,
+         duration_band, tier, amount, creator_earnings, yepper_cut, currency,
+         business_categories, business_category_other, tx_ref, campaign_id`;
+      const claimRes = await client.query(
+        `INSERT INTO youtube_ad_claims (${claimColumns}, payment_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending') RETURNING id`,
+        [creatorId, String(advertiserId), slotType, imageUrl, adType, AD_SIZES.includes(adSize) ? adSize : 'medium', durationBand, priced.tier, totalCost, creatorEarnings, yepperCut, 'RWF', JSON.stringify([]), null, tx_ref, campaignId],
       );
+      claimId = claimRes.rows[0].id;
+
+      if (remainingAmount <= 0.01) {
+        if (walletToUse > 0) {
+          await client.query(
+            `UPDATE wallets SET balance = balance - $1, total_spent = total_spent + $1, last_updated = NOW() WHERE id = $2`,
+            [walletToUse, wallet.id],
+          );
+        }
+        if (creatorEarnings > 0) {
+          await upsertWallet(client, String(creatorId), 'webOwner', null, creatorEarnings, creatorEarnings, 0);
+        }
+        await client.query(`UPDATE ad_campaigns SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`, [campaignId]);
+        await client.query(`UPDATE youtube_ad_claims SET payment_status = 'paid' WHERE id = $1`, [claimId]);
+        await client.query('COMMIT');
+
+        await Payment.create({
+          paymentId: tx_ref, tx_ref, advertiserId: String(advertiserId), webOwnerId: String(creatorId),
+          amount: totalCost, currency: 'RWF', status: 'successful',
+          walletApplied: walletToUse, amountPaid: 0,
+          paymentMethod: 'wallet_only',
+          metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths: rawPackageMonths, source: postingEstimate.source },
+          paidAt: new Date(),
+        });
+
+        return res.status(200).json({ success: true, allPaid: true, tier: priced.tier, totalCost, walletApplied: walletToUse, totalInsertions, packageMonths: rawPackageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
+      }
+
       await client.query('COMMIT');
+      const paymentUrl = await generateFlutterwavePaymentUrl({
+        tx_ref, amount: remainingAmount,
+        redirectPath: '/youtube-payment-callback',
+        customer: { email: advertiser?.email, name: advertiser?.full_name || 'Advertiser' },
+        customizations: { description: `YouTube campaign — ${slotType} (${durationBand}, ${adType}, ${rawPackageMonths} months)` },
+      });
 
       await Payment.create({
         paymentId: tx_ref, tx_ref, advertiserId: String(advertiserId), webOwnerId: String(creatorId),
-        amount: totalCost, currency: 'RWF', status: 'successful',
-        walletApplied: walletToUse, amountPaid: 0,
-        paymentMethod: 'wallet_only',
-        metadata: { kind: 'youtube_campaign', claimId: claimRes.rows[0].id, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, estimatedInsertions, packageLength: normalizedPackage },
-        paidAt: new Date(),
+        amount: totalCost, currency: 'RWF', status: 'pending',
+        flutterwaveData: { paymentUrl }, walletApplied: walletToUse,
+        amountPaid: remainingAmount,
+        paymentMethod: walletToUse > 0 ? 'wallet_hybrid' : 'flutterwave',
+        metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths: rawPackageMonths, source: postingEstimate.source },
       });
 
-      return res.status(200).json({ success: true, allPaid: true, tier: priced.tier, totalCost, walletApplied: walletToUse, estimatedInsertions, packageLength: normalizedPackage, data: { slotType, imageUrl, adType, adSize, campaignId } });
+      return res.status(200).json({ success: true, allPaid: false, tier: priced.tier, totalCost, walletApplied: walletToUse, amountPaid: remainingAmount, paymentUrl, tx_ref, totalInsertions, packageMonths: rawPackageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
     }
-
-    await client.query('COMMIT');
-    const paymentUrl = await generateFlutterwavePaymentUrl({
-      tx_ref, amount: remainingAmount,
-      redirectPath: '/youtube-payment-callback',
-      customer: { email: advertiser?.email, name: advertiser?.full_name || 'Advertiser' },
-      customizations: { description: `YouTube campaign — ${slotType} (${durationBand}, ${adType}, ${normalizedPackage})` },
-    });
-
-    await Payment.create({
-      paymentId: tx_ref, tx_ref, advertiserId: String(advertiserId), webOwnerId: String(creatorId),
-      amount: totalCost, currency: 'RWF', status: 'pending',
-      flutterwaveData: { paymentUrl }, walletApplied: walletToUse,
-      amountPaid: remainingAmount,
-      paymentMethod: walletToUse > 0 ? 'wallet_hybrid' : 'flutterwave',
-      metadata: { kind: 'youtube_campaign', claimId: claimRes.rows[0].id, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, estimatedInsertions, packageLength: normalizedPackage },
-    });
-
-    return res.status(200).json({ success: true, allPaid: false, tier: priced.tier, totalCost, walletApplied: walletToUse, amountPaid: remainingAmount, paymentUrl, tx_ref, estimatedInsertions, packageLength: normalizedPackage, data: { slotType, imageUrl, adType, adSize, campaignId } });
-  } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
-  }
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ success: false, message: 'That ad space was just claimed by someone else' });
     console.error('[creatorController] createAdCampaign error:', err);

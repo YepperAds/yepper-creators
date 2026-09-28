@@ -60,6 +60,7 @@ router.get('/api/social/youtube/ad-type-preference',          adSpaces.getAdType
 router.post('/api/social/youtube/ad-type-preference',         adSpaces.setAdTypePreference);
 router.get('/api/social/youtube/ad-slots',                    adSpaces.getActiveSlots);
 router.post('/api/social/youtube/ad-slots',                   adSpaces.setActiveSlots);
+router.post('/api/social/youtube/posting-pace',               controller.setPostingPace);
 router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
 router.post('/api/social/youtube/ad-spaces/send-invite',      adSpaces.sendAdSpaceInvite);
 // Claiming a slot is paid — price is derived server-side from the creator's

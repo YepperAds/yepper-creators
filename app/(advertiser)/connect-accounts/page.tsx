@@ -137,7 +137,8 @@ export default function ConnectAccountsPage() {
   const [adType, setAdType] = useState('corner');
   const [adFormatCatalog, setAdFormatCatalog] = useState<{ type: string; label: string; description: string }[]>([]);
   const [adTypeSaving, setAdTypeSaving] = useState(false);
-  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; hasHistory: boolean; isEstimated: boolean } | null>(null);
+  const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; hasHistory: boolean; isEstimated: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
+  const [savingPostingPace, setSavingPostingPace] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const popupRef = useRef<Window | null>(null);
@@ -608,6 +609,29 @@ export default function ConnectAccountsPage() {
                     <div className="mb-3 rounded-xl border border-(--color-border) bg-(--color-surface-1) px-3 py-2">
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-1">Posting frequency</p>
                       <p className="text-xs font-semibold text-(--color-white)">{postingFrequency?.label || 'Not enough posting history yet'}</p>
+                      {postingFrequency?.source === 'none' && (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-[10px] text-(--color-muted)">How often do you usually post?</p>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { value: 'daily', label: 'Daily' },
+                              { value: 'every_few_days', label: 'Every few days' },
+                              { value: 'weekly', label: 'Weekly' },
+                              { value: 'irregular', label: 'Irregular' },
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => handlePostingPaceSave(option.value as any)}
+                                disabled={savingPostingPace}
+                                className="px-2 py-1 rounded-full border border-(--color-border) bg-(--color-surface-2) text-[10px] font-bold text-(--color-white) disabled:opacity-50"
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">

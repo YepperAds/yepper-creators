@@ -243,7 +243,9 @@ exports.getAdSpaces = async (req, res) => {
 
     const claimed = await query(
       `SELECT slot_type FROM youtube_ad_claims
-       WHERE creator_id = $1 AND status = 'pending' AND payment_status = 'paid'`,
+       WHERE creator_id = $1
+         AND status <> 'cancelled'
+         AND payment_status = 'paid'`,
       [creatorId],
     );
     const claimedSet = new Set(claimed.rows.map((r) => r.slot_type));

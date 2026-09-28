@@ -213,7 +213,12 @@ exports.verifyClaimPayment = async (req, res) => {
           `UPDATE payments SET status = 'successful', paid_at = NOW(), flutterwave_data = $1 WHERE id = $2`,
           [JSON.stringify(flwData), payment.id],
         );
-        await client.query(`UPDATE youtube_ad_claims SET payment_status = 'paid' WHERE tx_ref = $1`, [payment.tx_ref]);
+        await client.query(
+          `UPDATE youtube_ad_claims
+           SET payment_status = 'paid', status = 'pending'
+           WHERE tx_ref = $1`,
+          [payment.tx_ref],
+        );
         if (payment.metadata?.kind === 'youtube_campaign') {
           await client.query(`UPDATE ad_campaigns SET payment_status = 'paid' WHERE tx_ref = $1`, [payment.tx_ref]);
         }

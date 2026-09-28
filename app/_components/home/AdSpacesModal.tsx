@@ -185,11 +185,13 @@ export default function AdSpacesModal({
         setNeedsLogin(true);
       } else if (!json.success) {
         setError(json.message || (purchaseMode === 'campaign' ? 'Failed to start campaign' : 'Failed to claim ad space'));
-      } else if (json.allPaid) {
+      } else if (json.allPaid === true) {
         setSlots((prev) => prev.map((s) => (s.slotType === slotType ? { ...s, status: 'claimed' } : s)));
         setClaimedJustNow(slotType);
         setExpandedSlot(null);
       } else if (json.paymentUrl) {
+        // Do not mark the slot as claimed until the payment callback confirms a
+        // successful transaction. The checkout remains pending until that point.
         window.location.href = json.paymentUrl;
       } else {
         setError('Payment could not be started.');

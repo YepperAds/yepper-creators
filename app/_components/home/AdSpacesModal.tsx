@@ -72,6 +72,11 @@ export default function AdSpacesModal({
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
   const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('single');
   const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
+  const [campaignInsertionsByPackage, setCampaignInsertionsByPackage] = useState<Record<'1 month' | '3 months' | '6 months', number>>({
+    '1 month': 20,
+    '3 months': 60,
+    '6 months': 120,
+  });
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
   const [postingEstimate, setPostingEstimate] = useState<{ avgDaysBetweenPosts: number | null; source: 'measured' | 'stated' | 'none'; estimates: Record<number, number> | null } | null>(null);
@@ -125,16 +130,22 @@ export default function AdSpacesModal({
   const price = priceForSelection();
 
   const packageEstimateDays = { '1 month': 30, '3 months': 90, '6 months': 180 } as const;
-  const estimatedInsertions = (() => {
+  const getDefaultInsertionsForPackage = (length: '1 month' | '3 months' | '6 months') => {
     if (!postingEstimate || !postingEstimate.estimates) return 0;
-    const days = packageEstimateDays[packageLength];
+    const days = packageEstimateDays[length];
     return Number(postingEstimate.estimates[days] ?? 0) || 0;
-  })();
+  };
+
+  const selectedPackageInsertions = Math.max(
+    1,
+    Number(campaignInsertionsByPackage[packageLength] ?? getDefaultInsertionsForPackage(packageLength) ?? 0) || 0,
+  );
+  const estimatedInsertions = selectedPackageInsertions || 0;
 
   const campaignTotal = price !== null ? price * estimatedInsertions : null;
   const campaignSlotLabel = campaignSlot ? slots.find((slot) => slot.slotType === campaignSlot)?.label ?? 'Selected slot' : 'Select a slot';
   const selectedCampaignSlotPosition = campaignSlot ? Number.parseInt(campaignSlot.replace('pct', ''), 10) : 0;
-  const canSubmit = purchaseMode === 'campaign' ? !!(pendingFile && campaignSlot && campaignTotal !== null) : !!(pendingFile && expandedSlot);
+  const canSubmit = purchaseMode === 'campaign' ? !!(pendingFile && campaignSlot && campaignTotal !== null && estimatedInsertions > 0) : !!(pendingFile && expandedSlot);
 
   const submitClaim = async () => {
     if (!pendingFile) return;
@@ -152,6 +163,7 @@ export default function AdSpacesModal({
       formData.append('durationBand', durationBand);
       if (purchaseMode === 'campaign') {
         formData.append('package_months', String(CAMPAIGN_PACKAGE_OPTIONS.find((option) => option.value === packageLength)?.months ?? 3));
+        formData.append('total_insertions', String(Math.max(1, Math.round(estimatedInsertions))));
       }
 
       // The login cookie is SameSite=Lax and scoped to this site, not the
@@ -285,7 +297,9 @@ export default function AdSpacesModal({
                   <div className="space-y-2">
                     {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
                       const isSelected = packageLength === option.value;
-                      const visibleCount = postingEstimate.estimates?.[option.days] ?? 0;
+                      const defaultCount = getDefaultInsertionsForPackage(option.value);
+                      const value = Number(campaignInsertionsByPackage[option.value] ?? defaultCount) || defaultCount || 0;
+
                       return (
                         <button
                           key={option.value}
@@ -295,7 +309,25 @@ export default function AdSpacesModal({
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs font-bold text-(--color-white)">{option.value}</span>
-                            <span className="text-[10px] text-(--color-muted)">~{visibleCount} insertions</span>
+                            <span className="text-[10px] text-(--color-muted)">{defaultCount > 0 ? `~${defaultCount} default` : 'No estimate'}</span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <label className="text-[10px] text-(--color-muted)">Insertions</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={value}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                const nextValue = Number(e.target.value) || 0;
+                                setCampaignInsertionsByPackage((prev) => ({
+                                  ...prev,
+                                  [option.value]: Math.max(1, nextValue),
+                                }));
+                                setPackageLength(option.value);
+                              }}
+                              className="w-24 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2 py-1 text-right text-xs font-semibold text-(--color-white)"
+                            />
                           </div>
                         </button>
                       );

@@ -581,6 +581,7 @@ exports.createAdCampaign = async (req, res) => {
 
   const { creatorId } = req.params;
   const rawPackageMonths = Number(req.body?.package_months ?? req.body?.packageMonths ?? req.body?.packageLength ?? 3);
+  const requestedTotalInsertions = Number(req.body?.total_insertions ?? req.body?.totalInsertions ?? 0);
   const { slotType, durationBand, adSize } = req.body;
 
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
@@ -598,7 +599,10 @@ exports.createAdCampaign = async (req, res) => {
     }
 
     const packageDays = rawPackageMonths * 30;
-    const totalInsertions = Number(postingEstimate.estimates[packageDays] ?? Math.floor(packageDays / Math.max(postingEstimate.avgDaysBetweenPosts || 1, 1)));
+    const baseEstimate = Number(postingEstimate.estimates[packageDays] ?? Math.floor(packageDays / Math.max(postingEstimate.avgDaysBetweenPosts || 1, 1)));
+    const totalInsertions = Number.isFinite(requestedTotalInsertions) && requestedTotalInsertions > 0
+      ? Math.max(1, Math.round(requestedTotalInsertions))
+      : baseEstimate;
     if (!totalInsertions || totalInsertions < 1) {
       return res.status(400).json({ success: false, message: 'Posting estimate is too low to create a campaign' });
     }

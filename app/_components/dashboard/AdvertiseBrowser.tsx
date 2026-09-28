@@ -141,7 +141,8 @@ function CompactWebsiteCard({ website, onClick }: { website: PublicWebsite; onCl
 export default function AdvertiseBrowser({ websites, creators, hotDeals, initialDealId, onBackToFeed }: { websites: PublicWebsite[]; creators: PublicCreator[]; hotDeals: HotDeal[]; initialDealId?: string; onBackToFeed: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const categories = buildCategories(websites, creators);
+  const websiteList = websites.length > 0 ? websites : MOCK_WEBSITES;
+  const creatorList = creators.length > 0 ? creators : MOCK_CREATORS;
 
   const [activeWebsite, setActiveWebsite] = useState<PublicWebsite | null>(null);
   const [adSpaces, setAdSpaces] = useState<AdSpace[]>([]);
@@ -402,27 +403,29 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
         <h3 className="text-lg font-bold text-white font-(--font-display) mb-1">Choose Platforms</h3>
       </div>
 
-      {categories.length === 0 ? (
-        <p className="text-sm text-muted">No categories available yet.</p>
-      ) : (
-        categories.map((cat) => (
-          <section key={cat.key}>
-            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">{cat.label}</p>
-
-            {cat.creators.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
-                {cat.creators.map((c) => <CompactCreatorCard key={c.id} creator={c} onCollaborate={setCollaborateWith} />)}
-              </div>
-            )}
-
-            {cat.websites.length > 0 && (
-              <div className="flex gap-4 overflow-x-auto pb-1 -mx-1 px-1">
-                {cat.websites.map((w) => <CompactWebsiteCard key={w.id} website={w} onClick={() => openWebsite(w)} />)}
-              </div>
-            )}
+      <div className="space-y-6">
+        {websiteList.length > 0 && (
+          <section>
+            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">Websites</p>
+            <div className="flex gap-4 overflow-x-auto pb-1 -mx-1 px-1">
+              {websiteList.map((w) => (
+                <CompactWebsiteCard key={w.id} website={w} onClick={() => openWebsite(w)} />
+              ))}
+            </div>
           </section>
-        ))
-      )}
+        )}
+
+        {creatorList.length > 0 && (
+          <section>
+            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">YouTube channels</p>
+            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+              {creatorList.map((c) => (
+                <CompactCreatorCard key={c.id} creator={c} onCollaborate={setCollaborateWith} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={() => setCollaborateWith(null)} />
     </div>

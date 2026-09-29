@@ -24,58 +24,50 @@ interface AdSlot {
   status: 'open' | 'claimed';
 }
 
-interface AdFormatType {
-  type: string;
-  label: string;
-  description: string;
-  sizes: string[];
-}
-
 interface PricingRow {
   duration: string;
   corner: number;
   lbar: number;
 }
 
-// A small, reusable video-mock preview: shows the creator's own latest
-// thumbnail (or a placeholder) with the advertiser's chosen ad image
-// overlaid, and a percentage-of-video progress bar marking exactly where
-// in the video the ad will appear.
+// A fixed mock-video scene keeps real creator footage out of the ad purchase flow.
 function VideoPreviewPanel({
-  thumbnail,
   adImageUrl,
   position,
+  showPosition,
 }: {
-  thumbnail: string | null;
   adImageUrl: string | null;
   position: number;
+  showPosition: boolean;
 }) {
   return (
-    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-(--color-surface-2) border border-(--color-border)">
-      {thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-(--color-surface-2) to-(--color-surface-3)">
-          <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-            <PlayIcon className="w-6 h-6 text-white/70 ml-0.5" />
+    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-(--color-border)">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/youtube-ad-preview/creator.png" alt="Illustrated video preview" className="absolute inset-0 h-full w-full object-contain" />
+
+      <div className="absolute bottom-[15%] right-[5%] w-[32%] overflow-hidden border border-white bg-white shadow-lg">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={adImageUrl || '/youtube-ad-preview/ad.png'} alt="Ad placement preview" className="block h-auto w-full" />
+      </div>
+
+      {showPosition && (
+        <div className="absolute inset-x-4 bottom-3 h-8">
+          <span
+            className="absolute bottom-3 -translate-x-1/2 text-[11px] font-bold text-white"
+            style={{ left: `${position}%` }}
+          >
+            {position}%
+          </span>
+          <span
+            aria-hidden="true"
+            className="absolute bottom-1 h-2.5 w-px bg-white"
+            style={{ left: `${position}%` }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-1.5 rounded-full bg-white/45">
+            <div className="h-full rounded-full bg-white" style={{ width: `${position}%` }} />
           </div>
         </div>
       )}
-
-      {adImageUrl && (
-        <div className="absolute bottom-4 right-4 max-w-[45%] rounded-lg overflow-hidden border-2 border-white shadow-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={adImageUrl} alt="Your ad" className="w-full h-auto block" />
-        </div>
-      )}
-
-      <div className="absolute left-4 right-4 bottom-3">
-        <p className="text-[11px] font-bold text-white mb-1">{position}%</p>
-        <div className="relative h-1.5 rounded-full bg-white/25">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-white" style={{ width: `${position}%` }} />
-        </div>
-      </div>
     </div>
   );
 }
@@ -87,7 +79,7 @@ function VideoPreviewPanel({
 // step introducing the channel, then a configure step for the purchase
 // itself. Price (and the visual overlay format, corner badge vs L-bar)
 // follows the creator's own fixed choice; the advertiser picks slot
-// position, duration and size. Once claimed, the slot is automatically
+// position and duration. Once claimed, the slot is automatically
 // offered to the creator next time they post a video through Yepper (see
 // PostAdModal.tsx).
 export default function AdSpacesModal({
@@ -105,7 +97,6 @@ export default function AdSpacesModal({
   const [adType, setAdType]     = useState('corner');
   const [adTypeLabel, setAdTypeLabel] = useState('');
   const [adTypeDescription, setAdTypeDescription] = useState('');
-  const [sizes, setSizes]       = useState<string[]>(['small', 'medium', 'large']);
   const [tier, setTier]         = useState('');
   const [pricingRows, setPricingRows] = useState<PricingRow[]>([]);
   const [loading, setLoading]   = useState(false);
@@ -117,7 +108,7 @@ export default function AdSpacesModal({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
-  const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('single');
+  const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('campaign');
   const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
   const [campaignInsertionsByPackage, setCampaignInsertionsByPackage] = useState<Record<'1 month' | '3 months' | '6 months', number>>({
     '1 month': 20,
@@ -141,13 +132,13 @@ export default function AdSpacesModal({
     setSelectedSlot(null);
     setPendingFile(null);
     setPendingFileUrl(null);
-    setPurchaseMode('single');
-    Promise.all([
-      fetch(`/api/social/youtube/ad-spaces/${creator.id}`, { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
-      fetch('/api/social/youtube/ad-formats', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
-    ])
-      .then(([spacesJson, formatsJson]) => {
+    setPurchaseMode('campaign');
+    fetch(`/api/social/youtube/ad-spaces/${creator.id}`, { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((spacesJson) => {
         setSlots(spacesJson?.data?.slots ?? []);
+        const firstOpenSlot = (spacesJson?.data?.slots ?? []).find((slot: AdSlot) => slot.status === 'open');
+        setSelectedSlot(firstOpenSlot?.slotType ?? null);
         const type = spacesJson?.data?.adType ?? 'corner';
         setAdType(type);
         setAdTypeLabel(spacesJson?.data?.adTypeLabel ?? '');
@@ -155,9 +146,16 @@ export default function AdSpacesModal({
         setTier(spacesJson?.data?.tier ?? '');
         setPricingRows(spacesJson?.data?.pricingRows ?? []);
         setPostingFrequency(spacesJson?.data?.postingFrequency ?? null);
-        setPostingEstimate(spacesJson?.data?.postingEstimate ?? null);
-        const types: AdFormatType[] = formatsJson?.data?.types ?? [];
-        setSizes(types.find((t) => t.type === type)?.sizes ?? ['small', 'medium', 'large']);
+        const estimate = spacesJson?.data?.postingEstimate ?? null;
+        setPostingEstimate(estimate);
+        if (estimate?.estimates) {
+          setCampaignInsertionsByPackage((current) => ({
+            ...current,
+            '1 month': Number(estimate.estimates[30]) || current['1 month'],
+            '3 months': Number(estimate.estimates[90]) || current['3 months'],
+            '6 months': Number(estimate.estimates[180]) || current['6 months'],
+          }));
+        }
       })
       .catch(() => setError('Failed to load ad spaces.'))
       .finally(() => setLoading(false));
@@ -206,7 +204,6 @@ export default function AdSpacesModal({
 
   const displayTotal = purchaseMode === 'campaign' ? campaignTotal : price;
 
-  const thumbnail = creator.videos?.[0]?.thumbnail ?? null;
   const previewPosition = selectedSlot ? selectedSlotPosition : 45;
 
   const submitClaim = async () => {
@@ -334,7 +331,7 @@ export default function AdSpacesModal({
         ) : step === 'preview' ? (
           <div>
             <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
-              <VideoPreviewPanel thumbnail={thumbnail} adImageUrl={null} position={previewPosition} />
+              <VideoPreviewPanel adImageUrl={null} position={previewPosition} showPosition={false} />
 
               <div className="space-y-3">
                 {adTypeLabel && (
@@ -384,13 +381,12 @@ export default function AdSpacesModal({
               <div className="space-y-5">
                 <div>
                   <div className="flex gap-2 p-1 rounded-xl bg-(--color-surface-2)">
-                    {(['single', 'campaign'] as const).map((mode) => (
+                    {(['campaign', 'single'] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => {
                           setPurchaseMode(mode);
-                          setSelectedSlot(null);
                         }}
                         className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${purchaseMode === mode ? 'bg-white text-black' : 'text-(--color-muted)'}`}
                       >
@@ -408,7 +404,7 @@ export default function AdSpacesModal({
                   <div>
                     <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Package length</p>
                     <p className="text-xs text-(--color-muted) mb-3">Choose your campaign period and how many times you want your ads to come up in that period</p>
-                    <div className="space-y-2">
+                    <div className="grid max-w-md grid-cols-2 gap-2">
                       {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
                         const isSelected = packageLength === option.value;
                         const defaultCount = getDefaultInsertionsForPackage(option.value);
@@ -416,18 +412,17 @@ export default function AdSpacesModal({
                         return (
                           <div
                             key={option.value}
-                            className={`w-full rounded-xl border px-4 py-3 transition-colors ${isSelected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-(--color-border) bg-(--color-surface-2)'}`}
+                            className={`rounded-lg border p-2.5 transition-colors ${isSelected ? 'border-white bg-white text-black' : 'border-(--color-border) bg-[#303030] text-white'}`}
                           >
                             <button
                               type="button"
                               onClick={() => setPackageLength(option.value)}
-                              className="flex w-full items-center justify-between gap-3 text-left text-(--color-white)"
+                              className="flex w-full items-center justify-between gap-2 text-left"
                             >
-                              <span className="text-sm font-bold">{option.value}</span>
-                              <span className="text-[10px] text-(--color-muted)">~{defaultCount} estimated</span>
+                              <span className="text-xs font-bold">{option.value}</span>
                             </button>
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <label htmlFor={`campaign-insertions-${option.months}`} className="text-[10px] text-(--color-muted)">Insertions</label>
+                            <div className="mt-2 flex items-center justify-between gap-1.5">
+                              <label htmlFor={`campaign-insertions-${option.months}`} className={`text-[10px] ${isSelected ? 'text-black/60' : 'text-(--color-muted)'}`}>Insertions</label>
                               <input
                                 id={`campaign-insertions-${option.months}`}
                                 type="number"
@@ -443,20 +438,13 @@ export default function AdSpacesModal({
                                   }));
                                   setPackageLength(option.value);
                                 }}
-                                className="w-20 rounded-md border border-(--color-border) bg-(--color-surface-1) px-2 py-1.5 text-right text-xs font-bold text-(--color-white)"
+                                className={`w-14 rounded border px-1.5 py-1 text-right text-xs font-bold ${isSelected ? 'border-black/20 bg-black text-white' : 'border-black bg-black text-white'}`}
                               />
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <p className="mt-2 text-[11px] text-(--color-muted)">
-                      {postingEstimate?.source === 'measured'
-                        ? `Based on this creator posting about every ${postingEstimate.avgDaysBetweenPosts} days (measured).`
-                        : postingEstimate?.source === 'stated'
-                          ? 'Based on the creator\'s stated pace (unverified estimate).'
-                          : 'Posting pace estimate unavailable.'}
-                    </p>
                   </div>
                 ) : null}
 
@@ -501,36 +489,11 @@ export default function AdSpacesModal({
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Size</p>
-                  <div className="flex gap-2">
-                    {sizes.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setAdSize(size)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold capitalize ${adSize === size ? 'bg-white text-black' : 'bg-(--color-surface-2) text-(--color-muted)'}`}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Preview */}
               <div className="space-y-4">
-                <VideoPreviewPanel thumbnail={thumbnail} adImageUrl={pendingFileUrl} position={previewPosition} />
-
-                {purchaseMode === 'campaign' && campaignTotal !== null && (
-                  <div className="rounded-xl bg-(--color-surface-2) px-4 py-3 space-y-1">
-                    <p className="text-sm font-bold text-emerald-400">
-                      {estimatedInsertions.toLocaleString()} insertions × {price?.toLocaleString() ?? '0'} RWF = {campaignTotal.toLocaleString()} RWF
-                    </p>
-                    <p className="text-[11px] text-(--color-muted)">
-                      Your ad appears at {selectedSlotPosition || '—'}% of every video this creator posts for {packageLength}, up to ~{estimatedInsertions.toLocaleString()} videos. Any insertions not delivered by the end date are refunded automatically.
-                    </p>
-                  </div>
-                )}
+                <VideoPreviewPanel adImageUrl={pendingFileUrl} position={previewPosition} showPosition />
 
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -548,10 +511,10 @@ export default function AdSpacesModal({
               </p>
               <button
                 onClick={submitClaim}
-                disabled={!canSubmit || claimingSlot === selectedSlot}
+                disabled={!canSubmit || (!!selectedSlot && claimingSlot === selectedSlot)}
                 className="shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
               >
-                {claimingSlot === selectedSlot
+                {!!selectedSlot && claimingSlot === selectedSlot
                   ? 'Processing…'
                   : purchaseMode === 'campaign'
                     ? `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Start Campaign`

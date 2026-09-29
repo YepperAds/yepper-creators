@@ -264,7 +264,7 @@ export default function AdSpacesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-(--color-surface-0,#0a0a0a)">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:p-6">
       <input
         ref={fileRef}
         type="file"
@@ -277,7 +277,7 @@ export default function AdSpacesModal({
         }}
       />
 
-      <div className="mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12 min-h-full flex flex-col">
+      <div className="relative mx-auto my-auto w-full max-w-5xl max-h-[94vh] overflow-y-auto rounded-2xl border border-(--color-border) bg-(--color-surface-1) px-5 py-6 shadow-2xl sm:px-8 sm:py-8">
         {/* Header: channel identity, shared by both steps */}
         <div className="flex items-start justify-between gap-3 mb-8 sm:mb-10">
           <div className="flex items-center gap-3 min-w-0">
@@ -332,7 +332,7 @@ export default function AdSpacesModal({
             </div>
           </div>
         ) : step === 'preview' ? (
-          <div className="flex-1 flex flex-col">
+          <div>
             <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
               <VideoPreviewPanel thumbnail={thumbnail} adImageUrl={null} position={previewPosition} />
 
@@ -361,7 +361,7 @@ export default function AdSpacesModal({
               </div>
             </div>
 
-            <div className="mt-8 sm:mt-auto sm:pt-8 flex items-end justify-between gap-4">
+            <div className="mt-8 flex items-end justify-between gap-4 border-t border-(--color-border) pt-6">
               <div>
                 <h3 className="text-xl sm:text-2xl font-extrabold text-(--color-white)">Advertise on {creator.channelName || creator.name}</h3>
                 <p className="text-sm text-(--color-muted) mt-1 max-w-md">
@@ -378,13 +378,13 @@ export default function AdSpacesModal({
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col">
+          <div>
             <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
               {/* Controls */}
               <div className="space-y-5">
                 <div>
                   <div className="flex gap-2 p-1 rounded-xl bg-(--color-surface-2)">
-                    {(['campaign', 'single'] as const).map((mode) => (
+                    {(['single', 'campaign'] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"
@@ -394,7 +394,7 @@ export default function AdSpacesModal({
                         }}
                         className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${purchaseMode === mode ? 'bg-white text-black' : 'text-(--color-muted)'}`}
                       >
-                        {mode === 'single' ? 'Single insertions' : 'Campaign (1 / 3 / 6 months)'}
+                        {mode === 'single' ? 'Single insertion' : 'Campaign (1 / 3 / 6 months)'}
                       </button>
                     ))}
                   </div>
@@ -408,26 +408,33 @@ export default function AdSpacesModal({
                   <div>
                     <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Package length</p>
                     <p className="text-xs text-(--color-muted) mb-3">Choose your campaign period and how many times you want your ads to come up in that period</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
                       {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
                         const isSelected = packageLength === option.value;
                         const defaultCount = getDefaultInsertionsForPackage(option.value);
                         const value = Number(campaignInsertionsByPackage[option.value] ?? defaultCount) || defaultCount || 0;
                         return (
-                          <button
+                          <div
                             key={option.value}
-                            type="button"
-                            onClick={() => setPackageLength(option.value)}
-                            className={`rounded-xl border px-3.5 py-3 text-left ${isSelected ? 'border-white bg-white text-black' : 'border-(--color-border) bg-(--color-surface-2) text-(--color-white)'}`}
+                            className={`w-full rounded-xl border px-4 py-3 transition-colors ${isSelected ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-(--color-border) bg-(--color-surface-2)'}`}
                           >
-                            <p className="text-sm font-bold">{option.value}</p>
+                            <button
+                              type="button"
+                              onClick={() => setPackageLength(option.value)}
+                              className="flex w-full items-center justify-between gap-3 text-left text-(--color-white)"
+                            >
+                              <span className="text-sm font-bold">{option.value}</span>
+                              <span className="text-[10px] text-(--color-muted)">~{defaultCount} estimated</span>
+                            </button>
                             <div className="mt-2 flex items-center justify-between gap-2">
-                              <label className={`text-[10px] ${isSelected ? 'text-black/60' : 'text-(--color-muted)'}`}>Insertions</label>
+                              <label htmlFor={`campaign-insertions-${option.months}`} className="text-[10px] text-(--color-muted)">Insertions</label>
                               <input
+                                id={`campaign-insertions-${option.months}`}
                                 type="number"
                                 min={1}
+                                max={100000}
                                 value={value}
-                                onClick={(e) => e.stopPropagation()}
+                                onFocus={() => setPackageLength(option.value)}
                                 onChange={(e) => {
                                   const nextValue = Number(e.target.value) || 0;
                                   setCampaignInsertionsByPackage((prev) => ({
@@ -436,17 +443,19 @@ export default function AdSpacesModal({
                                   }));
                                   setPackageLength(option.value);
                                 }}
-                                className={`w-16 rounded-md px-2 py-1 text-right text-xs font-bold ${isSelected ? 'bg-black/10 text-black' : 'bg-(--color-surface-1) text-(--color-white) border border-(--color-border)'}`}
+                                className="w-20 rounded-md border border-(--color-border) bg-(--color-surface-1) px-2 py-1.5 text-right text-xs font-bold text-(--color-white)"
                               />
                             </div>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
                     <p className="mt-2 text-[11px] text-(--color-muted)">
-                      {postingEstimate.source === 'measured'
+                      {postingEstimate?.source === 'measured'
                         ? `Based on this creator posting about every ${postingEstimate.avgDaysBetweenPosts} days (measured).`
-                        : `Based on the creator's stated pace (unverified estimate).`}
+                        : postingEstimate?.source === 'stated'
+                          ? 'Based on the creator\'s stated pace (unverified estimate).'
+                          : 'Posting pace estimate unavailable.'}
                     </p>
                   </div>
                 ) : null}
@@ -533,7 +542,7 @@ export default function AdSpacesModal({
               </div>
             </div>
 
-            <div className="mt-8 sm:mt-auto sm:pt-8 flex items-end justify-between gap-4">
+            <div className="mt-8 flex items-end justify-between gap-4 border-t border-(--color-border) pt-6">
               <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
                 {displayTotal !== null ? `${displayTotal.toLocaleString()} RWF` : '—'}
               </p>
@@ -542,13 +551,17 @@ export default function AdSpacesModal({
                 disabled={!canSubmit || claimingSlot === selectedSlot}
                 className="shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
               >
-                {claimingSlot === selectedSlot ? 'Processing…' : 'Process'}
+                {claimingSlot === selectedSlot
+                  ? 'Processing…'
+                  : purchaseMode === 'campaign'
+                    ? `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Start Campaign`
+                    : `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Claim Slot`}
               </button>
             </div>
           </div>
         )}
 
-        <p className="mt-8 text-[11px] text-(--color-muted)">Note: videos under 60 seconds get the ad overlaid across the full video rather than at a fixed slot position.</p>
+        <p className="mt-6 text-[11px] text-(--color-muted)">Note: videos under 60 seconds get the ad overlaid across the full video rather than at a fixed slot position.</p>
       </div>
     </div>
   );

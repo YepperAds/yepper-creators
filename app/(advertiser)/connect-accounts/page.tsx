@@ -15,6 +15,8 @@ import {
 } from '@heroicons/react/24/outline';
 import PostAdModal from '@/app/(advertiser)/_components/PostAdModal';
 import SendAdInviteModal from '@/app/(advertiser)/_components/SendAdInviteModal';
+import AdFormatPreview from '@/app/_components/shared/AdFormatPreview';
+import SlotPositionPreview from '@/app/_components/shared/SlotPositionPreview';
 
 interface DeepAnalysis {
   engagement_score: string;
@@ -589,15 +591,16 @@ export default function ConnectAccountsPage() {
                     <p className="text-[10px] text-(--color-muted) mb-2">Pick one format for your channel: advertisers can only choose a size, not the type.</p>
                     <div className="space-y-1.5 mb-4">
                       {adFormatCatalog.map((t) => (
-                        <label key={t.type} className="flex items-start gap-2 text-xs text-(--color-white) cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-1) p-2 hover:bg-(--color-surface-3)">
+                        <label key={t.type} className="flex items-center gap-3 text-xs text-(--color-white) cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-1) p-2 hover:bg-(--color-surface-3)">
                           <input
                             type="radio"
                             name="creatorAdType"
                             checked={adType === t.type}
                             onChange={() => handleAdTypeChange(t.type)}
                             disabled={adTypeSaving}
-                            className="accent-emerald-500 mt-0.5"
+                            className="accent-emerald-500 shrink-0"
                           />
+                          <AdFormatPreview type={t.type === 'lbar' ? 'lbar' : 'corner'} />
                           <span>
                             <span className="font-semibold">{t.label}</span>
                             <span className="block text-[10px] text-(--color-muted) mt-0.5">{t.description}</span>
@@ -636,9 +639,11 @@ export default function ConnectAccountsPage() {
 
                     <div className="mb-3">
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Available Insert Slots</p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-[10px] text-(--color-muted) mb-2">Each one shows roughly where in your video the ad appears, from start to end.</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                         {['8pct', '25pct', '45pct', '65pct', '85pct'].map((slotKey) => {
                           const isActive = activeSlots.includes(slotKey);
+                          const percent = Number.parseInt(slotKey.replace('pct', ''), 10) || 0;
                           const label = slotKey.replace('pct', '%');
                           return (
                             <button
@@ -646,13 +651,16 @@ export default function ConnectAccountsPage() {
                               type="button"
                               onClick={() => handleSlotToggle(slotKey)}
                               disabled={slotSaving}
-                              className={`px-2.5 py-1.5 rounded-full border text-[10px] font-bold uppercase transition-colors ${
+                              className={`flex flex-col items-stretch gap-1 rounded-lg border p-1.5 transition-colors ${
                                 isActive
-                                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                                  : 'border-(--color-border) bg-(--color-surface-1) text-(--color-muted)'
+                                  ? 'border-emerald-500/50 bg-emerald-500/10'
+                                  : 'border-(--color-border) bg-(--color-surface-1)'
                               }`}
                             >
-                              {label}
+                              <SlotPositionPreview percent={percent} size="sm" />
+                              <span className={`text-[10px] font-bold uppercase text-center ${isActive ? 'text-emerald-300' : 'text-(--color-muted)'}`}>
+                                {label}
+                              </span>
                             </button>
                           );
                         })}
@@ -674,14 +682,18 @@ export default function ConnectAccountsPage() {
                       <p className="text-xs text-red-400">{adSpacesError}</p>
                     ) : (
                       <div className="space-y-1.5">
-                        {adSpaces.map((slot) => (
-                          <div key={slot.slotType} className="flex items-center justify-between text-xs">
-                            <span className="text-(--color-white)">{slot.label}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${slot.status === 'claimed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-(--color-surface-3) text-(--color-muted)'}`}>
-                              {slot.status === 'claimed' ? 'Claimed' : 'Open'}
-                            </span>
-                          </div>
-                        ))}
+                        {adSpaces.map((slot) => {
+                          const slotPercent = Number.parseInt(String(slot.slotType).replace(/\D/g, ''), 10) || 0;
+                          return (
+                            <div key={slot.slotType} className="flex items-center gap-3 text-xs">
+                              <div className="w-16 shrink-0"><SlotPositionPreview percent={slotPercent} size="sm" /></div>
+                              <span className="text-(--color-white) flex-1">{slot.label}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${slot.status === 'claimed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-(--color-surface-3) text-(--color-muted)'}`}>
+                                {slot.status === 'claimed' ? 'Claimed' : 'Open'}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed; once claimed, their ad is offered automatically next time you hit Post Ad.</p>

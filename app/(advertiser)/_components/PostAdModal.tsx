@@ -481,9 +481,8 @@ export default function PostAdModal({
                   disabled={subscriptionStarting}
                   className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                 >
-                    {subscriptionStarting ? 'Opening secure checkout…' : 'Continue to secure checkout'}
-                  </button>
-                </div>
+                  {subscriptionStarting ? 'Opening secure checkout…' : 'Continue to secure checkout'}
+                </button>
               </div>
             )}
 

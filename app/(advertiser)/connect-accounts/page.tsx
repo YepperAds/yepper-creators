@@ -5,6 +5,7 @@ import { api, AUTH_ENDPOINTS, SOCIAL_ENDPOINTS } from '@/app/_lib/api';
 import type { YouTubePricingResult } from '@/app/_lib/pricing/youtubePricing';
 import type { AuthResponse, User } from '@/app/_types/auth';
 import {
+  ArrowDownTrayIcon,
   ArrowPathIcon,
   CheckCircleIcon,
   CloudArrowUpIcon,

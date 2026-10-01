@@ -236,6 +236,37 @@ export default function ConnectAccountsPage() {
   const openPostAdModal = (provider: string) => setPostAdProvider(provider);
   const closePostAdModal = () => setPostAdProvider(null);
 
+  const handlePostingPaceSave = async (postingPace: 'daily' | 'every_few_days' | 'weekly' | 'irregular') => {
+    setSavingPostingPace(true);
+    try {
+      const response = await fetch('/api/social/youtube/posting-pace', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postingPace }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json?.success) throw new Error(json?.message || 'Failed to save posting pace');
+      const labels = {
+        daily: 'Posts roughly every 1 day (estimated)',
+        every_few_days: 'Posts roughly every 3 days (estimated)',
+        weekly: 'Posts roughly every 7 days (estimated)',
+        irregular: 'Posts roughly every 14 days (estimated)',
+      } as const;
+      setPostingFrequency({
+        label: labels[postingPace],
+        averageDaysBetweenPosts: postingPace === 'daily' ? 1 : postingPace === 'every_few_days' ? 3 : postingPace === 'weekly' ? 7 : 14,
+        hasHistory: false,
+        isEstimated: true,
+        source: 'stated',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save posting pace.');
+    } finally {
+      setSavingPostingPace(false);
+    }
+  };
+
   const downloadPaidAdImage = (imageUrl: string) => {
     const anchor = document.createElement('a');
     anchor.href = imageUrl.replace('/upload/', '/upload/fl_attachment/');

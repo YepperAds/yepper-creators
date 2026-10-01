@@ -1445,14 +1445,86 @@ async function updateAdVideoJob(jobId, fields) {
 function extractYoutubeVideoId(input) {
   if (!input) return null;
   const str = String(input).trim();
+  try {
+    const parsed = new URL(str);
+    if (parsed.hostname === 'youtube.com' || parsed.hostname.endsWith('.youtube.com')) {
+      const queryId = parsed.searchParams.get('v');
+      if (queryId && /^[A-Za-z0-9_-]{11}$/.test(queryId)) return queryId;
+    }
+    if (parsed.hostname === 'youtu.be' || parsed.hostname.endsWith('.youtu.be')) {
+      const pathId = parsed.pathname.split('/').filter(Boolean)[0];
+      if (pathId && /^[A-Za-z0-9_-]{11}$/.test(pathId)) return pathId;
+    }
+  } catch {}
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
   ];
   for (const re of patterns) {
     const m = str.match(re);
     if (m) return m[1];
   }
   return /^[A-Za-z0-9_-]{11}$/.test(str) ? str : null;
+}
+
+async function fetchPublicYoutubeVideo(videoId) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (apiKey) {
+    const apiResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,status,statistics&id=${videoId}&key=${encodeURIComponent(apiKey)}`,
+    );
+    const apiData = await apiResponse.json().catch(() => null);
+    if (apiData?.items?.[0]) return apiData.items[0];
+    if (apiData?.error) {
+      console.error('[creators] YouTube Data API lookup failed:', apiData.error.message || apiData.error.status);
+    }
+  }
+
+  try {
+    const watchResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    const html = await watchResponse.text();
+    const descriptionMatch = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
+    const titleMatch = html.match(/"title":"((?:\\.|[^"\\])*)"/);
+    if (descriptionMatch) {
+      const decode = (value) => {
+        try { return JSON.parse(`"${value}"`); } catch { return value; }
+      };
+      return {
+        snippet: {
+          title: titleMatch ? decode(titleMatch[1]) : 'YouTube Ad Video',
+          description: decode(descriptionMatch[1]),
+          thumbnails: {},
+        },
+        status: { privacyStatus: 'public' },
+        statistics: {},
+        _watchPageFallback: true,
+      };
+    }
+  } catch (err) {
+    console.error('[creators] YouTube watch-page fallback failed:', err?.message);
+  }
+
+  // oEmbed validates public/unlisted video IDs without an API key. It does not
+  // expose the description, so the tracking-ID check remains required below
+  // when the Data API is available; this fallback only improves diagnostics.
+  const oembedResponse = await fetch(
+    `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`,
+  );
+  if (!oembedResponse.ok) return null;
+  const oembed = await oembedResponse.json().catch(() => null);
+  if (!oembed?.title) return null;
+  return {
+    snippet: {
+      title: oembed.title,
+      author_name: oembed.author_name,
+      description: '',
+      thumbnails: { default: { url: oembed.thumbnail_url } },
+    },
+    status: { privacyStatus: 'public' },
+    statistics: {},
+    _oembedOnly: true,
+  };
 }
 
 // The creator uploads their raw video here (no ad burned in yet). Yepper
@@ -1551,14 +1623,14 @@ exports.confirmAdVideoPost = async (req, res) => {
   const { tracking_code: code } = postRes.rows[0];
 
   try {
-    const apiKey = process.env.YOUTUBE_API_KEY;
-    const ytRes  = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,status,statistics&id=${videoId}&key=${apiKey}`);
-    const ytData = await ytRes.json().catch(() => null);
-    const item   = ytData?.items?.[0];
+    const item = await fetchPublicYoutubeVideo(videoId);
 
-    if (!item) return res.status(422).json({ success: false, message: 'Could not find that video on YouTube — check the link and try again' });
+    if (!item) return res.status(422).json({ success: false, message: 'YouTube could not validate that video. Check that the link is correct and the video is public or unlisted.' });
     if (!['public', 'unlisted'].includes(item.status?.privacyStatus)) {
       return res.status(422).json({ success: false, message: 'That video needs to be Public or Unlisted (not private) for us to verify and track it' });
+    }
+    if (item._oembedOnly) {
+      return res.status(503).json({ success: false, message: 'The video exists, but Yepper cannot read its description right now. Please try again after the YouTube API connection is restored.' });
     }
     if (!(item.snippet?.description || '').includes(code)) {
       return res.status(422).json({ success: false, message: `We couldn't find ${code} in that video's description — add it and republish, then try again` });

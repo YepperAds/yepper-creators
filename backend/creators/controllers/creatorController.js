@@ -1466,6 +1466,29 @@ function extractYoutubeVideoId(input) {
   return /^[A-Za-z0-9_-]{11}$/.test(str) ? str : null;
 }
 
+function extractEmbeddedJsonString(html, key) {
+  const marker = `"${key}":"`;
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const start = markerIndex + marker.length;
+  let escaped = false;
+  for (let index = start; index < html.length; index += 1) {
+    const character = html[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '"') {
+      try {
+        return JSON.parse(`"${html.slice(start, index)}"`);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
 async function fetchPublicYoutubeVideo(videoId) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (apiKey) {
@@ -1484,16 +1507,13 @@ async function fetchPublicYoutubeVideo(videoId) {
       headers: { 'User-Agent': 'Mozilla/5.0' },
     });
     const html = await watchResponse.text();
-    const descriptionMatch = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
-    const titleMatch = html.match(/"title":"((?:\\.|[^"\\])*)"/);
-    if (descriptionMatch) {
-      const decode = (value) => {
-        try { return JSON.parse(`"${value}"`); } catch { return value; }
-      };
+    const description = extractEmbeddedJsonString(html, 'shortDescription');
+    const title = extractEmbeddedJsonString(html, 'title');
+    if (description !== null) {
       return {
         snippet: {
-          title: titleMatch ? decode(titleMatch[1]) : 'YouTube Ad Video',
-          description: decode(descriptionMatch[1]),
+          title: title || 'YouTube Ad Video',
+          description,
           thumbnails: {},
         },
         status: { privacyStatus: 'public' },
@@ -1506,8 +1526,8 @@ async function fetchPublicYoutubeVideo(videoId) {
   }
 
   // oEmbed validates public/unlisted video IDs without an API key. It does not
-  // expose the description, so the tracking-ID check remains required below
-  // when the Data API is available; this fallback only improves diagnostics.
+  // expose the description, so callers can save the valid link but must be
+  // told that the tracking ID itself could not be server-verified.
   const oembedResponse = await fetch(
     `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`,
   );
@@ -1629,10 +1649,8 @@ exports.confirmAdVideoPost = async (req, res) => {
     if (!['public', 'unlisted'].includes(item.status?.privacyStatus)) {
       return res.status(422).json({ success: false, message: 'That video needs to be Public or Unlisted (not private) for us to verify and track it' });
     }
-    if (item._oembedOnly) {
-      return res.status(503).json({ success: false, message: 'The video exists, but Yepper cannot read its description right now. Please try again after the YouTube API connection is restored.' });
-    }
-    if (!(item.snippet?.description || '').includes(code)) {
+    const trackingCodeVerified = !item._oembedOnly && (item.snippet?.description || '').includes(code);
+    if (!item._oembedOnly && !trackingCodeVerified) {
       return res.status(422).json({ success: false, message: `We couldn't find ${code} in that video's description — add it and republish, then try again` });
     }
 
@@ -1668,7 +1686,7 @@ exports.confirmAdVideoPost = async (req, res) => {
     }
 
     createNotification(session, 'ad_video_posted', 'Ad video confirmed', `Your video is confirmed live on YouTube with tracking code ${code}.`, { videoUrl: videoLink }).catch(() => {});
-    return res.json({ success: true, data: { trackingCode: code, videoUrl: videoLink } });
+    return res.json({ success: true, data: { trackingCode: code, videoUrl: videoLink, trackingCodeVerified } });
   } catch (err) {
     console.error('[creators] confirmAdVideoPost error:', err);
     return res.status(500).json({ success: false, message: 'Verification failed, please try again' });

@@ -75,6 +75,7 @@ interface ManualYoutubePost {
   trackingCode: string;
   description: string;
   saved?: boolean;
+  trackingCodeVerified?: boolean;
 }
 
 interface WebsiteHandoffResponse {
@@ -333,9 +334,14 @@ export default function ConnectAccountsPage() {
       if (!response.ok || !json?.success) throw new Error(json?.message || 'Could not verify YouTube video');
       setManualYoutubePosts((current) => ({
         ...current,
-        [claim.slotType]: { ...post, saved: true },
+        [claim.slotType]: { ...post, saved: true, trackingCodeVerified: json.data?.trackingCodeVerified !== false },
       }));
-      setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: 'YouTube video saved and verified.' }));
+      setManualYoutubeMessage((current) => ({
+        ...current,
+        [claim.slotType]: json.data?.trackingCodeVerified === false
+          ? 'Video saved. YouTube confirmed the link, but the description ID could not be checked.'
+          : 'YouTube video saved and verified.',
+      }));
       setAdSpaces((current) => current.map((slot) => slot.slotType === claim.slotType ? { ...slot, status: 'Open' } : slot));
       setAdPostCounts((current) => ({ ...current, youtube: (current.youtube ?? 0) + 1 }));
     } catch (err) {
@@ -923,7 +929,7 @@ export default function ConnectAccountsPage() {
                                 )}
                               </div>
                               {manualYoutubeMessage[claim.slotType] && (
-                                <p className={`mt-2 text-[10px] ${manualPost?.saved ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <p className={`mt-2 text-[10px] ${manualPost?.saved ? (manualPost.trackingCodeVerified === false ? 'text-amber-300' : 'text-emerald-400') : 'text-red-400'}`}>
                                   {manualYoutubeMessage[claim.slotType]}
                                 </p>
                               )}

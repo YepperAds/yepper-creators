@@ -1472,6 +1472,20 @@ exports.postAdVideo = async (req, res) => {
     const label = provider.charAt(0).toUpperCase() + provider.slice(1);
     return res.status(400).json({ success: false, message: `${label} isn't supported yet` });
   }
+  if (provider === 'youtube') {
+    const subscriptionRes = await query(
+      `SELECT status, current_period_end FROM youtube_creator_subscriptions WHERE creator_id = $1`,
+      [session],
+    );
+    const subscription = subscriptionRes.rows[0];
+    if (subscription?.status !== 'active' || new Date(subscription.current_period_end).getTime() <= Date.now()) {
+      return res.status(402).json({
+        success: false,
+        subscriptionRequired: true,
+        message: 'YouTube video processing requires an active RWF 20,000/month subscription. You can still publish manually for free.',
+      });
+    }
+  }
   if (!videoFile) return res.status(400).json({ success: false, message: 'Video file is required' });
 
   let claimedSlotTypes = [];
@@ -1543,8 +1557,8 @@ exports.confirmAdVideoPost = async (req, res) => {
     const item   = ytData?.items?.[0];
 
     if (!item) return res.status(422).json({ success: false, message: 'Could not find that video on YouTube — check the link and try again' });
-    if (item.status?.privacyStatus !== 'public') {
-      return res.status(422).json({ success: false, message: 'That video needs to be Public (not unlisted/private) for us to verify and track it' });
+    if (!['public', 'unlisted'].includes(item.status?.privacyStatus)) {
+      return res.status(422).json({ success: false, message: 'That video needs to be Public or Unlisted (not private) for us to verify and track it' });
     }
     if (!(item.snippet?.description || '').includes(code)) {
       return res.status(422).json({ success: false, message: `We couldn't find ${code} in that video's description — add it and republish, then try again` });
@@ -1564,9 +1578,19 @@ exports.confirmAdVideoPost = async (req, res) => {
 
     let slotTypes = [];
     try { slotTypes = Array.isArray(claimedSlotTypes) ? claimedSlotTypes : JSON.parse(claimedSlotTypes || '[]'); } catch { slotTypes = []; }
+    slotTypes = [...new Set(slotTypes.filter((slot) => SLOT_TYPES.includes(slot)))];
     if (slotTypes.length) {
       await query(
-        `UPDATE youtube_ad_claims SET status='used', used_at=NOW() WHERE creator_id=$1 AND status='pending' AND slot_type = ANY($2)`,
+        `INSERT INTO youtube_ad_video_claims (ad_video_post_id, claim_id, advertiser_id)
+         SELECT $1, id, advertiser_id FROM youtube_ad_claims
+         WHERE creator_id = $2 AND status = 'pending' AND payment_status = 'paid'
+           AND slot_type = ANY($3)
+         ON CONFLICT DO NOTHING`,
+        [id, session, slotTypes],
+      );
+      await query(
+        `UPDATE youtube_ad_claims SET status='used', used_at=NOW()
+         WHERE creator_id=$1 AND status='pending' AND payment_status='paid' AND slot_type = ANY($2)`,
         [session, slotTypes],
       );
     }
@@ -1598,11 +1622,18 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
     let claims = [];
     if (Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
       const claimsRes = await query(
-        `SELECT slot_type, image_url, ad_type, ad_size FROM youtube_ad_claims
+        `SELECT id, advertiser_id, slot_type, image_url, ad_type, ad_size FROM youtube_ad_claims
          WHERE creator_id=$1 AND status='pending' AND payment_status='paid' AND slot_type = ANY($2)`,
         [session, claimedSlotTypes],
       );
-      claims = claimsRes.rows.map((r) => ({ slotType: r.slot_type, imageUrl: r.image_url, adType: r.ad_type, adSize: r.ad_size }));
+      claims = claimsRes.rows.map((r) => ({
+        id: r.id,
+        advertiserId: r.advertiser_id,
+        slotType: r.slot_type,
+        imageUrl: r.image_url,
+        adType: r.ad_type,
+        adSize: r.ad_size,
+      }));
     }
 
     const outPath = path.join(AD_OUTPUT_DIR, `ypr_ad_out_${jobId}${path.extname(videoFile.originalname) || '.mp4'}`);
@@ -1642,6 +1673,13 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
        VALUES ($1,$2,$3,$4,$5,$6,'pending_publish') RETURNING id`,
       [session, provider, code, trackingNum, title || 'Ad Video', fullDescription],
     );
+    for (const claim of claims) {
+      await query(
+        `INSERT INTO youtube_ad_video_claims (ad_video_post_id, claim_id, advertiser_id)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [postRes.rows[0].id, claim.id, claim.advertiserId],
+      );
+    }
 
     // 24h grace period for the creator to download the file, then it's
     // deleted so the free-tier disk doesn't fill up with processed videos.

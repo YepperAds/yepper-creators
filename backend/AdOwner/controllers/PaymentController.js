@@ -29,7 +29,7 @@ const flwHeaders = () => ({
 
 const createFlutterwaveLink = async ({
   tx_ref, amount, currency = 'RWF', customer, description, redirect_url,
-  payment_options = 'card,mobilemoney',
+  payment_options = 'card,mobilemoney', payment_plan,
 }) => {
   if (!FLW_SECRET_KEY) throw new Error(`Flutterwave ${FLW_TEST_MODE ? 'test' : 'live'} secret key is not set.`);
   console.log(`[Flutterwave] createLink — mode=${FLW_TEST_MODE ? 'SANDBOX' : 'LIVE'} amount=${amount} ${currency} ref=${tx_ref}`);
@@ -38,6 +38,7 @@ const createFlutterwaveLink = async ({
     response = await axios.post(
       `${FLW_BASE_URL}/payments`,
       { tx_ref, amount, currency, redirect_url, payment_options,
+        ...(payment_plan ? { payment_plan: Number(payment_plan) } : {}),
         customer: { email: customer.email, name: customer.name },
         customizations: { title: 'Yepper Ads', description, logo: process.env.BRAND_LOGO_URL || '' },
         meta: { source: 'yepper', sandbox: FLW_TEST_MODE } },
@@ -68,6 +69,19 @@ const verifyFlutterwaveTransaction = async (identifier) => {
   return { status: 'error', data: null };
 };
 exports.verifyFlutterwaveTransaction = verifyFlutterwaveTransaction;
+
+exports.createFlutterwavePaymentPlan = async ({ name, amount, currency = 'RWF', interval = 'monthly' }) => {
+  if (!FLW_SECRET_KEY) throw new Error(`Flutterwave ${FLW_TEST_MODE ? 'test' : 'live'} API key is not configured.`);
+  const response = await axios.post(
+    `${FLW_BASE_URL}/payment-plans`,
+    { name, amount, currency, interval },
+    { headers: flwHeaders(), timeout: 30000 },
+  );
+  if (response.data?.status !== 'success' || !response.data?.data?.id) {
+    throw new Error(response.data?.message || 'Flutterwave did not return a payment plan ID.');
+  }
+  return String(response.data.data.id);
+};
 
 const generateUniqueTransactionRef = (prefix, userId, additionalData = '') => {
   const timestamp = Date.now();
@@ -578,6 +592,8 @@ exports.generateFlutterwavePaymentUrl = async (paymentData) => {
       redirect_url: `${frontendUrl}${paymentData.redirectPath || '/payment-callback2'}`,
       customer: paymentData.customer,
       description: paymentData.customizations?.description || 'Ad payment',
+      payment_plan: paymentData.paymentPlan,
+      payment_options: paymentData.paymentPlan ? 'card' : 'card,mobilemoney',
     });
   } catch (error) {
     console.error('Flutterwave payment URL generation error:', error.response?.data || error.message);
@@ -912,6 +928,10 @@ exports.handleWebhook = async (req, res) => {
     const payload = req.body;
     const event = payload.event || payload['event.type'];
     const data = payload.data || payload;
+
+    if (event === 'charge.completed' && (data?.plan?.id || data?.payment_plan || String(data?.tx_ref || '').startsWith('yt_creator_monthly_'))) {
+      return require('../../creators/controllers/youtubeSubscriptionController').webhook(req, res);
+    }
 
     if (event === 'charge.completed' || event === 'CARD_TRANSACTION') {
       if (data?.status === 'successful') {

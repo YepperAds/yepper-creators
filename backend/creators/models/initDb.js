@@ -122,6 +122,29 @@ async function initCreatorsDatabase() {
        created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
     `CREATE INDEX IF NOT EXISTS ad_video_posts_creator_idx ON ad_video_posts (creator_id, provider)`,
+    `CREATE TABLE IF NOT EXISTS youtube_creator_subscriptions (
+       creator_id INTEGER PRIMARY KEY REFERENCES creators(id) ON DELETE CASCADE,
+       status VARCHAR(20) NOT NULL DEFAULT 'inactive',
+       current_period_end TIMESTAMP WITH TIME ZONE,
+       flutterwave_plan_id VARCHAR(100),
+       flutterwave_subscription_id VARCHAR(100),
+       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )`,
+    `CREATE TABLE IF NOT EXISTS youtube_creator_subscription_payments (
+       flutterwave_transaction_id VARCHAR(100) PRIMARY KEY,
+       creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
+       tx_ref VARCHAR(255),
+       amount NUMERIC(12,2) NOT NULL,
+       status VARCHAR(20) NOT NULL,
+       paid_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+     )`,
+    `CREATE INDEX IF NOT EXISTS youtube_creator_subscription_payments_creator_idx
+       ON youtube_creator_subscription_payments (creator_id, paid_at DESC)`,
+     `CREATE TABLE IF NOT EXISTS youtube_creator_subscription_plans (
+       plan_key VARCHAR(80) PRIMARY KEY,
+       flutterwave_plan_id VARCHAR(100) NOT NULL,
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )`,
     // An advertiser "claims" one of a creator's three placement slots by
     // uploading their creative to it. Only one pending claim per (creator,
     // slot) at a time — first claim wins until it's used or cancelled.
@@ -158,6 +181,14 @@ async function initCreatorsDatabase() {
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES ad_campaigns(id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
+     `CREATE TABLE IF NOT EXISTS youtube_ad_video_claims (
+       ad_video_post_id INTEGER NOT NULL REFERENCES ad_video_posts(id) ON DELETE CASCADE,
+       claim_id INTEGER NOT NULL REFERENCES youtube_ad_claims(id) ON DELETE CASCADE,
+       advertiser_id VARCHAR(255) NOT NULL,
+       PRIMARY KEY (ad_video_post_id, claim_id)
+      )`,
+     `CREATE INDEX IF NOT EXISTS youtube_ad_video_claims_advertiser_idx
+       ON youtube_ad_video_claims (advertiser_id, ad_video_post_id)`,
     `CREATE TABLE IF NOT EXISTS ad_campaigns (
        id                    SERIAL PRIMARY KEY,
        creator_id            INTEGER REFERENCES creators(id) ON DELETE CASCADE,

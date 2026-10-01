@@ -8,6 +8,7 @@ const router     = express.Router();
 const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
 const claimPayment = require('../controllers/youtubeClaimPaymentController');
+const youtubeSubscription = require('../controllers/youtubeSubscriptionController');
 
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 750);
 
@@ -46,6 +47,7 @@ router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
 // ─── Ad posts ─────────────────────────────────────────────────────────────────
 router.post(
   '/api/social/post-ad/:provider',
+  youtubeSubscription.requireProcessingSubscription,
   videoUpload.fields([{ name: 'video', maxCount: 1 }]),
   controller.postAdVideo,
 );
@@ -53,6 +55,7 @@ router.post('/api/social/post-ad/:provider/confirm/:id', controller.confirmAdVid
 router.get('/api/social/post-ad/jobs/:id',               controller.getAdVideoJobStatus);
 router.get('/api/social/post-ad/jobs/:id/download',      controller.downloadAdVideoJob);
 router.get('/api/social/ad-posts',              controller.getAdPosts);
+router.get('/api/social/youtube/advertiser-posts', youtubeSubscription.getAdvertiserYoutubePosts);
 
 // ─── Ad spaces (advertiser claims a creator's intro/middle/end slot) ─────────
 router.get('/api/social/youtube/ad-formats',                   adSpaces.getAdFormats);
@@ -61,6 +64,11 @@ router.post('/api/social/youtube/ad-type-preference',         adSpaces.setAdType
 router.get('/api/social/youtube/ad-slots',                    adSpaces.getActiveSlots);
 router.post('/api/social/youtube/ad-slots',                   adSpaces.setActiveSlots);
 router.post('/api/social/youtube/posting-pace',               controller.setPostingPace);
+router.get('/api/social/youtube/subscription/status',          youtubeSubscription.getStatus);
+router.post('/api/social/youtube/subscription/initiate',      youtubeSubscription.initiate);
+router.post('/api/social/youtube/subscription/verify',        youtubeSubscription.verify);
+router.post('/api/social/youtube/subscription/webhook',       youtubeSubscription.webhook);
+router.post('/api/social/youtube/ad-posts/manual/initiate',   youtubeSubscription.createManualYoutubePost);
 router.get('/api/social/youtube/ad-spaces/:creatorId',        adSpaces.getAdSpaces);
 router.post('/api/social/youtube/ad-spaces/send-invite',      adSpaces.sendAdSpaceInvite);
 // Claiming a slot is paid — price is derived server-side from the creator's

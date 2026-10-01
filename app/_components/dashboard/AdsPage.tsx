@@ -50,6 +50,12 @@ interface AdPost {
   posted_at: string;
 }
 
+interface AdvertiserYoutubePost extends AdPost {
+  video_url: string | null;
+  platform_video_id: string | null;
+  channel_name: string | null;
+}
+
 interface AdCardItem {
   key: string;
   kind: 'website' | 'youtube';
@@ -79,6 +85,19 @@ function normaliseArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (raw && typeof raw === 'object') return Object.values(raw) as T[];
   return [];
+}
+
+function youtubeEmbedUrl(videoUrl?: string | null): string | null {
+  if (!videoUrl) return null;
+  try {
+    const url = new URL(videoUrl);
+    const videoId = url.hostname.includes('youtu.be')
+      ? url.pathname.slice(1)
+      : url.searchParams.get('v') || url.pathname.match(/\/(?:shorts|embed)\/([^/?]+)/)?.[1];
+    return videoId ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}` : null;
+  } catch {
+    return null;
+  }
 }
 
 // Big square tiles, image-first: the point of this page is "browse your ad
@@ -156,6 +175,7 @@ function useSiteAnalytics(websiteId: string | undefined) {
 // its corner attribution control was getting clipped.
 function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => void }) {
   const { analytics, loading: analyticsLoading } = useSiteAnalytics(item.kind === 'website' ? item.websiteId : undefined);
+  const youtubePlayerUrl = youtubeEmbedUrl(item.videoUrl);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6" onClick={onClose} role="dialog" aria-modal="true">
@@ -174,7 +194,15 @@ function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => voi
           {/* Left: image, details, stats, performance over time */}
           <div className="h-full overflow-y-auto">
             <div className="relative w-full aspect-[16/9] shrink-0 bg-black">
-              {item.image ? (
+              {item.kind === 'youtube' && youtubePlayerUrl ? (
+                <iframe
+                  src={youtubePlayerUrl}
+                  title={item.title}
+                  className="absolute inset-0 h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : item.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
@@ -182,7 +210,7 @@ function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => voi
                   {item.kind === 'youtube' ? <FilmIcon className="w-12 h-12 text-muted" /> : <GlobeAltIcon className="w-12 h-12 text-muted" />}
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-surface-2 via-transparent to-transparent" />
+              {!youtubePlayerUrl && <div className="absolute inset-0 bg-gradient-to-t from-surface-2 via-transparent to-transparent" />}
             </div>
 
             <div className="p-6 sm:p-8 space-y-6">
@@ -301,8 +329,9 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
       const u = sessRes.ok ? ((sessRes.data as any)?.data?.user ?? (sessRes.data as any)?.user) : null;
       const uuid = u?.id ?? u?.user_uuid ?? u?.uuid;
 
-      const [postsRes, webRes] = await Promise.all([
+      const [postsRes, advertiserPostsRes, webRes] = await Promise.all([
         uuid ? api.get<{ success: boolean; data: AdPost[] }>(`/api/social/ad-posts?user_uuid=${uuid}`) : Promise.resolve(null),
+        api.get<{ success: boolean; data: AdvertiserYoutubePost[] }>('/api/social/youtube/advertiser-posts'),
         adsenseApi.get<{ success: boolean; ads?: WebsiteAd[] }>('/api/web-advertise/my-ads'),
       ]);
 
@@ -326,6 +355,23 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
         videoUrl: p.video_url,
       }));
 
+      const advertiserYoutubeItems: AdCardItem[] = advertiserPostsRes.ok
+        ? normaliseArray<AdvertiserYoutubePost>(advertiserPostsRes.data?.data).map((post) => ({
+            key: `advertiser-yt-${post.id}`,
+            kind: 'youtube',
+            title: post.title,
+            subtitle: post.channel_name || 'YouTube channel',
+            image: post.thumbnail_url,
+            views: post.views,
+            secondaryLabel: 'Likes',
+            secondaryValue: post.likes,
+            likes: post.likes,
+            comments: post.comments,
+            trackingCode: post.tracking_code,
+            videoUrl: post.video_url,
+          }))
+        : [];
+
       const websiteItems: AdCardItem[] = webAds.map((ad) => {
         const activeSelection = ad.websiteSelections?.find((s) => s.status === 'active' && !s.isRejected);
         const site = activeSelection && typeof activeSelection.websiteId === 'object' ? activeSelection.websiteId : null;
@@ -344,7 +390,12 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
         };
       });
 
-      setItems([...youtubeItems, ...websiteItems]);
+      const videoUrls = new Set(youtubeItems.map((item) => item.videoUrl).filter(Boolean));
+      setItems([
+        ...youtubeItems,
+        ...advertiserYoutubeItems.filter((item) => !videoUrls.has(item.videoUrl)),
+        ...websiteItems,
+      ]);
     } finally {
       setLoading(false);
     }

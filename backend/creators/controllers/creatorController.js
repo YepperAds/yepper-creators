@@ -1571,9 +1571,9 @@ exports.confirmAdVideoPost = async (req, res) => {
     await query(
       `UPDATE ad_video_posts
        SET platform_video_id=$1, video_url=$2, thumbnail_url=$3, status='live', posted_at=NOW(),
-           views=$4, likes=$5, comments=$6, last_stats_at=NOW()
-       WHERE id=$7`,
-      [videoId, videoLink, thumbUrl, Number(stats.viewCount || 0), Number(stats.likeCount || 0), Number(stats.commentCount || 0), id],
+           title=$4, views=$5, likes=$6, comments=$7, last_stats_at=NOW()
+         WHERE id=$8`,
+        [videoId, videoLink, thumbUrl, item.snippet?.title || 'YouTube Ad Video', Number(stats.viewCount || 0), Number(stats.likeCount || 0), Number(stats.commentCount || 0), id],
     );
 
     let slotTypes = [];

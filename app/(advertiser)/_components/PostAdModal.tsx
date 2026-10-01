@@ -43,18 +43,6 @@ function getAdSlots(duration: number): AdSlot[] {
   }));
 }
 
-function downloadImage(url: string) {
-  const downloadUrl = url.replace('/upload/', '/upload/fl_attachment/');
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = 'yepper-ad-image';
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
-
 // Extracted from connect-accounts/page.tsx's inline "Post Ad" modal so the
 // dashboard's right-rail "Add ad" action can reuse the exact same upload
 // flow (POST /api/social/post-ad/:provider, cookie auth, multipart video)
@@ -341,34 +329,6 @@ export default function PostAdModal({
     }
   };
 
-  const handlePrepareManualPost = async () => {
-    const selectedClaims = pendingClaims.filter((claim) => includedSlots.includes(claim.slotType));
-    if (selectedClaims.length === 0 || adUploading) return;
-    setAdUploading(true);
-    setAdUploadError('');
-    try {
-      const res = await authedFetch(`${BACKEND_URL}/api/social/youtube/ad-posts/manual/initiate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          claimedSlotTypes: selectedClaims.map((claim) => claim.slotType),
-          title: adTitle.trim(),
-          description: adDescription.trim(),
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!json?.success || !json.data?.postId) {
-        setAdUploadError(json?.message || 'Could not prepare the YouTube post');
-        return;
-      }
-      setPendingPost(json.data);
-    } catch {
-      setAdUploadError('Could not prepare the YouTube post');
-    } finally {
-      setAdUploading(false);
-    }
-  };
-
   const copyCode = () => {
     if (!pendingPost) return;
     navigator.clipboard?.writeText(pendingPost.description).then(() => {
@@ -406,10 +366,12 @@ export default function PostAdModal({
 
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-lg font-bold text-(--color-white)">Post Ad: {provider.charAt(0).toUpperCase() + provider.slice(1)}</h3>
+            <h3 className="text-lg font-bold text-(--color-white)">
+              {provider === 'youtube' && !subscriptionActive ? 'Upgrade to automatically inject ads' : `Post Ad: ${provider.charAt(0).toUpperCase() + provider.slice(1)}`}
+            </h3>
             <p className="text-xs text-(--color-muted) mt-0.5">
               {provider === 'youtube' && !subscriptionActive
-                ? 'Download advertiser images, edit them into your video, and publish with a tracking ID for free.'
+                ? 'Add paid advertiser ads to your video automatically with a monthly subscription.'
                 : 'Upload your video — we inject the ad, you download it and publish it yourself.'}
             </p>
           </div>
@@ -479,16 +441,6 @@ export default function PostAdModal({
             <div className="flex gap-3 pt-1">
               <button onClick={close} disabled={confirming} className="flex-1 py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white) disabled:opacity-40">
                 Do this later
-              {jobId && (
-                <button
-                  type="button"
-                  onClick={downloadProcessedVideo}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white"
-                >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  Download processed video
-                </button>
-              )}
               </button>
             </div>
           </div>
@@ -511,103 +463,25 @@ export default function PostAdModal({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Advertiser creatives claimed on this channel, downloadable any time, independent of picking a video */}
-            {pendingClaims.length > 0 && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
-                <p className="text-xs font-bold text-emerald-400">Ad images ready for you to use</p>
-                <p className="text-[10px] text-(--color-muted)">
-                  {provider === 'youtube' && !subscriptionActive
-                    ? 'Download the images and add them to your video in your editor. This free flow does not process or upload video files.'
-                    : 'Claimed for your channel — choose a video and Yepper will insert these automatically.'}
-                </p>
-                <div className="space-y-1.5">
-                  {pendingClaims.map((claim) => (
-                    <div key={claim.slotType} className="flex items-center justify-between gap-2 text-xs text-(--color-white) bg-(--color-surface-2) rounded-lg px-3 py-2">
-                      <span className="truncate">
-                        {claim.slotType.charAt(0).toUpperCase() + claim.slotType.slice(1)} slot
-                        <span className="text-(--color-muted)">: {claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, {claim.adSize}</span>
-                      </span>
-                      <button
-                        onClick={() => downloadImage(claim.imageUrl)}
-                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md bg-(--color-surface-3) hover:bg-(--color-surface-1) text-[11px] font-medium"
-                      >
-                        <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                        Download
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {provider === 'youtube' && subscriptionChecking && (
               <p className="rounded-xl bg-(--color-surface-2) px-3 py-2 text-xs text-(--color-muted)">Checking video-processing subscription…</p>
             )}
 
             {provider === 'youtube' && !subscriptionChecking && !subscriptionActive && (
-              <div className="space-y-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
+              <div className="space-y-4 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-5">
                 <div>
-                  <p className="text-sm font-bold text-(--color-white)">Free YouTube ad publishing</p>
-                  <p className="mt-1 text-xs text-(--color-muted)">Download advertiser images, add them to your edit, and publish with Yepper’s tracking ID in the video description.</p>
-                </div>
-                {pendingClaims.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold uppercase text-(--color-muted)">Images included in this video</p>
-                    {pendingClaims.map((claim) => (
-                      <label key={claim.slotType} className="flex items-center gap-2 text-xs text-(--color-white)">
-                        <input
-                          type="checkbox"
-                          checked={includedSlots.includes(claim.slotType)}
-                          onChange={() => toggleSlot(claim.slotType)}
-                          disabled={adUploading}
-                          className="accent-emerald-500"
-                        />
-                        {claim.slotType.charAt(0).toUpperCase() + claim.slotType.slice(1)} slot
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-(--color-muted)">No paid advertiser images are ready for this channel yet.</p>
-                )}
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase text-(--color-muted)">YouTube video title</label>
-                  <input
-                    value={adTitle}
-                    onChange={(e) => setAdTitle(e.target.value)}
-                    placeholder="Enter video title"
-                    className="w-full rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 text-sm text-(--color-white)"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase text-(--color-muted)">YouTube description</label>
-                  <textarea
-                    value={adDescription}
-                    onChange={(e) => setAdDescription(e.target.value)}
-                    placeholder="Add your video description"
-                    rows={3}
-                    className="w-full resize-none rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 text-sm text-(--color-white)"
-                  />
-                  <p className="mt-1 text-[10px] text-(--color-muted)">Yepper appends the tracking ID. Paste the full description when you publish.</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-(--color-muted)">Automatic ad insertion</p>
+                  <p className="mt-2 text-2xl font-extrabold text-(--color-white)">20,000 RWF <span className="text-sm font-medium text-(--color-muted)">/ month</span></p>
+                  <p className="mt-2 text-xs text-(--color-muted)">Yepper automatically inserts paid advertiser ads into your YouTube video. Renews monthly through card checkout.</p>
                 </div>
                 {adUploadError && <p className="text-xs text-red-400">{adUploadError}</p>}
                 <button
                   type="button"
-                  onClick={handlePrepareManualPost}
-                  disabled={!pendingClaims.some((claim) => includedSlots.includes(claim.slotType)) || adUploading}
-                  className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+                  onClick={handleStartSubscription}
+                  disabled={subscriptionStarting}
+                  className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                 >
-                  {adUploading ? 'Preparing…' : 'Get tracking ID and add video link'}
-                </button>
-                <div className="border-t border-(--color-border) pt-3">
-                  <p className="text-xs font-semibold text-(--color-white)">Automatic video processing</p>
-                  <p className="mt-1 text-[10px] text-(--color-muted)">Upload a video and let Yepper insert the claimed ads automatically for RWF 20,000 per month. Recurring billing is card-only.</p>
-                  <button
-                    type="button"
-                    onClick={handleStartSubscription}
-                    disabled={subscriptionStarting}
-                    className="mt-2 w-full rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    {subscriptionStarting ? 'Opening secure checkout…' : 'Subscribe for RWF 20,000/month'}
+                    {subscriptionStarting ? 'Opening secure checkout…' : 'Continue to secure checkout'}
                   </button>
                 </div>
               </div>

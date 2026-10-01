@@ -17,6 +17,9 @@ import PostAdModal from '@/app/(advertiser)/_components/PostAdModal';
 import SendAdInviteModal from '@/app/(advertiser)/_components/SendAdInviteModal';
 import AdFormatPreview from '@/app/_components/shared/AdFormatPreview';
 import SlotPositionPreview from '@/app/_components/shared/SlotPositionPreview';
+import { getToken } from '@/app/(adsense)/utils/token';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 interface DeepAnalysis {
   engagement_score: string;
@@ -56,6 +59,21 @@ interface AdPost {
   likes: number;
   comments: number;
   posted_at: string;
+}
+
+interface PaidYoutubeClaim {
+  id: number;
+  slotType: string;
+  imageUrl: string;
+  adType: string;
+  adSize: string;
+}
+
+interface ManualYoutubePost {
+  postId: string;
+  trackingCode: string;
+  description: string;
+  saved?: boolean;
 }
 
 interface WebsiteHandoffResponse {
@@ -142,6 +160,11 @@ export default function ConnectAccountsPage() {
   const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; hasHistory: boolean; isEstimated: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
   const [savingPostingPace, setSavingPostingPace] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [paidYoutubeClaims, setPaidYoutubeClaims] = useState<PaidYoutubeClaim[]>([]);
+  const [manualYoutubePosts, setManualYoutubePosts] = useState<Record<string, ManualYoutubePost>>({});
+  const [manualYoutubeLinks, setManualYoutubeLinks] = useState<Record<string, string>>({});
+  const [manualYoutubeBusySlot, setManualYoutubeBusySlot] = useState<string | null>(null);
+  const [manualYoutubeMessage, setManualYoutubeMessage] = useState<Record<string, string>>({});
 
   const popupRef = useRef<Window | null>(null);
 
@@ -211,6 +234,82 @@ export default function ConnectAccountsPage() {
   const openPostAdModal = (provider: string) => setPostAdProvider(provider);
   const closePostAdModal = () => setPostAdProvider(null);
 
+  const downloadPaidAdImage = (imageUrl: string) => {
+    const anchor = document.createElement('a');
+    anchor.href = imageUrl.replace('/upload/', '/upload/fl_attachment/');
+    anchor.download = 'yepper-ad-image';
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+
+  const startManualYoutubePost = async (claim: PaidYoutubeClaim) => {
+    setManualYoutubeBusySlot(claim.slotType);
+    setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: '' }));
+    try {
+      const token = getToken();
+      const response = await fetch(`${BACKEND_URL}/api/social/youtube/ad-posts/manual/initiate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ claimedSlotTypes: [claim.slotType] }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json?.success || !json.data?.postId) {
+        throw new Error(json?.message || 'Could not create tracking ID');
+      }
+      setManualYoutubePosts((current) => ({ ...current, [claim.slotType]: json.data }));
+    } catch (err) {
+      setManualYoutubeMessage((current) => ({
+        ...current,
+        [claim.slotType]: err instanceof Error ? err.message : 'Could not create tracking ID',
+      }));
+    } finally {
+      setManualYoutubeBusySlot(null);
+    }
+  };
+
+  const saveManualYoutubePost = async (claim: PaidYoutubeClaim) => {
+    const post = manualYoutubePosts[claim.slotType];
+    const videoUrl = manualYoutubeLinks[claim.slotType]?.trim();
+    if (!post || !videoUrl) return;
+    setManualYoutubeBusySlot(claim.slotType);
+    setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: '' }));
+    try {
+      const token = getToken();
+      const response = await fetch(`${BACKEND_URL}/api/social/post-ad/youtube/confirm/${post.postId}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ videoUrl, claimedSlotTypes: [claim.slotType] }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json?.success) throw new Error(json?.message || 'Could not verify YouTube video');
+      setManualYoutubePosts((current) => ({
+        ...current,
+        [claim.slotType]: { ...post, saved: true },
+      }));
+      setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: 'YouTube video saved and verified.' }));
+      setAdSpaces((current) => current.map((slot) => slot.slotType === claim.slotType ? { ...slot, status: 'Open' } : slot));
+      setAdPostCounts((current) => ({ ...current, youtube: (current.youtube ?? 0) + 1 }));
+    } catch (err) {
+      setManualYoutubeMessage((current) => ({
+        ...current,
+        [claim.slotType]: err instanceof Error ? err.message : 'Could not verify YouTube video',
+      }));
+    } finally {
+      setManualYoutubeBusySlot(null);
+    }
+  };
+
   // Read-only status of this creator's 3 placement slots: advertisers claim
   // them via "Collaborate with [you]" from the Explore / Advertise feed.
   // The ad TYPE (corner badge vs L-bar) is the creator's own choice below;
@@ -219,6 +318,10 @@ export default function ConnectAccountsPage() {
     if (!user?.id) return;
     setAdSpacesLoading(true);
     setAdSpacesError('');
+    fetch('/api/social/ad-claims/pending', { credentials: 'include', cache: 'no-store' })
+      .then((response) => response.json())
+      .then((json) => setPaidYoutubeClaims(Array.isArray(json?.data) ? json.data : []))
+      .catch(() => setPaidYoutubeClaims([]));
     fetch(`/api/social/youtube/ad-spaces/${user.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
@@ -533,7 +636,7 @@ export default function ConnectAccountsPage() {
 
             return (
               <div key={account.provider} id={`acc-${account.provider}`} className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl overflow-hidden">
-                <div className="p-6 flex items-center justify-between border-b border-(--color-border)">
+                <div className="p-6 flex flex-wrap items-center justify-between gap-4 border-b border-(--color-border)">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-(--color-surface-2) border border-(--color-border) flex items-center justify-center" style={{ color: platform.color }}>
                       <PlatformIcon id={platform.id} />
@@ -545,16 +648,13 @@ export default function ConnectAccountsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center">
                     <button
                       onClick={() => openPostAdModal(account.provider)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--color-surface-3) border border-(--color-border) text-xs font-bold text-(--color-white) hover:bg-(--color-surface-2) transition-colors"
+                      className="flex max-w-64 items-center gap-1.5 rounded-lg bg-(--color-surface-3) px-3 py-2 text-left text-xs font-bold leading-snug text-(--color-white) transition-colors hover:bg-(--color-surface-2)"
                     >
                       <CloudArrowUpIcon className="w-3.5 h-3.5" />
-                      {account.provider === 'youtube' ? 'Add adverts in your video' : 'Post Ad'}
-                    </button>
-                    <button onClick={() => setDisconnectingProvider(account.provider)} className="text-[10px] font-bold text-red-500/70 hover:text-red-500 uppercase tracking-widest">
-                      Disconnect
+                      {account.provider === 'youtube' ? 'Upgrade to automatically inject ads in your video' : 'Post Ad'}
                     </button>
                   </div>
                 </div>
@@ -667,6 +767,100 @@ export default function ConnectAccountsPage() {
                       </div>
                     </div>
 
+                    <section className="mb-4 space-y-2.5">
+                      <div>
+                        <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide">Paid advertiser ads</p>
+                        <p className="mt-1 text-[10px] text-(--color-muted)">Download each image, add it to your YouTube edit, copy its tracking ID into the description, then save the published video link.</p>
+                      </div>
+                      {paidYoutubeClaims.length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-(--color-border) px-3 py-3 text-xs text-(--color-muted)">Paid advertiser images will appear here.</p>
+                      ) : (
+                        paidYoutubeClaims.map((claim) => {
+                          const manualPost = manualYoutubePosts[claim.slotType];
+                          const busy = manualYoutubeBusySlot === claim.slotType;
+                          return (
+                            <div key={claim.id} className="rounded-lg border border-(--color-border) bg-(--color-surface-1) p-3">
+                              <div className="flex items-start gap-3">
+                                <div className="h-20 w-28 shrink-0 overflow-hidden rounded-md border border-(--color-border) bg-(--color-surface-2)">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={claim.imageUrl} alt={`Paid ${claim.slotType} ad creative`} className="h-full w-full object-contain" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-(--color-white)">{claim.slotType.replace('pct', '%')} slot ad</p>
+                                  <p className="mt-0.5 text-[10px] text-(--color-muted)">{claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'} · {claim.adSize}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadPaidAdImage(claim.imageUrl)}
+                                    className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-1.5 text-[10px] font-semibold text-(--color-white) hover:bg-(--color-surface-3)"
+                                  >
+                                    <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                                    Download image
+                                  </button>
+                                </div>
+                              </div>
+
+                              {manualPost ? (
+                                <div className="mt-3 space-y-2 border-t border-(--color-border) pt-3">
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Tracking ID for the video description</label>
+                                    <div className="flex gap-2">
+                                      <input readOnly value={manualPost.trackingCode} className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 font-mono text-xs text-(--color-white)" />
+                                      <button
+                                        type="button"
+                                        onClick={() => navigator.clipboard?.writeText(manualPost.trackingCode)}
+                                        className="rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 text-[10px] font-semibold text-(--color-white)"
+                                      >
+                                        Copy ID
+                                      </button>
+                                    </div>
+                                  </div>
+                                  {manualPost.saved ? (
+                                    <p className="text-xs font-medium text-emerald-400">Video link saved and verified.</p>
+                                  ) : (
+                                    <div>
+                                      <label htmlFor={`manual-youtube-link-${claim.id}`} className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Published YouTube video link</label>
+                                      <div className="flex gap-2">
+                                        <input
+                                          id={`manual-youtube-link-${claim.id}`}
+                                          value={manualYoutubeLinks[claim.slotType] ?? ''}
+                                          onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: event.target.value }))}
+                                          placeholder="https://youtube.com/watch?v=..."
+                                          disabled={busy}
+                                          className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white) placeholder:text-(--color-muted)"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => saveManualYoutubePost(claim)}
+                                          disabled={busy || !manualYoutubeLinks[claim.slotType]?.trim()}
+                                          className="rounded-md bg-emerald-600 px-3 text-[10px] font-bold text-white disabled:opacity-40"
+                                        >
+                                          {busy ? 'Saving…' : 'Save'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => startManualYoutubePost(claim)}
+                                  disabled={busy}
+                                  className="mt-3 w-full rounded-md bg-(--color-surface-2) py-2 text-xs font-semibold text-(--color-white) hover:bg-(--color-surface-3) disabled:opacity-50"
+                                >
+                                  {busy ? 'Creating tracking ID…' : 'Create tracking ID and video link field'}
+                                </button>
+                              )}
+                              {manualYoutubeMessage[claim.slotType] && (
+                                <p className={`mt-2 text-[10px] ${manualPost?.saved ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {manualYoutubeMessage[claim.slotType]}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </section>
+
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide">Ad Spaces</p>
                       <button
@@ -751,6 +945,15 @@ export default function ConnectAccountsPage() {
                   )}
                 </div>
               )}
+              <details className="border-t border-(--color-border) px-6 py-3">
+                <summary className="w-fit cursor-pointer text-[10px] font-medium text-(--color-muted) hover:text-(--color-white)">Connection settings</summary>
+                <button
+                  onClick={() => setDisconnectingProvider(account.provider)}
+                  className="mt-2 text-[10px] font-medium text-(--color-muted) hover:text-red-400"
+                >
+                  Disconnect channel
+                </button>
+              </details>
               </div>
             );
           })}

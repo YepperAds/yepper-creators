@@ -163,6 +163,7 @@ export default function ConnectAccountsPage() {
   const [paidYoutubeClaims, setPaidYoutubeClaims] = useState<PaidYoutubeClaim[]>([]);
   const [manualYoutubePosts, setManualYoutubePosts] = useState<Record<string, ManualYoutubePost>>({});
   const [manualYoutubeLinks, setManualYoutubeLinks] = useState<Record<string, string>>({});
+  const [manualYoutubeLoading, setManualYoutubeLoading] = useState(false);
   const [manualYoutubeBusySlot, setManualYoutubeBusySlot] = useState<string | null>(null);
   const [manualYoutubeMessage, setManualYoutubeMessage] = useState<Record<string, string>>({});
 
@@ -245,25 +246,30 @@ export default function ConnectAccountsPage() {
     anchor.remove();
   };
 
+  const requestManualYoutubePost = useCallback(async (claim: PaidYoutubeClaim): Promise<ManualYoutubePost> => {
+    const token = getToken();
+    const response = await fetch(`${BACKEND_URL}/api/social/youtube/ad-posts/manual/initiate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ claimedSlotTypes: [claim.slotType] }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json?.success || !json.data?.postId) {
+      throw new Error(json?.message || 'Could not create tracking ID');
+    }
+    return json.data as ManualYoutubePost;
+  }, []);
+
   const startManualYoutubePost = async (claim: PaidYoutubeClaim) => {
     setManualYoutubeBusySlot(claim.slotType);
     setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: '' }));
     try {
-      const token = getToken();
-      const response = await fetch(`${BACKEND_URL}/api/social/youtube/ad-posts/manual/initiate`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ claimedSlotTypes: [claim.slotType] }),
-      });
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || !json?.success || !json.data?.postId) {
-        throw new Error(json?.message || 'Could not create tracking ID');
-      }
-      setManualYoutubePosts((current) => ({ ...current, [claim.slotType]: json.data }));
+      const manualPost = await requestManualYoutubePost(claim);
+      setManualYoutubePosts((current) => ({ ...current, [claim.slotType]: manualPost }));
     } catch (err) {
       setManualYoutubeMessage((current) => ({
         ...current,
@@ -318,10 +324,6 @@ export default function ConnectAccountsPage() {
     if (!user?.id) return;
     setAdSpacesLoading(true);
     setAdSpacesError('');
-    fetch('/api/social/ad-claims/pending', { credentials: 'include', cache: 'no-store' })
-      .then((response) => response.json())
-      .then((json) => setPaidYoutubeClaims(Array.isArray(json?.data) ? json.data : []))
-      .catch(() => setPaidYoutubeClaims([]));
     fetch(`/api/social/youtube/ad-spaces/${user.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
@@ -354,6 +356,43 @@ export default function ConnectAccountsPage() {
       })
       .catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    setManualYoutubeLoading(true);
+    fetch('/api/social/ad-claims/pending', { credentials: 'include', cache: 'no-store' })
+      .then((response) => response.json())
+      .then(async (json) => {
+        const claims: PaidYoutubeClaim[] = Array.isArray(json?.data) ? json.data : [];
+        if (cancelled) return;
+        setPaidYoutubeClaims(claims);
+        const posts = await Promise.all(claims.map(async (claim) => {
+          try {
+            return [claim.slotType, await requestManualYoutubePost(claim)] as const;
+          } catch (err) {
+            setManualYoutubeMessage((current) => ({
+              ...current,
+              [claim.slotType]: err instanceof Error ? err.message : 'Could not create tracking ID',
+            }));
+            return null;
+          }
+        }));
+        if (!cancelled) {
+          setManualYoutubePosts((current) => ({
+            ...current,
+            ...Object.fromEntries(posts.filter((post): post is NonNullable<typeof post> => post !== null)),
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPaidYoutubeClaims([]);
+      })
+      .finally(() => {
+        if (!cancelled) setManualYoutubeLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [user?.id, requestManualYoutubePost]);
 
   const handleAdTypeChange = async (nextType: string) => {
     if (nextType === adType) return;
@@ -799,57 +838,58 @@ export default function ConnectAccountsPage() {
                                 </div>
                               </div>
 
-                              {manualPost ? (
-                                <div className="mt-3 space-y-2 border-t border-(--color-border) pt-3">
-                                  <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Tracking ID for the video description</label>
-                                    <div className="flex gap-2">
-                                      <input readOnly value={manualPost.trackingCode} className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 font-mono text-xs text-(--color-white)" />
-                                      <button
-                                        type="button"
-                                        onClick={() => navigator.clipboard?.writeText(manualPost.trackingCode)}
-                                        className="rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 text-[10px] font-semibold text-(--color-white)"
-                                      >
-                                        Copy ID
-                                      </button>
-                                    </div>
+                              <div className="mt-3 space-y-2 border-t border-(--color-border) pt-3">
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Tracking ID for the video description</label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      readOnly
+                                      value={manualPost?.trackingCode ?? ''}
+                                      placeholder={manualYoutubeLoading ? 'Creating tracking ID…' : 'Tracking ID unavailable'}
+                                      className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 font-mono text-xs text-(--color-white) placeholder:text-(--color-muted)"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => manualPost && navigator.clipboard?.writeText(manualPost.trackingCode)}
+                                      disabled={!manualPost}
+                                      className="rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 text-[10px] font-semibold text-(--color-white) disabled:opacity-40"
+                                    >
+                                      Copy ID
+                                    </button>
                                   </div>
-                                  {manualPost.saved ? (
-                                    <p className="text-xs font-medium text-emerald-400">Video link saved and verified.</p>
-                                  ) : (
-                                    <div>
-                                      <label htmlFor={`manual-youtube-link-${claim.id}`} className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Published YouTube video link</label>
-                                      <div className="flex gap-2">
-                                        <input
-                                          id={`manual-youtube-link-${claim.id}`}
-                                          value={manualYoutubeLinks[claim.slotType] ?? ''}
-                                          onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: event.target.value }))}
-                                          placeholder="https://youtube.com/watch?v=..."
-                                          disabled={busy}
-                                          className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white) placeholder:text-(--color-muted)"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => saveManualYoutubePost(claim)}
-                                          disabled={busy || !manualYoutubeLinks[claim.slotType]?.trim()}
-                                          className="rounded-md bg-emerald-600 px-3 text-[10px] font-bold text-white disabled:opacity-40"
-                                        >
-                                          {busy ? 'Saving…' : 'Save'}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => startManualYoutubePost(claim)}
-                                  disabled={busy}
-                                  className="mt-3 w-full rounded-md bg-(--color-surface-2) py-2 text-xs font-semibold text-(--color-white) hover:bg-(--color-surface-3) disabled:opacity-50"
-                                >
-                                  {busy ? 'Creating tracking ID…' : 'Create tracking ID and video link field'}
-                                </button>
-                              )}
+                                <div>
+                                  <label htmlFor={`manual-youtube-link-${claim.id}`} className="mb-1 block text-[10px] font-bold uppercase text-(--color-muted)">Published YouTube video link</label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      id={`manual-youtube-link-${claim.id}`}
+                                      value={manualYoutubeLinks[claim.slotType] ?? ''}
+                                      onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: event.target.value }))}
+                                      placeholder="https://youtube.com/watch?v=..."
+                                      disabled={busy || manualPost?.saved}
+                                      className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white) placeholder:text-(--color-muted)"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => saveManualYoutubePost(claim)}
+                                      disabled={busy || !manualPost || manualPost.saved || !manualYoutubeLinks[claim.slotType]?.trim()}
+                                      className="rounded-md bg-emerald-600 px-3 text-[10px] font-bold text-white disabled:opacity-40"
+                                    >
+                                      {busy ? 'Saving…' : manualPost?.saved ? 'Saved' : 'Save'}
+                                    </button>
+                                  </div>
+                                </div>
+                                {!manualPost && !manualYoutubeLoading && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startManualYoutubePost(claim)}
+                                    disabled={busy}
+                                    className="text-[10px] font-semibold text-emerald-400 underline underline-offset-2 disabled:opacity-50"
+                                  >
+                                    Retry tracking ID
+                                  </button>
+                                )}
+                              </div>
                               {manualYoutubeMessage[claim.slotType] && (
                                 <p className={`mt-2 text-[10px] ${manualPost?.saved ? 'text-emerald-400' : 'text-red-400'}`}>
                                   {manualYoutubeMessage[claim.slotType]}

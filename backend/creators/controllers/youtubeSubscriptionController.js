@@ -309,6 +309,28 @@ exports.createManualYoutubePost = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No paid advertiser images are available for those positions' });
     }
 
+    const claimIds = claimsRes.rows.map((claim) => claim.id);
+    const existingPostRes = await client.query(
+      `SELECT p.id, p.tracking_code, p.description
+       FROM ad_video_posts p
+       JOIN youtube_ad_video_claims c ON c.ad_video_post_id = p.id
+       WHERE c.claim_id = ANY($1::int[]) AND p.status = 'pending_publish'
+       ORDER BY p.id DESC LIMIT 1`,
+      [claimIds],
+    );
+    if (existingPostRes.rowCount) {
+      await client.query('COMMIT');
+      const existingPost = existingPostRes.rows[0];
+      return res.json({
+        success: true,
+        data: {
+          postId: existingPost.id,
+          trackingCode: existingPost.tracking_code,
+          description: existingPost.description,
+        },
+      });
+    }
+
     const seqRes = await client.query(
       `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ('youtube', 1)
        ON CONFLICT (provider) DO UPDATE SET last_id = ad_tracking_sequences.last_id + 1

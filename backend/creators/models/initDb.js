@@ -121,6 +121,7 @@ async function initCreatorsDatabase() {
        last_stats_at      TIMESTAMP WITH TIME ZONE,
        created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
+    `ALTER TABLE ad_video_posts ADD COLUMN IF NOT EXISTS tracking_code_verified BOOLEAN`,
     `CREATE INDEX IF NOT EXISTS ad_video_posts_creator_idx ON ad_video_posts (creator_id, provider)`,
     `CREATE TABLE IF NOT EXISTS youtube_creator_subscriptions (
        creator_id INTEGER PRIMARY KEY REFERENCES creators(id) ON DELETE CASCADE,

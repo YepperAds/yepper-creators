@@ -54,6 +54,8 @@ interface AdvertiserYoutubePost extends AdPost {
   video_url: string | null;
   platform_video_id: string | null;
   channel_name: string | null;
+  creative_url: string | null;
+  campaign_expires_at: string;
 }
 
 interface AdCardItem {
@@ -360,8 +362,10 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
             key: `advertiser-yt-${post.id}`,
             kind: 'youtube',
             title: post.title,
-            subtitle: post.channel_name || 'YouTube channel',
-            image: post.thumbnail_url,
+            subtitle: post.channel_name
+              ? `${post.channel_name} · Active until ${new Date(post.campaign_expires_at).toLocaleDateString()}`
+              : `YouTube campaign · Active until ${new Date(post.campaign_expires_at).toLocaleDateString()}`,
+            image: post.thumbnail_url || post.creative_url,
             views: post.views,
             secondaryLabel: 'Likes',
             secondaryValue: post.likes,

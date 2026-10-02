@@ -1,6 +1,6 @@
-// Combines the two kinds of ads a signed-in user can have running:
-// their own posted YouTube ad videos, and their own imported/website ads
-// (as advertiser) that are actively showing on any website, into one list.
+// Combines the ads a signed-in user can have running:
+// their own posted YouTube ad videos, YouTube campaigns they purchased, and
+// their own imported/website ads (as advertiser) that are actively showing.
 // Used by the dashboard's "My ads" sidebar box (RightRail).
 
 export interface OwnWebsite {
@@ -33,9 +33,10 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
   const userId = sessJson?.data?.user?.id ?? sessJson?.data?.user?._id;
   if (!userId) return { websites: [], ads: [], youtubeChannels: [] };
 
-  const [wRes, aRes, myAdsRes, socialRes] = await Promise.all([
+  const [wRes, aRes, advertiserYoutubeRes, myAdsRes, socialRes] = await Promise.all([
     fetch(`/api/proxy/api/websites/${userId}`, { credentials: 'include', cache: 'no-store' }),
     fetch(`/api/social/ad-posts?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
+    fetch('/api/social/youtube/advertiser-posts', { credentials: 'include', cache: 'no-store' }),
     fetch('/api/proxy/api/web-advertise/my-ads', { credentials: 'include', cache: 'no-store' }),
     fetch(`/api/social/stats?user_uuid=${userId}`, { credentials: 'include', cache: 'no-store' }),
   ]);
@@ -45,6 +46,10 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
 
   const aJson = await aRes.json().catch(() => ({}));
   const adPosts: Array<Record<string, unknown>> = Array.isArray(aJson?.data) ? aJson.data : [];
+
+  const advertiserYoutubeJson = await advertiserYoutubeRes.json().catch(() => ({}));
+  const advertiserYoutubePosts: Array<Record<string, unknown>> =
+    Array.isArray(advertiserYoutubeJson?.data) ? advertiserYoutubeJson.data : [];
 
   const myAdsJson = await myAdsRes.json().catch(() => ({}));
   const myAds: Array<Record<string, unknown>> = Array.isArray(myAdsJson?.ads) ? myAdsJson.ads : [];
@@ -75,6 +80,20 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
     likes: Number(p.likes) || 0,
   }));
 
+  const purchasedYoutubeAds: MyAd[] = advertiserYoutubePosts
+    .filter((p) => !p.video_url || !youtubeAds.some((ad) => ad.video && ad.video === p.video_url))
+    .map((p) => ({
+      id: `advertiser-yt-${p.id}`,
+      kind: 'youtube' as const,
+      title: (p.title as string) || 'YouTube ad campaign',
+      image: (p.thumbnail_url as string) || (p.creative_url as string) || null,
+      video: (p.video_url as string) || null,
+      trackingCode: (p.tracking_code as string) || undefined,
+      views: Number(p.views) || 0,
+      clicks: 0,
+      likes: Number(p.likes) || 0,
+    }));
+
   const socialJson = await socialRes.json().catch(() => ({}));
   const socialAccounts: Array<Record<string, unknown>> = Array.isArray(socialJson?.data) ? socialJson.data : [];
   const youtubeChannels: YoutubeChannel[] = socialAccounts
@@ -85,5 +104,5 @@ export async function fetchDashboardAds(): Promise<{ websites: OwnWebsite[]; ads
       avatar: (a.avatar as string) || null,
     }));
 
-  return { websites, ads: [...youtubeAds, ...websiteAds], youtubeChannels };
+  return { websites, ads: [...youtubeAds, ...purchasedYoutubeAds, ...websiteAds], youtubeChannels };
 }

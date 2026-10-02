@@ -68,6 +68,13 @@ interface PaidYoutubeClaim {
   imageUrl: string;
   adType: string;
   adSize: string;
+  campaignUntil?: string | null;
+  postId?: number | null;
+  trackingCode?: string | null;
+  description?: string | null;
+  videoUrl?: string | null;
+  saved?: boolean;
+  trackingCodeVerified?: boolean | null;
 }
 
 interface ManualYoutubePost {
@@ -406,6 +413,15 @@ export default function ConnectAccountsPage() {
         if (cancelled) return;
         setPaidYoutubeClaims(claims);
         const posts = await Promise.all(claims.map(async (claim) => {
+          if (claim.postId && claim.trackingCode) {
+            return [claim.slotType, {
+              postId: String(claim.postId),
+              trackingCode: claim.trackingCode,
+              description: claim.description ?? '',
+              saved: claim.saved,
+              trackingCodeVerified: claim.trackingCodeVerified ?? undefined,
+            }] as const;
+          }
           try {
             return [claim.slotType, await requestManualYoutubePost(claim)] as const;
           } catch (err) {
@@ -420,6 +436,11 @@ export default function ConnectAccountsPage() {
           setManualYoutubePosts((current) => ({
             ...current,
             ...Object.fromEntries(posts.filter((post): post is NonNullable<typeof post> => post !== null)),
+          }));
+          setManualYoutubeLinks((current) => ({
+            ...current,
+            ...Object.fromEntries(claims.filter((claim) => claim.saved && claim.videoUrl)
+              .map((claim) => [claim.slotType, claim.videoUrl!])),
           }));
         }
       })
@@ -865,6 +886,11 @@ export default function ConnectAccountsPage() {
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-semibold text-(--color-white)">{claim.slotType.replace('pct', '%')} slot ad</p>
                                   <p className="mt-0.5 text-[10px] text-(--color-muted)">{claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'} · {claim.adSize}</p>
+                                  {claim.campaignUntil && (
+                                    <p className="mt-0.5 text-[10px] text-(--color-muted)">
+                                      Active until {new Date(claim.campaignUntil).toLocaleDateString()}
+                                    </p>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => downloadPaidAdImage(claim.imageUrl)}

@@ -370,14 +370,33 @@ exports.getAdvertiserYoutubePosts = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to view your YouTube ads' });
   try {
     const result = await query(
-      `SELECT DISTINCT p.id, p.creator_id, p.provider, p.tracking_code, p.platform_video_id, p.video_url,
-              p.title, p.description, p.thumbnail_url, p.status, p.posted_at,
-              p.views, p.likes, p.comments, sc.username AS channel_name
-       FROM ad_video_posts p
-       JOIN youtube_ad_video_claims c ON c.ad_video_post_id = p.id
-       LEFT JOIN social_connections sc ON sc.creator_id = p.creator_id AND sc.provider = 'youtube'
-       WHERE c.advertiser_id = $1 AND p.provider = 'youtube' AND p.status = 'live'
-       ORDER BY p.posted_at DESC LIMIT 100`,
+      `SELECT campaign.id, claim.creator_id, 'youtube' AS provider,
+              COALESCE(post.tracking_code, '') AS tracking_code,
+              post.platform_video_id, post.video_url,
+              COALESCE(post.title, 'YouTube ad campaign') AS title,
+              post.description,
+              COALESCE(post.thumbnail_url, claim.image_url) AS thumbnail_url,
+              COALESCE(post.status, 'waiting_for_creator') AS status,
+              post.posted_at, COALESCE(post.views, 0) AS views,
+              COALESCE(post.likes, 0) AS likes, COALESCE(post.comments, 0) AS comments,
+              sc.username AS channel_name, claim.image_url AS creative_url,
+              campaign.expires_at AS campaign_expires_at
+       FROM ad_campaigns campaign
+       JOIN youtube_ad_claims claim ON claim.campaign_id = campaign.id
+       LEFT JOIN LATERAL (
+         SELECT p.id, p.tracking_code, p.platform_video_id, p.video_url, p.title, p.description,
+                p.thumbnail_url, p.status, p.posted_at, p.views, p.likes, p.comments
+         FROM youtube_ad_video_claims video_claim
+         JOIN ad_video_posts p ON p.id = video_claim.ad_video_post_id
+         WHERE video_claim.claim_id = claim.id
+         ORDER BY p.id DESC
+         LIMIT 1
+       ) post ON true
+       LEFT JOIN social_connections sc ON sc.creator_id = claim.creator_id AND sc.provider = 'youtube'
+       WHERE campaign.advertiser_id = $1 AND campaign.status = 'active'
+         AND campaign.payment_status = 'paid' AND campaign.expires_at > NOW()
+         AND claim.payment_status = 'paid'
+       ORDER BY campaign.created_at DESC LIMIT 100`,
       [String(advertiserId)],
     );
     const posts = result.rows;

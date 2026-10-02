@@ -443,7 +443,26 @@ exports.getPendingClaims = async (req, res) => {
   if (!creatorId) return res.status(401).json({ success: false });
   try {
     const result = await query(
-      `SELECT id, slot_type, image_url, ad_type, ad_size, created_at FROM youtube_ad_claims WHERE creator_id = $1 AND status = 'pending' AND payment_status = 'paid'`,
+      `SELECT claim.id, claim.slot_type, claim.image_url, claim.ad_type, claim.ad_size, claim.created_at,
+              campaign.expires_at AS campaign_until,
+              post.id AS post_id, post.tracking_code, post.description, post.video_url,
+              post.status AS post_status, post.tracking_code_verified
+       FROM youtube_ad_claims claim
+       LEFT JOIN ad_campaigns campaign ON campaign.id = claim.campaign_id
+       LEFT JOIN LATERAL (
+         SELECT p.id, p.tracking_code, p.description, p.video_url, p.status, p.tracking_code_verified
+         FROM youtube_ad_video_claims video_claim
+         JOIN ad_video_posts p ON p.id = video_claim.ad_video_post_id
+         WHERE video_claim.claim_id = claim.id
+         ORDER BY p.id DESC
+         LIMIT 1
+       ) post ON true
+       WHERE claim.creator_id = $1 AND claim.payment_status = 'paid'
+         AND (
+           (claim.campaign_id IS NULL AND claim.status = 'pending')
+           OR (campaign.status = 'active' AND campaign.payment_status = 'paid' AND campaign.expires_at > NOW())
+         )
+       ORDER BY claim.created_at DESC`,
       [creatorId],
     );
     return res.json({
@@ -451,6 +470,13 @@ exports.getPendingClaims = async (req, res) => {
       data: result.rows.map((r) => ({
         id: r.id, slotType: r.slot_type, imageUrl: r.image_url,
         adType: r.ad_type, adSize: r.ad_size, createdAt: r.created_at,
+        campaignUntil: r.campaign_until,
+        postId: r.post_id,
+        trackingCode: r.tracking_code,
+        description: r.description,
+        videoUrl: r.video_url,
+        saved: r.post_status === 'live',
+        trackingCodeVerified: r.tracking_code_verified,
       })),
     });
   } catch (err) {

@@ -435,9 +435,9 @@ exports.setActiveSlots = async (req, res) => {
 // which prices the claim from the creator's subscriber tier, charges the
 // advertiser, and only then inserts the youtube_ad_claims row.
 
-// GET /api/social/ad-claims/pending — the logged-in creator's own pending,
-// PAID claims, used by the upload modal to offer real advertiser creatives.
-// Unpaid claims (still mid-checkout) aren't offered yet.
+// GET /api/social/ad-claims/pending — the logged-in creator's paid claims,
+// including used claims while their campaign remains active. Saved claims
+// stay visible so the creator can correct a published video link.
 exports.getPendingClaims = async (req, res) => {
   const creatorId = getSessionUserId(req);
   if (!creatorId) return res.status(401).json({ success: false });
@@ -459,7 +459,7 @@ exports.getPendingClaims = async (req, res) => {
        ) post ON true
        WHERE claim.creator_id = $1 AND claim.payment_status = 'paid'
          AND (
-           (claim.campaign_id IS NULL AND claim.status = 'pending')
+           (claim.campaign_id IS NULL AND claim.status IN ('pending', 'used'))
            OR (campaign.status = 'active' AND campaign.payment_status = 'paid' AND campaign.expires_at > NOW())
          )
        ORDER BY claim.created_at DESC`,

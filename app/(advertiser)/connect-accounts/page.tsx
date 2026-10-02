@@ -77,6 +77,8 @@ interface PaidYoutubeClaim {
   trackingCodeVerified?: boolean | null;
 }
 
+const youtubeClaimKey = (claim: PaidYoutubeClaim) => String(claim.id);
+
 interface ManualYoutubePost {
   postId: string;
   trackingCode: string;
@@ -172,6 +174,7 @@ export default function ConnectAccountsPage() {
   const [paidYoutubeClaims, setPaidYoutubeClaims] = useState<PaidYoutubeClaim[]>([]);
   const [manualYoutubePosts, setManualYoutubePosts] = useState<Record<string, ManualYoutubePost>>({});
   const [manualYoutubeLinks, setManualYoutubeLinks] = useState<Record<string, string>>({});
+  const [manualYoutubeEditing, setManualYoutubeEditing] = useState<Record<string, boolean>>({});
   const [manualYoutubeLoading, setManualYoutubeLoading] = useState(false);
   const [manualYoutubeBusySlot, setManualYoutubeBusySlot] = useState<string | null>(null);
   const [manualYoutubeMessage, setManualYoutubeMessage] = useState<Record<string, string>>({});
@@ -305,15 +308,16 @@ export default function ConnectAccountsPage() {
   }, []);
 
   const startManualYoutubePost = async (claim: PaidYoutubeClaim) => {
+    const claimKey = youtubeClaimKey(claim);
     setManualYoutubeBusySlot(claim.slotType);
-    setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: '' }));
+    setManualYoutubeMessage((current) => ({ ...current, [claimKey]: '' }));
     try {
       const manualPost = await requestManualYoutubePost(claim);
-      setManualYoutubePosts((current) => ({ ...current, [claim.slotType]: manualPost }));
+      setManualYoutubePosts((current) => ({ ...current, [claimKey]: manualPost }));
     } catch (err) {
       setManualYoutubeMessage((current) => ({
         ...current,
-        [claim.slotType]: err instanceof Error ? err.message : 'Could not create tracking ID',
+        [claimKey]: err instanceof Error ? err.message : 'Could not create tracking ID',
       }));
     } finally {
       setManualYoutubeBusySlot(null);
@@ -321,11 +325,12 @@ export default function ConnectAccountsPage() {
   };
 
   const saveManualYoutubePost = async (claim: PaidYoutubeClaim) => {
-    const post = manualYoutubePosts[claim.slotType];
-    const videoUrl = manualYoutubeLinks[claim.slotType]?.trim();
+    const claimKey = youtubeClaimKey(claim);
+    const post = manualYoutubePosts[claimKey];
+    const videoUrl = manualYoutubeLinks[claimKey]?.trim();
     if (!post || !videoUrl) return;
     setManualYoutubeBusySlot(claim.slotType);
-    setManualYoutubeMessage((current) => ({ ...current, [claim.slotType]: '' }));
+    setManualYoutubeMessage((current) => ({ ...current, [claimKey]: '' }));
     try {
       const token = getToken();
       const response = await fetch(`${BACKEND_URL}/api/social/post-ad/youtube/confirm/${post.postId}`, {
@@ -341,12 +346,13 @@ export default function ConnectAccountsPage() {
       if (!response.ok || !json?.success) throw new Error(json?.message || 'Could not verify YouTube video');
       setManualYoutubePosts((current) => ({
         ...current,
-        [claim.slotType]: { ...post, saved: true, trackingCodeVerified: json.data?.trackingCodeVerified !== false },
+        [claimKey]: { ...post, saved: true, trackingCodeVerified: json.data?.trackingCodeVerified !== false },
       }));
-      setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: json.data?.videoUrl || videoUrl }));
+      setManualYoutubeLinks((current) => ({ ...current, [claimKey]: json.data?.videoUrl || videoUrl }));
+      setManualYoutubeEditing((current) => ({ ...current, [claimKey]: false }));
       setManualYoutubeMessage((current) => ({
         ...current,
-        [claim.slotType]: json.data?.trackingCodeVerified === false
+        [claimKey]: json.data?.trackingCodeVerified === false
           ? 'Video saved, but the tracking ID was not found in its description. You can update this link after correcting the video.'
           : post.saved
             ? 'YouTube video link updated.'
@@ -358,7 +364,7 @@ export default function ConnectAccountsPage() {
     } catch (err) {
       setManualYoutubeMessage((current) => ({
         ...current,
-        [claim.slotType]: err instanceof Error ? err.message : 'Could not verify YouTube video',
+        [claimKey]: err instanceof Error ? err.message : 'Could not verify YouTube video',
       }));
     } finally {
       setManualYoutubeBusySlot(null);
@@ -418,7 +424,7 @@ export default function ConnectAccountsPage() {
         setPaidYoutubeClaims(claims);
         const posts = await Promise.all(claims.map(async (claim) => {
           if (claim.postId && claim.trackingCode) {
-            return [claim.slotType, {
+            return [youtubeClaimKey(claim), {
               postId: String(claim.postId),
               trackingCode: claim.trackingCode,
               description: claim.description ?? '',
@@ -427,11 +433,11 @@ export default function ConnectAccountsPage() {
             }] as const;
           }
           try {
-            return [claim.slotType, await requestManualYoutubePost(claim)] as const;
+            return [youtubeClaimKey(claim), await requestManualYoutubePost(claim)] as const;
           } catch (err) {
             setManualYoutubeMessage((current) => ({
               ...current,
-              [claim.slotType]: err instanceof Error ? err.message : 'Could not create tracking ID',
+              [youtubeClaimKey(claim)]: err instanceof Error ? err.message : 'Could not create tracking ID',
             }));
             return null;
           }
@@ -444,7 +450,11 @@ export default function ConnectAccountsPage() {
           setManualYoutubeLinks((current) => ({
             ...current,
             ...Object.fromEntries(claims.filter((claim) => claim.saved && claim.videoUrl)
-              .map((claim) => [claim.slotType, claim.videoUrl!])),
+              .map((claim) => [youtubeClaimKey(claim), claim.videoUrl!])),
+          }));
+          setManualYoutubeEditing((current) => ({
+            ...current,
+            ...Object.fromEntries(claims.map((claim) => [youtubeClaimKey(claim), !claim.saved])),
           }));
         }
       })
@@ -878,7 +888,8 @@ export default function ConnectAccountsPage() {
                         <p className="rounded-lg border border-dashed border-(--color-border) px-3 py-3 text-xs text-(--color-muted)">Paid advertiser images will appear here.</p>
                       ) : (
                         paidYoutubeClaims.map((claim) => {
-                          const manualPost = manualYoutubePosts[claim.slotType];
+                          const claimKey = youtubeClaimKey(claim);
+                          const manualPost = manualYoutubePosts[claimKey];
                           const busy = manualYoutubeBusySlot === claim.slotType;
                           return (
                             <div key={claim.id} className="rounded-lg border border-(--color-border) bg-(--color-surface-1) p-3">
@@ -931,20 +942,31 @@ export default function ConnectAccountsPage() {
                                   <div className="flex gap-2">
                                     <input
                                       id={`manual-youtube-link-${claim.id}`}
-                                      value={manualYoutubeLinks[claim.slotType] ?? ''}
-                                      onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: event.target.value }))}
+                                      value={manualYoutubeLinks[claimKey] ?? ''}
+                                      onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claimKey]: event.target.value }))}
                                       placeholder="https://youtube.com/watch?v=..."
+                                      readOnly={manualPost?.saved && !manualYoutubeEditing[claimKey]}
                                       disabled={busy}
                                       className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white) placeholder:text-(--color-muted)"
                                     />
+                                    {manualPost?.saved && !manualYoutubeEditing[claimKey] ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setManualYoutubeEditing((current) => ({ ...current, [claimKey]: true }))}
+                                        className="rounded-md border border-(--color-border) bg-(--color-surface-2) px-3 text-[10px] font-bold text-(--color-white)"
+                                      >
+                                        Edit
+                                      </button>
+                                    ) : (
                                     <button
                                       type="button"
                                       onClick={() => saveManualYoutubePost(claim)}
-                                      disabled={busy || !manualPost || !manualYoutubeLinks[claim.slotType]?.trim()}
+                                      disabled={busy || !manualPost || !manualYoutubeLinks[claimKey]?.trim()}
                                       className="rounded-md bg-emerald-600 px-3 text-[10px] font-bold text-white disabled:opacity-40"
                                     >
-                                      {busy ? (manualPost?.saved ? 'Updating…' : 'Saving…') : manualPost?.saved ? 'Update link' : 'Save video'}
+                                      {busy ? 'Saving…' : manualPost?.saved ? 'Save changes' : 'Save video'}
                                     </button>
+                                    )}
                                   </div>
                                 </div>
                                 {!manualPost && !manualYoutubeLoading && (
@@ -958,9 +980,9 @@ export default function ConnectAccountsPage() {
                                   </button>
                                 )}
                               </div>
-                              {manualYoutubeMessage[claim.slotType] && (
+                              {manualYoutubeMessage[claimKey] && (
                                 <p className={`mt-2 text-[10px] ${manualPost?.saved ? (manualPost.trackingCodeVerified === false ? 'text-amber-300' : 'text-emerald-400') : 'text-red-400'}`}>
-                                  {manualYoutubeMessage[claim.slotType]}
+                                  {manualYoutubeMessage[claimKey]}
                                 </p>
                               )}
                             </div>

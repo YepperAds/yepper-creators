@@ -257,6 +257,7 @@ export default function AdminUserContent() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast]     = useState(null);
   const [tierBusyId, setTierBusyId] = useState(null);
+  const [youtubeClaimBusyId, setYoutubeClaimBusyId] = useState(null);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -320,6 +321,21 @@ export default function AdminUserContent() {
     }
   };
 
+  const clearYoutubeClaim = async (claim) => {
+    const percentage = claim.slot_type.replace('pct', '%');
+    if (!window.confirm(`Remove the ${percentage} YouTube ad-space claim? The slot will become available immediately. Payment history and any published video will be kept.`)) return;
+    setYoutubeClaimBusyId(claim.claim_id);
+    try {
+      await adminFetch(`/users/${userId}/youtube-claims/${claim.claim_id}`, { method: 'DELETE' }, adminHeaders);
+      showToast(`${percentage} YouTube ad-space claim cleared.`);
+      await load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setYoutubeClaimBusyId(null);
+    }
+  };
+
   /* ── tier handlers ── */
   const setWebsiteTier = async (websiteId, tier, name) => {
     setTierBusyId(websiteId);
@@ -352,6 +368,8 @@ export default function AdminUserContent() {
   if (!data)   return <div style={{ color: '#ef4444', padding: 40 }}>Failed to load content.</div>;
 
   const { websites, adSpaces, ads } = data;
+  const youtube = data.youtube || { channel: null, configured: false, slots: [] };
+  const claimedYoutubeSlots = youtube.slots.filter(slot => slot.claimed).length;
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -392,12 +410,92 @@ export default function AdminUserContent() {
           { label: 'Websites',  value: websites.length,  color: '#2563eb' },
           { label: 'Ad Spaces', value: adSpaces.length,  color: '#7c3aed' },
           { label: 'Ads',       value: ads.length,       color: '#059669' },
+          { label: 'YouTube Slots Claimed', value: claimedYoutubeSlots, color: '#dc2626' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: '#fff', borderRadius: 10, padding: '14px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 22, fontWeight: 800, color }}>{value}</span>
             <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{label}</span>
           </div>
         ))}
+      </div>
+
+      {/* ── YOUTUBE CONTENT ───────────────────────────────────────── */}
+      <div style={card}>
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid #f0f0f0' }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+            YouTube Content <span style={{ color: '#94a3b8', fontWeight: 400 }}>({youtube.channel ? 'Connected' : 'Not connected'})</span>
+          </h3>
+          {youtube.channel && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 16, flexWrap: 'wrap', color: '#64748b', fontSize: 12 }}>
+              <span><strong style={{ color: '#1e293b' }}>{youtube.channel.username}</strong></span>
+              {youtube.channel.profile_url && (
+                <a href={youtube.channel.profile_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>
+                  Open channel
+                </a>
+              )}
+              <span>{fmt(youtube.channel.followers_count)} subscribers</span>
+              <span>{fmt(youtube.channel.total_views)} total views</span>
+              <span>{fmt(youtube.channel.total_posts)} videos</span>
+            </div>
+          )}
+          <p style={{ margin: '6px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
+            Review all five creator ad positions. Clearing a claim makes that percentage available again without deleting payment history or the published video.
+          </p>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={tableHead}>
+            <tr>
+              {['Position', 'Slot', 'Advertiser', 'Ad Format', 'Campaign Ends', 'Video', 'Action'].map(h => (
+                <th key={h} style={th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {youtube.slots.length === 0
+              ? emptyRow(7, 'No YouTube creator account or ad slots found.')
+              : youtube.slots.map(slot => (
+                <tr key={slot.slot_type}>
+                  <td style={{ ...td, fontWeight: 700, color: '#1e293b' }}>{slot.slot_type.replace('pct', '%')}</td>
+                  <td style={td}>
+                    <span style={{
+                      background: slot.claimed ? '#fee2e2' : slot.enabled ? '#d1fae5' : '#f1f5f9',
+                      color: slot.claimed ? '#b91c1c' : slot.enabled ? '#065f46' : '#64748b',
+                      padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                    }}>
+                      {slot.claimed ? 'Claimed' : slot.enabled ? 'Available' : 'Disabled'}
+                    </span>
+                  </td>
+                  <td style={{ ...td, color: '#475569' }}>{slot.advertiser_id || '—'}</td>
+                  <td style={{ ...td, color: '#475569', textTransform: 'capitalize' }}>
+                    {slot.claim_id ? `${slot.ad_type || 'corner'} · ${slot.ad_size || 'medium'}` : '—'}
+                  </td>
+                  <td style={{ ...td, color: '#64748b', fontSize: 12 }}>{date(slot.expires_at)}</td>
+                  <td style={{ ...td, fontSize: 12 }}>
+                    {slot.video_url
+                      ? <a href={slot.video_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>{slot.tracking_code || 'Open video'}</a>
+                      : <span style={{ color: '#cbd5e1' }}>{slot.tracking_code || '—'}</span>}
+                  </td>
+                  <td style={td}>
+                    {slot.claim_id ? (
+                      <button
+                        type="button"
+                        disabled={youtubeClaimBusyId === slot.claim_id}
+                        onClick={() => clearYoutubeClaim(slot)}
+                        style={{
+                          fontSize: 12, color: '#b91c1c', border: '1px solid #fecaca',
+                          background: '#fff5f5', padding: '4px 10px', borderRadius: 6,
+                          cursor: youtubeClaimBusyId === slot.claim_id ? 'not-allowed' : 'pointer',
+                          opacity: youtubeClaimBusyId === slot.claim_id ? 0.55 : 1,
+                        }}
+                      >
+                        {youtubeClaimBusyId === slot.claim_id ? 'Clearing…' : 'Clear claim'}
+                      </button>
+                    ) : <span style={{ color: '#cbd5e1' }}>—</span>}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
       </div>
 
       {/* ── WEBSITES ──────────────────────────────────────────────── */}

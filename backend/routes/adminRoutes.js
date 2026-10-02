@@ -45,6 +45,7 @@ router.post('/grant-apply', ctrl.applyGrant);
 
 // ── User content (websites, ad spaces, ads) ───────────────────────────────────
 router.get('/users/:userId/content',                      adminAuth, ctrl.getUserContent);
+router.delete('/users/:userId/youtube-claims/:claimId',    adminAuth, ctrl.clearYoutubeClaim);
 router.get('/users/:userId/websites/:websiteId/advertiser-check', adminAuth, ctrl.checkWebsiteAdvertisers);
 router.get('/users/:userId/ad-spaces/:spaceId/advertiser-check',  adminAuth, ctrl.checkAdSpaceAdvertisers);
 router.delete('/users/:userId/websites/:websiteId',       adminAuth, ctrl.deleteWebsite);

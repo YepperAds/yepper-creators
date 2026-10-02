@@ -637,15 +637,123 @@ exports.getUserContent = async (req, res) => {
     const { userId } = req.params;
     // All three tables store the owner as TEXT, so cast once
     const id = String(userId);
-    const [websites, adSpaces, ads] = await Promise.all([
+    const creatorId = Number.parseInt(id, 10);
+    const [websites, adSpaces, ads, youtube] = await Promise.all([
       Website.findByOwner(id),
       AdCategory.findByOwner(id),
       ImportAd.findByUser(id),
+      Number.isInteger(creatorId)
+        ? (async () => {
+            const [creatorResult, connectionResult, slotsResult] = await Promise.all([
+              query(`SELECT active_ad_slots FROM creators WHERE id = $1`, [creatorId]),
+              query(
+                `SELECT username, profile_url, followers_count, total_views, total_posts
+                 FROM social_connections
+                 WHERE creator_id = $1 AND provider = 'youtube'
+                 LIMIT 1`,
+                [creatorId],
+              ),
+              query(
+                `SELECT slot.slot_type,
+                        c.id IS NOT NULL
+                          AND COALESCE(c.active_ad_slots, '["8pct","25pct","45pct","65pct","85pct"]'::jsonb) ? slot.slot_type AS enabled,
+                        claim.id AS claim_id, claim.advertiser_id, claim.status AS claim_status,
+                        claim.image_url, claim.ad_type, claim.ad_size, claim.created_at AS claimed_at,
+                        campaign.id AS campaign_id, campaign.status AS campaign_status,
+                        campaign.expires_at,
+                        post.id AS post_id, post.tracking_code, post.video_url, post.title AS video_title
+                 FROM (VALUES ('8pct'), ('25pct'), ('45pct'), ('65pct'), ('85pct')) AS slot(slot_type)
+                 LEFT JOIN creators c ON c.id = $1
+                 LEFT JOIN LATERAL (
+                   SELECT claim.*
+                   FROM youtube_ad_claims claim
+                   LEFT JOIN ad_campaigns linked_campaign ON linked_campaign.id = claim.campaign_id
+                   WHERE claim.creator_id = $1 AND claim.slot_type = slot.slot_type
+                     AND claim.payment_status = 'paid' AND claim.status <> 'cancelled'
+                     AND (
+                       (claim.campaign_id IS NULL AND claim.status IN ('pending', 'used'))
+                       OR (linked_campaign.status = 'active'
+                           AND linked_campaign.payment_status = 'paid'
+                           AND linked_campaign.expires_at > NOW())
+                     )
+                   ORDER BY claim.created_at DESC, claim.id DESC
+                   LIMIT 1
+                 ) claim ON true
+                 LEFT JOIN ad_campaigns campaign ON campaign.id = claim.campaign_id
+                 LEFT JOIN LATERAL (
+                   SELECT p.id, p.tracking_code, p.video_url, p.title
+                   FROM youtube_ad_video_claims video_claim
+                   JOIN ad_video_posts p ON p.id = video_claim.ad_video_post_id
+                   WHERE video_claim.claim_id = claim.id
+                   ORDER BY p.id DESC
+                   LIMIT 1
+                 ) post ON true
+                 ORDER BY slot.slot_type`,
+                [creatorId],
+              ),
+            ]);
+            return {
+              channel: connectionResult.rows[0] || null,
+              configured: Boolean(creatorResult.rowCount),
+              slots: slotsResult.rows.map((slot) => ({
+                ...slot,
+                enabled: Boolean(slot.enabled),
+                claimed: Boolean(slot.claim_id),
+              })),
+            };
+          })()
+        : Promise.resolve({ channel: null, configured: false, slots: [] }),
     ]);
-    res.json({ success: true, websites, adSpaces, ads });
+    res.json({ success: true, websites, adSpaces, ads, youtube });
   } catch (err) {
     console.error('getUserContent error:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /api/admin/users/:userId/youtube-claims/:claimId
+// Clears the paid claim and campaign state while preserving payment history
+// and any creator video post linked to that claim.
+exports.clearYoutubeClaim = async (req, res) => {
+  const client = await getClient();
+  try {
+    const { userId, claimId } = req.params;
+    await client.query('BEGIN');
+    const claimResult = await client.query(
+      `SELECT id, campaign_id
+       FROM youtube_ad_claims
+       WHERE id = $1 AND creator_id = $2 AND payment_status = 'paid'
+         AND status <> 'cancelled'
+       FOR UPDATE`,
+      [claimId, userId],
+    );
+    if (!claimResult.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Active YouTube ad claim not found.' });
+    }
+
+    const claim = claimResult.rows[0];
+    await client.query(
+      `UPDATE youtube_ad_claims SET status = 'cancelled' WHERE id = $1`,
+      [claim.id],
+    );
+    if (claim.campaign_id) {
+      await client.query(
+        `UPDATE ad_campaigns
+         SET status = 'cancelled', updated_at = NOW()
+         WHERE id = $1 AND creator_id = $2 AND status = 'active'`,
+        [claim.campaign_id, userId],
+      );
+    }
+
+    await client.query('COMMIT');
+    return res.json({ success: true, message: 'YouTube ad claim cleared.' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('clearYoutubeClaim error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to clear YouTube ad claim.' });
+  } finally {
+    client.release();
   }
 };
 

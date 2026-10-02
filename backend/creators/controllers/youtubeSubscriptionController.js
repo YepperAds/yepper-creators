@@ -1,6 +1,7 @@
 'use strict';
 
 const { query, getClient } = require('../../config/db');
+const { fetchYoutubeVideos } = require('../utils/youtubeDataApi');
 const Creator = require('../models/Creator');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const { getSessionUserId } = require('./adSpaceController');
@@ -369,7 +370,7 @@ exports.getAdvertiserYoutubePosts = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to view your YouTube ads' });
   try {
     const result = await query(
-      `SELECT DISTINCT p.id, p.provider, p.tracking_code, p.platform_video_id, p.video_url,
+      `SELECT DISTINCT p.id, p.creator_id, p.provider, p.tracking_code, p.platform_video_id, p.video_url,
               p.title, p.description, p.thumbnail_url, p.status, p.posted_at,
               p.views, p.likes, p.comments, sc.username AS channel_name
        FROM ad_video_posts p
@@ -380,17 +381,22 @@ exports.getAdvertiserYoutubePosts = async (req, res) => {
       [String(advertiserId)],
     );
     const posts = result.rows;
-    const videoIds = posts.map((post) => post.platform_video_id).filter(Boolean);
-    if (videoIds.length && process.env.YOUTUBE_API_KEY) {
+    const postsByCreator = new Map();
+    for (const post of posts) {
+      if (!post.platform_video_id) continue;
+      const creatorPosts = postsByCreator.get(post.creator_id) || [];
+      creatorPosts.push(post);
+      postsByCreator.set(post.creator_id, creatorPosts);
+    }
+    for (const [creatorId, creatorPosts] of postsByCreator) {
       try {
-        const url = new URL('https://www.googleapis.com/youtube/v3/videos');
-        url.searchParams.set('part', 'snippet,statistics');
-        url.searchParams.set('id', videoIds.join(','));
-        url.searchParams.set('key', process.env.YOUTUBE_API_KEY);
-        const response = await fetch(url);
-        const data = await response.json().catch(() => null);
-        const liveById = new Map((data?.items || []).map((item) => [item.id, item]));
-        for (const post of posts) {
+        const items = await fetchYoutubeVideos(
+          creatorPosts.map((post) => post.platform_video_id),
+          creatorId,
+          'snippet,statistics',
+        );
+        const liveById = new Map((items || []).map((item) => [item.id, item]));
+        for (const post of creatorPosts) {
           const live = liveById.get(post.platform_video_id);
           if (!live) continue;
           post.views = Number(live.statistics?.viewCount || 0);

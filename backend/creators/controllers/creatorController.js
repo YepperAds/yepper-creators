@@ -5,7 +5,8 @@ const dns       = require('dns/promises');
 const jwt       = require('jsonwebtoken');
 
 const { query, getClient } = require('../../config/db');
-const Creator   = require('../models/Creator');
+const { fetchYoutubeVideos } = require('../utils/youtubeDataApi');
+const Creator = require('../models/Creator');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const { Wallet } = require('../../AdPromoter/models/walletModel');
 const { addSseClient, removeSseClient, broadcastUnreadCount, createNotification } = require('../utils/notificationUtils');
@@ -1489,18 +1490,9 @@ function extractEmbeddedJsonString(html, key) {
   return null;
 }
 
-async function fetchPublicYoutubeVideo(videoId) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (apiKey) {
-    const apiResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,status,statistics&id=${videoId}&key=${encodeURIComponent(apiKey)}`,
-    );
-    const apiData = await apiResponse.json().catch(() => null);
-    if (apiData?.items?.[0]) return apiData.items[0];
-    if (apiData?.error) {
-      console.error('[creators] YouTube Data API lookup failed:', apiData.error.message || apiData.error.status);
-    }
-  }
+async function fetchPublicYoutubeVideo(videoId, creatorId) {
+  const apiItems = await fetchYoutubeVideos([videoId], creatorId, 'snippet,status,statistics');
+  if (apiItems?.[0]) return apiItems[0];
 
   try {
     const watchResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
@@ -1509,6 +1501,7 @@ async function fetchPublicYoutubeVideo(videoId) {
     const html = await watchResponse.text();
     const description = extractEmbeddedJsonString(html, 'shortDescription');
     const title = extractEmbeddedJsonString(html, 'title');
+    const viewCount = extractEmbeddedJsonString(html, 'viewCount');
     if (description !== null) {
       return {
         snippet: {
@@ -1517,7 +1510,7 @@ async function fetchPublicYoutubeVideo(videoId) {
           thumbnails: {},
         },
         status: { privacyStatus: 'public' },
-        statistics: {},
+        statistics: { viewCount: viewCount || '0' },
         _watchPageFallback: true,
       };
     }
@@ -1643,7 +1636,7 @@ exports.confirmAdVideoPost = async (req, res) => {
   const { tracking_code: code } = postRes.rows[0];
 
   try {
-    const item = await fetchPublicYoutubeVideo(videoId);
+    const item = await fetchPublicYoutubeVideo(videoId, session);
 
     if (!item) return res.status(422).json({ success: false, message: 'YouTube could not validate that video. Check that the link is correct and the video is public or unlisted.' });
     if (!['public', 'unlisted'].includes(item.status?.privacyStatus)) {
@@ -1834,62 +1827,37 @@ exports.getAdPosts = async (req, res) => {
   try {
     const result = await query(
       `SELECT id, provider, tracking_code, tracking_num, platform_video_id, video_url,
-              title, description, thumbnail_url, status, posted_at
+              title, description, thumbnail_url, status, posted_at, views, likes, comments
        FROM ad_video_posts
        WHERE creator_id = $1 ${provider ? 'AND provider = $2' : ''}
        ORDER BY posted_at DESC LIMIT 30`,
       provider ? [userUuid, provider] : [userUuid],
     );
 
-    const posts = result.rows.map(r => ({ ...r, views: 0, likes: 0, comments: 0 }));
+    const posts = result.rows;
 
-    // Fetch live stats directly from YouTube — never read from DB
+    // Prefer live YouTube stats while retaining the last saved values on lookup failures.
     const ytPosts = posts.filter(p => p.provider === 'youtube' && p.platform_video_id);
     if (ytPosts.length) {
-      {
-        const ids = ytPosts.map(p => p.platform_video_id).join(',');
-        try {
-          const ytRes    = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${ids}&key=${process.env.YOUTUBE_API_KEY}`);
-          const ytData   = await ytRes.json().catch(() => null);
-          const statsMap = {};
-          for (const item of ytData?.items ?? []) {
-            statsMap[item.id] = {
-              views:     Number(item.statistics?.viewCount    || 0),
-              likes:     Number(item.statistics?.likeCount    || 0),
-              comments:  Number(item.statistics?.commentCount || 0),
-              thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || null,
-            };
-          }
-
-          // Any YouTube post not returned by the API has been deleted on YouTube — remove it
-          const deletedIds = ytPosts
-            .filter(p => !statsMap[p.platform_video_id])
-            .map(p => p.id);
-
-          if (deletedIds.length) {
-            await query(
-              `DELETE FROM ad_video_posts WHERE id = ANY($1::int[])`,
-              [deletedIds],
-            ).catch(e => console.error('[creators] getAdPosts delete orphan error:', e?.message));
-          }
-
-          for (const post of posts) {
-            const live = statsMap[post.platform_video_id];
-            if (live) {
-              post.views    = live.views;
-              post.likes    = live.likes;
-              post.comments = live.comments;
-              if (live.thumbnail) post.thumbnail_url = live.thumbnail;
-            }
-          }
-
-          // Remove deleted entries from the response
-          posts.splice(0, posts.length, ...posts.filter(p =>
-            p.provider !== 'youtube' || !p.platform_video_id || statsMap[p.platform_video_id]
-          ));
-        } catch (err) {
-          console.error('[creators] getAdPosts live-stats error (non-fatal):', err?.message);
+      try {
+        const ytItems = await fetchYoutubeVideos(
+          ytPosts.map((post) => post.platform_video_id),
+          userUuid,
+          'statistics,snippet',
+        );
+        const statsMap = new Map((ytItems || []).map((item) => [item.id, item]));
+        for (const post of ytPosts) {
+          const live = statsMap.get(post.platform_video_id);
+          if (!live) continue;
+          post.views = Number(live.statistics?.viewCount || 0);
+          post.likes = Number(live.statistics?.likeCount || 0);
+          post.comments = Number(live.statistics?.commentCount || 0);
+          post.thumbnail_url = live.snippet?.thumbnails?.medium?.url
+            || live.snippet?.thumbnails?.default?.url
+            || post.thumbnail_url;
         }
+      } catch (err) {
+        console.error('[creators] getAdPosts live-stats error (non-fatal):', err?.message);
       }
     }
 
@@ -1903,7 +1871,7 @@ exports.getAdPosts = async (req, res) => {
 exports.refreshAllAdPostStats = async () => {
   try {
     const posts = await query(
-      `SELECT id, provider, platform_video_id
+      `SELECT id, creator_id, provider, platform_video_id
        FROM ad_video_posts
        WHERE status = 'live' AND platform_video_id IS NOT NULL
          AND (last_stats_at IS NULL OR last_stats_at < NOW() - INTERVAL '30 minutes')
@@ -1912,9 +1880,8 @@ exports.refreshAllAdPostStats = async () => {
     for (const post of posts.rows) {
       try {
         if (post.provider === 'youtube') {
-          const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${post.platform_video_id}&key=${process.env.YOUTUBE_API_KEY}`);
-          const data = await r.json().catch(() => null);
-          const stats = data?.items?.[0]?.statistics;
+          const items = await fetchYoutubeVideos([post.platform_video_id], post.creator_id, 'statistics');
+          const stats = items?.[0]?.statistics;
           if (stats) {
             await query(
               `UPDATE ad_video_posts SET views=$1, likes=$2, comments=$3, last_stats_at=NOW() WHERE id=$4`,

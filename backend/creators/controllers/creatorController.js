@@ -1628,9 +1628,39 @@ exports.confirmAdVideoPost = async (req, res) => {
   const videoId = extractYoutubeVideoId(videoUrl);
   if (!videoId) return res.status(400).json({ success: false, message: "That doesn't look like a valid YouTube video link" });
 
+  let slotTypes = [];
+  try { slotTypes = Array.isArray(claimedSlotTypes) ? claimedSlotTypes : JSON.parse(claimedSlotTypes || '[]'); } catch { slotTypes = []; }
+  slotTypes = [...new Set(slotTypes.filter((slot) => SLOT_TYPES.includes(slot)))];
   const postRes = await query(
-    `SELECT id, tracking_code FROM ad_video_posts WHERE id=$1 AND creator_id=$2 AND status='pending_publish'`,
-    [id, session],
+    `SELECT p.id, p.tracking_code, p.status
+     FROM ad_video_posts p
+     WHERE p.id=$1 AND p.creator_id=$2 AND p.provider='youtube'
+       AND (
+         p.status='pending_publish'
+         OR (
+           p.status='live'
+           AND EXISTS (
+             SELECT 1
+             FROM youtube_ad_video_claims video_claim
+             JOIN youtube_ad_claims claim ON claim.id = video_claim.claim_id
+             LEFT JOIN ad_campaigns campaign ON campaign.id = claim.campaign_id
+             WHERE video_claim.ad_video_post_id = p.id
+               AND claim.creator_id = $2
+               AND claim.slot_type = ANY($3)
+               AND claim.payment_status = 'paid'
+               AND claim.status <> 'cancelled'
+               AND (
+                 (claim.campaign_id IS NULL AND claim.status IN ('pending', 'used'))
+                 OR (
+                   campaign.status = 'active'
+                   AND campaign.payment_status = 'paid'
+                   AND campaign.expires_at > NOW()
+                 )
+               )
+           )
+         )
+       )`,
+    [id, session, slotTypes],
   );
   if (!postRes.rowCount) return res.status(404).json({ success: false, message: 'No pending post found — request a new tracking code' });
   const { tracking_code: code } = postRes.rows[0];
@@ -1643,10 +1673,6 @@ exports.confirmAdVideoPost = async (req, res) => {
       return res.status(422).json({ success: false, message: 'That video needs to be Public or Unlisted (not private) for us to verify and track it' });
     }
     const trackingCodeVerified = !item._oembedOnly && (item.snippet?.description || '').includes(code);
-    if (!item._oembedOnly && !trackingCodeVerified) {
-      return res.status(422).json({ success: false, message: `We couldn't find ${code} in that video's description — add it and republish, then try again` });
-    }
-
     const stats     = item.statistics || {};
     const thumbUrl  = item.snippet?.thumbnails?.default?.url || null;
     const videoLink = `https://youtube.com/watch?v=${videoId}`;
@@ -1659,10 +1685,7 @@ exports.confirmAdVideoPost = async (req, res) => {
         [videoId, videoLink, thumbUrl, item.snippet?.title || 'YouTube Ad Video', Number(stats.viewCount || 0), Number(stats.likeCount || 0), Number(stats.commentCount || 0), trackingCodeVerified, id],
     );
 
-    let slotTypes = [];
-    try { slotTypes = Array.isArray(claimedSlotTypes) ? claimedSlotTypes : JSON.parse(claimedSlotTypes || '[]'); } catch { slotTypes = []; }
-    slotTypes = [...new Set(slotTypes.filter((slot) => SLOT_TYPES.includes(slot)))];
-    if (slotTypes.length) {
+    if (slotTypes.length && postRes.rows[0].status === 'pending_publish') {
       await query(
         `INSERT INTO youtube_ad_video_claims (ad_video_post_id, claim_id, advertiser_id)
          SELECT $1, id, advertiser_id FROM youtube_ad_claims

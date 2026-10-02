@@ -343,14 +343,18 @@ export default function ConnectAccountsPage() {
         ...current,
         [claim.slotType]: { ...post, saved: true, trackingCodeVerified: json.data?.trackingCodeVerified !== false },
       }));
+      setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: json.data?.videoUrl || videoUrl }));
       setManualYoutubeMessage((current) => ({
         ...current,
         [claim.slotType]: json.data?.trackingCodeVerified === false
-          ? 'Video saved. YouTube confirmed the link, but the description ID could not be checked.'
-          : 'YouTube video saved and verified.',
+          ? 'Video saved, but the tracking ID was not found in its description. You can update this link after correcting the video.'
+          : post.saved
+            ? 'YouTube video link updated.'
+            : 'YouTube video saved and verified.',
       }));
-      setAdSpaces((current) => current.map((slot) => slot.slotType === claim.slotType ? { ...slot, status: 'Open' } : slot));
-      setAdPostCounts((current) => ({ ...current, youtube: (current.youtube ?? 0) + 1 }));
+      if (!post.saved) {
+        setAdPostCounts((current) => ({ ...current, youtube: (current.youtube ?? 0) + 1 }));
+      }
     } catch (err) {
       setManualYoutubeMessage((current) => ({
         ...current,
@@ -930,16 +934,16 @@ export default function ConnectAccountsPage() {
                                       value={manualYoutubeLinks[claim.slotType] ?? ''}
                                       onChange={(event) => setManualYoutubeLinks((current) => ({ ...current, [claim.slotType]: event.target.value }))}
                                       placeholder="https://youtube.com/watch?v=..."
-                                      disabled={busy || manualPost?.saved}
+                                      disabled={busy}
                                       className="min-w-0 flex-1 rounded-md border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white) placeholder:text-(--color-muted)"
                                     />
                                     <button
                                       type="button"
                                       onClick={() => saveManualYoutubePost(claim)}
-                                      disabled={busy || !manualPost || manualPost.saved || !manualYoutubeLinks[claim.slotType]?.trim()}
+                                      disabled={busy || !manualPost || !manualYoutubeLinks[claim.slotType]?.trim()}
                                       className="rounded-md bg-emerald-600 px-3 text-[10px] font-bold text-white disabled:opacity-40"
                                     >
-                                      {busy ? 'Saving…' : manualPost?.saved ? 'Saved' : 'Save'}
+                                      {busy ? (manualPost?.saved ? 'Updating…' : 'Saving…') : manualPost?.saved ? 'Update link' : 'Save video'}
                                     </button>
                                   </div>
                                 </div>

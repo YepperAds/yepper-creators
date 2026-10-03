@@ -18,6 +18,7 @@ import PostAdModal from '@/app/(advertiser)/_components/PostAdModal';
 import SendAdInviteModal from '@/app/(advertiser)/_components/SendAdInviteModal';
 import AdFormatPreview from '@/app/_components/shared/AdFormatPreview';
 import SlotPositionPreview from '@/app/_components/shared/SlotPositionPreview';
+import VideoSlotSelector from '@/app/_components/shared/VideoSlotSelector';
 import { getToken } from '@/app/(adsense)/utils/token';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
@@ -851,32 +852,12 @@ export default function ConnectAccountsPage() {
 
                     <div className="mb-3">
                       <p className="text-[10px] font-bold text-(--color-muted) uppercase tracking-wide mb-2">Available Insert Slots</p>
-                      <p className="text-[10px] text-(--color-muted) mb-2">Each one shows roughly where in your video the ad appears, from start to end.</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                        {['8pct', '25pct', '45pct', '65pct', '85pct'].map((slotKey) => {
-                          const isActive = activeSlots.includes(slotKey);
-                          const percent = Number.parseInt(slotKey.replace('pct', ''), 10) || 0;
-                          const label = slotKey.replace('pct', '%');
-                          return (
-                            <button
-                              key={slotKey}
-                              type="button"
-                              onClick={() => handleSlotToggle(slotKey)}
-                              disabled={slotSaving}
-                              className={`flex flex-col items-stretch gap-1 rounded-lg border p-1.5 transition-colors ${
-                                isActive
-                                  ? 'border-emerald-500/50 bg-emerald-500/10'
-                                  : 'border-(--color-border) bg-(--color-surface-1)'
-                              }`}
-                            >
-                              <SlotPositionPreview percent={percent} size="sm" />
-                              <span className={`text-[10px] font-bold uppercase text-center ${isActive ? 'text-emerald-300' : 'text-(--color-muted)'}`}>
-                                {label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <p className="text-[10px] text-(--color-muted) mb-2">Select a percentage to enable or disable that ad position. The timeline shows where it falls in the video.</p>
+                      <VideoSlotSelector
+                        activeSlots={activeSlots}
+                        disabled={slotSaving}
+                        onToggle={handleSlotToggle}
+                      />
                     </div>
 
                     <section className="mb-4 space-y-2.5">

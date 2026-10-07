@@ -7,7 +7,7 @@
 // choice, not a separate advertiser pick; price is just tier + duration +
 // whichever format the creator already picked.
 
-export type DurationBand = '5–15s' | '15–30s';
+export type DurationBand = '30 seconds';
 export type TierName = 'Test' | 'Nano' | 'Micro' | 'Mid' | 'Macro' | 'Mega';
 
 export interface PricingRow {

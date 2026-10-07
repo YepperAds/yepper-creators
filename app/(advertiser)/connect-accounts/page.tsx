@@ -1031,10 +1031,10 @@ export default function ConnectAccountsPage() {
                             <tr className="border-b border-(--color-border)">
                               <th className="px-4 py-2 text-left text-[10px] font-bold text-(--color-muted) uppercase">Duration</th>
                               <th className={`px-4 py-2 text-right text-[10px] font-bold uppercase ${adType === 'corner' ? 'text-emerald-400' : 'text-(--color-muted)'}`}>
-                                Corner Badge{adType === 'corner' ? ' (yours)' : ''}
+                                Corner Badge (RWF){adType === 'corner' ? ' (yours)' : ''}
                               </th>
                               <th className={`px-4 py-2 text-right text-[10px] font-bold uppercase ${adType === 'lbar' ? 'text-emerald-400' : 'text-(--color-muted)'}`}>
-                                L-Bar{adType === 'lbar' ? ' (yours)' : ''}
+                                L-Bar (RWF){adType === 'lbar' ? ' (yours)' : ''}
                               </th>
                             </tr>
                           </thead>
@@ -1050,7 +1050,7 @@ export default function ConnectAccountsPage() {
                         </table>
                       </div>
                       <p className="px-4 py-2 text-[10px] text-(--color-muted) border-t border-(--color-border)">
-                        Creator earns 70% · Yepper takes 30% · All prices in RWF · Advertisers pay whichever column matches your chosen ad format
+                        Creator earns 70% · Yepper takes 30% · 30-second ad prices · Advertisers pay whichever RWF column matches your chosen ad format
                       </p>
                     </div>
                   )}

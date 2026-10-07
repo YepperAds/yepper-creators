@@ -11,7 +11,7 @@ import { getToken } from '@/app/(adsense)/utils/token';
 // instead, same as the video upload in PostAdModal.tsx.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-const DURATION_BANDS = ['5–15s', '15–30s'] as const;
+const DURATION_BANDS = ['30 seconds'] as const;
 const CAMPAIGN_PACKAGE_OPTIONS = [
   { value: '1 month', months: 1, days: 30 },
   { value: '3 months', months: 3, days: 90 },
@@ -107,7 +107,7 @@ export default function AdSpacesModal({
 
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [adSize, setAdSize] = useState('medium');
-  const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[1]);
+  const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[0]);
   const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('campaign');
   const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
   const [campaignInsertionsByPackage, setCampaignInsertionsByPackage] = useState<Record<'1 month' | '3 months' | '6 months', number>>({

@@ -116,7 +116,7 @@ const PLATFORMS = [
   { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, statLabel: 'Subscribers' },
   { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, statLabel: 'Followers' },
   { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, statLabel: 'Followers' },
-  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: true, statLabel: 'Followers' },
+  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, statLabel: 'Followers' },
 ] as const;
 
 function PlatformIcon({ id }: { id: string }) {

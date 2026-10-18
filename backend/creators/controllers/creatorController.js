@@ -61,8 +61,8 @@ function getCreatorId(req) {
 // ─── SMTP (creators-specific mailer) ─────────────────────────────────────────
 
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
-const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || 'sbaw7xz2iq34fb7t40';
-const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '1TNmQ4srBF5ZlaIJIsiwCKVwiF9RFYEi';
+const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
+const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
 const TIKTOK_AUTH_URL = process.env.TIKTOK_AUTH_URL || 'https://www.tiktok.com/v2/auth/authorize/';
 const TIKTOK_TOKEN_URL = process.env.TIKTOK_TOKEN_URL || 'https://open.tiktokapis.com/v2/oauth/token/';
 
@@ -1237,7 +1237,7 @@ exports.socialConnect = (req, res) => {
   }
 
   if (provider === 'tiktok') {
-    const clientId    = process.env.TIKTOK_CLIENT_KEY || TIKTOK_CLIENT_KEY;
+    const clientId    = TIKTOK_CLIENT_KEY;
     const redirectUri = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
     if (!clientId) return res.status(500).json({ error: 'TikTok client key not configured' });
 
@@ -1245,7 +1245,7 @@ exports.socialConnect = (req, res) => {
     authUrl.searchParams.set('client_key', clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', 'user.info.basic');
+    authUrl.searchParams.set('scope', 'user.info.basic,user.info.stats,video.list');
     authUrl.searchParams.set('state', user_uuid || '');
     return res.redirect(authUrl.toString());
   }
@@ -1373,8 +1373,8 @@ exports.socialConnectCallback = async (req, res) => {
   }
 
   if (provider === 'tiktok') {
-    const clientId     = process.env.TIKTOK_CLIENT_KEY || TIKTOK_CLIENT_KEY;
-    const clientSecret = process.env.TIKTOK_CLIENT_SECRET || TIKTOK_CLIENT_SECRET;
+    const clientId     = TIKTOK_CLIENT_KEY;
+    const clientSecret = TIKTOK_CLIENT_SECRET;
     const redirectUri  = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
 
     if (!clientId || !clientSecret) {
@@ -1415,7 +1415,7 @@ exports.socialConnectCallback = async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 
-      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,profile_deep_link,follower_count,following_count,likes_count', {
+      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,profile_deep_link,follower_count,following_count,likes_count,video_count', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
       const userData = await userRes.json().catch(() => null);
@@ -1434,15 +1434,16 @@ exports.socialConnectCallback = async (req, res) => {
       );
 
       await query(
-        `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, avatar_url, access_token, refresh_token, total_views, total_posts)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, avatar_url, access_token, refresh_token, total_views, total_posts, access_token_expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CASE WHEN $11::numeric > 0 THEN NOW() + ($11::text || ' seconds')::interval ELSE NULL END)
          ON CONFLICT (creator_id, provider) DO UPDATE SET
            username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
            profile_url=EXCLUDED.profile_url, avatar_url=EXCLUDED.avatar_url,
            access_token=EXCLUDED.access_token, refresh_token=EXCLUDED.refresh_token,
+           access_token_expires_at=EXCLUDED.access_token_expires_at,
            total_views=EXCLUDED.total_views, total_posts=EXCLUDED.total_posts,
            connected_at=NOW()`,
-        [creatorId, 'tiktok', String(username).trim(), followers, profileUrl, avatarUrl, tokenData.access_token || null, tokenData.refresh_token || null, 0, 0],
+        [creatorId, 'tiktok', String(username).trim(), followers, profileUrl, avatarUrl, tokenData.access_token || null, tokenData.refresh_token || null, 0, 0, Number(tokenData.expires_in || 0)],
       );
 
       createNotification(creatorId, 'social_connected', 'TikTok Connected',

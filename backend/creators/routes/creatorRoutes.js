@@ -9,6 +9,7 @@ const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
 const claimPayment = require('../controllers/youtubeClaimPaymentController');
 const youtubeSubscription = require('../controllers/youtubeSubscriptionController');
+const tiktokSponsorship = require('../controllers/tiktokSponsorshipController');
 
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 750);
 
@@ -41,6 +42,13 @@ router.get('/api/creators/public',              controller.getPublicCreators);
 router.get('/api/social/stats',                 controller.getSocialStats);
 router.get('/api/social/tiktok/profile',        controller.getTikTokProfile);
 router.post('/api/social/tiktok/profile',       controller.updateTikTokProfile);
+router.post('/api/social/tiktok/sponsorships/verify-payment', tiktokSponsorship.verifyPayment);
+router.get('/api/social/tiktok/sponsorships/:creatorId/quote', tiktokSponsorship.getQuote);
+router.post('/api/social/tiktok/sponsorships/:creatorId', tiktokSponsorship.initiate);
+router.get('/api/social/tiktok/sponsorships/:creatorId/reports', tiktokSponsorship.getAdvertiserReports);
+router.get('/api/social/tiktok/sponsorships/pending', tiktokSponsorship.getPendingForCreator);
+router.post('/api/social/tiktok/sponsorships/:id/submit', tiktokSponsorship.submitVideo);
+router.get('/api/tiktok/track/:token', tiktokSponsorship.trackClick);
 router.post('/api/social/manual-connect/:provider', controller.manualConnectSocial);
 router.get('/api/social/video-stats',           controller.getSocialVideoStats);
 router.post('/api/social/disconnect/:provider', controller.disconnectSocial);

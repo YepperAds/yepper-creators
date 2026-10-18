@@ -30,6 +30,28 @@ interface PricingRow {
   lbar: number;
 }
 
+interface TikTokQuote {
+  followers: number;
+  tier: string;
+  amount: number;
+  monthlyCapacity: number;
+  remainingCapacity: number;
+}
+
+interface TikTokCampaignReport {
+  id: number;
+  brandName: string;
+  amount: number;
+  status: string;
+  videoUrl: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+  clicks: number;
+  createdAt: string;
+  postedAt: string | null;
+}
+
 // A fixed mock-video scene keeps real creator footage out of the ad purchase flow.
 function VideoPreviewPanel({
   adImageUrl,
@@ -119,6 +141,13 @@ export default function AdSpacesModal({
   const [pendingFileUrl, setPendingFileUrl] = useState<string | null>(null);
   const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
   const [postingEstimate, setPostingEstimate] = useState<{ avgDaysBetweenPosts: number | null; source: 'measured' | 'stated' | 'none'; estimates: Record<number, number> | null } | null>(null);
+  const [tiktokQuote, setTikTokQuote] = useState<TikTokQuote | null>(null);
+  const [tiktokReports, setTikTokReports] = useState<TikTokCampaignReport[]>([]);
+  const [tiktokBrandName, setTikTokBrandName] = useState('');
+  const [tiktokBrief, setTikTokBrief] = useState('');
+  const [tiktokDestination, setTikTokDestination] = useState('');
+  const [tiktokBooking, setTikTokBooking] = useState(false);
+  const [tiktokMessage, setTikTokMessage] = useState('');
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -134,11 +163,29 @@ export default function AdSpacesModal({
     setPendingFileUrl(null);
     setPurchaseMode('campaign');
     if (creator.provider === 'tiktok') {
-      setLoading(false);
+      setTikTokQuote(null);
+      setTikTokReports([]);
+      setTikTokMessage('');
       setSlots([]);
       setPostingFrequency(null);
       setPostingEstimate(null);
-      return;
+      let cancelled = false;
+      const token = getToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      Promise.all([
+        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers, cache: 'no-store' }).then((response) => response.json()),
+        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers, cache: 'no-store' }).then((response) => response.json()),
+      ]).then(([quoteJson, reportsJson]) => {
+        if (cancelled) return;
+        if (quoteJson?.success) setTikTokQuote(quoteJson.data);
+        else setError(quoteJson?.message || 'Could not load TikTok booking details.');
+        if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
+      }).catch(() => {
+        if (!cancelled) setError('Could not load TikTok booking details.');
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+      return () => { cancelled = true; };
     }
     fetch(`/api/social/youtube/ad-spaces/${creator.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
@@ -189,6 +236,43 @@ export default function AdSpacesModal({
   };
 
   const price = priceForSelection();
+
+  const submitTikTokBooking = async () => {
+    if (!creator || !tiktokQuote || tiktokBooking) return;
+    setTikTokBooking(true);
+    setTikTokMessage('');
+    setError('');
+    try {
+      const token = getToken();
+      const response = await fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ brandName: tiktokBrandName, campaignBrief: tiktokBrief, destinationUrl: tiktokDestination }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json?.success) throw new Error(json?.message || 'Could not book this TikTok promotion');
+      if (json.data?.paymentUrl) {
+        window.location.href = json.data.paymentUrl;
+        return;
+      }
+      setTikTokMessage('Payment complete. The sponsored post is now in the creator’s dashboard.');
+      setTikTokBrandName('');
+      setTikTokBrief('');
+      setTikTokDestination('');
+      const tokenHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const [quoteJson, reportsJson] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
+        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
+      ]);
+      if (quoteJson?.success) setTikTokQuote(quoteJson.data);
+      if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not book this TikTok promotion');
+    } finally {
+      setTikTokBooking(false);
+    }
+  };
 
   const packageEstimateDays = { '1 month': 30, '3 months': 90, '6 months': 180 } as const;
   const getDefaultInsertionsForPackage = (length: '1 month' | '3 months' | '6 months') => {
@@ -329,7 +413,7 @@ export default function AdSpacesModal({
         )}
 
         {creator.provider === 'tiktok' ? (
-          <div className="space-y-6">
+          loading ? <p className="text-sm text-(--color-muted)">Loading TikTok booking details…</p> : <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Connected audience</p>
@@ -346,13 +430,52 @@ export default function AdSpacesModal({
               </div>
             </div>
             <p className="text-xs text-(--color-muted)">These figures are self-reported by the creator. Confirm the exact number of sponsored posts and dates with them before booking.</p>
-            <div className="flex items-center justify-between gap-4 border-t border-(--color-border) pt-6">
-              <div>
-                <h3 className="text-xl font-extrabold text-(--color-white)">TikTok creator profile</h3>
-                <p className="mt-1 text-sm text-(--color-muted)">TikTok campaign booking is not available here yet.</p>
+            <div className="grid gap-5 border-t border-(--color-border) pt-5 lg:grid-cols-[1fr_0.9fr]">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-base font-bold text-(--color-white)">Book a sponsored post</h3>
+                  {tiktokQuote && <span className="text-xs font-bold text-emerald-300">{tiktokQuote.amount.toLocaleString()} RWF · {tiktokQuote.tier}</span>}
+                </div>
+                <p className="text-xs text-(--color-muted)">One sponsored TikTok video. Add your destination URL; Yepper creates a unique bio link and tracks visits separately from video views.</p>
+                <label className="block text-xs font-semibold text-(--color-white)">
+                  Brand name
+                  <input value={tiktokBrandName} onChange={(event) => setTikTokBrandName(event.target.value)} maxLength={160} className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal" />
+                </label>
+                <label className="block text-xs font-semibold text-(--color-white)">
+                  Creator brief
+                  <textarea value={tiktokBrief} onChange={(event) => setTikTokBrief(event.target.value)} maxLength={2000} rows={3} placeholder="Key message, required mention, or product details" className="mt-1.5 w-full resize-y rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
+                </label>
+                <label className="block text-xs font-semibold text-(--color-white)">
+                  Destination URL
+                  <input type="url" value={tiktokDestination} onChange={(event) => setTikTokDestination(event.target.value)} placeholder="https://brand.example/product" className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
+                </label>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-xs text-(--color-muted)">{tiktokQuote?.remainingCapacity ?? 0} creator slots remaining this month</span>
+                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !tiktokBrandName.trim() || !tiktokBrief.trim() || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    {tiktokBooking ? 'Starting checkout…' : `Book · ${tiktokQuote?.amount.toLocaleString() ?? '—'} RWF`}
+                  </button>
+                </div>
+                {tiktokMessage && <p role="status" className="text-xs text-emerald-300">{tiktokMessage}</p>}
               </div>
-              <button onClick={onClose} className="shrink-0 rounded-full bg-(--color-surface-3) px-5 py-3 text-sm font-bold text-(--color-white)">Close</button>
+              <div className="space-y-2">
+                <h3 className="text-base font-bold text-(--color-white)">Your TikTok campaigns</h3>
+                {tiktokReports.length === 0 ? <p className="text-xs text-(--color-muted)">Your paid campaigns and their results will appear here.</p> : tiktokReports.map((report) => (
+                  <div key={report.id} className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-bold text-(--color-white)">{report.brandName}</p>
+                      <span className="text-[10px] text-(--color-muted)">{report.status.replace('_', ' ')}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--color-muted)">
+                      <span>{report.views.toLocaleString()} video views</span>
+                      <span>{report.clicks.toLocaleString()} link clicks</span>
+                      <span>{report.likes.toLocaleString()} likes</span>
+                    </div>
+                    {report.videoUrl && <a href={report.videoUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[10px] font-semibold text-emerald-300 underline">View TikTok post</a>}
+                  </div>
+                ))}
+              </div>
             </div>
+            <p className="text-[10px] text-(--color-muted)">Pricing uses Yepper’s existing follower-tier rate. TikTok views come from its Display API; tracked URL opens are clicks, not impressions.</p>
           </div>
         ) : loading ? (
           <div className="flex-1 grid sm:grid-cols-2 gap-6">

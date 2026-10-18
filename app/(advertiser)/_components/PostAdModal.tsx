@@ -9,6 +9,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { getToken } from '@/app/(adsense)/utils/token';
+import TikTokSponsoredPosts from './TikTokSponsoredPosts';
 
 // Large videos go directly to the paid backend so they do not pass through
 // the frontend deployment's request-size and execution limits.
@@ -226,6 +227,7 @@ export default function PostAdModal({
   };
 
   if (!open || !provider) return null;
+  if (provider === 'tiktok') return <TikTokSponsoredPosts onClose={onClose} />;
 
   const close = () => { if (!adUploading) onClose(); };
 

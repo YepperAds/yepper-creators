@@ -17,6 +17,7 @@ function YoutubePaymentCallbackContent() {
       const transaction_id = searchParams.get('transaction_id');
       const tx_ref = searchParams.get('tx_ref');
       const flwStatus = searchParams.get('status');
+      const isTikTok = searchParams.get('kind') === 'tiktok';
 
       if (flwStatus === 'cancelled') {
         setStatus('failed');
@@ -33,7 +34,10 @@ function YoutubePaymentCallbackContent() {
 
       try {
         const token = getToken();
-        const res = await fetch(`${BACKEND_URL}/api/social/youtube/ad-spaces/claim/verify`, {
+        const verifyUrl = isTikTok
+          ? `${BACKEND_URL}/api/social/tiktok/sponsorships/verify-payment`
+          : `${BACKEND_URL}/api/social/youtube/ad-spaces/claim/verify`;
+        const res = await fetch(verifyUrl, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -46,7 +50,7 @@ function YoutubePaymentCallbackContent() {
 
         if (json.success) {
           setStatus('success');
-          setMessage(json.message || 'Payment successful: ad slot claimed!');
+          setMessage(json.message || (isTikTok ? 'TikTok sponsorship booked successfully!' : 'Payment successful: ad slot claimed!'));
           setTimeout(() => router.push('/'), 3000);
         } else {
           setStatus('failed');

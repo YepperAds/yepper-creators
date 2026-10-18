@@ -238,6 +238,7 @@ async function initCreatorsDatabase() {
        advertiser_id VARCHAR(255) NOT NULL,
        brand_name VARCHAR(160) NOT NULL,
        campaign_brief TEXT NOT NULL,
+      creative_image_url TEXT NOT NULL,
        destination_url TEXT NOT NULL,
        tracking_token VARCHAR(48) UNIQUE NOT NULL,
        amount NUMERIC(12,2) NOT NULL,
@@ -259,8 +260,12 @@ async function initCreatorsDatabase() {
        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
+    `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS creative_image_url TEXT`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_creator_idx ON tiktok_sponsorships (creator_id, status, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_advertiser_idx ON tiktok_sponsorships (advertiser_id, created_at DESC)`,
+     `CREATE UNIQUE INDEX IF NOT EXISTS tiktok_sponsorships_active_creator_unique
+       ON tiktok_sponsorships (creator_id)
+       WHERE status IN ('pending_payment', 'pending_post', 'submitted')`,
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
     `CREATE TABLE IF NOT EXISTS notifications (
        id          BIGSERIAL PRIMARY KEY,

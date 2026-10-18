@@ -20,6 +20,18 @@ function YoutubePaymentCallbackContent() {
       const isTikTok = searchParams.get('kind') === 'tiktok';
 
       if (flwStatus === 'cancelled') {
+        if (isTikTok && tx_ref) {
+          const token = getToken();
+          await fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/cancel-payment`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ tx_ref }),
+          }).catch(() => {});
+        }
         setStatus('failed');
         setMessage('Payment was cancelled. The slot has been released.');
         return;

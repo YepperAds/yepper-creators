@@ -12,7 +12,7 @@ const {
   generateUniqueTransactionRef,
 } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
-const { getSessionUserId } = require('./adSpaceController');
+const { getSessionUserId, uploadCreativeToCloudinary } = require('./adSpaceController');
 const { createNotification } = require('../utils/notificationUtils');
 
 const CREATOR_SHARE = 0.70;
@@ -141,9 +141,10 @@ exports.getQuote = async (req, res) => {
     );
     const activeBooking = await query(
       `SELECT 1 FROM tiktok_sponsorships
-       WHERE creator_id = $1 AND payment_status = 'paid'
-         AND status IN ('pending_post', 'submitted')
-         AND created_at >= NOW() - INTERVAL '30 days'
+       WHERE creator_id = $1 AND (
+         (payment_status = 'paid' AND status IN ('pending_post', 'submitted') AND created_at >= NOW() - INTERVAL '30 days')
+         OR (payment_status = 'pending' AND status = 'pending_payment' AND created_at >= NOW() - INTERVAL '15 minutes')
+       )
        LIMIT 1`,
       [creatorId],
     );
@@ -156,7 +157,9 @@ exports.getQuote = async (req, res) => {
         tier: priced?.tier || 'Test',
         amount: priced?.amount || 0,
         monthlyCapacity,
-        remainingCapacity: activeBooking.rowCount ? 0 : Math.max(0, monthlyCapacity - Number(bookings.rows[0]?.count || 0)),
+        remainingCapacity: activeBooking.rowCount
+          ? 0
+          : Math.min(1, Math.max(0, monthlyCapacity - Number(bookings.rows[0]?.count || 0))),
       },
     });
   } catch (err) {
@@ -173,6 +176,7 @@ exports.initiate = async (req, res) => {
   const brandName = String(req.body?.brandName || '').trim();
   const campaignBrief = String(req.body?.campaignBrief || '').trim();
   const destinationUrl = safeUrl(req.body?.destinationUrl);
+  if (!req.file) return res.status(400).json({ success: false, message: 'Import an image creative for this TikTok promotion' });
   if (!brandName || brandName.length > 160) return res.status(400).json({ success: false, message: 'Brand name is required (160 characters max)' });
   if (!campaignBrief || campaignBrief.length > 2000) return res.status(400).json({ success: false, message: 'Campaign brief is required (2,000 characters max)' });
   if (!destinationUrl) return res.status(400).json({ success: false, message: 'Enter a valid http or https destination link' });
@@ -190,6 +194,18 @@ exports.initiate = async (req, res) => {
     if (!Number.isInteger(monthlyCapacity) || monthlyCapacity < 1) {
       return res.status(409).json({ success: false, message: 'This creator has not opened sponsored-post capacity yet' });
     }
+    await query(
+      `UPDATE tiktok_sponsorships SET payment_status = 'cancelled', status = 'cancelled', updated_at = NOW()
+       WHERE creator_id = $1 AND payment_status = 'pending' AND status = 'pending_payment'
+         AND created_at < NOW() - INTERVAL '15 minutes'`,
+      [creatorId],
+    );
+    await query(
+      `UPDATE tiktok_sponsorships SET status = 'completed', updated_at = NOW()
+       WHERE creator_id = $1 AND status = 'submitted'
+         AND created_at < NOW() - INTERVAL '30 days'`,
+      [creatorId],
+    );
     const recentBookings = await query(
       `SELECT COUNT(*)::int AS count FROM tiktok_sponsorships
        WHERE creator_id = $1 AND payment_status = 'paid'
@@ -198,9 +214,7 @@ exports.initiate = async (req, res) => {
     );
     const activeBooking = await query(
       `SELECT 1 FROM tiktok_sponsorships
-       WHERE creator_id = $1 AND payment_status = 'paid'
-         AND status IN ('pending_post', 'submitted')
-         AND created_at >= NOW() - INTERVAL '30 days'
+       WHERE creator_id = $1 AND status IN ('pending_payment', 'pending_post', 'submitted')
        LIMIT 1`,
       [creatorId],
     );
@@ -216,6 +230,7 @@ exports.initiate = async (req, res) => {
     const amount = priced.amount;
     const creatorEarnings = Math.round(amount * CREATOR_SHARE);
     const yepperCut = amount - creatorEarnings;
+    const creativeImageUrl = await uploadCreativeToCloudinary(req.file);
     const advertiser = await Creator.findById(advertiserId);
     if (!advertiser?.email) return res.status(404).json({ success: false, message: 'Advertiser account not found' });
     const txRef = generateUniqueTransactionRef('tt_sponsor', advertiserId, creatorId);
@@ -238,10 +253,10 @@ exports.initiate = async (req, res) => {
         }
         const sponsorship = await client.query(
           `INSERT INTO tiktok_sponsorships
-             (creator_id, advertiser_id, brand_name, campaign_brief, destination_url, tracking_token,
+             (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
               amount, creator_earnings, yepper_cut, payment_status, status, tx_ref)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid','pending_post',$10) RETURNING id`,
-          [creatorId, String(advertiserId), brandName, campaignBrief, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid','pending_post',$11) RETURNING id`,
+           [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
         );
         sponsorshipId = sponsorship.rows[0].id;
         await client.query(
@@ -269,10 +284,10 @@ exports.initiate = async (req, res) => {
 
     const sponsorship = await query(
       `INSERT INTO tiktok_sponsorships
-         (creator_id, advertiser_id, brand_name, campaign_brief, destination_url, tracking_token,
+        (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
           amount, creator_earnings, yepper_cut, payment_status, status, tx_ref)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending','pending_payment',$10) RETURNING id`,
-      [creatorId, String(advertiserId), brandName, campaignBrief, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending','pending_payment',$11) RETURNING id`,
+      [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
     );
     const sponsorshipId = sponsorship.rows[0].id;
     let paymentUrl;
@@ -296,6 +311,7 @@ exports.initiate = async (req, res) => {
     });
     return res.json({ success: true, allPaid: false, data: { sponsorshipId, amount, paymentUrl } });
   } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ success: false, message: 'This creator already has an active TikTok sponsorship' });
     console.error('[tiktokSponsorship] initiate error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Could not initiate TikTok sponsorship' });
   }
@@ -359,12 +375,39 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
+exports.cancelPayment = async (req, res) => {
+  const advertiserId = getSessionUserId(req);
+  if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to cancel this TikTok checkout' });
+  const txRef = String(req.body?.tx_ref || '');
+  if (!txRef) return res.status(400).json({ success: false, message: 'Transaction reference required' });
+  try {
+    const payment = await Payment.findByTxRef(txRef);
+    const metadata = paymentMetadata(payment);
+    if (!payment || metadata.kind !== 'tiktok_sponsorship' || String(payment.advertiser_id) !== String(advertiserId)) {
+      return res.status(404).json({ success: false, message: 'TikTok checkout not found' });
+    }
+    const released = await query(
+      `UPDATE tiktok_sponsorships SET payment_status = 'cancelled', status = 'cancelled', updated_at = NOW()
+       WHERE tx_ref = $1 AND advertiser_id = $2 AND payment_status = 'pending' AND status = 'pending_payment'`,
+      [txRef, String(advertiserId)],
+    );
+    if (released.rowCount && payment.status === 'pending') {
+      await Payment.update(payment.id, { status: 'failed' });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[tiktokSponsorship] cancelPayment error:', err);
+    return res.status(500).json({ success: false, message: 'Could not release TikTok checkout' });
+  }
+};
+
 exports.getPendingForCreator = async (req, res) => {
   const creatorId = getSessionUserId(req);
   if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to view sponsored posts' });
   try {
     const result = await query(
-            `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, campaign_brief,
+                  `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, campaign_brief,
+                    creative_image_url,
               destination_url, tracking_token, amount, status, video_url, views, likes,
               comments, clicks, created_at, posted_at
        FROM tiktok_sponsorships
@@ -386,6 +429,7 @@ exports.getPendingForCreator = async (req, res) => {
         id: row.id,
         brandName: row.brand_name,
         campaignBrief: row.campaign_brief,
+        creativeImageUrl: row.creative_image_url,
         destinationUrl: row.destination_url,
         trackingUrl: trackingUrl(row.tracking_token),
         amount: Number(row.amount),

@@ -146,6 +146,7 @@ export default function AdSpacesModal({
   const [tiktokBrandName, setTikTokBrandName] = useState('');
   const [tiktokBrief, setTikTokBrief] = useState('');
   const [tiktokDestination, setTikTokDestination] = useState('');
+  const [tiktokCreative, setTikTokCreative] = useState<File | null>(null);
   const [tiktokBooking, setTikTokBooking] = useState(false);
   const [tiktokMessage, setTikTokMessage] = useState('');
 
@@ -166,6 +167,7 @@ export default function AdSpacesModal({
       setTikTokQuote(null);
       setTikTokReports([]);
       setTikTokMessage('');
+      setTikTokCreative(null);
       setSlots([]);
       setPostingFrequency(null);
       setPostingEstimate(null);
@@ -238,17 +240,22 @@ export default function AdSpacesModal({
   const price = priceForSelection();
 
   const submitTikTokBooking = async () => {
-    if (!creator || !tiktokQuote || tiktokBooking) return;
+    if (!creator || !tiktokQuote || !tiktokCreative || tiktokBooking) return;
     setTikTokBooking(true);
     setTikTokMessage('');
     setError('');
     try {
       const token = getToken();
+      const formData = new FormData();
+      formData.append('image', tiktokCreative);
+      formData.append('brandName', tiktokBrandName);
+      formData.append('campaignBrief', tiktokBrief);
+      formData.append('destinationUrl', tiktokDestination);
       const response = await fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ brandName: tiktokBrandName, campaignBrief: tiktokBrief, destinationUrl: tiktokDestination }),
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || !json?.success) throw new Error(json?.message || 'Could not book this TikTok promotion');
@@ -260,6 +267,7 @@ export default function AdSpacesModal({
       setTikTokBrandName('');
       setTikTokBrief('');
       setTikTokDestination('');
+      setTikTokCreative(null);
       const tokenHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [quoteJson, reportsJson] = await Promise.all([
         fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
@@ -445,13 +453,23 @@ export default function AdSpacesModal({
                   Creator brief
                   <textarea value={tiktokBrief} onChange={(event) => setTikTokBrief(event.target.value)} maxLength={2000} rows={3} placeholder="Key message, required mention, or product details" className="mt-1.5 w-full resize-y rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-(--color-white)">Ad creative image</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setTikTokCreative(event.target.files?.[0] ?? null)}
+                    className="block w-full cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-2) text-xs text-(--color-muted) file:mr-3 file:border-0 file:bg-(--color-surface-3) file:px-3 file:py-2.5 file:text-xs file:font-semibold file:text-(--color-white)"
+                  />
+                  <p className="mt-1 text-[10px] text-(--color-muted)">{tiktokCreative ? `${tiktokCreative.name} · ${(tiktokCreative.size / 1024 / 1024).toFixed(1)} MB` : 'Import an image file, up to 5 MB.'}</p>
+                </div>
                 <label className="block text-xs font-semibold text-(--color-white)">
                   Destination URL
                   <input type="url" value={tiktokDestination} onChange={(event) => setTikTokDestination(event.target.value)} placeholder="https://brand.example/product" className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-xs text-(--color-muted)">{tiktokQuote?.remainingCapacity ?? 0} creator slots remaining this month</span>
-                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !tiktokBrandName.trim() || !tiktokBrief.trim() || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                  <span className="text-xs text-(--color-muted)">{tiktokQuote?.remainingCapacity ? 'One campaign slot available now' : 'No campaign slot available now'}</span>
+                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !tiktokBrandName.trim() || !tiktokBrief.trim() || !tiktokCreative || tiktokCreative.size > 5 * 1024 * 1024 || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
                     {tiktokBooking ? 'Starting checkout…' : `Book · ${tiktokQuote?.amount.toLocaleString() ?? '—'} RWF`}
                   </button>
                 </div>

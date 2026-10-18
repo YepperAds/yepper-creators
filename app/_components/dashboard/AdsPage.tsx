@@ -6,6 +6,7 @@ import adsenseApi from '@/app/_lib/adsense-api';
 import type { AuthResponse } from '@/app/_types/auth';
 import {
   EyeIcon,
+  LinkIcon,
   UsersIcon,
   HeartIcon,
   ChatBubbleLeftIcon,
@@ -55,6 +56,7 @@ interface TikTokSponsorship {
   id: number;
   brandName: string;
   creativeImageUrl: string;
+  trackingUrl: string;
   status: string;
   videoUrl: string | null;
   views: number;
@@ -92,6 +94,7 @@ interface AdCardItem {
   comments?: number;
   clicks?: number;
   opensTask?: boolean;
+  trackingUrl?: string;
 }
 
 function fmt(n: number | undefined | null): string {
@@ -124,38 +127,65 @@ function youtubeEmbedUrl(videoUrl?: string | null): string | null {
 // creatives at a glance," so the photo does most of the work and stats sit
 // in a scrim at the bottom, Pinterest/Instagram-grid style, not a data table.
 function AdTile({ item, onOpen }: { item: AdCardItem; onOpen: () => void }) {
+  const [trackingLinkCopied, setTrackingLinkCopied] = useState(false);
+
+  const copyTrackingLink = async () => {
+    if (!item.trackingUrl) return;
+    try {
+      await navigator.clipboard.writeText(item.trackingUrl);
+      setTrackingLinkCopied(true);
+      window.setTimeout(() => setTrackingLinkCopied(false), 1800);
+    } catch {
+      setTrackingLinkCopied(false);
+    }
+  };
+
   return (
-    <button
-      onClick={onOpen}
-      className="group relative aspect-square rounded-2xl overflow-hidden bg-surface-2 border border-border hover:border-coral/40 transition-colors text-left"
-    >
-      {item.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          {item.kind !== 'website' ? <FilmIcon className="w-10 h-10 text-muted" /> : <GlobeAltIcon className="w-10 h-10 text-muted" />}
+    <div className="relative aspect-square">
+      <button
+        onClick={onOpen}
+        className="group absolute inset-0 overflow-hidden rounded-2xl border border-border bg-surface-2 text-left transition-colors hover:border-coral/40"
+      >
+        {item.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.image} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            {item.kind !== 'website' ? <FilmIcon className="h-10 w-10 text-muted" /> : <GlobeAltIcon className="h-10 w-10 text-muted" />}
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+
+        <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#fff] backdrop-blur-sm">
+          {item.kind !== 'website' ? <FilmIcon className="h-3 w-3" /> : <GlobeAltIcon className="h-3 w-3" />}
+          {item.kind === 'tiktok' ? 'TikTok' : item.kind === 'youtube' ? 'YouTube' : 'Website'}
+        </span>
+
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <p className="line-clamp-2 text-base font-bold leading-snug text-[#fff] [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{item.title}</p>
+          <p className="mt-0.5 truncate text-xs text-[#fff]/70">{item.subtitle}</p>
+          <div className="mt-2.5 flex items-center gap-4 text-sm text-[#fff]/90">
+            <span className="flex items-center gap-1"><EyeIcon className="h-4 w-4" />{fmt(item.views)}</span>
+            <span className="flex items-center gap-1">
+              {item.kind === 'youtube' ? <HeartIcon className="h-4 w-4" /> : <CursorArrowRaysIcon className="h-4 w-4" />}
+              {fmt(item.secondaryValue)}
+            </span>
+          </div>
         </div>
+      </button>
+      {item.trackingUrl && (
+        <button
+          type="button"
+          title="Copy TikTok bio tracking link"
+          aria-label="Copy TikTok bio tracking link"
+          onClick={copyTrackingLink}
+          className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-black/75 px-2.5 py-2 text-[10px] font-bold text-white backdrop-blur-sm hover:bg-black"
+        >
+          <LinkIcon className="h-3.5 w-3.5" />
+          {trackingLinkCopied ? 'Copied' : 'Copy bio link'}
+        </button>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-
-      <span className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-bold text-[#fff] uppercase tracking-wide">
-        {item.kind !== 'website' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
-        {item.kind === 'tiktok' ? 'TikTok' : item.kind === 'youtube' ? 'YouTube' : 'Website'}
-      </span>
-
-      <div className="absolute inset-x-0 bottom-0 p-4">
-        <p className="text-base font-bold text-[#fff] leading-snug line-clamp-2 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{item.title}</p>
-        <p className="text-xs text-[#fff]/70 mt-0.5 truncate">{item.subtitle}</p>
-        <div className="flex items-center gap-4 mt-2.5 text-sm text-[#fff]/90">
-          <span className="flex items-center gap-1"><EyeIcon className="w-4 h-4" />{fmt(item.views)}</span>
-          <span className="flex items-center gap-1">
-            {item.kind === 'youtube' ? <HeartIcon className="w-4 h-4" /> : <CursorArrowRaysIcon className="w-4 h-4" />}
-            {fmt(item.secondaryValue)}
-          </span>
-        </div>
-      </div>
-    </button>
+    </div>
   );
 }
 
@@ -424,6 +454,7 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
         clicks: sponsorship.clicks,
         videoUrl: sponsorship.videoUrl,
         opensTask: true,
+        trackingUrl: sponsorship.trackingUrl,
       }));
 
       const tiktokAdvertiserItems: AdCardItem[] = tiktokAdvertiserCampaigns.map((campaign) => ({

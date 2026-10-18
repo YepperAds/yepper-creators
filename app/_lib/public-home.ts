@@ -23,6 +23,7 @@ export interface PublicVideo {
   published_at: string | null;
   thumbnail: string | null;
   url: string | null;
+  embedUrl?: string | null;
 }
 
 export interface TikTokMediaKit {

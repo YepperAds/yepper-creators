@@ -5,7 +5,7 @@ const dns       = require('dns/promises');
 const jwt       = require('jsonwebtoken');
 
 const { query, getClient } = require('../../config/db');
-const { fetchYoutubeVideos } = require('../utils/youtubeDataApi');
+const { fetchYoutubeVideos, fetchLatestYoutubeVideo } = require('../utils/youtubeDataApi');
 const Creator = require('../models/Creator');
 const Payment = require('../../AdOwner/models/PaymentModel');
 const { Wallet } = require('../../AdPromoter/models/walletModel');
@@ -16,6 +16,7 @@ const { getWithdrawalCooldown, getEarningsHold } = require('../../AdPromoter/uti
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES, getPostingEstimate } = require('./adSpaceController');
 const { generateFlutterwavePaymentUrl, verifyFlutterwaveTransaction, upsertWallet, generateUniqueTransactionRef } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
+const { fetchLatestTikTokVideo } = require('./tiktokSponsorshipController');
 const { AD_SIZES } = require('../utils/adOverlay');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
@@ -771,13 +772,10 @@ exports.getPublicCreators = async (req, res) => {
   try {
     const result = await query(
       `SELECT
-         c.id, c.username, c.full_name, c.avatar, c.what_they_do,
-         sc.provider AS provider,
-         sc.username AS channel_name,
-         sc.profile_url AS channel_url,
-         sc.followers_count AS subscribers,
-         sc.tiktok_profile,
-         COALESCE(sc.total_views, 0) AS total_views,
+         c.id, c.username AS profile_username, c.what_they_do,
+         sc.provider, sc.username AS channel_name, sc.profile_url AS channel_url,
+         sc.avatar_url AS platform_avatar, sc.followers_count AS subscribers,
+         sc.tiktok_profile, COALESCE(sc.total_views, 0) AS total_views,
          COALESCE(v.videos, '[]'::json) AS videos
        FROM creators c
        JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider IN ('youtube', 'tiktok')
@@ -785,36 +783,79 @@ exports.getPublicCreators = async (req, res) => {
          SELECT json_agg(t) AS videos FROM (
            SELECT DISTINCT ON (COALESCE(video_url, title))
              title, views, likes, published_at,
-             thumbnail_url AS thumbnail, video_url AS url
+             thumbnail_url AS thumbnail, video_url AS url, embed_url AS "embedUrl",
+             fetched_at AS "fetchedAt"
            FROM social_video_stats
            WHERE creator_id = c.id AND provider = sc.provider
            ORDER BY COALESCE(video_url, title), published_at DESC NULLS LAST, id DESC
-           LIMIT 4
+           LIMIT 1
          ) t
        ) v ON true
        ORDER BY sc.followers_count DESC NULLS LAST, c.created_at DESC
        LIMIT 60`,
     );
 
-    const data = result.rows.map(r => {
+    let refreshedVideoCount = 0;
+    const data = await Promise.all(result.rows.map(async (r) => {
       const followers = normalizeSocialFollowerCount(r.subscribers);
       const tiktokProfile = normalizeTikTokMediaKit(r.tiktok_profile);
+      const platformName = String(r.channel_name || '').trim();
+      let videos = Array.isArray(r.videos) ? r.videos : [];
+      const cachedVideo = videos[0];
+      const fetchedAt = cachedVideo?.fetchedAt ? new Date(cachedVideo.fetchedAt).getTime() : 0;
+      const isCacheStale = !fetchedAt || fetchedAt < Date.now() - 6 * 60 * 60 * 1000;
+
+      if (refreshedVideoCount < 12 && isCacheStale && (r.provider === 'youtube' || r.provider === 'tiktok')) {
+        refreshedVideoCount += 1;
+        try {
+          const latest = r.provider === 'tiktok'
+            ? await fetchLatestTikTokVideo(String(r.id))
+            : await fetchLatestYoutubeVideo(String(r.id));
+          if (latest?.url) {
+            await query(
+              `INSERT INTO social_video_stats
+                 (creator_id, provider, title, views, likes, published_at, thumbnail_url, video_url, embed_url)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+               ON CONFLICT (creator_id, provider, video_url) WHERE video_url IS NOT NULL DO UPDATE SET
+                 title=EXCLUDED.title, views=EXCLUDED.views, likes=EXCLUDED.likes,
+                 published_at=EXCLUDED.published_at, thumbnail_url=EXCLUDED.thumbnail_url,
+                 embed_url=EXCLUDED.embed_url, fetched_at=NOW()`,
+              [r.id, r.provider, latest.title || '', latest.views || 0, latest.likes || 0,
+                latest.published_at ? new Date(latest.published_at) : null, latest.thumbnail || null,
+                latest.url, latest.embedUrl || null],
+            );
+            videos = [{ ...latest, fetchedAt: new Date().toISOString() }];
+          }
+        } catch (err) {
+          console.error(`[creators] Latest ${r.provider} video refresh failed (non-fatal):`, err?.message);
+        }
+      }
+
+      const publicVideos = videos.slice(0, 1).map((video) => ({
+        title: video.title || '',
+        views: Number(video.views || 0),
+        likes: Number(video.likes || 0),
+        published_at: video.published_at || null,
+        thumbnail: video.thumbnail || null,
+        url: video.url || null,
+        embedUrl: video.embedUrl || null,
+      }));
       return {
         id:          String(r.id),
         provider:    r.provider || 'youtube',
-        username:    r.username ?? '',
-        name:        r.full_name || r.username || 'Creator',
-        avatar:      r.avatar || null,
+        username:    platformName,
+        name:        platformName || (r.provider === 'youtube' ? 'YouTube creator' : 'TikTok creator'),
+        avatar:      r.platform_avatar || null,
         whatTheyDo:  r.what_they_do || null,
-        channelName: r.channel_name || r.full_name || '',
+        channelName: platformName,
         channelUrl:  r.channel_url || null,
         tiktokProfile: r.provider === 'tiktok' ? tiktokProfile : null,
         subscribers: followers,
         followers,
         totalViews:  Number(r.total_views || 0),
-        videos:      r.videos || [],
+        videos:      publicVideos,
       };
-    });
+    }));
 
     return res.json({ success: true, data });
   } catch (err) {
@@ -1445,6 +1486,39 @@ exports.socialConnectCallback = async (req, res) => {
            connected_at=NOW()`,
         [creatorId, 'tiktok', String(username).trim(), followers, profileUrl, avatarUrl, tokenData.access_token || null, tokenData.refresh_token || null, 0, 0, Number(tokenData.expires_in || 0)],
       );
+
+      try {
+        const videosUrl = new URL('https://open.tiktokapis.com/v2/video/list/');
+        videosUrl.searchParams.set('fields', 'id,title,video_description,create_time,cover_image_url,share_url,embed_link,view_count,like_count,comment_count');
+        const videosRes = await fetch(videosUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ max_count: 1 }),
+        });
+        const videosData = await videosRes.json().catch(() => null);
+        const latestVideo = videosData?.data?.videos?.[0];
+        if (videosRes.ok && videosData?.error?.code === 'ok' && latestVideo?.id) {
+          const videoUrl = latestVideo.share_url || `https://www.tiktok.com/@${encodeURIComponent(String(username).replace(/^@/, ''))}/video/${latestVideo.id}`;
+          await query(
+            `INSERT INTO social_video_stats (creator_id, provider, title, views, likes, published_at, thumbnail_url, video_url, embed_url)
+             VALUES ($1,'tiktok',$2,$3,$4,$5,$6,$7,$8)
+             ON CONFLICT (creator_id, provider, video_url) WHERE video_url IS NOT NULL DO UPDATE SET
+               title=EXCLUDED.title, views=EXCLUDED.views, likes=EXCLUDED.likes,
+               published_at=EXCLUDED.published_at, thumbnail_url=EXCLUDED.thumbnail_url,
+               embed_url=EXCLUDED.embed_url, fetched_at=NOW()`,
+            [creatorId, latestVideo.title || latestVideo.video_description || '', Number(latestVideo.view_count || 0), Number(latestVideo.like_count || 0),
+              latestVideo.create_time ? new Date(Number(latestVideo.create_time) * 1000) : null,
+              latestVideo.cover_image_url || '', videoUrl, latestVideo.embed_link || null],
+          );
+        } else if (!videosRes.ok || videosData?.error?.code !== 'ok') {
+          console.warn('[creators] TikTok video.list did not return a current video:', videosData?.error?.message || videosRes.status);
+        }
+      } catch (err) {
+        console.error('[creators] TikTok current video fetch failed (non-fatal):', err?.message);
+      }
 
       createNotification(creatorId, 'social_connected', 'TikTok Connected',
         `${String(username).trim()} connected successfully`,

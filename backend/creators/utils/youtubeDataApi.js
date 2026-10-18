@@ -111,4 +111,57 @@ async function fetchYoutubeVideos(videoIds, creatorId, parts = 'snippet,statisti
   return oauthResult?.items ?? null;
 }
 
-module.exports = { fetchYoutubeVideos };
+async function fetchLatestYoutubeVideo(creatorId) {
+  const connectionResult = await query(
+    `SELECT access_token, refresh_token, profile_url
+     FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
+    [creatorId],
+  );
+  const connection = connectionResult.rows[0];
+  const channelId = connection?.profile_url?.match(/youtube\.com\/channel\/([^/?]+)/)?.[1];
+  let token = connection?.access_token || null;
+
+  const requestChannel = async () => {
+    const url = new URL('https://www.googleapis.com/youtube/v3/channels');
+    url.searchParams.set('part', 'contentDetails');
+    if (token) url.searchParams.set('mine', 'true');
+    else if (channelId) url.searchParams.set('id', channelId);
+    else return null;
+    if (!token && process.env.YOUTUBE_API_KEY) url.searchParams.set('key', process.env.YOUTUBE_API_KEY);
+    if (!token && !process.env.YOUTUBE_API_KEY) return null;
+    const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const payload = await response.json().catch(() => null);
+    return { response, payload };
+  };
+
+  let channelResult = await requestChannel();
+  if (channelResult?.response.status === 401 && connection?.refresh_token) {
+    token = await refreshAccessToken(creatorId, connection.refresh_token);
+    if (token) channelResult = await requestChannel();
+  }
+  const uploadsPlaylistId = channelResult?.payload?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!channelResult?.response.ok || !uploadsPlaylistId) return null;
+
+  const playlistUrl = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+  playlistUrl.searchParams.set('part', 'contentDetails');
+  playlistUrl.searchParams.set('playlistId', uploadsPlaylistId);
+  playlistUrl.searchParams.set('maxResults', '1');
+  if (!token && process.env.YOUTUBE_API_KEY) playlistUrl.searchParams.set('key', process.env.YOUTUBE_API_KEY);
+  const playlistResponse = await fetch(playlistUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const playlistData = await playlistResponse.json().catch(() => null);
+  const videoId = playlistData?.items?.[0]?.contentDetails?.videoId;
+  if (!playlistResponse.ok || !videoId) return null;
+
+  const video = (await fetchYoutubeVideos([videoId], creatorId, 'snippet,statistics'))?.[0];
+  if (!video) return null;
+  return {
+    title: video.snippet?.title || '',
+    views: Number(video.statistics?.viewCount || 0),
+    likes: Number(video.statistics?.likeCount || 0),
+    published_at: video.snippet?.publishedAt || null,
+    thumbnail: video.snippet?.thumbnails?.high?.url || video.snippet?.thumbnails?.medium?.url || video.snippet?.thumbnails?.default?.url || null,
+    url: `https://www.youtube.com/watch?v=${video.id}`,
+  };
+}
+
+module.exports = { fetchYoutubeVideos, fetchLatestYoutubeVideo };

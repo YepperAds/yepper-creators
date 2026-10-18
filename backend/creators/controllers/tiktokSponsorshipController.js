@@ -121,6 +121,38 @@ async function refreshVideoMetrics(sponsorship) {
   return updated.rows[0] || sponsorship;
 }
 
+async function fetchLatestTikTokVideo(creatorId) {
+  const accessToken = await getCreatorTikTokToken(creatorId);
+  if (!accessToken) return null;
+  const url = new URL('https://open.tiktokapis.com/v2/video/list/');
+  url.searchParams.set('fields', 'id,title,video_description,create_time,cover_image_url,share_url,embed_link,view_count,like_count,comment_count');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ max_count: 1 }),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.error?.code !== 'ok') return null;
+  const video = payload?.data?.videos?.[0];
+  if (!video?.id) return null;
+  const connection = await query(
+    `SELECT username FROM social_connections WHERE creator_id = $1 AND provider = 'tiktok' LIMIT 1`,
+    [creatorId],
+  );
+  const handle = String(connection.rows[0]?.username || '').replace(/^@/, '');
+  return {
+    title: video.title || video.video_description || '',
+    views: Number(video.view_count || 0),
+    likes: Number(video.like_count || 0),
+    published_at: video.create_time ? new Date(Number(video.create_time) * 1000).toISOString() : null,
+    thumbnail: video.cover_image_url || null,
+    url: video.share_url || `https://www.tiktok.com/@${encodeURIComponent(handle)}/video/${video.id}`,
+    embedUrl: video.embed_link || null,
+  };
+}
+
+exports.fetchLatestTikTokVideo = fetchLatestTikTokVideo;
+
 exports.getQuote = async (req, res) => {
   if (!getSessionUserId(req)) return res.status(401).json({ success: false, message: 'Log in to view TikTok promotion pricing' });
   try {

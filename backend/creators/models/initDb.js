@@ -95,8 +95,10 @@ async function initCreatorsDatabase() {
        published_at TIMESTAMP WITH TIME ZONE,
        thumbnail_url TEXT,
        video_url    TEXT,
+       embed_url    TEXT,
        fetched_at   TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
+    `ALTER TABLE social_video_stats ADD COLUMN IF NOT EXISTS embed_url TEXT`,
     `DELETE FROM social_video_stats WHERE id NOT IN (SELECT MAX(id) FROM social_video_stats GROUP BY creator_id, provider, COALESCE(video_url, title))`,
     `CREATE UNIQUE INDEX IF NOT EXISTS svs_unique_video ON social_video_stats (creator_id, provider, video_url) WHERE video_url IS NOT NULL`,
     `CREATE TABLE IF NOT EXISTS ad_tracking_sequences (

@@ -85,6 +85,7 @@ async function initCreatorsDatabase() {
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS total_posts INTEGER DEFAULT 0`,
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS tiktok_profile JSONB NOT NULL DEFAULT '{}'::jsonb`,
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS access_token_expires_at TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS last_public_video_refresh_at TIMESTAMP WITH TIME ZONE`,
     `CREATE TABLE IF NOT EXISTS social_video_stats (
        id           SERIAL PRIMARY KEY,
        creator_id   INTEGER REFERENCES creators(id) ON DELETE CASCADE,

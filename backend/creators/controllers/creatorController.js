@@ -775,7 +775,8 @@ exports.getPublicCreators = async (req, res) => {
          c.id, c.username AS profile_username, c.what_they_do,
          sc.provider, sc.username AS channel_name, sc.profile_url AS channel_url,
          sc.avatar_url AS platform_avatar, sc.followers_count AS subscribers,
-         sc.tiktok_profile, COALESCE(sc.total_views, 0) AS total_views,
+         sc.tiktok_profile, sc.last_public_video_refresh_at,
+         COALESCE(sc.total_views, 0) AS total_views,
          COALESCE(v.videos, '[]'::json) AS videos
        FROM creators c
        JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider IN ('youtube', 'tiktok')
@@ -783,8 +784,7 @@ exports.getPublicCreators = async (req, res) => {
          SELECT json_agg(t) AS videos FROM (
            SELECT DISTINCT ON (COALESCE(video_url, title))
              title, views, likes, published_at,
-             thumbnail_url AS thumbnail, video_url AS url, embed_url AS "embedUrl",
-             fetched_at AS "fetchedAt"
+             thumbnail_url AS thumbnail, video_url AS url, embed_url AS "embedUrl"
            FROM social_video_stats
            WHERE creator_id = c.id AND provider = sc.provider
            ORDER BY COALESCE(video_url, title), published_at DESC NULLS LAST, id DESC
@@ -801,9 +801,8 @@ exports.getPublicCreators = async (req, res) => {
       const tiktokProfile = normalizeTikTokMediaKit(r.tiktok_profile);
       const platformName = String(r.channel_name || '').trim();
       let videos = Array.isArray(r.videos) ? r.videos : [];
-      const cachedVideo = videos[0];
-      const fetchedAt = cachedVideo?.fetchedAt ? new Date(cachedVideo.fetchedAt).getTime() : 0;
-      const isCacheStale = !fetchedAt || fetchedAt < Date.now() - 6 * 60 * 60 * 1000;
+      const lastRefreshAt = r.last_public_video_refresh_at ? new Date(r.last_public_video_refresh_at).getTime() : 0;
+      const isCacheStale = !lastRefreshAt || lastRefreshAt < Date.now() - 6 * 60 * 60 * 1000;
 
       if (refreshedVideoCount < 12 && isCacheStale && (r.provider === 'youtube' || r.provider === 'tiktok')) {
         refreshedVideoCount += 1;
@@ -824,10 +823,16 @@ exports.getPublicCreators = async (req, res) => {
                 latest.published_at ? new Date(latest.published_at) : null, latest.thumbnail || null,
                 latest.url, latest.embedUrl || null],
             );
-            videos = [{ ...latest, fetchedAt: new Date().toISOString() }];
+            videos = [latest];
           }
         } catch (err) {
           console.error(`[creators] Latest ${r.provider} video refresh failed (non-fatal):`, err?.message);
+        } finally {
+          await query(
+            `UPDATE social_connections SET last_public_video_refresh_at = NOW()
+             WHERE creator_id = $1 AND provider = $2`,
+            [r.id, r.provider],
+          ).catch((err) => console.error(`[creators] ${r.provider} video refresh timestamp failed:`, err?.message));
         }
       }
 

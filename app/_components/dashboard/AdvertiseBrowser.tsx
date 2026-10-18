@@ -5,13 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/24/solid';
 import { categoryAPI } from '@/app/_lib/adsense-api';
-import VideoEmbed from '@/app/_components/home/VideoEmbed';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteLogoTile from './WebsiteLogoTile';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
+import PlatformCreatorCard from './PlatformCreatorCard';
 
 interface PricingTier {
   key: string;
@@ -65,12 +65,6 @@ function tierDescription(tier: PricingTier): string {
     : 'A dedicated slot in this ad space.';
 }
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
-
 function buildCategories(websites: PublicWebsite[], creators: PublicCreator[]): CategoryBucket[] {
   const map = new Map<string, CategoryBucket>();
 
@@ -92,84 +86,6 @@ function buildCategories(websites: PublicWebsite[], creators: PublicCreator[]): 
   }
 
   return Array.from(map.values());
-}
-
-function CreatorVideoPreview({ creator }: { creator: PublicCreator }) {
-  const video = creator.videos?.[0];
-  if (!video) {
-    return <div className="flex aspect-video items-center justify-center bg-[#171717] text-xs text-white/45">No recent video</div>;
-  }
-  if (creator.provider === 'tiktok' && video.embedUrl) {
-    return (
-      <div className="flex h-[260px] items-center justify-center bg-black p-2">
-        <iframe
-          src={video.embedUrl}
-          title={video.title || `${creator.channelName} TikTok video`}
-          loading="lazy"
-          allow="encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="h-full aspect-[9/16] rounded-md bg-black"
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="aspect-video overflow-hidden bg-black">
-      <VideoEmbed url={video.url} thumbnail={video.thumbnail} title={video.title} />
-    </div>
-  );
-}
-
-function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator; onCollaborate: (creator: PublicCreator) => void }) {
-  const isTikTok = creator.provider === 'tiktok';
-  const platformName = isTikTok ? 'TikTok' : 'YouTube';
-  const platformLogo = isTikTok ? '/socials-icon/tiktok-icon.png' : '/socials-icon/youtube-icon.png';
-  const platformAccent = isTikTok ? 'border-[#25F4EE]/55 hover:border-[#25F4EE]' : 'border-[#FF0033]/50 hover:border-[#FF0033]';
-  const metricLabel = isTikTok ? 'followers' : 'subscribers';
-  const followerCount = creator.followers ?? creator.subscribers ?? 0;
-  const handle = creator.username || creator.channelName;
-  const video = creator.videos?.[0];
-
-  return (
-    <button
-      onClick={() => onCollaborate(creator)}
-      className={`w-[292px] shrink-0 overflow-hidden rounded-xl border bg-[#101010] text-left transition-colors ${platformAccent}`}
-    >
-      <div className={`h-1 w-full ${isTikTok ? 'bg-[#25F4EE]' : 'bg-[#FF0033]'}`} />
-      <div className="flex items-center gap-3 px-3.5 py-3">
-        {creator.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={creator.avatar} alt={`${handle} profile`} className="h-10 w-10 rounded-full border border-white/15 object-cover" />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={platformLogo} alt={platformName} className="h-10 w-10 rounded-full bg-white object-contain p-1.5" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-bold text-white">{creator.channelName || handle}</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={platformLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
-          </div>
-          <p className="truncate text-[11px] text-white/60">{formatCount(followerCount)} {metricLabel}</p>
-        </div>
-      </div>
-      <div className="mx-3.5 overflow-hidden rounded-lg border border-white/10">
-        <CreatorVideoPreview creator={creator} />
-      </div>
-      <div className="flex items-center justify-between gap-3 px-3.5 py-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-white">{video?.title || `Latest ${platformName} video`}</p>
-          {isTikTok && creator.tiktokProfile && (
-            <p className="mt-1 truncate text-[10px] text-white/55">
-              {creator.tiktokProfile.postsPerWeek} posts/wk · {creator.tiktokProfile.sponsoredPostsPerMonth} sponsored/mo
-            </p>
-          )}
-        </div>
-        {video && <span className="shrink-0 text-[10px] text-white/55">{formatCount(video.views)} views</span>}
-      </div>
-    </button>
-  );
 }
 
 // No name caption here: WebsiteLogoTile already shows it once, beside the
@@ -463,8 +379,13 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           <section>
             <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">Creator channels</p>
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-              {creatorList.map((c) => (
-                <CompactCreatorCard key={c.id} creator={c} onCollaborate={setCollaborateWith} />
+              {creatorList.map((creator) => (
+                <PlatformCreatorCard
+                  key={creator.id}
+                  creator={creator}
+                  onClick={() => setCollaborateWith(creator)}
+                  className="w-[292px]"
+                />
               ))}
             </div>
           </section>

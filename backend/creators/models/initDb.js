@@ -83,6 +83,7 @@ async function initCreatorsDatabase() {
      )`,
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS total_views BIGINT DEFAULT 0`,
     `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS total_posts INTEGER DEFAULT 0`,
+    `ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS tiktok_profile JSONB NOT NULL DEFAULT '{}'::jsonb`,
     `CREATE TABLE IF NOT EXISTS social_video_stats (
        id           SERIAL PRIMARY KEY,
        creator_id   INTEGER REFERENCES creators(id) ON DELETE CASCADE,

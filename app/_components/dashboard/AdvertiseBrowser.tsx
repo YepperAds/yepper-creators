@@ -112,7 +112,7 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
         )}
         <div className="min-w-0">
           <p className="text-xs font-bold text-white truncate">{creator.name}</p>
-          <p className="text-[10px] text-muted truncate">{formatCount(followerCount)} {metricLabel}</p>
+          <p className="text-[10px] text-muted truncate">{creator.provider === 'tiktok' ? 'TikTok · ' : 'YouTube · '}{formatCount(followerCount)} {metricLabel}</p>
         </div>
       </div>
       {videos.length > 0 && (
@@ -123,6 +123,11 @@ function CompactCreatorCard({ creator, onCollaborate }: { creator: PublicCreator
             </div>
           ))}
         </div>
+      )}
+      {creator.provider === 'tiktok' && creator.tiktokProfile && (
+        <p className="mt-2 truncate text-[10px] text-muted">
+          {creator.tiktokProfile.postsPerWeek} posts/wk · {creator.tiktokProfile.sponsoredPostsPerMonth} sponsored posts/mo
+        </p>
       )}
     </button>
   );
@@ -417,7 +422,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
 
         {creatorList.length > 0 && (
           <section>
-            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">YouTube channels</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-coral-text mb-3">Creator channels</p>
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
               {creatorList.map((c) => (
                 <CompactCreatorCard key={c.id} creator={c} onCollaborate={setCollaborateWith} />

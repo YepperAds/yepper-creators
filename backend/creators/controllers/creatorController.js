@@ -493,6 +493,86 @@ exports.getSocialVideoStats = async (req, res) => {
   }
 };
 
+const TIKTOK_CONTENT_FORMATS = [
+  'Short videos',
+  'Product reviews',
+  'Tutorials',
+  'Lifestyle / vlogs',
+  'Comedy / skits',
+  'Education',
+  'Live streams',
+  'Photo posts',
+];
+
+exports.getTikTokProfile = async (req, res) => {
+  const creatorId = getCreatorId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to view your TikTok profile' });
+
+  try {
+    const result = await query(
+      `SELECT tiktok_profile FROM social_connections WHERE creator_id = $1 AND provider = 'tiktok' LIMIT 1`,
+      [creatorId],
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, message: 'TikTok is not connected' });
+    return res.json({ success: true, data: result.rows[0].tiktok_profile || {} });
+  } catch (err) {
+    console.error('[creators] getTikTokProfile error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load TikTok profile' });
+  }
+};
+
+exports.updateTikTokProfile = async (req, res) => {
+  const creatorId = getCreatorId(req);
+  if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to update your TikTok profile' });
+
+  const contentFocus = String(req.body?.contentFocus || '').trim();
+  const contentFormats = [...new Set(Array.isArray(req.body?.contentFormats)
+    ? req.body.contentFormats.filter((format) => TIKTOK_CONTENT_FORMATS.includes(format))
+    : [])];
+  const sampleContentUrls = Array.isArray(req.body?.sampleContentUrls)
+    ? req.body.sampleContentUrls.map((url) => String(url || '').trim()).filter(Boolean).slice(0, 3)
+    : [];
+  const postsPerWeek = Number(req.body?.postsPerWeek);
+  const sponsoredPostsPerMonth = Number(req.body?.sponsoredPostsPerMonth);
+
+  if (!contentFocus || contentFocus.length > 120) {
+    return res.status(400).json({ success: false, message: 'Describe your content focus in 1 to 120 characters' });
+  }
+  if (!contentFormats.length) {
+    return res.status(400).json({ success: false, message: 'Choose at least one content format' });
+  }
+  if (sampleContentUrls.some((url) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return !['tiktok.com', 'www.tiktok.com'].includes(hostname) && !hostname.endsWith('.tiktok.com');
+    } catch {
+      return true;
+    }
+  })) {
+    return res.status(400).json({ success: false, message: 'Sample links must be valid TikTok URLs' });
+  }
+  if (!Number.isInteger(postsPerWeek) || postsPerWeek < 1 || postsPerWeek > 100) {
+    return res.status(400).json({ success: false, message: 'Posts per week must be between 1 and 100' });
+  }
+  if (!Number.isInteger(sponsoredPostsPerMonth) || sponsoredPostsPerMonth < 0 || sponsoredPostsPerMonth > 100) {
+    return res.status(400).json({ success: false, message: 'Sponsored posts per month must be between 0 and 100' });
+  }
+
+  const profile = { contentFocus, contentFormats, sampleContentUrls, postsPerWeek, sponsoredPostsPerMonth };
+  try {
+    const result = await query(
+      `UPDATE social_connections SET tiktok_profile = $1::jsonb
+       WHERE creator_id = $2 AND provider = 'tiktok' RETURNING tiktok_profile`,
+      [JSON.stringify(profile), creatorId],
+    );
+    if (!result.rowCount) return res.status(404).json({ success: false, message: 'TikTok is not connected' });
+    return res.json({ success: true, data: result.rows[0].tiktok_profile });
+  } catch (err) {
+    console.error('[creators] updateTikTokProfile error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to save TikTok profile' });
+  }
+};
+
 // GET /api/creators/public — public, no auth. Powers the marketing homepage:
 // every creator with a connected YouTube channel, plus their most recent videos.
 async function getCreatorPostingFrequency(creatorId) {
@@ -721,6 +801,7 @@ exports.getPublicCreators = async (req, res) => {
          sc.username AS channel_name,
          sc.profile_url AS channel_url,
          sc.followers_count AS subscribers,
+         sc.tiktok_profile,
          COALESCE(sc.total_views, 0) AS total_views,
          COALESCE(v.videos, '[]'::json) AS videos
        FROM creators c
@@ -742,6 +823,7 @@ exports.getPublicCreators = async (req, res) => {
 
     const data = result.rows.map(r => {
       const followers = normalizeSocialFollowerCount(r.subscribers);
+      const tiktokProfile = r.tiktok_profile && Object.keys(r.tiktok_profile).length ? r.tiktok_profile : null;
       return {
         id:          String(r.id),
         provider:    r.provider || 'youtube',
@@ -751,6 +833,7 @@ exports.getPublicCreators = async (req, res) => {
         whatTheyDo:  r.what_they_do || null,
         channelName: r.channel_name || r.full_name || '',
         channelUrl:  r.channel_url || null,
+        tiktokProfile: r.provider === 'tiktok' ? tiktokProfile : null,
         subscribers: followers,
         followers,
         totalViews:  Number(r.total_views || 0),

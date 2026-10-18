@@ -39,6 +39,8 @@ router.get('/api/creators/public',              controller.getPublicCreators);
 
 // ─── Social stats ─────────────────────────────────────────────────────────────
 router.get('/api/social/stats',                 controller.getSocialStats);
+router.get('/api/social/tiktok/profile',        controller.getTikTokProfile);
+router.post('/api/social/tiktok/profile',       controller.updateTikTokProfile);
 router.post('/api/social/manual-connect/:provider', controller.manualConnectSocial);
 router.get('/api/social/video-stats',           controller.getSocialVideoStats);
 router.post('/api/social/disconnect/:provider', controller.disconnectSocial);

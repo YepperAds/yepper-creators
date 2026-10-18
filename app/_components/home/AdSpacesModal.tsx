@@ -133,6 +133,13 @@ export default function AdSpacesModal({
     setPendingFile(null);
     setPendingFileUrl(null);
     setPurchaseMode('campaign');
+    if (creator.provider === 'tiktok') {
+      setLoading(false);
+      setSlots([]);
+      setPostingFrequency(null);
+      setPostingEstimate(null);
+      return;
+    }
     fetch(`/api/social/youtube/ad-spaces/${creator.id}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((spacesJson) => {
@@ -296,7 +303,7 @@ export default function AdSpacesModal({
             <div className="min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-(--color-white) truncate">{creator.channelName || creator.name}</h2>
               <p className="text-sm text-(--color-muted)">
-                {creator.subscribers?.toLocaleString() ?? 0} subscribers
+                {creator.provider === 'tiktok' ? creator.followers?.toLocaleString() ?? 0 : creator.subscribers?.toLocaleString() ?? 0} {creator.provider === 'tiktok' ? 'followers' : 'subscribers'}
               </p>
             </div>
           </div>
@@ -321,7 +328,42 @@ export default function AdSpacesModal({
           </p>
         )}
 
-        {loading ? (
+        {creator.provider === 'tiktok' ? (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Content focus</p>
+                <p className="mt-2 text-sm font-semibold text-(--color-white)">{creator.tiktokProfile?.contentFocus || 'Not provided yet'}</p>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Formats</p>
+                <p className="mt-2 text-sm text-(--color-white)">{creator.tiktokProfile?.contentFormats?.join(', ') || 'Not provided yet'}</p>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Sample posts</p>
+                {creator.tiktokProfile?.sampleContentUrls?.length ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {creator.tiktokProfile.sampleContentUrls.map((url) => (
+                      <li key={url}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-xs font-semibold text-emerald-400 underline underline-offset-2">Open TikTok example</a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="mt-2 text-sm text-(--color-muted)">No sample posts provided</p>}
+              </div>
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Typical publishing pace</p>
+                <p className="mt-2 text-2xl font-bold text-(--color-white)">{creator.tiktokProfile?.postsPerWeek ?? '—'}<span className="ml-1 text-sm font-medium text-(--color-muted)">posts / week</span></p>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Sponsored capacity</p>
+                <p className="mt-2 text-2xl font-bold text-(--color-white)">{creator.tiktokProfile?.sponsoredPostsPerMonth ?? '—'}<span className="ml-1 text-sm font-medium text-(--color-muted)">posts / month</span></p>
+              </div>
+            </div>
+            <p className="text-xs text-(--color-muted)">These figures are self-reported by the creator. Confirm the exact number of sponsored posts and dates with them before booking.</p>
+            <div className="flex items-center justify-between gap-4 border-t border-(--color-border) pt-6">
+              <div>
+                <h3 className="text-xl font-extrabold text-(--color-white)">TikTok creator profile</h3>
+                <p className="mt-1 text-sm text-(--color-muted)">TikTok campaign booking is not available here yet.</p>
+              </div>
+              <button onClick={onClose} className="shrink-0 rounded-full bg-(--color-surface-3) px-5 py-3 text-sm font-bold text-(--color-white)">Close</button>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="flex-1 grid sm:grid-cols-2 gap-6">
             <div className="aspect-video rounded-2xl bg-(--color-surface-2) animate-pulse" />
             <div className="space-y-3">

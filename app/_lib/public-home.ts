@@ -25,6 +25,14 @@ export interface PublicVideo {
   url: string | null;
 }
 
+export interface TikTokMediaKit {
+  contentFocus: string;
+  contentFormats: string[];
+  sampleContentUrls: string[];
+  postsPerWeek: number;
+  sponsoredPostsPerMonth: number;
+}
+
 export type SocialPlatform = 'youtube' | 'tiktok';
 
 export interface PublicCreator {
@@ -40,6 +48,7 @@ export interface PublicCreator {
   followers?: number;
   totalViews: number;
   videos: PublicVideo[];
+  tiktokProfile?: TikTokMediaKit | null;
 }
 
 export async function getPublicWebsites(): Promise<PublicWebsite[]> {

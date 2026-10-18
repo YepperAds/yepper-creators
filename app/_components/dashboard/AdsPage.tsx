@@ -19,6 +19,7 @@ import PageHeader from './PageHeader';
 import AudienceMap from '@/app/(adsense)/ad-promoter/_components/AudienceMap';
 import DailyBarChart from '@/app/(adsense)/ad-promoter/_components/DailyBarChart';
 import { buildDailySeries } from '@/app/_lib/daily-series';
+import TikTokSponsoredPosts from '@/app/(advertiser)/_components/TikTokSponsoredPosts';
 
 interface WebsiteSelection {
   websiteId: { _id?: string; id?: string; websiteName?: string; websiteLink?: string; imageUrl?: string | null } | string;
@@ -50,6 +51,22 @@ interface AdPost {
   posted_at: string;
 }
 
+interface TikTokSponsorship {
+  id: number;
+  brandName: string;
+  creativeImageUrl: string;
+  status: string;
+  videoUrl: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+  clicks: number;
+}
+
+interface TikTokAdvertiserCampaign extends TikTokSponsorship {
+  creatorName: string;
+}
+
 interface AdvertiserYoutubePost extends AdPost {
   video_url: string | null;
   platform_video_id: string | null;
@@ -60,7 +77,7 @@ interface AdvertiserYoutubePost extends AdPost {
 
 interface AdCardItem {
   key: string;
-  kind: 'website' | 'youtube';
+  kind: 'website' | 'youtube' | 'tiktok';
   title: string;
   subtitle: string;
   image: string | null;
@@ -74,6 +91,7 @@ interface AdCardItem {
   likes?: number;
   comments?: number;
   clicks?: number;
+  opensTask?: boolean;
 }
 
 function fmt(n: number | undefined | null): string {
@@ -116,14 +134,14 @@ function AdTile({ item, onOpen }: { item: AdCardItem; onOpen: () => void }) {
         <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
-          {item.kind === 'youtube' ? <FilmIcon className="w-10 h-10 text-muted" /> : <GlobeAltIcon className="w-10 h-10 text-muted" />}
+          {item.kind !== 'website' ? <FilmIcon className="w-10 h-10 text-muted" /> : <GlobeAltIcon className="w-10 h-10 text-muted" />}
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
 
       <span className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-bold text-[#fff] uppercase tracking-wide">
-        {item.kind === 'youtube' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
-        {item.kind === 'youtube' ? 'YouTube' : 'Website'}
+        {item.kind !== 'website' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
+        {item.kind === 'tiktok' ? 'TikTok' : item.kind === 'youtube' ? 'YouTube' : 'Website'}
       </span>
 
       <div className="absolute inset-x-0 bottom-0 p-4">
@@ -218,8 +236,8 @@ function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => voi
             <div className="p-6 sm:p-8 space-y-6">
               <div>
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background text-[10px] font-bold text-muted uppercase tracking-wide">
-                  {item.kind === 'youtube' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
-                  {item.kind === 'youtube' ? 'YouTube' : 'Website'}
+                  {item.kind !== 'website' ? <FilmIcon className="w-3 h-3" /> : <GlobeAltIcon className="w-3 h-3" />}
+                  {item.kind === 'tiktok' ? 'TikTok' : item.kind === 'youtube' ? 'YouTube' : 'Website'}
                 </span>
                 <h2 className="text-2xl font-bold text-white mt-3 font-(--font-display)">{item.title}</h2>
                 <p className="text-sm text-muted mt-1">{item.subtitle}</p>
@@ -242,6 +260,17 @@ function AdDetailModal({ item, onClose }: { item: AdCardItem; onClose: () => voi
                       <p className="text-xl font-bold text-white">
                         {item.views ? (((item.clicks ?? 0) / item.views) * 100).toFixed(1) : '0.0'}%
                       </p>
+                    </div>
+                  </>
+                ) : item.kind === 'tiktok' ? (
+                  <>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><CursorArrowRaysIcon className="w-4 h-4" />Link clicks</div>
+                      <p className="text-xl font-bold text-white">{fmt(item.clicks)}</p>
+                    </div>
+                    <div className="rounded-xl bg-background px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted text-xs mb-1"><HeartIcon className="w-4 h-4" />Likes</div>
+                      <p className="text-xl font-bold text-white">{fmt(item.likes)}</p>
                     </div>
                   </>
                 ) : (
@@ -323,6 +352,7 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
   const [items, setItems] = useState<AdCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openItem, setOpenItem] = useState<AdCardItem | null>(null);
+  const [showTikTokTasks, setShowTikTokTasks] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -331,13 +361,17 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
       const u = sessRes.ok ? ((sessRes.data as any)?.data?.user ?? (sessRes.data as any)?.user) : null;
       const uuid = u?.id ?? u?.user_uuid ?? u?.uuid;
 
-      const [postsRes, advertiserPostsRes, webRes] = await Promise.all([
+      const [postsRes, advertiserPostsRes, webRes, tiktokRes, tiktokAdvertiserRes] = await Promise.all([
         uuid ? api.get<{ success: boolean; data: AdPost[] }>(`/api/social/ad-posts?user_uuid=${uuid}`) : Promise.resolve(null),
         api.get<{ success: boolean; data: AdvertiserYoutubePost[] }>('/api/social/youtube/advertiser-posts'),
         adsenseApi.get<{ success: boolean; ads?: WebsiteAd[] }>('/api/web-advertise/my-ads'),
+        api.get<{ success: boolean; data: TikTokSponsorship[] }>('/api/social/tiktok/sponsorships/pending'),
+        api.get<{ success: boolean; data: TikTokAdvertiserCampaign[] }>('/api/social/tiktok/sponsorships/advertiser'),
       ]);
 
       const posts = postsRes?.ok ? normaliseArray<AdPost>(postsRes.data?.data) : [];
+      const tiktokSponsorships = tiktokRes?.ok ? normaliseArray<TikTokSponsorship>(tiktokRes.data?.data) : [];
+      const tiktokAdvertiserCampaigns = tiktokAdvertiserRes?.ok ? normaliseArray<TikTokAdvertiserCampaign>(tiktokAdvertiserRes.data?.data) : [];
       const webAds = (webRes.data?.ads ?? []).filter((ad) =>
         ad.websiteSelections?.some((s) => s.status === 'active' && !s.isRejected),
       );
@@ -376,6 +410,37 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
           }))
         : [];
 
+      const tiktokItems: AdCardItem[] = tiktokSponsorships.map((sponsorship) => ({
+        key: `tiktok-${sponsorship.id}`,
+        kind: 'tiktok',
+        title: sponsorship.brandName,
+        subtitle: sponsorship.status === 'pending_post' ? 'Sponsored post · action needed' : 'TikTok sponsored post',
+        image: sponsorship.creativeImageUrl,
+        views: sponsorship.views,
+        secondaryLabel: 'Clicks',
+        secondaryValue: sponsorship.clicks,
+        likes: sponsorship.likes,
+        comments: sponsorship.comments,
+        clicks: sponsorship.clicks,
+        videoUrl: sponsorship.videoUrl,
+        opensTask: true,
+      }));
+
+      const tiktokAdvertiserItems: AdCardItem[] = tiktokAdvertiserCampaigns.map((campaign) => ({
+        key: `advertiser-tiktok-${campaign.id}`,
+        kind: 'tiktok',
+        title: campaign.brandName,
+        subtitle: `${campaign.creatorName} · ${campaign.status.replace('_', ' ')}`,
+        image: campaign.creativeImageUrl,
+        views: campaign.views,
+        secondaryLabel: 'Clicks',
+        secondaryValue: campaign.clicks,
+        likes: campaign.likes,
+        comments: campaign.comments,
+        clicks: campaign.clicks,
+        videoUrl: campaign.videoUrl,
+      }));
+
       const websiteItems: AdCardItem[] = webAds.map((ad) => {
         const activeSelection = ad.websiteSelections?.find((s) => s.status === 'active' && !s.isRejected);
         const site = activeSelection && typeof activeSelection.websiteId === 'object' ? activeSelection.websiteId : null;
@@ -398,6 +463,8 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
       setItems([
         ...youtubeItems,
         ...advertiserYoutubeItems.filter((item) => !videoUrls.has(item.videoUrl)),
+        ...tiktokItems,
+        ...tiktokAdvertiserItems,
         ...websiteItems,
       ]);
     } finally {
@@ -423,13 +490,14 @@ export default function AdsPage({ onBack }: { onBack: () => void }) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {items.map((item) => (
-              <AdTile key={item.key} item={item} onOpen={() => setOpenItem(item)} />
+              <AdTile key={item.key} item={item} onOpen={() => item.kind === 'tiktok' && item.opensTask ? setShowTikTokTasks(true) : setOpenItem(item)} />
             ))}
           </div>
         )}
       </div>
 
       {openItem && <AdDetailModal item={openItem} onClose={() => setOpenItem(null)} />}
+      {showTikTokTasks && <TikTokSponsoredPosts onClose={() => { setShowTikTokTasks(false); void load(); }} />}
     </div>
   );
 }

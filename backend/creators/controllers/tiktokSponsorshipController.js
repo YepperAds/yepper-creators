@@ -449,6 +449,52 @@ exports.getPendingForCreator = async (req, res) => {
   }
 };
 
+exports.getAdvertiserCampaigns = async (req, res) => {
+  const advertiserId = getSessionUserId(req);
+  if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to view your TikTok campaigns' });
+  try {
+    const result = await query(
+      `SELECT sponsorship.id, sponsorship.creator_id, sponsorship.tiktok_video_id,
+              sponsorship.last_stats_at, sponsorship.brand_name, sponsorship.creative_image_url,
+              sponsorship.status, sponsorship.video_url, sponsorship.views, sponsorship.likes,
+              sponsorship.comments, sponsorship.clicks, sponsorship.created_at,
+              COALESCE(connection.username, creator.username, creator.full_name, 'TikTok creator') AS creator_name
+       FROM tiktok_sponsorships sponsorship
+       JOIN creators creator ON creator.id = sponsorship.creator_id
+       LEFT JOIN social_connections connection
+         ON connection.creator_id = sponsorship.creator_id AND connection.provider = 'tiktok'
+       WHERE sponsorship.advertiser_id = $1 AND sponsorship.payment_status = 'paid'
+         AND sponsorship.status <> 'cancelled'
+       ORDER BY sponsorship.created_at DESC LIMIT 50`,
+      [String(advertiserId)],
+    );
+    const campaigns = await Promise.all(result.rows.map(async (row) => {
+      let current = row;
+      if (row.tiktok_video_id) {
+        try { current = await refreshVideoMetrics(row); }
+        catch (err) { console.error('[tiktokSponsorship] advertiser campaign stats refresh error:', err.message); }
+      }
+      return {
+        id: current.id,
+        creatorName: current.creator_name,
+        brandName: current.brand_name,
+        creativeImageUrl: current.creative_image_url,
+        status: current.status,
+        videoUrl: current.video_url,
+        views: Number(current.views || 0),
+        likes: Number(current.likes || 0),
+        comments: Number(current.comments || 0),
+        clicks: Number(current.clicks || 0),
+        createdAt: current.created_at,
+      };
+    }));
+    return res.json({ success: true, data: campaigns });
+  } catch (err) {
+    console.error('[tiktokSponsorship] getAdvertiserCampaigns error:', err);
+    return res.status(500).json({ success: false, message: 'Could not load your TikTok campaigns' });
+  }
+};
+
 exports.submitVideo = async (req, res) => {
   const creatorId = getSessionUserId(req);
   if (!creatorId) return res.status(401).json({ success: false, message: 'Log in to submit a TikTok post' });

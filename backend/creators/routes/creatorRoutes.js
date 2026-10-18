@@ -45,6 +45,7 @@ router.post('/api/social/tiktok/profile',       controller.updateTikTokProfile);
 router.post('/api/social/tiktok/sponsorships/verify-payment', tiktokSponsorship.verifyPayment);
 router.post('/api/social/tiktok/sponsorships/cancel-payment', tiktokSponsorship.cancelPayment);
 router.get('/api/social/tiktok/sponsorships/:creatorId/quote', tiktokSponsorship.getQuote);
+router.get('/api/social/tiktok/sponsorships/advertiser', tiktokSponsorship.getAdvertiserCampaigns);
 router.post('/api/social/tiktok/sponsorships/:creatorId', adSpaces.imageUpload.single('image'), tiktokSponsorship.initiate);
 router.get('/api/social/tiktok/sponsorships/:creatorId/reports', tiktokSponsorship.getAdvertiserReports);
 router.get('/api/social/tiktok/sponsorships/pending', tiktokSponsorship.getPendingForCreator);

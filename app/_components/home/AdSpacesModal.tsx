@@ -332,20 +332,11 @@ export default function AdSpacesModal({
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Content focus</p>
-                <p className="mt-2 text-sm font-semibold text-(--color-white)">{creator.tiktokProfile?.contentFocus || 'Not provided yet'}</p>
-                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Formats</p>
-                <p className="mt-2 text-sm text-(--color-white)">{creator.tiktokProfile?.contentFormats?.join(', ') || 'Not provided yet'}</p>
-                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Sample posts</p>
-                {creator.tiktokProfile?.sampleContentUrls?.length ? (
-                  <ul className="mt-2 space-y-1.5">
-                    {creator.tiktokProfile.sampleContentUrls.map((url) => (
-                      <li key={url}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-xs font-semibold text-emerald-400 underline underline-offset-2">Open TikTok example</a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="mt-2 text-sm text-(--color-muted)">No sample posts provided</p>}
+                <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Connected audience</p>
+                <p className="mt-2 text-sm font-semibold text-(--color-white)">{creator.followers?.toLocaleString() ?? creator.subscribers?.toLocaleString() ?? 0} followers</p>
+                <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Total views</p>
+                <p className="mt-2 text-sm font-semibold text-(--color-white)">{creator.totalViews.toLocaleString()}</p>
+                <p className="mt-4 text-xs text-(--color-muted)">Audience figures are loaded from the connected TikTok account.</p>
               </div>
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-(--color-muted)">Typical publishing pace</p>

@@ -42,28 +42,11 @@ interface SocialAccount {
 }
 
 interface TikTokMediaKit {
-  contentFocus: string;
-  contentFormats: string[];
-  sampleContentUrls: string[];
   postsPerWeek: number;
   sponsoredPostsPerMonth: number;
 }
 
-const TIKTOK_CONTENT_FORMATS = [
-  'Short videos',
-  'Product reviews',
-  'Tutorials',
-  'Lifestyle / vlogs',
-  'Comedy / skits',
-  'Education',
-  'Live streams',
-  'Photo posts',
-];
-
 const EMPTY_TIKTOK_MEDIA_KIT: TikTokMediaKit = {
-  contentFocus: '',
-  contentFormats: [],
-  sampleContentUrls: [],
   postsPerWeek: 1,
   sponsoredPostsPerMonth: 0,
 };
@@ -323,7 +306,7 @@ export default function ConnectAccountsPage() {
     try {
       const response = await api.post<{ success: boolean; message?: string; data?: TikTokMediaKit }>(
         '/api/social/tiktok/profile',
-        { ...tiktokMediaKit, sampleContentUrls: tiktokMediaKit.sampleContentUrls.filter((url) => url.trim()) },
+        tiktokMediaKit,
       );
       if (!response.ok || !response.data.success) {
         throw new Error(response.ok ? response.data.message : response.error.message);
@@ -857,19 +840,9 @@ export default function ConnectAccountsPage() {
                 <div className="border-b border-(--color-border) p-5">
                   <div className="mb-4">
                     <h4 className="text-sm font-bold text-(--color-white)">TikTok creator media kit</h4>
-                    <p className="mt-1 text-xs text-(--color-muted)">Tell advertisers what you make and how many sponsored posts you can take on. These are your typical figures, not a booking guarantee.</p>
+                    <p className="mt-1 text-xs text-(--color-muted)">Set your usual posting pace and monthly sponsored-post capacity. Audience stats come from your connected TikTok account. Capacity is self-reported, not a booking guarantee.</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-xs font-semibold text-(--color-white)">
-                      Content focus
-                      <input
-                        value={tiktokMediaKit.contentFocus}
-                        maxLength={120}
-                        onChange={(event) => setTikTokMediaKit((current) => ({ ...current, contentFocus: event.target.value }))}
-                        placeholder="e.g. beauty, food, personal finance"
-                        className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal text-(--color-white) placeholder:text-(--color-muted)"
-                      />
-                    </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="text-xs font-semibold text-(--color-white)">
                         Typical posts per week
@@ -894,60 +867,12 @@ export default function ConnectAccountsPage() {
                         />
                       </label>
                     </div>
-                    <fieldset className="sm:col-span-2">
-                      <legend className="mb-2 text-xs font-semibold text-(--color-white)">Content formats</legend>
-                      <div className="flex flex-wrap gap-2">
-                        {TIKTOK_CONTENT_FORMATS.map((format) => (
-                          <label key={format} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) px-2.5 py-2 text-xs text-(--color-white)">
-                            <input
-                              type="checkbox"
-                              checked={tiktokMediaKit.contentFormats.includes(format)}
-                              onChange={(event) => setTikTokMediaKit((current) => ({
-                                ...current,
-                                contentFormats: event.target.checked
-                                  ? [...current.contentFormats, format]
-                                  : current.contentFormats.filter((item) => item !== format),
-                              }))}
-                              className="accent-emerald-500"
-                            />
-                            {format}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                    <div className="sm:col-span-2">
-                      <p className="mb-2 text-xs font-semibold text-(--color-white)">Example TikTok posts</p>
-                      <div className="space-y-2">
-                        {tiktokMediaKit.sampleContentUrls.map((url, index) => (
-                          <input
-                            key={index}
-                            type="url"
-                            value={url}
-                            onChange={(event) => setTikTokMediaKit((current) => ({
-                              ...current,
-                              sampleContentUrls: current.sampleContentUrls.map((item, itemIndex) => itemIndex === index ? event.target.value : item),
-                            }))}
-                            placeholder="https://www.tiktok.com/@creator/video/..."
-                            className="w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm text-(--color-white) placeholder:text-(--color-muted)"
-                          />
-                        ))}
-                      </div>
-                      {tiktokMediaKit.sampleContentUrls.length < 3 && (
-                        <button
-                          type="button"
-                          onClick={() => setTikTokMediaKit((current) => ({ ...current, sampleContentUrls: [...current.sampleContentUrls, ''] }))}
-                          className="mt-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
-                        >
-                          Add sample link
-                        </button>
-                      )}
-                    </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={handleTikTokMediaKitSave}
-                      disabled={savingTikTokMediaKit || !tiktokMediaKit.contentFocus.trim() || !tiktokMediaKit.contentFormats.length || tiktokMediaKit.postsPerWeek < 1 || tiktokMediaKit.sponsoredPostsPerMonth < 0}
+                      disabled={savingTikTokMediaKit || tiktokMediaKit.postsPerWeek < 1 || tiktokMediaKit.postsPerWeek > 100 || tiktokMediaKit.sponsoredPostsPerMonth < 0 || tiktokMediaKit.sponsoredPostsPerMonth > 100}
                       className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       {savingTikTokMediaKit ? 'Saving…' : 'Save media kit'}

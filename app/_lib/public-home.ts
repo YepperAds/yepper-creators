@@ -26,9 +26,6 @@ export interface PublicVideo {
 }
 
 export interface TikTokMediaKit {
-  contentFocus: string;
-  contentFormats: string[];
-  sampleContentUrls: string[];
   postsPerWeek: number;
   sponsoredPostsPerMonth: number;
 }

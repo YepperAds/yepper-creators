@@ -159,6 +159,7 @@ function PlatformIcon({ id }: { id: string }) {
 export default function ConnectAccountsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [error, setError] = useState('');
@@ -578,6 +579,7 @@ export default function ConnectAccountsPage() {
     const platform = PLATFORMS.find((p) => p.id === provider);
     if (platform?.comingSoon || socialLocked) return;
     if (accounts.some((a) => a.provider === provider)) {
+      setExpandedProvider(provider);
       document.getElementById(`acc-${provider}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -774,9 +776,9 @@ export default function ConnectAccountsPage() {
       <div className="space-y-8">
         {SocialPanel}
 
-        <section className="space-y-4">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {accounts.length === 0 && !loading && (
-            <div className="bg-(--color-surface-1) border border-(--color-border) border-dashed rounded-2xl p-12 flex flex-col items-center text-center">
+            <div className="sm:col-span-2 xl:col-span-3 bg-(--color-surface-1) border border-(--color-border) border-dashed rounded-2xl p-12 flex flex-col items-center text-center">
               <GlobeAltIcon className="w-12 h-12 text-(--color-muted) mb-4 opacity-50" />
               <h3 className="text-lg font-bold text-(--color-white)">No Active Analysis</h3>
               <p className="text-xs text-(--color-muted) max-w-sm mt-2">Connect social accounts (e.g. YouTube) to unlock Yepper intelligence.</p>
@@ -787,20 +789,56 @@ export default function ConnectAccountsPage() {
             const platform = PLATFORMS.find((item) => item.id === account.provider);
             if (!platform) return null;
             const ytPricing = account.provider === 'youtube' ? youtubePricing : null;
+            const isExpanded = expandedProvider === account.provider;
+            const adCount = adPostCounts[account.provider] ?? 0;
 
             return (
-              <div key={account.provider} id={`acc-${account.provider}`} className="bg-(--color-surface-1) border border-(--color-border) rounded-2xl overflow-hidden">
-                <div className="p-6 flex flex-wrap items-center justify-between gap-4 border-b border-(--color-border)">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-(--color-surface-2) border border-(--color-border) flex items-center justify-center" style={{ color: platform.color }}>
-                      <PlatformIcon id={platform.id} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-(--color-white)">@{account.username}</h3>
-                      <p className="text-xs text-(--color-muted)">
-                        {platform.statLabel || 'Followers'}: <span className="text-(--color-white) font-bold">{formatCount(account.followers)}</span>
-                      </p>
-                    </div>
+              <div key={account.provider} id={`acc-${account.provider}`} style={{ borderColor: `${platform.color}88` }} className="overflow-hidden rounded-2xl border bg-(--color-surface-1)">
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedProvider(isExpanded ? null : account.provider)}
+                  className="relative flex min-h-44 w-full flex-col justify-between overflow-hidden bg-[#242424] p-5 text-left transition-colors hover:bg-[#2b2b2b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                >
+                  <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: platform.color }} />
+                  <span className="flex w-full items-center justify-between gap-3">
+                    <span className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 items-center justify-center" style={{ color: platform.color }}>
+                        <PlatformIcon id={platform.id} />
+                      </span>
+                      <span className="text-sm font-bold text-white">{platform.label}</span>
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-white/65">
+                      {isExpanded ? 'Close' : 'Open'}
+                    </span>
+                  </span>
+                  <span className="flex w-full items-center gap-3">
+                    {account.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={account.avatar} alt="" className="h-11 w-11 rounded-full border border-white/15 object-cover" />
+                    ) : (
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5" style={{ color: platform.color }}>
+                        <PlatformIcon id={platform.id} />
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-white">@{account.username}</span>
+                      <span className="mt-0.5 block text-xs text-white/65">
+                        {formatCount(account.followers)} {account.provider === 'youtube' ? 'subscribers' : 'followers'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-xs font-bold text-white">
+                      {adCount} Ads
+                    </span>
+                  </span>
+                </button>
+
+                {isExpanded && (
+                  <div>
+                <div className="p-5 flex flex-wrap items-center justify-between gap-4 border-b border-(--color-border)">
+                  <div>
+                    <p className="text-sm font-bold text-(--color-white)">Channel insights</p>
+                    <p className="text-xs text-(--color-muted) mt-1">@{account.username}</p>
                   </div>
                   <div className="flex items-center">
                     <button
@@ -955,17 +993,23 @@ export default function ConnectAccountsPage() {
                       {paidYoutubeClaims.length === 0 ? (
                         <p className="rounded-lg border border-dashed border-(--color-border) px-3 py-3 text-xs text-(--color-muted)">Paid advertiser images will appear here.</p>
                       ) : (
-                        paidYoutubeClaims.map((claim) => {
+                        paidYoutubeClaims.map((claim, index) => {
                           const claimKey = youtubeClaimKey(claim);
                           const manualPost = manualYoutubePosts[claimKey];
                           const busy = manualYoutubeBusySlot === claim.slotType;
                           return (
                             <div key={claim.id} className="rounded-lg border border-(--color-border) bg-(--color-surface-1) p-3">
                               <div className="flex items-start gap-3">
-                                <div className="h-20 w-28 shrink-0 overflow-hidden rounded-md border border-(--color-border) bg-(--color-surface-2)">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={claim.imageUrl} alt={`Paid ${claim.slotType} ad creative`} className="h-full w-full object-contain" />
-                                </div>
+                                {index < 3 ? (
+                                  <div className="h-20 w-28 shrink-0 overflow-hidden rounded-md border border-(--color-border) bg-(--color-surface-2)">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={claim.imageUrl} alt={`Paid ${claim.slotType} ad creative`} className="h-full w-full object-contain" />
+                                  </div>
+                                ) : (
+                                  <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-md border border-(--color-border) bg-(--color-surface-2)">
+                                    <span className="text-2xl font-bold text-(--color-muted)">#{index + 1}</span>
+                                  </div>
+                                )}
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-semibold text-(--color-white)">{claim.slotType.replace('pct', '%')} slot ad</p>
                                   <p className="mt-0.5 text-[10px] text-(--color-muted)">{claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'} · {claim.adSize}</p>
@@ -1152,6 +1196,8 @@ export default function ConnectAccountsPage() {
                   Disconnect channel
                 </button>
               </details>
+                  </div>
+                )}
               </div>
             );
           })}

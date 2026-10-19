@@ -793,7 +793,12 @@ export default function ConnectAccountsPage() {
             const adCount = adPostCounts[account.provider] ?? 0;
 
             return (
-              <div key={account.provider} id={`acc-${account.provider}`} style={{ borderColor: `${platform.color}88` }} className="overflow-hidden rounded-2xl border bg-(--color-surface-1)">
+              <div
+                key={account.provider}
+                id={`acc-${account.provider}`}
+                style={{ borderColor: `${platform.color}88` }}
+                className={`overflow-hidden rounded-2xl border bg-(--color-surface-1) ${isExpanded ? 'sm:col-span-2 xl:col-span-3' : ''}`}
+              >
                 <button
                   type="button"
                   aria-expanded={isExpanded}

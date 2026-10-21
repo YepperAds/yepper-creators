@@ -1695,20 +1695,6 @@ exports.postAdVideo = async (req, res) => {
     const label = provider.charAt(0).toUpperCase() + provider.slice(1);
     return res.status(400).json({ success: false, message: `${label} isn't supported yet` });
   }
-  if (provider === 'youtube') {
-    const subscriptionRes = await query(
-      `SELECT status, current_period_end FROM youtube_creator_subscriptions WHERE creator_id = $1`,
-      [session],
-    );
-    const subscription = subscriptionRes.rows[0];
-    if (subscription?.status !== 'active' || new Date(subscription.current_period_end).getTime() <= Date.now()) {
-      return res.status(402).json({
-        success: false,
-        subscriptionRequired: true,
-        message: 'YouTube video processing requires an active RWF 20,000/month subscription. You can still publish manually for free.',
-      });
-    }
-  }
   if (!videoFile) return res.status(400).json({ success: false, message: 'Video file is required' });
 
   let claimedSlotTypes = [];

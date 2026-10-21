@@ -70,9 +70,6 @@ export default function PostAdModal({
   const [adUploading, setAdUploading]           = useState(false);
   const [adUploadResult, setAdUploadResult]     = useState<{ trackingCode: string; videoUrl: string | null } | null>(null);
   const [adUploadError, setAdUploadError]       = useState('');
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
-  const [subscriptionChecking, setSubscriptionChecking] = useState(false);
-  const [subscriptionStarting, setSubscriptionStarting] = useState(false);
 
   // Yepper injects the claimed creative(s) into the video server-side.
   // 'job' tracks that processing job; once it's done, 'pendingPost' holds the
@@ -125,15 +122,6 @@ export default function PostAdModal({
       setIncludedSlots([]);
       setPrevSlotsKey('');
       setPendingClaims([]);
-      setSubscriptionActive(false);
-      setSubscriptionChecking(provider === 'youtube');
-      if (provider === 'youtube') {
-        authedFetch(`${BACKEND_URL}/api/social/youtube/subscription/status`)
-          .then((res) => res.json())
-          .then((json) => setSubscriptionActive(json?.success === true && json?.data?.active === true))
-          .catch(() => setSubscriptionActive(false))
-          .finally(() => setSubscriptionChecking(false));
-      }
     }
   }, [open, provider]);
 
@@ -265,7 +253,6 @@ export default function PostAdModal({
       });
       const json = await res.json();
       if (!json?.success || !json.data?.jobId) {
-        if (json?.subscriptionRequired) setSubscriptionActive(false);
         setAdUploadError(json?.message || 'Could not start processing, please try again');
         setAdUploading(false);
         return;
@@ -308,29 +295,6 @@ export default function PostAdModal({
     }
   };
 
-  const handleStartSubscription = async () => {
-    if (subscriptionStarting) return;
-    setSubscriptionStarting(true);
-    setAdUploadError('');
-    try {
-      const res = await authedFetch(`${BACKEND_URL}/api/social/youtube/subscription/initiate`, { method: 'POST' });
-      const json = await res.json().catch(() => ({}));
-      if (!json?.success) {
-        setAdUploadError(json?.message || 'Could not start subscription');
-      } else if (json.active) {
-        setSubscriptionActive(true);
-      } else if (json.data?.paymentUrl) {
-        window.location.href = json.data.paymentUrl;
-      } else {
-        setAdUploadError('Subscription checkout did not return a payment link');
-      }
-    } catch {
-      setAdUploadError('Could not start subscription checkout');
-    } finally {
-      setSubscriptionStarting(false);
-    }
-  };
-
   const copyCode = () => {
     if (!pendingPost) return;
     navigator.clipboard?.writeText(pendingPost.description).then(() => {
@@ -369,12 +333,10 @@ export default function PostAdModal({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-lg font-bold text-(--color-white)">
-              {provider === 'youtube' && !subscriptionActive ? 'Upgrade to automatically inject ads' : `Post Ad: ${provider.charAt(0).toUpperCase() + provider.slice(1)}`}
+              {`Post Ad: ${provider.charAt(0).toUpperCase() + provider.slice(1)}`}
             </h3>
             <p className="text-xs text-(--color-muted) mt-0.5">
-              {provider === 'youtube' && !subscriptionActive
-                ? 'Add paid advertiser ads to your video automatically with a monthly subscription.'
-                : 'Upload your video — we inject the ad, you download it and publish it yourself.'}
+              Upload your video — we inject the ad, you download it and publish it yourself.
             </p>
           </div>
           <button onClick={close} disabled={adUploading} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
@@ -465,32 +427,7 @@ export default function PostAdModal({
           </div>
         ) : (
           <div className="space-y-4">
-            {provider === 'youtube' && subscriptionChecking && (
-              <p className="rounded-xl bg-(--color-surface-2) px-3 py-2 text-xs text-(--color-muted)">Checking video-processing subscription…</p>
-            )}
-
-            {provider === 'youtube' && !subscriptionChecking && !subscriptionActive && (
-              <div className="space-y-4 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-5">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-(--color-muted)">Automatic ad insertion</p>
-                  <p className="mt-2 text-2xl font-extrabold text-(--color-white)">20,000 RWF <span className="text-sm font-medium text-(--color-muted)">/ month</span></p>
-                  <p className="mt-2 text-xs text-(--color-muted)">Yepper automatically inserts paid advertiser ads into your YouTube video. Renews monthly through card checkout.</p>
-                </div>
-                {adUploadError && <p className="text-xs text-red-400">{adUploadError}</p>}
-                <button
-                  type="button"
-                  onClick={handleStartSubscription}
-                  disabled={subscriptionStarting}
-                  className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {subscriptionStarting ? 'Opening secure checkout…' : 'Continue to secure checkout'}
-                </button>
-              </div>
-            )}
-
             {/* File picker */}
-            {(provider !== 'youtube' || (subscriptionActive && !subscriptionChecking)) && (
-              <>
             <div>
               <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Video File *</label>
               <input
@@ -600,8 +537,6 @@ export default function PostAdModal({
                 {adUploading ? 'Uploading…' : 'Upload & Process'}
               </button>
             </div>
-              </>
-            )}
           </div>
         )}
       </div>

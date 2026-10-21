@@ -851,7 +851,7 @@ export default function ConnectAccountsPage() {
                       className="flex max-w-64 items-center gap-1.5 rounded-lg bg-(--color-surface-3) px-3 py-2 text-left text-xs font-bold leading-snug text-(--color-white) transition-colors hover:bg-(--color-surface-2)"
                     >
                       <CloudArrowUpIcon className="w-3.5 h-3.5" />
-                      {account.provider === 'youtube' ? 'Upgrade to automatically inject ads in your video' : 'Post Ad'}
+                      {account.provider === 'youtube' ? 'Inject ads into your video' : 'Post Ad'}
                     </button>
                   </div>
                 </div>

@@ -59,7 +59,6 @@ router.post('/api/social/refresh/:provider',    controller.refreshSocialStats);
 // ─── Ad posts ─────────────────────────────────────────────────────────────────
 router.post(
   '/api/social/post-ad/:provider',
-  youtubeSubscription.requireProcessingSubscription,
   videoUpload.fields([{ name: 'video', maxCount: 1 }]),
   controller.postAdVideo,
 );

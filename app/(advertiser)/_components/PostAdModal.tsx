@@ -15,7 +15,7 @@ import TikTokSponsoredPosts from './TikTokSponsoredPosts';
 // the frontend deployment's request-size and execution limits.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
-const MAX_VIDEO_DURATION_SEC = 15 * 60;
+const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const MAX_VIDEO_WIDTH = 1920;
 const MAX_VIDEO_HEIGHT = 1080;
 
@@ -181,7 +181,7 @@ export default function PostAdModal({
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
       if (video.duration > MAX_VIDEO_DURATION_SEC) {
-        setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
+        setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
         setVideoResolutionValid(false);
       } else if (video.videoWidth > MAX_VIDEO_WIDTH || video.videoHeight > MAX_VIDEO_HEIGHT) {
         setAdUploadError('Video resolution is too high. Please export it at 1080p or lower.');
@@ -232,7 +232,7 @@ export default function PostAdModal({
       return;
     }
     if (videoDuration > MAX_VIDEO_DURATION_SEC) {
-      setAdUploadError('Video is too long. Please choose a video no longer than 15 minutes.');
+      setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
       return;
     }
     if (videoResolutionValid === false) return;
@@ -447,7 +447,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 15 minutes, and 1080p. Desktop Chrome or Edge recommended.</p>
+              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 2 hours, and 1080p. Desktop Chrome or Edge recommended.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

@@ -303,11 +303,10 @@ export default function PostAdModal({
   // server-side and queues a processing job.
   const handleUpload = async () => {
     if (!provider || !adFile || adUploading) return;
-    if (process.env.NODE_ENV === 'production' && !DEDICATED_VIDEO_API_URL) {
-      setAdUploadError(
-        'Video processing is not configured yet. The site needs a separate Render video-worker URL (NEXT_PUBLIC_AD_VIDEO_API_URL) before uploading long videos.',
+    if (!DEDICATED_VIDEO_API_URL && process.env.NODE_ENV === 'production') {
+      setJobConnectionWarning(
+        'No dedicated video-worker URL is configured yet; falling back to the main backend for this test upload.',
       );
-      return;
     }
     if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
       setAdUploadError('Video is too large. Please choose a file no larger than 750 MB.');

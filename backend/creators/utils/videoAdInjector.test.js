@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AD_WINDOW_SEC, buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
+const { buildVideoTransformations } = require('./videoCloudinary');
 const { normalizeActiveSlots } = require('../controllers/adSpaceController');
 
 test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
@@ -39,4 +40,56 @@ test('overlay filter keeps the ad visible for 15 seconds at its selected timesta
   assert.match(filter, /setpts=PTS-STARTPTS\+30\/TB/);
   assert.equal(AD_WINDOW_SEC, 15);
   assert.match(filter, /enable='between\(t,30,45\)'/);
+});
+
+test('Cloudinary video transformation places the claimed image at the selected slot time', () => {
+  const transformations = buildVideoTransformations({
+    activeSlots: [{
+      key: '25pct',
+      time: 30,
+      imagePublicId: 'yepper/jobs/1/creative-0',
+      claim: { adType: 'corner', adSize: 'medium' },
+    }],
+    duration: 120,
+    sourceWidth: 3840,
+  });
+
+  assert.deepStrictEqual(transformations, [
+    { overlay: 'authenticated:yepper:jobs:1:creative-0' },
+    { width: 1075, crop: 'scale' },
+    {
+      start_offset: '30',
+      duration: '15',
+      gravity: 'south_east',
+      x: 20,
+      y: 20,
+      flags: 'layer_apply',
+    },
+  ]);
+
+  const cloudinary = require('cloudinary').v2;
+  const transformationString = cloudinary.utils.generate_transformation_string(transformations);
+  assert.match(transformationString, /l_authenticated:yepper:jobs:1:creative-0/);
+  assert.match(transformationString, /du_15,so_30,g_south_east,x_20,y_20,fl_layer_apply/);
+});
+
+test('Cloudinary L-bar transformation creates both timed banner strips', () => {
+  const transformations = buildVideoTransformations({
+    activeSlots: [{
+      key: '85pct',
+      time: 102,
+      imagePublicId: 'yepper/jobs/2/creative-0',
+      claim: { adType: 'lbar', adSize: 'small' },
+    }],
+    duration: 120,
+    sourceWidth: 1920,
+  });
+
+  assert.equal(transformations.length, 6);
+  assert.equal(transformations[1].width, 115);
+  assert.equal(transformations[2].start_offset, '102');
+  assert.equal(transformations[2].duration, '15');
+  assert.equal(transformations[2].gravity, 'west');
+  assert.equal(transformations[4].width, 192);
+  assert.equal(transformations[5].gravity, 'south');
 });

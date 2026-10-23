@@ -14,10 +14,14 @@ import TikTokSponsoredPosts from './TikTokSponsoredPosts';
 // Large videos go directly to the paid backend so they do not pass through
 // the frontend deployment's request-size and execution limits.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+const DEDICATED_VIDEO_API_URL = process.env.NEXT_PUBLIC_AD_VIDEO_API_URL;
+const VIDEO_API_URL = (
+  DEDICATED_VIDEO_API_URL || BACKEND_URL
+).replace(/\/$/, '');
 const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
-const MAX_VIDEO_WIDTH = 1920;
-const MAX_VIDEO_HEIGHT = 1080;
+const MAX_VIDEO_WIDTH = 3840;
+const MAX_VIDEO_HEIGHT = 2160;
 
 const PERCENTAGE_SLOTS = [
   { key: '8pct', label: '8%' },
@@ -102,6 +106,7 @@ export default function PostAdModal({
   // tracking code (to paste into the description) and the download is ready.
   const [jobId, setJobId]                       = useState<string | null>(null);
   const [jobStatus, setJobStatus]               = useState<AdVideoJobStatus | null>(null);
+  const [jobConnectionWarning, setJobConnectionWarning] = useState('');
   const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string; adPlacements?: AdPlacement[] } | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [downloaded, setDownloaded]             = useState(false);
@@ -162,18 +167,45 @@ export default function PostAdModal({
   useEffect(() => {
     if (!jobId || !open) return;
     let cancelled = false;
-    const tick = async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let consecutiveFailures = 0;
+    let tick: () => Promise<void>;
+
+    const retryDelay = () => Math.min(30_000, 3_000 * (2 ** Math.min(consecutiveFailures - 1, 4)));
+    const scheduleRetry = (delay: number) => {
+      retryTimer = setTimeout(tick, delay);
+    };
+
+    tick = async () => {
       try {
-        const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`);
+        const res = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${jobId}`);
+        if (cancelled) return;
+        if (!res.ok) {
+          const json = await res.json().catch(() => null);
+          if (res.status === 429 || res.status >= 500) {
+            consecutiveFailures += 1;
+            setJobConnectionWarning(
+              `The video service is temporarily unavailable (HTTP ${res.status}). Your job is saved; retrying automatically.`,
+            );
+            const retryAfter = Number(res.headers.get('Retry-After'));
+            scheduleRetry(Number.isFinite(retryAfter) && retryAfter > 0
+              ? Math.min(retryAfter * 1000, 60_000)
+              : retryDelay());
+            return;
+          }
+          setAdUploadError(json?.message || `Could not retrieve processing status (HTTP ${res.status}).`);
+          setAdUploading(false);
+          return;
+        }
         const json = await res.json();
         if (cancelled) return;
         if (!json?.success) {
           setAdUploadError(json?.message || 'Could not retrieve video processing status. Reopen the upload to try again.');
           setAdUploading(false);
-          window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
-          setJobId(null);
           return;
         }
+        consecutiveFailures = 0;
+        setJobConnectionWarning('');
         setJobStatus(json.data);
         if (json.data.status === 'done') {
           const result = json.data.result ? (typeof json.data.result === 'string' ? JSON.parse(json.data.result) : json.data.result) : null;
@@ -182,17 +214,24 @@ export default function PostAdModal({
         } else if (json.data.status === 'error') {
           setAdUploadError(json.data.error_message || 'Processing failed, please try again');
           setAdUploading(false);
-          window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
-          setJobId(null);
         } else {
-          setTimeout(tick, 2000);
+          scheduleRetry(5000);
         }
       } catch {
-        if (!cancelled) setTimeout(tick, 3000);
+        if (!cancelled) {
+          consecutiveFailures += 1;
+          setJobConnectionWarning(
+            'The video service connection dropped. Your job is saved; reconnecting automatically.',
+          );
+          scheduleRetry(retryDelay());
+        }
       }
     };
     tick();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, open, provider]);
 
@@ -225,7 +264,7 @@ export default function PostAdModal({
         setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
         setVideoResolutionValid(false);
       } else if (video.videoWidth > MAX_VIDEO_WIDTH || video.videoHeight > MAX_VIDEO_HEIGHT) {
-        setAdUploadError('Video resolution is too high. Please export it at 1080p or lower.');
+        setAdUploadError('Video resolution is too high. Please export it at 4K or lower.');
         setVideoResolutionValid(false);
       } else {
         setVideoResolutionValid(true);
@@ -264,6 +303,12 @@ export default function PostAdModal({
   // server-side and queues a processing job.
   const handleUpload = async () => {
     if (!provider || !adFile || adUploading) return;
+    if (process.env.NODE_ENV === 'production' && !DEDICATED_VIDEO_API_URL) {
+      setAdUploadError(
+        'Video processing is not configured yet. The site needs a separate Render video-worker URL (NEXT_PUBLIC_AD_VIDEO_API_URL) before uploading long videos.',
+      );
+      return;
+    }
     if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
       setAdUploadError('Video is too large. Please choose a file no larger than 750 MB.');
       return;
@@ -280,6 +325,7 @@ export default function PostAdModal({
     setAdUploading(true);
     setUploadProgress(0);
     setAdUploadError('');
+    setJobConnectionWarning('');
     try {
       const form = new FormData();
       form.append('video', adFile);
@@ -292,7 +338,7 @@ export default function PostAdModal({
       const token = getToken();
       const uploadResult = await new Promise<{ status: number; data: AdVideoUploadResponse }>((resolve, reject) => {
         const request = new XMLHttpRequest();
-        request.open('POST', `${BACKEND_URL}/api/social/post-ad/${provider}`);
+        request.open('POST', `${VIDEO_API_URL}/api/social/post-ad/${provider}`);
         request.withCredentials = true;
         if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
         request.upload.onprogress = (event) => {
@@ -335,7 +381,7 @@ export default function PostAdModal({
     setConfirming(true);
     setAdUploadError('');
     try {
-      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
+      const res = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/${provider}/confirm/${pendingPost.postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -376,7 +422,7 @@ export default function PostAdModal({
       const fileHandle = pickerWindow.showSaveFilePicker
         ? await pickerWindow.showSaveFilePicker({ suggestedName: 'yepper-ad-video.mp4' })
         : null;
-      const response = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`);
+      const response = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${jobId}/download`);
       if (!response.ok) {
         const message: { message?: string } = await response.json().catch(() => ({}));
         throw new Error(message.message || `Download failed (${response.status})`);
@@ -492,8 +538,13 @@ export default function PostAdModal({
                 <span>{jobStatus?.status === 'queued' ? 'Queued' : 'Video processing'}</span>
                 <span>{jobStatus?.progress ?? 0}%</span>
               </div>
-              <p className="text-[10px] text-(--color-muted)">Long videos can take time on the free processing service. You can close this window; the job will keep running in the queue.</p>
+              <p className="text-[10px] text-(--color-muted)">Long videos can take time to render. You can close this window; the job will keep running in the queue.</p>
             </div>
+            {jobConnectionWarning && (
+              <p className="text-xs text-amber-300 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2" role="status">
+                {jobConnectionWarning}
+              </p>
+            )}
             {adUploadError && (
               <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
             )}
@@ -622,7 +673,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 2 hours, and 1080p. Desktop Chrome or Edge recommended.</p>
+              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 2 hours, and 4K. Desktop Chrome or Edge recommended.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

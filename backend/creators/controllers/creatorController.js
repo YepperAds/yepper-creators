@@ -1547,10 +1547,7 @@ const os = require('os');
 const path = require('path');
 const https = require('https');
 const { memLog } = require('../utils/adOverlay');
-const { injectAds } = require('../utils/videoAdInjector');
-
-const AD_OUTPUT_DIR = process.env.AD_VIDEO_OUTPUT_DIR || path.join(os.tmpdir(), 'ypr_ad_output');
-fs.mkdirSync(AD_OUTPUT_DIR, { recursive: true });
+const { renderVideoWithCloudinary } = require('../utils/videoCloudinary');
 
 const TRACKING_PREFIXES = { youtube: 'YT', instagram: 'IG', facebook: 'FB', tiktok: 'TT' };
 
@@ -1881,13 +1878,14 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
         adSize: r.ad_size,
       }));
     }
+    if (!claims.length) {
+      throw new Error('No paid ad claims are available for the selected video slots. Refresh the ad list and try again.');
+    }
 
-    const outPath = path.join(AD_OUTPUT_DIR, `ypr_ad_out_${jobId}${path.extname(videoFile.originalname) || '.mp4'}`);
-
-    memLog(`adVideoJob#${jobId}:before-inject`);
-    const renderResult = await injectAds({
+    memLog(`adVideoJob#${jobId}:before-cloudinary-render`);
+    const renderResult = await renderVideoWithCloudinary({
       srcPath: videoPath,
-      outPath,
+      jobId,
       claims,
       onProgress: (pct, message) => {
         if (pct - lastSavedProgress < 1 && message === lastProgressMessage) return;
@@ -1899,7 +1897,7 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
       },
     });
     await progressWrites;
-    memLog(`adVideoJob#${jobId}:after-inject`);
+    memLog(`adVideoJob#${jobId}:after-cloudinary-render`);
     cleanup();
 
     if (claims.length) {
@@ -1935,15 +1933,11 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
       );
     }
 
-    // 24h grace period for the creator to download the file, then it's
-    // deleted so the free-tier disk doesn't fill up with processed videos.
-    setTimeout(() => { fs.unlink(outPath, () => {}); }, 24 * 60 * 60 * 1000).unref();
-
     await updateAdVideoJob(jobId, {
       status: 'done',
       stage_message: 'Done',
       progress: 100,
-      output_path: outPath,
+      output_path: renderResult.outputUrl,
       result: JSON.stringify({
         postId: postRes.rows[0].id,
         trackingCode: code,
@@ -1998,6 +1992,38 @@ exports.downloadAdVideoJob = async (req, res) => {
   if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
   const { status, output_path: outputPath } = jobRes.rows[0];
   if (status !== 'done' || !outputPath) return res.status(409).json({ success: false, message: 'Video is not ready yet' });
+
+  if (outputPath.startsWith('https://res.cloudinary.com/')) {
+    const upstream = https.get(outputPath, (cloudinaryResponse) => {
+      if (cloudinaryResponse.statusCode !== 200) {
+        cloudinaryResponse.resume();
+        if (!res.headersSent) {
+          return res.status(502).json({
+            success: false,
+            message: `Cloudinary could not prepare the processed video (HTTP ${cloudinaryResponse.statusCode})`,
+          });
+        }
+        return res.destroy(new Error(`Cloudinary video download failed: ${cloudinaryResponse.statusCode}`));
+      }
+
+      res.setHeader('Content-Type', cloudinaryResponse.headers['content-type'] || 'video/mp4');
+      res.setHeader('Content-Disposition', 'attachment; filename="yepper-ad-video.mp4"');
+      if (cloudinaryResponse.headers['content-length']) {
+        res.setHeader('Content-Length', cloudinaryResponse.headers['content-length']);
+      }
+      cloudinaryResponse.pipe(res);
+    });
+    upstream.on('error', (err) => {
+      console.error(`[creators] adVideoJob#${req.params.id} Cloudinary download failed:`, err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, message: 'Could not retrieve the processed video from Cloudinary' });
+      } else {
+        res.destroy(err);
+      }
+    });
+    return;
+  }
+
   if (!fs.existsSync(outputPath)) return res.status(410).json({ success: false, message: 'This file has expired, please process the video again' });
 
   const ext = path.extname(outputPath) || '.mp4';

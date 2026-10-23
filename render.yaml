@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: yepper-creators-video-worker
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm run worker
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: VID_CLOUDINARY_NAME
+        sync: false
+      - key: VID_CLOUDINARY_KEY
+        sync: false
+      - key: VID_CLOUDINARY_API_SECRET
+        sync: false

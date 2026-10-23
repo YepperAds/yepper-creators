@@ -1855,8 +1855,21 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
     let claims = [];
     if (Array.isArray(claimedSlotTypes) && claimedSlotTypes.length) {
       const claimsRes = await query(
-        `SELECT id, advertiser_id, slot_type, image_url, ad_type, ad_size FROM youtube_ad_claims
-         WHERE creator_id=$1 AND status='pending' AND payment_status='paid' AND slot_type = ANY($2)`,
+        `SELECT claim.id, claim.advertiser_id, claim.slot_type, claim.image_url, claim.ad_type, claim.ad_size
+         FROM youtube_ad_claims AS claim
+         WHERE claim.creator_id=$1 AND claim.payment_status='paid' AND claim.slot_type = ANY($2)
+           AND (
+             claim.status='pending'
+             OR (
+               claim.status='used'
+               AND EXISTS (
+                 SELECT 1
+                 FROM youtube_ad_video_claims AS video_claim
+                 JOIN ad_video_posts AS post ON post.id=video_claim.ad_video_post_id
+                 WHERE video_claim.claim_id=claim.id AND post.status='pending_publish'
+               )
+             )
+           )`,
         [session, claimedSlotTypes],
       );
       claims = claimsRes.rows.map((r) => ({
@@ -1872,7 +1885,7 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
     const outPath = path.join(AD_OUTPUT_DIR, `ypr_ad_out_${jobId}${path.extname(videoFile.originalname) || '.mp4'}`);
 
     memLog(`adVideoJob#${jobId}:before-inject`);
-    await injectAds({
+    const renderResult = await injectAds({
       srcPath: videoPath,
       outPath,
       claims,
@@ -1931,7 +1944,12 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
       stage_message: 'Done',
       progress: 100,
       output_path: outPath,
-      result: JSON.stringify({ postId: postRes.rows[0].id, trackingCode: code, description: fullDescription }),
+      result: JSON.stringify({
+        postId: postRes.rows[0].id,
+        trackingCode: code,
+        description: fullDescription,
+        adPlacements: renderResult.placements,
+      }),
     });
     createNotification(session, 'ad_video_ready', 'Ad video ready', `Your video is processed with tracking code ${code} — download it and publish it on YouTube.`, {}).catch(() => {});
   } catch (err) {

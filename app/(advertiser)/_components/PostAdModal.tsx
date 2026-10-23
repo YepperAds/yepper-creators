@@ -28,13 +28,15 @@ const PERCENTAGE_SLOTS = [
 ] as const;
 
 function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
+  const roundedSeconds = Math.round(seconds);
+  const m = Math.floor(roundedSeconds / 60);
+  const s = roundedSeconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 interface AdSlot { key: string; label: string; time: number; }
 interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
+interface AdPlacement { slotType: string; startsAt: number; endsAt: number; }
 interface AdVideoJobStatus {
   status: string;
   stage_message?: string;
@@ -100,7 +102,7 @@ export default function PostAdModal({
   // tracking code (to paste into the description) and the download is ready.
   const [jobId, setJobId]                       = useState<string | null>(null);
   const [jobStatus, setJobStatus]               = useState<AdVideoJobStatus | null>(null);
-  const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string } | null>(null);
+  const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string; adPlacements?: AdPlacement[] } | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [downloaded, setDownloaded]             = useState(false);
   const [downloading, setDownloading]           = useState(false);
@@ -501,6 +503,17 @@ export default function PostAdModal({
           </div>
         ) : pendingPost ? (
           <div className="space-y-4">
+            {pendingPost.adPlacements?.length ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <p className="text-xs font-bold text-emerald-300">Ad insertion times in the processed video</p>
+                <p className="mt-1 text-xs text-(--color-white)">
+                  {pendingPost.adPlacements.map((placement) => (
+                    `${formatTime(placement.startsAt)}–${formatTime(placement.endsAt)}`
+                  )).join(' · ')}
+                  {' '}— seek to these times to verify the ads.
+                </p>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={downloadProcessedVideo}

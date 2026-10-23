@@ -28,10 +28,27 @@ function getAdSlots(duration) {
   }));
 }
 
-function run(cmd, args) {
+function run(cmd, args, { onProgress } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args);
     let stderr = '';
+    let stdoutBuffer = '';
+    let reportedTime = 0;
+    child.stdout.on('data', (data) => {
+      if (!onProgress) return;
+      stdoutBuffer += data.toString();
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || '';
+      for (const line of lines) {
+        const match = /^out_time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(line);
+        if (!match) continue;
+        const seconds = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+        if (seconds > reportedTime) {
+          reportedTime = seconds;
+          onProgress(seconds);
+        }
+      }
+    });
     child.stderr.on('data', (d) => { stderr += d.toString(); });
     child.on('error', reject);
     child.on('close', (code) => {
@@ -99,15 +116,11 @@ function buildOverlayFilter({ adType, adSize, segDuration }) {
   };
 }
 
-// Re-encodes just the [start, start+dur] window of `srcPath` with the
-// creative overlaid, writing an .mp4 that matches the source's codec so the
-// final concat (-c copy) doesn't choke on mismatched streams.
-async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize, videoCodec, audioCodec, outPath }) {
+// Re-encodes only the short ad window; the rest of an MP4 can stay stream-copied.
+async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize, outPath, onProgress }) {
   const { filter, inputsPerSlot } = buildOverlayFilter({ adType, adSize, segDuration: dur });
   const imageInput = ['-loop', '1', '-framerate', '30', '-i', imagePath];
   const imageInputs = inputsPerSlot === 2 ? [...imageInput, ...imageInput] : imageInput;
-  const vOutLabel = inputsPerSlot === 2 ? '[vout]' : '[vout]';
-
   const args = [
     '-y',
     '-ss', String(start), '-t', String(dur), '-i', srcPath,
@@ -115,32 +128,47 @@ async function renderAdSegment({ srcPath, start, dur, imagePath, adType, adSize,
     '-filter_complex_threads', '1',
     '-filter_threads', '1',
     '-filter_complex', filter,
-    '-map', vOutLabel, '-map', '0:a?',
+    '-map', '[vout]', '-map', '0:a?',
     '-c:v', 'libx264',
     '-preset', 'ultrafast', '-threads', '1', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',
+    '-progress', 'pipe:1', '-nostats',
     '-avoid_negative_ts', 'make_zero',
     '-shortest',
     outPath,
   ];
-  await run(FFMPEG, args);
+  await run(FFMPEG, args, {
+    onProgress: (seconds) => onProgress?.(Math.min(1, seconds / dur)),
+  });
 }
 
-// Fast, lossless cut (no re-encode) of [start, end) (end=null means to EOF).
-async function cutSegmentCopy({ srcPath, start, end, outPath }) {
-  const args = ['-y'];
-  if (start != null) args.push('-ss', String(start));
-  args.push('-i', srcPath);
-  if (end != null) args.push('-t', String(end - (start || 0)));
-  args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero', outPath);
-  await run(FFMPEG, args);
+function buildConcatList(pieces) {
+  const lines = ['ffconcat version 1.0'];
+  for (const piece of pieces) {
+    const pathToFile = typeof piece === 'string' ? piece : piece.path;
+    lines.push(`file '${pathToFile.replace(/'/g, "'\\''")}'`);
+    if (typeof piece !== 'string') {
+      lines.push(`inpoint ${piece.inpoint}`, `outpoint ${piece.outpoint}`);
+    }
+  }
+  return lines.join('\n');
 }
 
-async function concatCopy(pieces, outPath) {
+async function concatCopy(pieces, outPath, { duration, onProgress } = {}) {
   const listPath = outPath + '.list.txt';
-  fs.writeFileSync(listPath, pieces.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'));
-  await run(FFMPEG, ['-y', '-fflags', '+genpts', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-avoid_negative_ts', 'make_zero', outPath]);
-  fs.unlinkSync(listPath);
+  try {
+    fs.writeFileSync(listPath, buildConcatList(pieces));
+    const args = ['-y', '-fflags', '+genpts', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy'];
+    if (onProgress && duration) args.push('-progress', 'pipe:1', '-nostats');
+    args.push('-avoid_negative_ts', 'make_zero', outPath);
+    await run(FFMPEG, args, {
+      onProgress: duration && onProgress
+        ? (seconds) => onProgress(Math.min(1, seconds / duration))
+        : undefined,
+    });
+  } finally {
+    fs.rmSync(listPath, { force: true });
+  }
 }
 
 function buildContinuousOverlayFilter({ activeSlots, duration }) {
@@ -185,7 +213,7 @@ function buildContinuousOverlayFilter({ activeSlots, duration }) {
   return { filter: filters.join(''), inputs, outputLabel: currentVideo };
 }
 
-async function renderContinuousVideo({ srcPath, outPath, activeSlots, duration }) {
+async function renderContinuousVideo({ srcPath, outPath, activeSlots, duration, onProgress }) {
   const { filter, inputs, outputLabel } = buildContinuousOverlayFilter({ activeSlots, duration });
   const args = ['-y', '-i', srcPath];
   for (const input of inputs) args.push('-loop', '1', '-framerate', '30', '-i', input.imagePath);
@@ -193,9 +221,53 @@ async function renderContinuousVideo({ srcPath, outPath, activeSlots, duration }
     '-filter_complex_threads', '1', '-filter_threads', '1', '-filter_complex', filter,
     '-map', outputLabel, '-map', '0:a?', '-c:v', 'libx264', '-preset', 'ultrafast',
     '-threads', '1', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
+    '-progress', 'pipe:1', '-nostats',
     '-t', String(duration), '-avoid_negative_ts', 'make_zero', outPath,
   );
-  await run(FFMPEG, args);
+  await run(FFMPEG, args, {
+    onProgress: (seconds) => onProgress?.(Math.min(1, seconds / duration)),
+  });
+}
+
+async function renderSegmentedVideo({ srcPath, outPath, activeSlots, duration, tmpDir, onProgress }) {
+  const pieces = [];
+  let cursor = 0;
+  const progressPerSlot = 0.8 / activeSlots.length;
+
+  for (let index = 0; index < activeSlots.length; index += 1) {
+    const slot = activeSlots[index];
+    const slotEnd = Math.min(duration, slot.time + AD_WINDOW_SEC);
+    if (slot.time > cursor) {
+      pieces.push({ path: srcPath, inpoint: cursor, outpoint: slot.time });
+    }
+
+    const adPath = path.join(tmpDir, `ad-${index}.mp4`);
+    await renderAdSegment({
+      srcPath,
+      start: slot.time,
+      dur: slotEnd - slot.time,
+      imagePath: slot.imagePath,
+      adType: slot.claim.adType,
+      adSize: slot.claim.adSize,
+      outPath: adPath,
+      onProgress: (segmentProgress) => onProgress(
+        0.1 + (index * progressPerSlot) + (segmentProgress * progressPerSlot),
+        `Rendering ad ${index + 1} of ${activeSlots.length}…`,
+      ),
+    });
+    pieces.push(adPath);
+    cursor = slotEnd;
+  }
+
+  if (cursor < duration) {
+    pieces.push({ path: srcPath, inpoint: cursor, outpoint: duration });
+  }
+
+  onProgress(0.92, 'Joining video segments…');
+  await concatCopy(pieces, outPath, {
+    duration,
+    onProgress: (progress) => onProgress(0.92 + (progress * 0.06), 'Joining video segments…'),
+  });
 }
 
 /**
@@ -205,14 +277,13 @@ async function renderContinuousVideo({ srcPath, outPath, activeSlots, duration }
  */
 async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ypr_adjob_'));
-  const cleanupPaths = [tmpDir];
 
   try {
     onProgress(5, 'Inspecting video…');
     const info = await probeJson(srcPath);
     const duration = parseFloat(info.format?.duration || '0');
     const vStream = (info.streams || []).find((s) => s.codec_type === 'video');
-    const videoCodec = vStream?.codec_name || 'h264';
+    const audioStream = (info.streams || []).find((stream) => stream.codec_type === 'audio');
 
     if (vStream?.width > 1920 || vStream?.height > 1080) {
       throw new Error('Video resolution is too high; export the video at 1080p or lower');
@@ -242,7 +313,39 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
     }
 
     onProgress(40, 'Rendering ad overlay…');
-    await renderContinuousVideo({ srcPath, outPath, activeSlots, duration });
+    const canRenderAdSegments = path.extname(srcPath).toLowerCase() === '.mp4'
+      && vStream?.codec_name === 'h264'
+      && (!audioStream || audioStream.codec_name === 'aac');
+    if (canRenderAdSegments) {
+      try {
+        await renderSegmentedVideo({
+          srcPath,
+          outPath,
+          activeSlots,
+          duration,
+          tmpDir,
+          onProgress: (progress, message) => onProgress(40 + Math.round(progress * 50), message),
+        });
+      } catch (err) {
+        console.error('[videoAdInjector] Segmented MP4 rendering failed; retrying with full video encoding:', err.message);
+        onProgress(40, 'Retrying with full video encoding…');
+        await renderContinuousVideo({
+          srcPath,
+          outPath,
+          activeSlots,
+          duration,
+          onProgress: (progress) => onProgress(40 + Math.round(progress * 50), 'Rendering ad overlay…'),
+        });
+      }
+    } else {
+      await renderContinuousVideo({
+        srcPath,
+        outPath,
+        activeSlots,
+        duration,
+        onProgress: (progress) => onProgress(40 + Math.round(progress * 50), 'Rendering ad overlay…'),
+      });
+    }
     onProgress(90, 'Finishing video…');
     onProgress(100, 'Done');
   } finally {
@@ -250,4 +353,4 @@ async function injectAds({ srcPath, outPath, claims, onProgress = () => {} }) {
   }
 }
 
-module.exports = { injectAds, getAdSlots, AD_WINDOW_SEC, buildContinuousOverlayFilter };
+module.exports = { injectAds, getAdSlots, AD_WINDOW_SEC, buildContinuousOverlayFilter, buildConcatList };

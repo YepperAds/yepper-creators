@@ -1844,6 +1844,9 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
   }, 1000);
 
   const videoPath = videoFile.path;
+  let lastSavedProgress = -1;
+  let lastProgressMessage = '';
+  let progressWrites = Promise.resolve();
   const cleanup = () => { try { fs.unlinkSync(videoPath); } catch {} };
 
   try {
@@ -1873,8 +1876,16 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
       srcPath: videoPath,
       outPath,
       claims,
-      onProgress: (pct, message) => { updateAdVideoJob(jobId, { progress: pct, stage_message: message }).catch(() => {}); },
+      onProgress: (pct, message) => {
+        if (pct - lastSavedProgress < 1 && message === lastProgressMessage) return;
+        lastSavedProgress = pct;
+        lastProgressMessage = message;
+        progressWrites = progressWrites
+          .then(() => updateAdVideoJob(jobId, { progress: pct, stage_message: message }))
+          .catch((err) => console.error(`[creators] adVideoJob#${jobId} progress update failed:`, err));
+      },
     });
+    await progressWrites;
     memLog(`adVideoJob#${jobId}:after-inject`);
     cleanup();
 
@@ -1941,7 +1952,15 @@ exports.getAdVideoJobStatus = async (req, res) => {
   if (!session) return res.status(401).json({ success: false });
 
   const jobRes = await query(
-    `SELECT id, status, stage_message, progress, result, error_message, error_code FROM ad_video_jobs WHERE id=$1 AND creator_id=$2`,
+    `SELECT job.id, job.status, job.stage_message, job.progress, job.result,
+            job.error_message, job.error_code,
+            CASE WHEN job.status IN ('queued', 'processing') THEN (
+              SELECT COUNT(*) FROM ad_video_jobs AS waiting
+              WHERE waiting.status IN ('queued', 'processing')
+                AND (waiting.created_at < job.created_at
+                  OR (waiting.created_at = job.created_at AND waiting.id <= job.id))
+            ) ELSE 0 END AS queue_position
+     FROM ad_video_jobs AS job WHERE job.id=$1 AND job.creator_id=$2`,
     [req.params.id, session],
   );
   if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });

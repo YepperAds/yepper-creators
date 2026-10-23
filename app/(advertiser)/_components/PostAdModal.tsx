@@ -35,6 +35,29 @@ function formatTime(seconds: number): string {
 
 interface AdSlot { key: string; label: string; time: number; }
 interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
+interface AdVideoJobStatus {
+  status: string;
+  stage_message?: string;
+  progress?: number;
+  queue_position?: number;
+  error_message?: string;
+}
+interface AdVideoUploadResponse {
+  success?: boolean;
+  data?: { jobId?: string | number };
+  message?: string;
+}
+interface DownloadWritable {
+  write(data: Uint8Array): Promise<void>;
+  close(): Promise<void>;
+  abort(): Promise<void>;
+}
+interface DownloadFileHandle {
+  createWritable(): Promise<DownloadWritable>;
+}
+interface WindowWithFilePicker extends Window {
+  showSaveFilePicker?: (options: { suggestedName: string }) => Promise<DownloadFileHandle>;
+}
 
 function getAdSlots(duration: number): AdSlot[] {
   return PERCENTAGE_SLOTS.map((slot) => ({
@@ -68,6 +91,7 @@ export default function PostAdModal({
   const [adDescription, setAdDescription]       = useState('');
   const [adPrivacy, setAdPrivacy]               = useState<'public' | 'unlisted'>('public');
   const [adUploading, setAdUploading]           = useState(false);
+  const [uploadProgress, setUploadProgress]     = useState(0);
   const [adUploadResult, setAdUploadResult]     = useState<{ trackingCode: string; videoUrl: string | null } | null>(null);
   const [adUploadError, setAdUploadError]       = useState('');
 
@@ -75,8 +99,11 @@ export default function PostAdModal({
   // 'job' tracks that processing job; once it's done, 'pendingPost' holds the
   // tracking code (to paste into the description) and the download is ready.
   const [jobId, setJobId]                       = useState<string | null>(null);
-  const [jobStatus, setJobStatus]               = useState<{ status: string; stage_message?: string; progress?: number } | null>(null);
+  const [jobStatus, setJobStatus]               = useState<AdVideoJobStatus | null>(null);
   const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string } | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloaded, setDownloaded]             = useState(false);
+  const [downloading, setDownloading]           = useState(false);
   const [publishedUrl, setPublishedUrl]         = useState('');
   const [confirming, setConfirming]             = useState(false);
   const [copied, setCopied]                     = useState(false);
@@ -103,37 +130,48 @@ export default function PostAdModal({
   };
 
   useEffect(() => {
-    if (open) {
-      setAdFile(null);
-      setAdTitle('');
-      setAdDescription('');
-      setAdPrivacy('public');
-      setAdUploading(false);
-      setAdUploadResult(null);
-      setAdUploadError('');
-      setJobId(null);
-      setJobStatus(null);
-      setPendingPost(null);
-      setPublishedUrl('');
-      setConfirming(false);
-      setCopied(false);
-      setVideoDuration(null);
-      setVideoResolutionValid(null);
-      setIncludedSlots([]);
-      setPrevSlotsKey('');
-      setPendingClaims([]);
-    }
+    if (!open || !provider) return;
+    const savedJobId = window.sessionStorage.getItem(`yepper-ad-video-job:${provider}`);
+    setAdFile(null);
+    setAdTitle('');
+    setAdDescription('');
+    setAdPrivacy('public');
+    setAdUploading(!!savedJobId);
+    setUploadProgress(0);
+    setAdUploadResult(null);
+    setAdUploadError('');
+    setJobId(savedJobId);
+    setJobStatus(null);
+    setPendingPost(null);
+    setDownloadProgress(null);
+    setDownloaded(false);
+    setDownloading(false);
+    setPublishedUrl('');
+    setConfirming(false);
+    setCopied(false);
+    setVideoDuration(null);
+    setVideoResolutionValid(null);
+    setIncludedSlots([]);
+    setPrevSlotsKey('');
+    setPendingClaims([]);
   }, [open, provider]);
 
   // Poll the processing job until it's done (or errors out).
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId || !open) return;
     let cancelled = false;
     const tick = async () => {
       try {
         const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}`);
         const json = await res.json();
-        if (cancelled || !json?.success) return;
+        if (cancelled) return;
+        if (!json?.success) {
+          setAdUploadError(json?.message || 'Could not retrieve video processing status. Reopen the upload to try again.');
+          setAdUploading(false);
+          window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
+          setJobId(null);
+          return;
+        }
         setJobStatus(json.data);
         if (json.data.status === 'done') {
           const result = json.data.result ? (typeof json.data.result === 'string' ? JSON.parse(json.data.result) : json.data.result) : null;
@@ -142,6 +180,7 @@ export default function PostAdModal({
         } else if (json.data.status === 'error') {
           setAdUploadError(json.data.error_message || 'Processing failed, please try again');
           setAdUploading(false);
+          window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
           setJobId(null);
         } else {
           setTimeout(tick, 2000);
@@ -153,7 +192,7 @@ export default function PostAdModal({
     tick();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, open, provider]);
 
   // Pull any ad spaces an advertiser has already claimed for this creator,
   // shown immediately, independent of picking a video, so the creator can
@@ -217,7 +256,7 @@ export default function PostAdModal({
   if (!open || !provider) return null;
   if (provider === 'tiktok') return <TikTokSponsoredPosts onClose={onClose} />;
 
-  const close = () => { if (!adUploading) onClose(); };
+  const close = () => { if (!adUploading || jobId) onClose(); };
 
   // Step 1: upload the raw video — Yepper injects the claimed creative(s)
   // server-side and queues a processing job.
@@ -237,6 +276,7 @@ export default function PostAdModal({
     }
     if (videoResolutionValid === false) return;
     setAdUploading(true);
+    setUploadProgress(0);
     setAdUploadError('');
     try {
       const form = new FormData();
@@ -247,20 +287,40 @@ export default function PostAdModal({
       if (hasRelevantClaims && includedSlots.length) {
         form.append('claimedSlotTypes', JSON.stringify(includedSlots));
       }
-      const res = await authedFetch(`${BACKEND_URL}/api/social/post-ad/${provider}`, {
-        method: 'POST',
-        body: form,
+      const token = getToken();
+      const uploadResult = await new Promise<{ status: number; data: AdVideoUploadResponse }>((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open('POST', `${BACKEND_URL}/api/social/post-ad/${provider}`);
+        request.withCredentials = true;
+        if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
+        request.upload.onprogress = (event) => {
+          if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        };
+        request.onerror = () => reject(new Error('Upload failed. Check your connection and try again.'));
+        request.onabort = () => reject(new Error('Upload was cancelled.'));
+        request.onload = () => {
+          try {
+            const payload: unknown = JSON.parse(request.responseText);
+            if (!payload || typeof payload !== 'object') throw new Error();
+            resolve({ status: request.status, data: payload as AdVideoUploadResponse });
+          } catch {
+            reject(new Error(`The server returned an invalid response (${request.status}).`));
+          }
+        };
+        request.send(form);
       });
-      const json = await res.json();
-      if (!json?.success || !json.data?.jobId) {
+      const json = uploadResult.data;
+      if (uploadResult.status < 200 || uploadResult.status >= 300 || !json?.success || !json.data?.jobId) {
         setAdUploadError(json?.message || 'Could not start processing, please try again');
         setAdUploading(false);
         return;
       }
+      setUploadProgress(100);
       setJobId(String(json.data.jobId));
-      setJobStatus({ status: 'queued', stage_message: 'Queued…', progress: 0 });
-    } catch {
-      setAdUploadError('Something went wrong, please try again');
+      window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(json.data.jobId));
+      setJobStatus({ status: 'queued', stage_message: 'Waiting for an available processing slot…', progress: 0, queue_position: 1 });
+    } catch (err) {
+      setAdUploadError(err instanceof Error ? err.message : 'Something went wrong, please try again');
       setAdUploading(false);
     }
   };
@@ -304,26 +364,85 @@ export default function PostAdModal({
   };
 
   const downloadProcessedVideo = async () => {
-    if (!jobId) return;
+    if (!jobId || downloading) return;
+    setDownloading(true);
+    setDownloadProgress(0);
     setAdUploadError('');
+    let writable: DownloadWritable | null = null;
     try {
+      const pickerWindow = window as WindowWithFilePicker;
+      const fileHandle = pickerWindow.showSaveFilePicker
+        ? await pickerWindow.showSaveFilePicker({ suggestedName: 'yepper-ad-video.mp4' })
+        : null;
       const response = await authedFetch(`${BACKEND_URL}/api/social/post-ad/jobs/${jobId}/download`);
       if (!response.ok) {
-        const message = await response.json().catch(() => null);
-        setAdUploadError(message?.message || `Download failed (${response.status})`);
+        const message: { message?: string } = await response.json().catch(() => ({}));
+        throw new Error(message.message || `Download failed (${response.status})`);
+      }
+
+      const totalBytes = Number(response.headers.get('content-length')) || 0;
+      if (!response.body) throw new Error('Your browser cannot stream this download. Please try a current version of Chrome or Edge.');
+      const reader = response.body.getReader();
+      let receivedBytes = 0;
+      if (fileHandle) {
+        writable = await fileHandle.createWritable();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writable.write(value);
+          receivedBytes += value.byteLength;
+          if (totalBytes) setDownloadProgress(Math.min(99, Math.round((receivedBytes / totalBytes) * 100)));
+        }
+        await writable.close();
+        writable = null;
+      } else {
+        const chunks: BlobPart[] = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedBytes += value.byteLength;
+          if (totalBytes) setDownloadProgress(Math.min(99, Math.round((receivedBytes / totalBytes) * 100)));
+        }
+        const blobUrl = URL.createObjectURL(new Blob(chunks));
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = 'yepper-ad-video.mp4';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      }
+      setDownloadProgress(100);
+      setDownloaded(true);
+    } catch (err) {
+      if (writable) await writable.abort().catch(() => {});
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setDownloadProgress(null);
         return;
       }
-      const blobUrl = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = 'yepper-processed-video.mp4';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      setAdUploadError('Could not download the processed video, please try again');
+      setAdUploadError(err instanceof Error ? err.message : 'Could not download the processed video, please try again');
+      setDownloadProgress(null);
+    } finally {
+      setDownloading(false);
     }
+  };
+
+  const startAnotherVideo = () => {
+    if (!provider || !downloaded) return;
+    window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
+    setJobId(null);
+    setJobStatus(null);
+    setPendingPost(null);
+    setAdFile(null);
+    setAdUploading(false);
+    setUploadProgress(0);
+    setVideoDuration(null);
+    setVideoResolutionValid(null);
+    setIncludedSlots([]);
+    setDownloadProgress(null);
+    setDownloaded(false);
+    setAdUploadError('');
   };
 
   return (
@@ -339,20 +458,39 @@ export default function PostAdModal({
               Upload your video — we inject the ad, you download it and publish it yourself.
             </p>
           </div>
-          <button onClick={close} disabled={adUploading} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
+          <button onClick={close} disabled={adUploading && !jobId} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
             <XMarkIcon className="w-5 h-5 text-(--color-muted)" />
           </button>
         </div>
 
-        {jobId && !pendingPost ? (
+        {adUploading && !jobId ? (
+          <div className="space-y-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4" aria-live="polite">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-(--color-white)">Uploading video to the processing queue…</p>
+              <p className="shrink-0 text-xs font-bold text-(--color-white)">{uploadProgress}%</p>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-3)">
+              <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <p className="text-[10px] text-(--color-muted)">Keep this window open until the upload finishes. Processing will continue in the background after it is queued.</p>
+          </div>
+        ) : jobId && !pendingPost ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 text-center space-y-3">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-3" aria-live="polite">
               <FilmIcon className="w-8 h-8 text-(--color-muted) mx-auto animate-pulse" />
-              <p className="text-sm font-medium text-(--color-white)">{jobStatus?.stage_message || 'Processing…'}</p>
+              <p className="text-center text-sm font-medium text-(--color-white)">
+                {jobStatus?.status === 'queued'
+                  ? `Waiting for processing${jobStatus.queue_position && jobStatus.queue_position > 1 ? ` — position ${jobStatus.queue_position} in queue` : '…'}`
+                  : jobStatus?.stage_message || 'Processing…'}
+              </p>
               <div className="w-full h-2 rounded-full bg-(--color-surface-3) overflow-hidden">
                 <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${jobStatus?.progress ?? 0}%` }} />
               </div>
-              <p className="text-[10px] text-(--color-muted)">This can take a while for long videos — you can close this and check back.</p>
+              <div className="flex items-center justify-between text-[10px] text-(--color-muted)">
+                <span>{jobStatus?.status === 'queued' ? 'Queued' : 'Video processing'}</span>
+                <span>{jobStatus?.progress ?? 0}%</span>
+              </div>
+              <p className="text-[10px] text-(--color-muted)">Long videos can take time on the free processing service. You can close this window; the job will keep running in the queue.</p>
             </div>
             {adUploadError && (
               <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
@@ -366,11 +504,35 @@ export default function PostAdModal({
             <button
               type="button"
               onClick={downloadProcessedVideo}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white"
+              disabled={downloading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-70"
             >
               <ArrowDownTrayIcon className="w-4 h-4" />
-              Download processed video
+              {downloading
+                ? `Saving video… ${downloadProgress ?? 0}%`
+                : downloaded
+                  ? 'Downloaded — download again'
+                  : 'Download processed video'}
             </button>
+            {downloadProgress !== null && (
+              <div className="space-y-1" aria-live="polite">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-3)">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                </div>
+                <p className="text-right text-[10px] text-(--color-muted)">
+                  {downloading ? `${downloadProgress}% downloaded` : downloaded ? 'Download complete' : ''}
+                </p>
+              </div>
+            )}
+            {downloaded && (
+              <button
+                type="button"
+                onClick={startAnotherVideo}
+                className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-2) py-2.5 text-sm font-semibold text-(--color-white) hover:bg-(--color-surface-3)"
+              >
+                Process another video
+              </button>
+            )}
 
             <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-2">
               <p className="text-xs font-bold text-(--color-muted) uppercase">1. Add this tracking ID to your description</p>

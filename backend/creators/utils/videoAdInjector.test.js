@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
+const { buildContinuousOverlayFilter, buildConcatList, getAdSlots } = require('./videoAdInjector');
 const { normalizeActiveSlots } = require('../controllers/adSpaceController');
 
 test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
@@ -16,6 +16,30 @@ test('getAdSlots uses fixed percentage markers for every video length', () => {
     { key: '65pct', time: 78 },
     { key: '85pct', time: 102 },
   ]);
+  assert.deepStrictEqual(getAdSlots(7200), [
+    { key: '8pct', time: 576 },
+    { key: '25pct', time: 1800 },
+    { key: '45pct', time: 3240 },
+    { key: '65pct', time: 4680 },
+    { key: '85pct', time: 6120 },
+  ]);
+});
+
+test('concat list references original video ranges without making full-size temporary cuts', () => {
+  assert.equal(buildConcatList([
+    { path: 'source.mp4', inpoint: 0, outpoint: 20 },
+    'ad.mp4',
+    { path: 'source.mp4', inpoint: 26, outpoint: 60 },
+  ]), [
+    'ffconcat version 1.0',
+    "file 'source.mp4'",
+    'inpoint 0',
+    'outpoint 20',
+    "file 'ad.mp4'",
+    "file 'source.mp4'",
+    'inpoint 26',
+    'outpoint 60',
+  ].join('\n'));
 });
 
 test('overlay filter gates the ad to the exact slot window', () => {

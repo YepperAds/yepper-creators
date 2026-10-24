@@ -4,6 +4,7 @@ const express    = require('express');
 const multer     = require('multer');
 const os         = require('os');
 const path       = require('path');
+const crypto     = require('crypto');
 const router     = express.Router();
 const controller = require('../controllers/creatorController');
 const adSpaces   = require('../controllers/adSpaceController');
@@ -19,7 +20,7 @@ const videoUpload = multer({
   // route only ever receives the finished video file, never a creative image.
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, os.tmpdir()),
-    filename:    (req, file, cb) => cb(null, `ypr_ad_video_${Date.now()}${path.extname(file.originalname) || '.mp4'}`),
+    filename:    (req, file, cb) => cb(null, `ypr_ad_video_${crypto.randomUUID()}${path.extname(file.originalname) || '.mp4'}`),
   }),
   // Multer's diskStorage streams straight to disk rather than
   // buffering in memory, so this is just a ceiling on source footage size,

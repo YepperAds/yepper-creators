@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AD_WINDOW_SEC, buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
-const { buildVideoTransformations } = require('./videoCloudinary');
+const { buildVideoTransformations, uploadVideoFile } = require('./videoCloudinary');
 const { normalizeActiveSlots } = require('../controllers/adSpaceController');
 
 test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
@@ -92,4 +92,14 @@ test('Cloudinary L-bar transformation creates both timed banner strips', () => {
   assert.equal(transformations[2].gravity, 'west');
   assert.equal(transformations[4].width, 192);
   assert.equal(transformations[5].gravity, 'south');
+});
+
+test('Cloudinary video upload rejects a missing source file without creating an unhandled stream error', async () => {
+  const cloudinary = require('cloudinary').v2;
+  const missingPath = require('path').join(require('os').tmpdir(), `missing-video-${require('crypto').randomUUID()}.mp4`);
+
+  await assert.rejects(
+    uploadVideoFile(cloudinary, missingPath, {}),
+    { code: 'ENOENT' },
+  );
 });

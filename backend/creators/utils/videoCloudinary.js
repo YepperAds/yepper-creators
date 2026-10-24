@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { AD_FORMATS } = require('./adOverlay');
 const { AD_WINDOW_SEC, getAdSlots } = require('./videoAdInjector');
@@ -71,6 +72,35 @@ async function uploadVideoCreative(videoCloudinary, config, imageUrl, publicId) 
   return result;
 }
 
+async function uploadVideoFile(videoCloudinary, srcPath, options) {
+  await fs.promises.access(srcPath, fs.constants.R_OK);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const sourceStream = fs.createReadStream(srcPath);
+    const uploadStream = videoCloudinary.uploader.upload_chunked_stream(options, (error, result) => {
+      if (error) {
+        fail(error);
+      } else if (!settled) {
+        settled = true;
+        resolve(result);
+      }
+    });
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      sourceStream.destroy();
+      uploadStream.destroy();
+      reject(error);
+    };
+
+    sourceStream.on('error', fail);
+    uploadStream.on('error', fail);
+    sourceStream.pipe(uploadStream);
+  });
+}
+
 async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress }) {
   const { client: videoCloudinary, config } = getVideoCloudinary();
   let source;
@@ -78,7 +108,7 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
 
   try {
     onProgress(42, 'Uploading video to the dedicated video processor…');
-    source = await videoCloudinary.uploader.upload_large(srcPath, {
+    source = await uploadVideoFile(videoCloudinary, srcPath, {
       ...config,
       resource_type: 'video',
       type: 'authenticated',
@@ -171,4 +201,4 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
   }
 }
 
-module.exports = { buildVideoTransformations, getVideoCloudinary, renderVideoWithCloudinary };
+module.exports = { buildVideoTransformations, getVideoCloudinary, renderVideoWithCloudinary, uploadVideoFile };

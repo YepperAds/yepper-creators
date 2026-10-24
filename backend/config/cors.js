@@ -18,6 +18,10 @@ const allowedOrigins = [
   'https://yepper-creators-api.onrender.com',
   process.env.FRONTEND_URL,
   process.env.FRONTEND_ORIGIN,
+  ...(process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 ].filter(Boolean);
 
 const allowNullOriginPaths = [
@@ -65,6 +69,7 @@ function corsMiddleware(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control, x-node-key, x-node-ref');
+    res.header('Vary', 'Origin');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     return next();
   }
@@ -76,6 +81,7 @@ function corsMiddleware(req, res, next) {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control');
+    res.header('Vary', 'Origin');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     return next();
   }
@@ -86,6 +92,7 @@ function corsMiddleware(req, res, next) {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control, x-node-key, x-node-ref');
     res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range, X-Content-Range');
+    res.header('Vary', 'Origin');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     return next();
   }

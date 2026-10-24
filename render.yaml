@@ -14,6 +14,8 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://yepper.cc,https://www.yepper.cc
       - key: VID_CLOUDINARY_NAME
         sync: false
       - key: VID_CLOUDINARY_KEY

@@ -1,9 +1,77 @@
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const cloudinary = require('cloudinary').v2;
 const { AD_FORMATS } = require('./adOverlay');
 const { AD_WINDOW_SEC, getAdSlots } = require('./videoAdInjector');
+const pendingEagerRenders = new Map();
+
+function waitForEagerRender(jobId, timeoutMs = 45 * 60 * 1000) {
+  let timer;
+  const promise = new Promise((resolve, reject) => {
+    timer = setTimeout(() => {
+      pendingEagerRenders.delete(String(jobId));
+      reject(new Error('Timed out waiting for Cloudinary eager-render notification'));
+    }, timeoutMs);
+    pendingEagerRenders.set(String(jobId), {
+      resolve: (value) => {
+        clearTimeout(timer);
+        pendingEagerRenders.delete(String(jobId));
+        resolve(value);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        pendingEagerRenders.delete(String(jobId));
+        reject(error);
+      },
+    });
+  });
+  return promise;
+}
+
+function cancelEagerRenderWait(jobId, error) {
+  pendingEagerRenders.get(String(jobId))?.reject(error);
+}
+
+function completeEagerRenderWait(jobId, result) {
+  pendingEagerRenders.get(String(jobId))?.resolve(result);
+}
+
+function acceptEagerRenderNotification({ jobId, rawBody, timestamp, signature }) {
+  const { config } = getVideoCloudinary();
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isInteger(timestampSeconds) || Math.abs(Date.now() / 1000 - timestampSeconds) > 7200) {
+    throw new Error('Cloudinary notification timestamp is invalid or expired');
+  }
+
+  const expected = cloudinary.utils.webhook_signature(rawBody, timestampSeconds, {
+    api_secret: config.api_secret,
+  });
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(signature || '');
+  if (expectedBuffer.length !== receivedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
+    throw new Error('Cloudinary notification signature is invalid');
+  }
+
+  const waiter = pendingEagerRenders.get(String(jobId));
+  if (!waiter) return false;
+
+  let notification;
+  try {
+    notification = JSON.parse(rawBody);
+  } catch {
+    throw new Error('Cloudinary notification body is not valid JSON');
+  }
+
+  const eagerResult = notification.eager?.find((item) => item.status === 'complete' || item.secure_url || item.error);
+  if (!eagerResult || eagerResult.error || (eagerResult.status && eagerResult.status !== 'complete' && !eagerResult.secure_url)) {
+    waiter.reject(new Error(`Cloudinary eager render failed: ${getEagerRenderFailure(notification)}`));
+  } else {
+    waiter.resolve(eagerResult);
+  }
+  return true;
+}
 
 function getVideoCloudinary() {
   const config = {
@@ -157,24 +225,33 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
     });
     const transformationString = videoCloudinary.utils.generate_transformation_string(transformations);
     const eagerTransformation = `${transformationString}/mp4`;
+    const workerUrl = process.env.VIDEO_WORKER_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL;
+    if (!workerUrl) {
+      throw new Error('Cloudinary async rendering requires VIDEO_WORKER_PUBLIC_URL or Render’s RENDER_EXTERNAL_URL');
+    }
+    const renderNotification = waitForEagerRender(jobId);
     onProgress(65, 'Rendering the ad-injected video in Cloudinary…');
 
-    const rendered = await videoCloudinary.uploader.explicit(source.public_id, {
-      ...config,
-      resource_type: 'video',
-      type: 'authenticated',
-      eager: [eagerTransformation],
-      eager_async: false,
-    });
-    const completedRender = rendered.eager?.find((item) => item.status === 'complete' || item.secure_url);
-    if (!completedRender) {
-      const detail = getEagerRenderFailure(rendered);
-      console.error(`[videoCloudinary] Eager render failed for job ${jobId}:`, JSON.stringify({
-        eager: rendered.eager?.map(({ status, error, transformation }) => ({ status, error, transformation })),
-        error: rendered.error,
-      }));
-      throw new Error(`Cloudinary did not finish rendering the ad-injected video: ${detail}`);
+    try {
+      const rendered = await videoCloudinary.uploader.explicit(source.public_id, {
+        ...config,
+        resource_type: 'video',
+        type: 'authenticated',
+        eager: [eagerTransformation],
+        eager_async: true,
+        eager_notification_url: `${workerUrl.replace(/\/$/, '')}/api/social/post-ad/cloudinary-callback/${jobId}`,
+      });
+      const immediatelyCompleted = rendered.eager?.find((item) => item.status === 'complete' || item.secure_url);
+      if (immediatelyCompleted) {
+        completeEagerRenderWait(jobId, immediatelyCompleted);
+      }
+    } catch (error) {
+      cancelEagerRenderWait(jobId, error);
+      await renderNotification.catch(() => {});
+      throw error;
     }
+    onProgress(75, 'Cloudinary is rendering the video asynchronously…');
+    const completedRender = await renderNotification;
 
     const outputUrl = completedRender.secure_url || videoCloudinary.url(source.public_id, {
       ...config,
@@ -216,4 +293,14 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
   }
 }
 
-module.exports = { buildVideoTransformations, getEagerRenderFailure, getVideoCloudinary, renderVideoWithCloudinary, uploadVideoFile };
+module.exports = {
+  acceptEagerRenderNotification,
+  buildVideoTransformations,
+  cancelEagerRenderWait,
+  completeEagerRenderWait,
+  getEagerRenderFailure,
+  getVideoCloudinary,
+  renderVideoWithCloudinary,
+  uploadVideoFile,
+  waitForEagerRender,
+};

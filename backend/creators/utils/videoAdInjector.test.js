@@ -1,7 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AD_WINDOW_SEC, buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
-const { buildVideoTransformations, getEagerRenderFailure, uploadVideoFile } = require('./videoCloudinary');
+const {
+  acceptEagerRenderNotification,
+  buildVideoTransformations,
+  getEagerRenderFailure,
+  uploadVideoFile,
+  waitForEagerRender,
+} = require('./videoCloudinary');
 const { normalizeActiveSlots } = require('../controllers/adSpaceController');
 
 test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
@@ -107,6 +113,21 @@ test('Cloudinary eager render failure includes the provider error detail', () =>
     getEagerRenderFailure({ eager: [{ status: 'failed' }] }),
     'failed',
   );
+});
+
+test('Cloudinary eager-render callback verifies its signature and resolves the matching job', async () => {
+  process.env.VID_CLOUDINARY_NAME = 'test-cloud';
+  process.env.VID_CLOUDINARY_KEY = 'test-key';
+  process.env.VID_CLOUDINARY_API_SECRET = 'test-secret';
+  const jobId = `test-${require('crypto').randomUUID()}`;
+  const rawBody = JSON.stringify({ eager: [{ status: 'complete', secure_url: 'https://res.cloudinary.com/test/video/upload/rendered.mp4' }] });
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const cloudinary = require('cloudinary').v2;
+  const signature = cloudinary.utils.webhook_signature(rawBody, Number(timestamp), { api_secret: 'test-secret' });
+  const renderPromise = waitForEagerRender(jobId);
+
+  assert.equal(acceptEagerRenderNotification({ jobId, rawBody, timestamp, signature }), true);
+  assert.deepEqual(await renderPromise, JSON.parse(rawBody).eager[0]);
 });
 
 test('Cloudinary video upload rejects a missing source file without creating an unhandled stream error', async () => {

@@ -17,12 +17,32 @@ const cors = require('../config/cors');
 const { pool } = require('../config/db');
 const { initCreatorsDatabase } = require('./models/initDb');
 const creatorsRouter = require('./routes/creatorRoutes');
+const { acceptEagerRenderNotification } = require('./utils/videoCloudinary');
 
 const app = express();
 
 app.set('trust proxy', 1);
 
 app.use(cors);
+app.post(
+  '/api/social/post-ad/cloudinary-callback/:jobId',
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  (req, res) => {
+    try {
+      const accepted = acceptEagerRenderNotification({
+        jobId: req.params.jobId,
+        rawBody: req.body.toString('utf8'),
+        timestamp: req.get('X-Cld-Timestamp'),
+        signature: req.get('X-Cld-Signature'),
+      });
+      if (!accepted) return res.status(404).json({ error: 'No active render is waiting for this job' });
+      return res.sendStatus(200);
+    } catch (err) {
+      console.error('[worker] Invalid Cloudinary render notification:', err.message);
+      return res.status(401).json({ error: 'Invalid Cloudinary render notification' });
+    }
+  },
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());

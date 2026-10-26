@@ -12,7 +12,7 @@ const claimPayment = require('../controllers/youtubeClaimPaymentController');
 const youtubeSubscription = require('../controllers/youtubeSubscriptionController');
 const tiktokSponsorship = require('../controllers/tiktokSponsorshipController');
 
-const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 750);
+const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 100);
 
 const videoUpload = multer({
   // The creator edits the advertiser's creative into their video themselves

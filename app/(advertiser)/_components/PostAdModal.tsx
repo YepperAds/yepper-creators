@@ -18,7 +18,8 @@ const DEDICATED_VIDEO_API_URL = process.env.NEXT_PUBLIC_AD_VIDEO_API_URL;
 const VIDEO_API_URL = (
   DEDICATED_VIDEO_API_URL || BACKEND_URL
 ).replace(/\/$/, '');
-const MAX_VIDEO_SIZE_BYTES = 750 * 1024 * 1024;
+const MAX_VIDEO_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_AD_VIDEO_SIZE_MB || 100);
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const MAX_VIDEO_WIDTH = 3840;
 const MAX_VIDEO_HEIGHT = 2160;
@@ -309,7 +310,7 @@ export default function PostAdModal({
       );
     }
     if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
-      setAdUploadError('Video is too large. Please choose a file no larger than 750 MB.');
+      setAdUploadError(`Video exceeds the current processor limit of ${MAX_VIDEO_SIZE_MB} MB. Compress it or use a smaller file.`);
       return;
     }
     if (videoDuration == null) {
@@ -672,7 +673,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Limit: 750 MB, 2 hours, and 4K. Desktop Chrome or Edge recommended.</p>
+              <p className="text-[10px] text-(--color-muted)">Limit: {MAX_VIDEO_SIZE_MB} MB, 2 hours, and 4K. The size limit depends on the video processor plan.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

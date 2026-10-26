@@ -70,7 +70,11 @@ test('Cloudinary video transformation places the claimed image at the selected s
   const cloudinary = require('cloudinary').v2;
   const transformationString = cloudinary.utils.generate_transformation_string(transformations);
   assert.match(transformationString, /l_authenticated:yepper:jobs:1:creative-0/);
-  assert.match(transformationString, /du_15,so_30,g_south_east,x_20,y_20,fl_layer_apply/);
+  assert.match(transformationString, /du_15,fl_layer_apply,g_south_east,so_30,x_20,y_20/);
+  assert.equal(
+    cloudinary.utils.build_eager([`${transformationString}/mp4`]),
+    `${transformationString}/mp4`,
+  );
 });
 
 test('Cloudinary L-bar transformation creates both timed banner strips', () => {

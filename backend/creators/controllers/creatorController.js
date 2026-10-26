@@ -18,6 +18,22 @@ const { generateFlutterwavePaymentUrl, verifyFlutterwaveTransaction, upsertWalle
 const { priceFor } = require('../utils/youtubeTierPricing');
 const { fetchLatestTikTokVideo } = require('./tiktokSponsorshipController');
 const { AD_SIZES } = require('../utils/adOverlay');
+const { getAdSlots } = require('../utils/videoAdInjector');
+const {
+  abortVideoMultipartUpload,
+  buildMediaConvertInsertableImages,
+  buildMediaConvertSettings,
+  completeVideoMultipartUpload,
+  createOutputDownloadUrl,
+  createPartUploadUrl,
+  createVideoMultipartUpload,
+  getAwsVideoConfig,
+  getCompletedVideoSize,
+  getMediaConvertJob,
+  getMultipartPartCount,
+  MULTIPART_PART_SIZE,
+  submitMediaConvertJob,
+} = require('../utils/awsVideoPipeline');
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
 
@@ -1680,6 +1696,308 @@ async function fetchPublicYoutubeVideo(videoId, creatorId) {
 // videoAdInjector), the creator downloads the processed file at its
 // original quality, and publishes it themselves on their own channel — no
 // upload/manage OAuth scope on their account is ever needed for this.
+const MAX_AWS_VIDEO_SIZE_BYTES = Number(process.env.MAX_AWS_AD_VIDEO_SIZE_GB || 100) * 1024 * 1024 * 1024;
+const MAX_AWS_VIDEO_DURATION_SEC = 2 * 60 * 60;
+
+function parseAdClaimSlotTypes(value) {
+  let slotTypes = [];
+  try {
+    slotTypes = Array.isArray(value) ? value : JSON.parse(value || '[]');
+  } catch {
+    slotTypes = [];
+  }
+  return [...new Set(slotTypes.filter((slot) => SLOT_TYPES.includes(slot)))];
+}
+
+async function getPaidAdClaimsForVideo(session, slotTypes) {
+  if (!slotTypes.length) return [];
+  const claimsRes = await query(
+    `SELECT claim.id, claim.advertiser_id, claim.slot_type, claim.image_url, claim.ad_type, claim.ad_size
+     FROM youtube_ad_claims AS claim
+     WHERE claim.creator_id=$1 AND claim.payment_status='paid' AND claim.status='pending'
+       AND claim.slot_type = ANY($2)`,
+    [session, slotTypes],
+  );
+  return claimsRes.rows.map((row) => ({
+    id: row.id,
+    advertiserId: row.advertiser_id,
+    slotType: row.slot_type,
+    imageUrl: row.image_url,
+    adType: row.ad_type,
+    adSize: row.ad_size,
+  }));
+}
+
+exports.startAwsAdVideoUpload = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+
+  const { provider } = req.params;
+  if (!['youtube', 'tiktok'].includes(provider)) {
+    return res.status(400).json({ success: false, message: 'Unsupported provider' });
+  }
+
+  const { filename, contentType, fileSize, duration, width, height } = req.body;
+  const expectedSize = Number(fileSize);
+  const videoDuration = Number(duration);
+  const videoWidth = Number(width);
+  const videoHeight = Number(height);
+  if (!Number.isSafeInteger(expectedSize) || expectedSize < 1 || expectedSize > MAX_AWS_VIDEO_SIZE_BYTES) {
+    return res.status(413).json({
+      success: false,
+      message: `Video must be smaller than ${Math.floor(MAX_AWS_VIDEO_SIZE_BYTES / (1024 ** 3))} GB.`,
+    });
+  }
+  if (!Number.isFinite(videoDuration) || videoDuration <= 0 || videoDuration > MAX_AWS_VIDEO_DURATION_SEC) {
+    return res.status(400).json({ success: false, message: 'Video duration must be no longer than 2 hours.' });
+  }
+  if (!Number.isInteger(videoWidth) || !Number.isInteger(videoHeight)
+    || videoWidth < 1 || videoHeight < 1 || videoWidth > 3840 || videoHeight > 2160) {
+    return res.status(400).json({ success: false, message: 'Video resolution must be 4K or lower.' });
+  }
+  if (typeof filename !== 'string' || !/\.(mp4|mov|m4v|mkv|webm)$/i.test(filename)) {
+    return res.status(400).json({ success: false, message: 'Choose a supported video file (MP4, MOV, M4V, MKV, or WebM).' });
+  }
+
+  const claimedSlotTypes = parseAdClaimSlotTypes(req.body.claimedSlotTypes);
+  let claims;
+  try {
+    claims = await getPaidAdClaimsForVideo(session, claimedSlotTypes);
+  } catch (err) {
+    console.error('[creators] startAwsAdVideoUpload claim lookup error:', err);
+    return res.status(500).json({ success: false, message: 'Could not verify the paid ad claims for this video.' });
+  }
+  if (!claims.length) {
+    return res.status(400).json({ success: false, message: 'No paid ad claims are available for the selected video slots.' });
+  }
+  const availableSlots = new Set(getAdSlots(videoDuration).map((slot) => slot.key));
+  if (claims.some((claim) => !availableSlots.has(claim.slotType))) {
+    return res.status(400).json({ success: false, message: 'A selected ad slot does not fit this video duration.' });
+  }
+
+  let jobId;
+  let multipart;
+  try {
+    getAwsVideoConfig();
+    const jobRes = await query(
+      `INSERT INTO ad_video_jobs (creator_id, provider, status, stage_message, progress)
+       VALUES ($1,$2,'uploading','Preparing secure upload…',0) RETURNING id`,
+      [session, provider],
+    );
+    jobId = jobRes.rows[0].id;
+    multipart = await createVideoMultipartUpload({
+      creatorId: session,
+      jobId,
+      filename,
+      contentType: typeof contentType === 'string' && contentType.startsWith('video/')
+        ? contentType
+        : 'video/mp4',
+    });
+    const result = {
+      pipeline: 'aws',
+      bucket: multipart.bucket,
+      inputKey: multipart.key,
+      uploadId: multipart.uploadId,
+      fileSize: expectedSize,
+      duration: videoDuration,
+      width: videoWidth,
+      height: videoHeight,
+      filename: path.basename(filename),
+      title: String(req.body.title || '').slice(0, 500),
+      description: String(req.body.description || '').slice(0, 5000),
+      claimedSlotTypes,
+    };
+    await query(
+      `UPDATE ad_video_jobs SET result=$1::jsonb, updated_at=NOW() WHERE id=$2 AND creator_id=$3`,
+      [JSON.stringify(result), jobId, session],
+    );
+    return res.json({
+      success: true,
+      data: {
+        jobId,
+        partSize: MULTIPART_PART_SIZE,
+        totalParts: getMultipartPartCount(expectedSize),
+      },
+    });
+  } catch (err) {
+    if (multipart) {
+      await abortVideoMultipartUpload(multipart).catch((abortError) => {
+        console.error(`[creators] adVideoJob#${jobId} S3 multipart cleanup failed:`, abortError.message);
+      });
+    }
+    if (jobId) {
+      await query(
+        `UPDATE ad_video_jobs SET status='error', error_message=$1, updated_at=NOW() WHERE id=$2`,
+        [err.message, jobId],
+      ).catch((dbError) => console.error(`[creators] adVideoJob#${jobId} cleanup update failed:`, dbError.message));
+    }
+    console.error('[creators] startAwsAdVideoUpload error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Could not start the AWS video upload.' });
+  }
+};
+
+exports.getAwsAdVideoPartUrl = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+
+  let jobRes;
+  try {
+    jobRes = await query(
+      `SELECT status, result FROM ad_video_jobs WHERE id=$1 AND creator_id=$2`,
+      [req.params.id, session],
+    );
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} upload-part lookup failed:`, err);
+    return res.status(500).json({ success: false, message: 'Could not verify the video upload.' });
+  }
+  if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
+  const job = jobRes.rows[0];
+  const upload = job.result;
+  if (job.status !== 'uploading' || upload?.pipeline !== 'aws' || !upload.uploadId) {
+    return res.status(409).json({ success: false, message: 'This video upload is no longer active.' });
+  }
+
+  const partNumber = Number(req.body.partNumber);
+  const totalParts = getMultipartPartCount(Number(upload.fileSize));
+  if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > totalParts) {
+    return res.status(400).json({ success: false, message: 'Invalid multipart upload part number.' });
+  }
+  try {
+    const url = await createPartUploadUrl({
+      bucket: upload.bucket,
+      key: upload.inputKey,
+      uploadId: upload.uploadId,
+      partNumber,
+    });
+    return res.json({ success: true, data: { url } });
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} part URL error:`, err);
+    return res.status(500).json({ success: false, message: 'Could not authorize this upload part.' });
+  }
+};
+
+exports.completeAwsAdVideoUpload = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+
+  let jobRes;
+  try {
+    jobRes = await query(
+      `SELECT id, provider, status, result FROM ad_video_jobs WHERE id=$1 AND creator_id=$2`,
+      [req.params.id, session],
+    );
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} upload-completion lookup failed:`, err);
+    return res.status(500).json({ success: false, message: 'Could not verify the video upload.' });
+  }
+  if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
+  const job = jobRes.rows[0];
+  const upload = job.result;
+  if (job.status !== 'uploading' || upload?.pipeline !== 'aws' || !upload.uploadId) {
+    return res.status(409).json({ success: false, message: 'This video upload is no longer active.' });
+  }
+
+  try {
+    const parts = req.body.parts;
+    const expectedPartCount = getMultipartPartCount(Number(upload.fileSize));
+    if (!Array.isArray(parts) || parts.length !== expectedPartCount) {
+      return res.status(400).json({ success: false, message: 'The uploaded video is missing one or more parts.' });
+    }
+    await completeVideoMultipartUpload({
+      bucket: upload.bucket,
+      key: upload.inputKey,
+      uploadId: upload.uploadId,
+      parts,
+    });
+    const completedSize = await getCompletedVideoSize({ bucket: upload.bucket, key: upload.inputKey });
+    if (completedSize !== Number(upload.fileSize)) {
+      throw new Error('The uploaded video size did not match the original file.');
+    }
+
+    const claims = await getPaidAdClaimsForVideo(session, upload.claimedSlotTypes);
+    if (!claims.length) throw new Error('The paid ad claims for this video are no longer available.');
+    const { overlays, placements } = await buildMediaConvertInsertableImages({
+      claims,
+      duration: Number(upload.duration),
+      width: Number(upload.width),
+      height: Number(upload.height),
+      bucket: upload.bucket,
+      creatorId: session,
+      jobId: job.id,
+    });
+    const outputPrefix = `yepper/ad-video-outputs/${session}/${job.id}`;
+    const settings = buildMediaConvertSettings({
+      bucket: upload.bucket,
+      inputKey: upload.inputKey,
+      outputPrefix,
+      overlays,
+    });
+    const { roleArn } = getAwsVideoConfig();
+    const mediaConvertJobId = await submitMediaConvertJob({
+      roleArn,
+      settings,
+      jobId: job.id,
+    });
+    const result = {
+      ...upload,
+      mediaConvertJobId,
+      adPlacements: placements,
+    };
+    await query(
+      `UPDATE ad_video_jobs
+       SET status='processing', stage_message='AWS is rendering the video…', progress=1,
+           result=$1::jsonb, updated_at=NOW()
+       WHERE id=$2 AND creator_id=$3 AND status='uploading'`,
+      [JSON.stringify(result), job.id, session],
+    );
+    return res.json({ success: true, data: { jobId: job.id } });
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${job.id} AWS render submit error:`, err?.stack || err);
+    await query(
+      `UPDATE ad_video_jobs SET status='error', error_message=$1, updated_at=NOW()
+       WHERE id=$2 AND creator_id=$3 AND status='uploading'`,
+      [err?.message || 'Could not start AWS rendering.', job.id, session],
+    ).catch((dbError) => console.error(`[creators] adVideoJob#${job.id} error update failed:`, dbError.message));
+    return res.status(500).json({ success: false, message: err?.message || 'Could not start AWS rendering.' });
+  }
+};
+
+exports.abortAwsAdVideoUpload = async (req, res) => {
+  const session = getCreatorId(req);
+  if (!session) return res.status(401).json({ success: false });
+  let jobRes;
+  try {
+    jobRes = await query(
+      `SELECT status, result FROM ad_video_jobs WHERE id=$1 AND creator_id=$2`,
+      [req.params.id, session],
+    );
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} upload-abort lookup failed:`, err);
+    return res.status(500).json({ success: false, message: 'Could not verify the video upload.' });
+  }
+  if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
+  const { status, result: upload } = jobRes.rows[0];
+  if (status !== 'uploading' || upload?.pipeline !== 'aws' || !upload.uploadId) {
+    return res.status(409).json({ success: false, message: 'This video upload is no longer active.' });
+  }
+  try {
+    await abortVideoMultipartUpload({
+      bucket: upload.bucket,
+      key: upload.inputKey,
+      uploadId: upload.uploadId,
+    });
+    await query(
+      `UPDATE ad_video_jobs SET status='error', error_message='Upload cancelled', updated_at=NOW()
+       WHERE id=$1 AND creator_id=$2 AND status='uploading'`,
+      [req.params.id, session],
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} AWS upload abort error:`, err);
+    return res.status(500).json({ success: false, message: 'Could not cancel the video upload.' });
+  }
+};
+
 exports.postAdVideo = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
@@ -1959,28 +2277,205 @@ async function runAdVideoJob(jobId, { session, provider, title, description, vid
   }
 }
 
+async function finalizeAwsAdVideoJob(jobId, creatorId, awsResult) {
+  const client = await getClient();
+  let notification;
+  try {
+    await client.query('BEGIN');
+    const jobRes = await client.query(
+      `SELECT status, provider FROM ad_video_jobs WHERE id=$1 AND creator_id=$2 FOR UPDATE`,
+      [jobId, creatorId],
+    );
+    if (!jobRes.rowCount) throw new Error('Video job no longer exists.');
+    if (jobRes.rows[0].status === 'done') {
+      await client.query('COMMIT');
+      return;
+    }
+    if (jobRes.rows[0].status !== 'processing') {
+      throw new Error('Video job is not in a renderable state.');
+    }
+
+    const claimsRes = await client.query(
+      `SELECT claim.id, claim.advertiser_id, claim.slot_type
+       FROM youtube_ad_claims AS claim
+       WHERE claim.creator_id=$1 AND claim.payment_status='paid' AND claim.status='pending'
+         AND claim.slot_type = ANY($2)
+       FOR UPDATE`,
+      [creatorId, awsResult.claimedSlotTypes],
+    );
+    if (!claimsRes.rowCount) throw new Error('The paid ad claims for this video are no longer available.');
+
+    await client.query(
+      `UPDATE youtube_ad_claims SET status='used', used_at=NOW()
+       WHERE creator_id=$1 AND status='pending' AND id = ANY($2)`,
+      [creatorId, claimsRes.rows.map((claim) => claim.id)],
+    );
+    const sequenceRes = await client.query(
+      `INSERT INTO ad_tracking_sequences (provider, last_id) VALUES ($1, 1)
+       ON CONFLICT (provider) DO UPDATE SET last_id = ad_tracking_sequences.last_id + 1
+       RETURNING last_id`,
+      [jobRes.rows[0].provider],
+    );
+    const trackingNum = sequenceRes.rows[0].last_id;
+    const code = trackingCode(jobRes.rows[0].provider, trackingNum);
+    const fullDescription = awsResult.description ? `${awsResult.description}\n\n${code}` : code;
+    const postRes = await client.query(
+      `INSERT INTO ad_video_posts (creator_id, provider, tracking_code, tracking_num, title, description, status)
+       VALUES ($1,$2,$3,$4,$5,$6,'pending_publish') RETURNING id`,
+      [creatorId, jobRes.rows[0].provider, code, trackingNum, awsResult.title || 'Ad Video', fullDescription],
+    );
+    for (const claim of claimsRes.rows) {
+      await client.query(
+        `INSERT INTO youtube_ad_video_claims (ad_video_post_id, claim_id, advertiser_id)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [postRes.rows[0].id, claim.id, claim.advertiser_id],
+      );
+    }
+
+    const result = {
+      postId: postRes.rows[0].id,
+      trackingCode: code,
+      description: fullDescription,
+      adPlacements: awsResult.adPlacements,
+    };
+    await client.query(
+      `UPDATE ad_video_jobs
+       SET status='done', stage_message='Done', progress=100, output_path=$1,
+           result=$2::jsonb, updated_at=NOW()
+       WHERE id=$3 AND creator_id=$4`,
+      [`s3://${awsResult.bucket}/${awsResult.outputKey}`, JSON.stringify(result), jobId, creatorId],
+    );
+    await client.query('COMMIT');
+    notification = {
+      creatorId,
+      trackingCode: code,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+  if (notification) {
+    createNotification(
+      notification.creatorId,
+      'ad_video_ready',
+      'Ad video ready',
+      `Your video is processed with tracking code ${notification.trackingCode} — download it and publish it on YouTube.`,
+      {},
+    ).catch((err) => console.error(`[creators] adVideoJob#${jobId} notification failed:`, err));
+  }
+}
+
+async function refreshAwsAdVideoJob(job) {
+  const awsResult = job.result;
+  if (!awsResult?.mediaConvertJobId) return;
+  const mediaJob = await getMediaConvertJob(awsResult.mediaConvertJobId);
+  if (mediaJob.Status === 'COMPLETE') {
+    const outputPath = mediaJob.OutputGroupDetails
+      ?.flatMap((group) => group.OutputDetails || [])
+      .flatMap((output) => output.OutputFilePaths || [])
+      .find((filePath) => typeof filePath === 'string' && filePath.startsWith(`s3://${awsResult.bucket}/`));
+    if (!outputPath) {
+      await updateAdVideoJob(job.id, {
+        status: 'error',
+        stage_message: 'Video output could not be located',
+        error_message: 'AWS MediaConvert completed without reporting an S3 output file.',
+      });
+      return;
+    }
+    const outputUrl = new URL(outputPath);
+    if (outputUrl.hostname !== awsResult.bucket || !outputUrl.pathname.slice(1)) {
+      await updateAdVideoJob(job.id, {
+        status: 'error',
+        stage_message: 'Video output reference is invalid',
+        error_message: 'AWS MediaConvert returned an invalid S3 output location.',
+      });
+      return;
+    }
+    const completedResult = {
+      ...awsResult,
+      outputKey: decodeURIComponent(outputUrl.pathname.slice(1)),
+    };
+    await finalizeAwsAdVideoJob(job.id, job.creator_id, completedResult);
+    return;
+  }
+  if (mediaJob.Status === 'ERROR' || mediaJob.Status === 'CANCELED') {
+    const reason = mediaJob.ErrorMessage || mediaJob.Status;
+    await updateAdVideoJob(job.id, {
+      status: 'error',
+      stage_message: 'Video rendering failed',
+      error_message: `AWS MediaConvert: ${reason}`,
+      error_code: mediaJob.ErrorCode ? String(mediaJob.ErrorCode) : null,
+    });
+    return;
+  }
+
+  const progress = Math.max(1, Math.min(99, Number(mediaJob.JobPercentComplete) || 1));
+  await updateAdVideoJob(job.id, {
+    progress,
+    stage_message: mediaJob.CurrentPhase ? `AWS rendering: ${mediaJob.CurrentPhase}` : 'AWS is rendering the video…',
+  });
+}
+
 exports.getAdVideoJobStatus = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
 
-  const jobRes = await query(
-    `SELECT job.id, job.status, job.stage_message, job.progress, job.result,
-            job.error_message, job.error_code,
-            CASE WHEN job.status IN ('queued', 'processing') THEN (
-              SELECT COUNT(*) FROM ad_video_jobs AS waiting
-              WHERE waiting.status IN ('queued', 'processing')
-                AND (waiting.created_at < job.created_at
-                  OR (waiting.created_at = job.created_at AND waiting.id <= job.id))
-            ) ELSE 0 END AS queue_position
-     FROM ad_video_jobs AS job WHERE job.id=$1 AND job.creator_id=$2`,
-    [req.params.id, session],
-  );
+  let jobRes;
+  try {
+    jobRes = await query(
+      `SELECT job.id, job.creator_id, job.status, job.stage_message, job.progress, job.result,
+              job.error_message, job.error_code,
+              CASE WHEN job.status IN ('queued', 'processing') THEN (
+                SELECT COUNT(*) FROM ad_video_jobs AS waiting
+                WHERE waiting.status IN ('queued', 'processing')
+                  AND (waiting.created_at < job.created_at
+                    OR (waiting.created_at = job.created_at AND waiting.id <= job.id))
+              ) ELSE 0 END AS queue_position
+       FROM ad_video_jobs AS job WHERE job.id=$1 AND job.creator_id=$2`,
+      [req.params.id, session],
+    );
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${req.params.id} status lookup failed:`, err);
+    return res.status(500).json({ success: false, message: 'Could not retrieve video processing status.' });
+  }
   if (!jobRes.rowCount) return res.status(404).json({ success: false, message: 'Job not found' });
-  return res.json({ success: true, data: jobRes.rows[0] });
+  let job = jobRes.rows[0];
+  const statusCheckIntervalMs = 15_000;
+  const lastAwsStatusCheck = Number(job.result?.lastMediaConvertCheckAt || 0);
+  if (job.status === 'processing' && job.result?.pipeline === 'aws'
+    && Date.now() - lastAwsStatusCheck >= statusCheckIntervalMs) {
+    try {
+      const nextResult = { ...job.result, lastMediaConvertCheckAt: Date.now() };
+      await updateAdVideoJob(job.id, { result: JSON.stringify(nextResult) });
+      job.result = nextResult;
+      await refreshAwsAdVideoJob(job);
+    } catch (err) {
+      console.error(`[creators] adVideoJob#${job.id} AWS status check failed:`, err);
+      return res.status(502).json({ success: false, message: 'Could not retrieve AWS video-render status. Please retry.' });
+    }
+    try {
+      jobRes = await query(
+        `SELECT job.id, job.status, job.stage_message, job.progress, job.result,
+                job.error_message, job.error_code, 0 AS queue_position
+         FROM ad_video_jobs AS job WHERE job.id=$1 AND job.creator_id=$2`,
+        [req.params.id, session],
+      );
+    } catch (err) {
+      console.error(`[creators] adVideoJob#${job.id} refreshed status lookup failed:`, err);
+      return res.status(500).json({ success: false, message: 'Could not retrieve video processing status.' });
+    }
+    job = jobRes.rows[0];
+  }
+  return res.json({
+    success: true,
+    data: { ...job, result: job.status === 'done' ? job.result : null },
+  });
 };
 
-// Serves the ad-injected file back to the creator at its original quality
-// so they can publish it themselves — see runAdVideoJob.
+// Streams short Cloudinary results locally and redirects long AWS results to
+// a short-lived signed URL, keeping large video bytes off the Render worker.
 exports.downloadAdVideoJob = async (req, res) => {
   const session = getCreatorId(req);
   if (!session) return res.status(401).json({ success: false });
@@ -2022,6 +2517,24 @@ exports.downloadAdVideoJob = async (req, res) => {
       }
     });
     return;
+  }
+
+  if (outputPath.startsWith('s3://')) {
+    try {
+      const url = new URL(outputPath);
+      const { bucket } = getAwsVideoConfig();
+      if (url.hostname !== bucket || !url.pathname.slice(1)) {
+        return res.status(500).json({ success: false, message: 'The processed video storage reference is invalid.' });
+      }
+      const downloadUrl = await createOutputDownloadUrl({
+        bucket,
+        key: decodeURIComponent(url.pathname.slice(1)),
+      });
+      return res.redirect(302, downloadUrl);
+    } catch (err) {
+      console.error(`[creators] adVideoJob#${req.params.id} S3 download URL error:`, err);
+      return res.status(502).json({ success: false, message: 'Could not create a secure download link for the processed video.' });
+    }
   }
 
   if (!fs.existsSync(outputPath)) return res.status(410).json({ success: false, message: 'This file has expired, please process the video again' });

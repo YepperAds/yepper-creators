@@ -63,6 +63,10 @@ router.post(
   videoUpload.fields([{ name: 'video', maxCount: 1 }]),
   controller.postAdVideo,
 );
+router.post('/api/social/post-ad/:provider/aws-upload', controller.startAwsAdVideoUpload);
+router.post('/api/social/post-ad/jobs/:id/upload-part-url', controller.getAwsAdVideoPartUrl);
+router.post('/api/social/post-ad/jobs/:id/complete-upload', controller.completeAwsAdVideoUpload);
+router.post('/api/social/post-ad/jobs/:id/abort-upload', controller.abortAwsAdVideoUpload);
 router.post('/api/social/post-ad/:provider/confirm/:id', controller.confirmAdVideoPost);
 router.get('/api/social/post-ad/jobs/:id',               controller.getAdVideoJobStatus);
 router.get('/api/social/post-ad/jobs/:id/download',      controller.downloadAdVideoJob);

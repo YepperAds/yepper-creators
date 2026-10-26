@@ -20,6 +20,8 @@ const VIDEO_API_URL = (
 ).replace(/\/$/, '');
 const MAX_VIDEO_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_AD_VIDEO_SIZE_MB || 100);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+const MAX_AWS_VIDEO_SIZE_BYTES = 100 * 1024 * 1024 * 1024;
+const CLOUDINARY_MAX_DURATION_SEC = 15 * 60;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const MAX_VIDEO_WIDTH = 3840;
 const MAX_VIDEO_HEIGHT = 2160;
@@ -51,9 +53,10 @@ interface AdVideoJobStatus {
 }
 interface AdVideoUploadResponse {
   success?: boolean;
-  data?: { jobId?: string | number };
+  data?: { jobId?: string | number; partSize?: number; totalParts?: number };
   message?: string;
 }
+interface UploadedPart { PartNumber: number; ETag: string; }
 interface DownloadWritable {
   write(data: Uint8Array): Promise<void>;
   close(): Promise<void>;
@@ -64,6 +67,31 @@ interface DownloadFileHandle {
 }
 interface WindowWithFilePicker extends Window {
   showSaveFilePicker?: (options: { suggestedName: string }) => Promise<DownloadFileHandle>;
+}
+
+function uploadS3Part(blob: Blob, url: string, onProgress: (loaded: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('PUT', url);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded);
+    };
+    request.onerror = () => reject(new Error('A video upload part failed. Check your connection and retry.'));
+    request.onabort = () => reject(new Error('Video upload was cancelled.'));
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(`S3 rejected a video upload part (HTTP ${request.status}).`));
+        return;
+      }
+      const etag = request.getResponseHeader('ETag');
+      if (!etag) {
+        reject(new Error('S3 did not return the required ETag for an uploaded video part. Check the bucket CORS settings.'));
+        return;
+      }
+      resolve(etag);
+    };
+    request.send(blob);
+  });
 }
 
 function getAdSlots(duration: number): AdSlot[] {
@@ -79,9 +107,8 @@ function getAdSlots(duration: number): AdSlot[] {
 // flow (POST /api/social/post-ad/:provider, cookie auth, multipart video)
 // without duplicating it.
 //
-// The creator uploads their raw video; Yepper injects the claimed
-// creative(s) server-side (ffmpeg, see runAdVideoJob) and the creator
-// downloads the processed file to publish themselves on YouTube.
+// The creator uploads their raw video; the short-video Cloudinary path or
+// long-video AWS MediaConvert path injects the claimed creatives server-side.
 export default function PostAdModal({
   provider,
   open,
@@ -120,6 +147,7 @@ export default function PostAdModal({
   // (via "Collaborate with [creator]" on the homepage), downloadable here so
   // the creator can edit them into their video before uploading it.
   const [videoDuration, setVideoDuration]       = useState<number | null>(null);
+  const [videoDimensions, setVideoDimensions]   = useState<{ width: number; height: number } | null>(null);
   const [videoResolutionValid, setVideoResolutionValid] = useState<boolean | null>(null);
   const [includedSlots, setIncludedSlots]       = useState<string[]>([]);
   const [pendingClaims, setPendingClaims]       = useState<PendingClaim[]>([]);
@@ -158,6 +186,7 @@ export default function PostAdModal({
     setConfirming(false);
     setCopied(false);
     setVideoDuration(null);
+    setVideoDimensions(null);
     setVideoResolutionValid(null);
     setIncludedSlots([]);
     setPrevSlotsKey('');
@@ -255,12 +284,13 @@ export default function PostAdModal({
   // either select one or many of the fixed percentage slots that Yupper will
   // inject at runtime.
   useEffect(() => {
-    if (!adFile) { setVideoDuration(null); setVideoResolutionValid(null); return; }
+    if (!adFile) { setVideoDuration(null); setVideoDimensions(null); setVideoResolutionValid(null); return; }
     const url = URL.createObjectURL(adFile);
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       setVideoDuration(video.duration);
+      setVideoDimensions({ width: video.videoWidth, height: video.videoHeight });
       if (video.duration > MAX_VIDEO_DURATION_SEC) {
         setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
         setVideoResolutionValid(false);
@@ -309,8 +339,8 @@ export default function PostAdModal({
         'No dedicated video-worker URL is configured yet; falling back to the main backend for this test upload.',
       );
     }
-    if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
-      setAdUploadError(`Video exceeds the current processor limit of ${MAX_VIDEO_SIZE_MB} MB. Compress it or use a smaller file.`);
+    if (adFile.size > MAX_AWS_VIDEO_SIZE_BYTES) {
+      setAdUploadError('Video exceeds the current maximum upload size of 100 GB.');
       return;
     }
     if (videoDuration == null) {
@@ -322,11 +352,103 @@ export default function PostAdModal({
       return;
     }
     if (videoResolutionValid === false) return;
+    if (!videoDimensions) {
+      setAdUploadError('Still reading the video resolution. Please try again in a moment.');
+      return;
+    }
     setAdUploading(true);
     setUploadProgress(0);
     setAdUploadError('');
     setJobConnectionWarning('');
+    let awsUploadJobId: string | null = null;
     try {
+      const useAwsPipeline = adFile.size > MAX_VIDEO_SIZE_BYTES || videoDuration > CLOUDINARY_MAX_DURATION_SEC;
+      if (useAwsPipeline) {
+        const apiJson = async (url: string, body: unknown) => {
+          const response = await authedFetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const payload = await response.json().catch(() => null);
+          if (!response.ok || !payload?.success) {
+            throw new Error(payload?.message || `Video service request failed (HTTP ${response.status}).`);
+          }
+          return payload.data;
+        };
+        const started = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/${provider}/aws-upload`, {
+          filename: adFile.name,
+          contentType: adFile.type,
+          fileSize: adFile.size,
+          duration: videoDuration,
+          width: videoDimensions.width,
+          height: videoDimensions.height,
+          title: adTitle.trim() || adFile.name.replace(/\.[^.]+$/, '') || 'Ad Video',
+          description: adDescription.trim(),
+          privacy: adPrivacy,
+          claimedSlotTypes: hasRelevantClaims && includedSlots.length ? includedSlots : [],
+        });
+        const awsJobId = started?.jobId as string | number | undefined;
+        const partSize = Number(started?.partSize);
+        const totalParts = Number(started?.totalParts);
+        if (awsJobId) awsUploadJobId = String(awsJobId);
+        if (!awsJobId || !Number.isSafeInteger(partSize) || partSize <= 0
+          || !Number.isSafeInteger(totalParts) || totalParts <= 0) {
+          throw new Error('The video service returned invalid multipart-upload details.');
+        }
+
+        const uploadedParts: UploadedPart[] = new Array(totalParts);
+        const partProgress = new Array(totalParts).fill(0) as number[];
+        let bytesUploaded = 0;
+        let nextPart = 0;
+        const updatePartProgress = (index: number, loaded: number) => {
+          bytesUploaded += loaded - partProgress[index];
+          partProgress[index] = loaded;
+          setUploadProgress(Math.min(99, Math.round((bytesUploaded / adFile.size) * 100)));
+        };
+        const uploadNextPart = async () => {
+          while (true) {
+            const partIndex = nextPart;
+            nextPart += 1;
+            if (partIndex >= totalParts) return;
+            const start = partIndex * partSize;
+            const blob = adFile.slice(start, Math.min(adFile.size, start + partSize));
+            let etag: string | null = null;
+            for (let attempt = 0; attempt < 3 && !etag; attempt += 1) {
+              try {
+                const signed = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsJobId}/upload-part-url`, {
+                  partNumber: partIndex + 1,
+                });
+                etag = await uploadS3Part(blob, signed.url, (loaded) => {
+                  updatePartProgress(partIndex, loaded);
+                });
+              } catch (err) {
+                updatePartProgress(partIndex, 0);
+                if (attempt === 2) throw err;
+                await new Promise((resolve) => window.setTimeout(resolve, 500 * (2 ** attempt)));
+              }
+            }
+            if (!etag) throw new Error(`Upload part ${partIndex + 1} did not complete.`);
+            updatePartProgress(partIndex, blob.size);
+            uploadedParts[partIndex] = { PartNumber: partIndex + 1, ETag: etag };
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, totalParts) }, () => uploadNextPart()));
+        const completed = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsJobId}/complete-upload`, {
+          parts: uploadedParts,
+        });
+        if (!completed?.jobId) throw new Error('The video service did not return a processing job ID.');
+        awsUploadJobId = null;
+        setUploadProgress(100);
+        setJobId(String(completed.jobId));
+        window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(completed.jobId));
+        setJobStatus({
+          status: 'processing',
+          stage_message: 'Upload complete. AWS is preparing the video render…',
+          progress: 0,
+        });
+        return;
+      }
       const form = new FormData();
       form.append('video', adFile);
       form.append('title', adTitle.trim() || adFile.name.replace(/\.[^.]+$/, '') || 'Ad Video');
@@ -368,7 +490,18 @@ export default function PostAdModal({
       window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(json.data.jobId));
       setJobStatus({ status: 'queued', stage_message: 'Waiting for an available processing slot…', progress: 0, queue_position: 1 });
     } catch (err) {
-      setAdUploadError(err instanceof Error ? err.message : 'Something went wrong, please try again');
+      let message = err instanceof Error ? err.message : 'Something went wrong, please try again';
+      if (awsUploadJobId) {
+        try {
+          const cleanup = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsUploadJobId}/abort-upload`, {
+            method: 'POST',
+          });
+          if (!cleanup.ok) message += ' The incomplete upload could not be cancelled automatically.';
+        } catch {
+          message += ' The incomplete upload could not be cancelled automatically.';
+        }
+      }
+      setAdUploadError(message);
       setAdUploading(false);
     }
   };
@@ -486,6 +619,7 @@ export default function PostAdModal({
     setAdUploading(false);
     setUploadProgress(0);
     setVideoDuration(null);
+    setVideoDimensions(null);
     setVideoResolutionValid(null);
     setIncludedSlots([]);
     setDownloadProgress(null);
@@ -503,7 +637,7 @@ export default function PostAdModal({
               {`Post Ad: ${provider.charAt(0).toUpperCase() + provider.slice(1)}`}
             </h3>
             <p className="text-xs text-(--color-muted) mt-0.5">
-              Upload your video — we inject the ad, you download it and publish it yourself.
+              Upload your video — we inject the ad, then you download and publish it. Long videos are high-quality re-encodes at the source resolution.
             </p>
           </div>
           <button onClick={close} disabled={adUploading && !jobId} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
@@ -673,7 +807,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Limit: {MAX_VIDEO_SIZE_MB} MB, 2 hours, and 4K. The size limit depends on the video processor plan.</p>
+              <p className="text-[10px] text-(--color-muted)">Up to 2 hours and 4K. Videos over {MAX_VIDEO_SIZE_MB} MB or 15 minutes use direct AWS upload (up to 100 GB); smaller videos use Cloudinary.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: npm run worker
     healthCheckPath: /health
     envVars:
@@ -18,6 +18,18 @@ services:
         value: https://yepper.cc,https://www.yepper.cc
       - key: MAX_AD_VIDEO_SIZE_MB
         value: "100"
+      - key: MAX_AWS_AD_VIDEO_SIZE_GB
+        value: "100"
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_VIDEO_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_MEDIACONVERT_ROLE_ARN
+        sync: false
       - key: VID_CLOUDINARY_NAME
         sync: false
       - key: VID_CLOUDINARY_KEY

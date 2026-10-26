@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AD_WINDOW_SEC, buildContinuousOverlayFilter, getAdSlots } = require('./videoAdInjector');
-const { buildVideoTransformations, uploadVideoFile } = require('./videoCloudinary');
+const { buildVideoTransformations, getEagerRenderFailure, uploadVideoFile } = require('./videoCloudinary');
 const { normalizeActiveSlots } = require('../controllers/adSpaceController');
 
 test('normalizeActiveSlots keeps only valid slot keys and defaults to the full list when empty', () => {
@@ -92,6 +92,17 @@ test('Cloudinary L-bar transformation creates both timed banner strips', () => {
   assert.equal(transformations[2].gravity, 'west');
   assert.equal(transformations[4].width, 192);
   assert.equal(transformations[5].gravity, 'south');
+});
+
+test('Cloudinary eager render failure includes the provider error detail', () => {
+  assert.equal(
+    getEagerRenderFailure({ eager: [{ status: 'failed', error: { message: 'Transformation not allowed' } }] }),
+    'Transformation not allowed',
+  );
+  assert.equal(
+    getEagerRenderFailure({ eager: [{ status: 'failed' }] }),
+    'failed',
+  );
 });
 
 test('Cloudinary video upload rejects a missing source file without creating an unhandled stream error', async () => {

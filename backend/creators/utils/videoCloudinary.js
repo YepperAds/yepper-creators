@@ -58,6 +58,15 @@ function buildVideoTransformations({ activeSlots, duration, sourceWidth }) {
   return transformations;
 }
 
+function getEagerRenderFailure(rendered) {
+  const eagerResults = Array.isArray(rendered?.eager) ? rendered.eager : [];
+  const failedResult = eagerResults.find((item) => item.error || (item.status && item.status !== 'complete' && !item.secure_url));
+  const error = failedResult?.error || rendered?.error;
+  const detail = typeof error === 'string' ? error : error?.message;
+  const status = failedResult?.status;
+  return detail || status || 'Cloudinary returned no completed eager output';
+}
+
 async function uploadVideoCreative(videoCloudinary, config, imageUrl, publicId) {
   const result = await videoCloudinary.uploader.upload(imageUrl, {
     ...config,
@@ -158,7 +167,7 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
     });
     const completedRender = rendered.eager?.find((item) => item.status === 'complete' || item.secure_url);
     if (!completedRender) {
-      throw new Error('Cloudinary did not finish rendering the ad-injected video');
+      throw new Error(`Cloudinary did not finish rendering the ad-injected video: ${getEagerRenderFailure(rendered)}`);
     }
 
     const outputUrl = videoCloudinary.url(source.public_id, {
@@ -201,4 +210,4 @@ async function renderVideoWithCloudinary({ srcPath, jobId, claims, onProgress })
   }
 }
 
-module.exports = { buildVideoTransformations, getVideoCloudinary, renderVideoWithCloudinary, uploadVideoFile };
+module.exports = { buildVideoTransformations, getEagerRenderFailure, getVideoCloudinary, renderVideoWithCloudinary, uploadVideoFile };

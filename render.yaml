@@ -30,6 +30,12 @@ services:
         sync: false
       - key: AWS_MEDIACONVERT_ROLE_ARN
         sync: false
+      - key: PROCESSING_BUDGET_PERCENT_OF_COMMISSION
+        value: "10"
+      - key: PROCESSING_COST_PER_MIN_USD
+        sync: false
+      - key: USD_RWF_RATE
+        sync: false
       - key: VID_CLOUDINARY_NAME
         sync: false
       - key: VID_CLOUDINARY_KEY

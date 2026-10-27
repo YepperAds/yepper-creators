@@ -8,6 +8,7 @@ const TrafficGrant = require('../models/TrafficGrantModel');
 const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
 const ImportAd    = require('../AdOwner/models/WebAdvertiseModel');
 const sendEmailNotification = require('./emailService');
+const { getCampaignProcessingBudget } = require('../creators/utils/processingBudgetService');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -660,6 +661,7 @@ exports.getUserContent = async (req, res) => {
                         claim.id AS claim_id, claim.advertiser_id, claim.status AS claim_status,
                         claim.image_url, claim.ad_type, claim.ad_size, claim.created_at AS claimed_at,
                         campaign.id AS campaign_id, campaign.status AS campaign_status,
+                        campaign.payment_status AS campaign_payment_status,
                         campaign.expires_at,
                         post.id AS post_id, post.tracking_code, post.video_url, post.title AS video_title
                  FROM (VALUES ('8pct'), ('25pct'), ('45pct'), ('65pct'), ('85pct')) AS slot(slot_type)
@@ -692,10 +694,20 @@ exports.getUserContent = async (req, res) => {
                 [creatorId],
               ),
             ]);
+            const slots = await Promise.all(slotsResult.rows.map(async (slot) => {
+              if (!slot.campaign_id) return slot;
+              const budget = await getCampaignProcessingBudget({ query }, slot.campaign_id);
+              return {
+                ...slot,
+                processing_budget_rwf: budget.budget,
+                processing_spent_rwf: budget.spent,
+                processing_remaining_rwf: budget.remaining,
+              };
+            }));
             return {
               channel: connectionResult.rows[0] || null,
               configured: Boolean(creatorResult.rowCount),
-              slots: slotsResult.rows.map((slot) => ({
+              slots: slots.map((slot) => ({
                 ...slot,
                 enabled: Boolean(slot.enabled),
                 claimed: Boolean(slot.claim_id),

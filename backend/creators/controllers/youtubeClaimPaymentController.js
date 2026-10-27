@@ -19,9 +19,8 @@ const {
 } = require('../../AdOwner/controllers/PaymentController');
 const { priceFor } = require('../utils/youtubeTierPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
+const { CREATOR_SHARE } = require('../utils/processingBudget');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./adSpaceController');
-
-const CREATOR_SHARE = 0.70; // creator keeps 70%, Yepper takes the rest
 
 // POST /api/social/youtube/ad-spaces/:creatorId/claim/initiate
 // multipart form: image, slotType, adSize, durationBand
@@ -206,12 +205,18 @@ exports.verifyClaimPayment = async (req, res) => {
     const flwData = flwResponse.data;
 
     if (flwResponse.status === 'success' && flwData?.status === 'successful') {
+      const flutterwaveFee = Number(flwData.app_fee ?? flwData.fee ?? 0);
+      const recordedFlutterwaveFee = Number.isFinite(flutterwaveFee) && flutterwaveFee > 0
+        ? flutterwaveFee
+        : 0;
       const client = await getClient();
       try {
         await client.query('BEGIN');
         await client.query(
-          `UPDATE payments SET status = 'successful', paid_at = NOW(), flutterwave_data = $1 WHERE id = $2`,
-          [JSON.stringify(flwData), payment.id],
+          `UPDATE payments
+           SET status = 'successful', paid_at = NOW(), flutterwave_data = $1, flutterwave_fee = $2
+           WHERE id = $3`,
+          [JSON.stringify(flwData), recordedFlutterwaveFee, payment.id],
         );
         await client.query(
           `UPDATE youtube_ad_claims

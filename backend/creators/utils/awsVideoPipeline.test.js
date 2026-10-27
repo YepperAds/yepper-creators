@@ -40,9 +40,12 @@ test('MediaConvert settings preserve source dimensions and overlay timing', () =
   assert.equal(settings.TimecodeConfig.Source, 'ZEROBASED');
   assert.equal(settings.Inputs[0].VideoSelector.TimecodeSource, 'ZEROBASED');
   assert.equal(output.VideoDescription.VideoPreprocessors.ImageInserter.InsertableImages[0], overlay);
+  assert.equal(output.VideoDescription.Width, 1920);
+  assert.equal(output.VideoDescription.Height, 1080);
   assert.equal(output.VideoDescription.CodecSettings.H264Settings.RateControlMode, 'QVBR');
+  assert.equal(output.VideoDescription.CodecSettings.H264Settings.QualityTuningLevel, 'SINGLE_PASS');
+  assert.equal(output.VideoDescription.CodecSettings.H264Settings.FramerateNumerator, 30);
+  assert.equal(output.VideoDescription.CodecSettings.H264Settings.FramerateDenominator, 1);
   assert.equal(output.VideoDescription.CodecSettings.H264Settings.QvbrSettings.QvbrQualityLevel, 9);
-  assert.equal(output.VideoDescription.CodecSettings.H264Settings.MaxBitrate, 80_000_000);
-  assert.equal('Width' in output.VideoDescription, false);
-  assert.equal('Height' in output.VideoDescription, false);
+  assert.equal(output.VideoDescription.CodecSettings.H264Settings.MaxBitrate, 20_000_000);
 });

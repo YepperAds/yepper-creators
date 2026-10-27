@@ -185,6 +185,7 @@ async function initCreatorsDatabase() {
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_categories JSONB DEFAULT '[]'`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS business_category_other TEXT`,
     `ALTER TABLE youtube_ad_claims ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES ad_campaigns(id)`,
+    `ALTER TABLE payments ADD COLUMN IF NOT EXISTS flutterwave_fee NUMERIC(12,2) NOT NULL DEFAULT 0`,
     `CREATE UNIQUE INDEX IF NOT EXISTS youtube_ad_claims_open_slot ON youtube_ad_claims (creator_id, slot_type) WHERE status = 'pending'`,
     `CREATE INDEX IF NOT EXISTS youtube_ad_claims_creator_idx ON youtube_ad_claims (creator_id, status)`,
      `CREATE TABLE IF NOT EXISTS youtube_ad_video_claims (
@@ -235,6 +236,20 @@ async function initCreatorsDatabase() {
     `CREATE INDEX IF NOT EXISTS ad_video_jobs_creator_idx ON ad_video_jobs (creator_id)`,
     `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0`,
     `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS output_path TEXT`,
+    `CREATE TABLE IF NOT EXISTS ad_video_processing_costs (
+       id                  BIGSERIAL PRIMARY KEY,
+       job_id              INTEGER NOT NULL REFERENCES ad_video_jobs(id) ON DELETE CASCADE,
+       campaign_id         INTEGER NOT NULL REFERENCES ad_campaigns(id) ON DELETE CASCADE,
+       estimated_cost_rwf  NUMERIC(14,2) NOT NULL,
+       actual_cost_rwf     NUMERIC(14,2),
+       status              VARCHAR(20) NOT NULL DEFAULT 'reserved'
+                             CHECK (status IN ('reserved', 'completed', 'released')),
+       created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+       UNIQUE (job_id, campaign_id)
+     )`,
+    `CREATE INDEX IF NOT EXISTS ad_video_processing_costs_campaign_idx
+       ON ad_video_processing_costs (campaign_id, status)`,
     `CREATE TABLE IF NOT EXISTS tiktok_sponsorships (
        id SERIAL PRIMARY KEY,
        creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,

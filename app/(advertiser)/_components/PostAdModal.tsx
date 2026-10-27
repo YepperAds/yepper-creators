@@ -21,7 +21,6 @@ const VIDEO_API_URL = (
 const MAX_VIDEO_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_AD_VIDEO_SIZE_MB || 100);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MAX_AWS_VIDEO_SIZE_BYTES = 100 * 1024 * 1024 * 1024;
-const CLOUDINARY_MAX_DURATION_SEC = 15 * 60;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const MAX_VIDEO_WIDTH = 3840;
 const MAX_VIDEO_HEIGHT = 2160;
@@ -362,7 +361,7 @@ export default function PostAdModal({
     setJobConnectionWarning('');
     let awsUploadJobId: string | null = null;
     try {
-      const useAwsPipeline = adFile.size > MAX_VIDEO_SIZE_BYTES || videoDuration > CLOUDINARY_MAX_DURATION_SEC;
+      const useAwsPipeline = adFile.size > MAX_VIDEO_SIZE_BYTES;
       if (useAwsPipeline) {
         const apiJson = async (url: string, body: unknown) => {
           const response = await authedFetch(url, {
@@ -807,7 +806,7 @@ export default function PostAdModal({
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
               <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Up to 2 hours and 4K. Videos over {MAX_VIDEO_SIZE_MB} MB or 15 minutes use direct AWS upload (up to 100 GB); smaller videos use Cloudinary.</p>
+              <p className="text-[10px] text-(--color-muted)">Up to 2 hours and 4K. Videos over {MAX_VIDEO_SIZE_MB} MB use direct AWS upload (up to 100 GB); smaller videos use Cloudinary.</p>
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}

@@ -291,14 +291,20 @@ function buildMediaConvertSettings({ bucket, inputKey, outputPrefix, overlays })
           Mp4Settings: { MoovPlacement: 'PROGRESSIVE_DOWNLOAD' },
         },
         VideoDescription: {
+          Width: 1920,
+          Height: 1080,
+          ScalingBehavior: 'DEFAULT',
           VideoPreprocessors: { ImageInserter: { InsertableImages: overlays } },
           CodecSettings: {
             Codec: 'H_264',
             H264Settings: {
               RateControlMode: 'QVBR',
               QvbrSettings: { QvbrQualityLevel: 9 },
-              MaxBitrate: 80_000_000,
-              FramerateControl: 'INITIALIZE_FROM_SOURCE',
+              MaxBitrate: 20_000_000,
+              QualityTuningLevel: 'SINGLE_PASS',
+              FramerateControl: 'SPECIFIED',
+              FramerateNumerator: 30,
+              FramerateDenominator: 1,
               GopSize: 2,
               GopSizeUnits: 'SECONDS',
               CodecProfile: 'HIGH',

@@ -164,6 +164,7 @@ async function createTables() {
       website_id                UUID REFERENCES websites(id),
       category_id               UUID REFERENCES ad_categories(id),
       amount                    NUMERIC(12,2) NOT NULL,
+      flutterwave_fee           NUMERIC(12,2) NOT NULL DEFAULT 0,
       currency                  TEXT DEFAULT 'RWF',
       status                    TEXT DEFAULT 'pending'
                                   CHECK (status IN ('pending','successful','failed','cancelled','refunded','internally_refunded')),
@@ -201,6 +202,7 @@ async function createTables() {
     CREATE INDEX IF NOT EXISTS idx_payments_base_ref        ON payments(base_reference);
     CREATE INDEX IF NOT EXISTS idx_payments_created         ON payments(created_at DESC);
   `);
+  await query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS flutterwave_fee NUMERIC(12,2) NOT NULL DEFAULT 0`);
   console.log('✓ payments');
 
   // ─── WALLETS ──────────────────────────────────────────────────────────────

@@ -20,7 +20,8 @@ const VIDEO_API_URL = (
 ).replace(/\/$/, '');
 const MAX_VIDEO_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_AD_VIDEO_SIZE_MB || 100);
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
-const MAX_AWS_VIDEO_SIZE_BYTES = 100 * 1024 * 1024 * 1024;
+const MAX_AWS_VIDEO_SIZE_GB = Number(process.env.NEXT_PUBLIC_MAX_AWS_AD_VIDEO_SIZE_GB || 100);
+const MAX_AWS_VIDEO_SIZE_BYTES = MAX_AWS_VIDEO_SIZE_GB * 1024 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
 const MAX_VIDEO_WIDTH = 3840;
 const MAX_VIDEO_HEIGHT = 2160;
@@ -40,24 +41,50 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function formatDurationEstimate(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return `about ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `about ${hours} hr ${remainingMinutes} min` : `about ${hours} hr`;
+}
+
 interface AdSlot { key: string; label: string; time: number; }
 interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
 interface AdPlacement { slotType: string; startsAt: number; endsAt: number; }
 interface AdVideoJobStatus {
   status: string;
+  pipeline?: string;
   stage_message?: string;
   progress?: number;
   queue_position?: number;
+  estimated_remaining_seconds?: number | null;
+  priority_applied?: boolean;
   error_message?: string;
 }
 interface AdVideoUploadResponse {
   success?: boolean;
-  data?: { jobId?: string | number; partSize?: number; totalParts?: number };
+  data?: {
+    jobId?: string | number;
+    partSize?: number;
+    totalParts?: number;
+    priorityApplied?: boolean;
+    priorityFeeRwf?: number;
+  };
   message?: string;
 }
-interface UploadedPart { PartNumber: number; ETag: string; }
+interface AdVideoPriorityOffer {
+  enabled: boolean;
+  feeRwf: number;
+  balanceRwf: number;
+  eligible: boolean;
+}
+interface AwsUploadPart {
+  ETag: string;
+  PartNumber: number;
+}
 interface DownloadWritable {
-  write(data: Uint8Array): Promise<void>;
+  write(data: Uint8Array | Blob): Promise<void>;
   close(): Promise<void>;
   abort(): Promise<void>;
 }
@@ -66,31 +93,6 @@ interface DownloadFileHandle {
 }
 interface WindowWithFilePicker extends Window {
   showSaveFilePicker?: (options: { suggestedName: string }) => Promise<DownloadFileHandle>;
-}
-
-function uploadS3Part(blob: Blob, url: string, onProgress: (loaded: number) => void): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open('PUT', url);
-    request.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress(event.loaded);
-    };
-    request.onerror = () => reject(new Error('A video upload part failed. Check your connection and retry.'));
-    request.onabort = () => reject(new Error('Video upload was cancelled.'));
-    request.onload = () => {
-      if (request.status < 200 || request.status >= 300) {
-        reject(new Error(`S3 rejected a video upload part (HTTP ${request.status}).`));
-        return;
-      }
-      const etag = request.getResponseHeader('ETag');
-      if (!etag) {
-        reject(new Error('S3 did not return the required ETag for an uploaded video part. Check the bucket CORS settings.'));
-        return;
-      }
-      resolve(etag);
-    };
-    request.send(blob);
-  });
 }
 
 function getAdSlots(duration: number): AdSlot[] {
@@ -125,6 +127,7 @@ export default function PostAdModal({
   const [adPrivacy, setAdPrivacy]               = useState<'public' | 'unlisted'>('public');
   const [adUploading, setAdUploading]           = useState(false);
   const [uploadProgress, setUploadProgress]     = useState(0);
+  const [uploadStageMessage, setUploadStageMessage] = useState('');
   const [adUploadResult, setAdUploadResult]     = useState<{ trackingCode: string; videoUrl: string | null } | null>(null);
   const [adUploadError, setAdUploadError]       = useState('');
 
@@ -132,6 +135,7 @@ export default function PostAdModal({
   // 'job' tracks that processing job; once it's done, 'pendingPost' holds the
   // tracking code (to paste into the description) and the download is ready.
   const [jobId, setJobId]                       = useState<string | null>(null);
+  const [jobPipeline, setJobPipeline]           = useState<string | null>(null);
   const [jobStatus, setJobStatus]               = useState<AdVideoJobStatus | null>(null);
   const [jobConnectionWarning, setJobConnectionWarning] = useState('');
   const [pendingPost, setPendingPost]           = useState<{ postId: string; trackingCode: string; description: string; adPlacements?: AdPlacement[] } | null>(null);
@@ -150,6 +154,9 @@ export default function PostAdModal({
   const [videoResolutionValid, setVideoResolutionValid] = useState<boolean | null>(null);
   const [includedSlots, setIncludedSlots]       = useState<string[]>([]);
   const [pendingClaims, setPendingClaims]       = useState<PendingClaim[]>([]);
+  const [priorityOffer, setPriorityOffer]       = useState<AdVideoPriorityOffer | null>(null);
+  const [priorityRequested, setPriorityRequested] = useState(false);
+  const [priorityOfferError, setPriorityOfferError] = useState('');
 
   const [prevSlotsKey, setPrevSlotsKey]         = useState('');
 
@@ -173,9 +180,11 @@ export default function PostAdModal({
     setAdPrivacy('public');
     setAdUploading(!!savedJobId);
     setUploadProgress(0);
+    setUploadStageMessage('');
     setAdUploadResult(null);
     setAdUploadError('');
     setJobId(savedJobId);
+    setJobPipeline(null);
     setJobStatus(null);
     setPendingPost(null);
     setDownloadProgress(null);
@@ -236,6 +245,7 @@ export default function PostAdModal({
         consecutiveFailures = 0;
         setJobConnectionWarning('');
         setJobStatus(json.data);
+        if (json.data.pipeline) setJobPipeline(json.data.pipeline);
         if (json.data.status === 'done') {
           const result = json.data.result ? (typeof json.data.result === 'string' ? JSON.parse(json.data.result) : json.data.result) : null;
           if (result) setPendingPost(result);
@@ -278,6 +288,26 @@ export default function PostAdModal({
       })
       .catch(() => setPendingClaims([]));
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !adFile || adFile.size <= MAX_VIDEO_SIZE_BYTES) return;
+    let cancelled = false;
+    authedFetch(`${VIDEO_API_URL}/api/social/post-ad/priority-offer`)
+      .then(async (response) => {
+        const json: { success?: boolean; data?: AdVideoPriorityOffer } = await response.json();
+        if (!response.ok || !json.success || !json.data) {
+          throw new Error('Could not load priority options.');
+        }
+        if (!cancelled) setPriorityOffer(json.data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPriorityOffer(null);
+          setPriorityOfferError('Could not check your wallet for priority processing. Standard processing is still available.');
+        }
+      });
+      return () => { cancelled = true; };
+  }, [open, adFile]);
 
   // Once the video is picked, read its duration client-side so the creator can
   // either select one or many of the fixed percentage slots that Yupper will
@@ -329,17 +359,132 @@ export default function PostAdModal({
 
   const close = () => { if (!adUploading || jobId) onClose(); };
 
-  // Step 1: upload the raw video — Yepper injects the claimed creative(s)
-  // server-side and queues a processing job.
+  const uploadLongVideo = async () => {
+    if (!provider || !adFile || videoDuration == null || !videoDimensions) return;
+    const claimedSlotTypes = includedSlots.filter((slot) => claimedSlotKeys.has(slot));
+    if (!claimedSlotTypes.length) {
+      throw new Error('Select at least one paid ad placement before processing this video.');
+    }
+
+    setUploadStageMessage('Preparing secure multipart upload…');
+    const startResponse = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/${provider}/aws-upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: adFile.name,
+        contentType: adFile.type || 'video/mp4',
+        fileSize: adFile.size,
+        duration: videoDuration,
+        width: videoDimensions.width,
+        height: videoDimensions.height,
+        priorityRequested,
+        title: adTitle.trim() || adFile.name.replace(/\.[^.]+$/, '') || 'Ad Video',
+        description: adDescription.trim(),
+        claimedSlotTypes,
+      }),
+    });
+    const startJson: AdVideoUploadResponse = await startResponse.json().catch(() => ({}));
+    const startedJobId = startJson.data?.jobId;
+    const partSize = startJson.data?.partSize;
+    const totalParts = startJson.data?.totalParts;
+    if (!startResponse.ok || !startJson.success || !startedJobId || !partSize || !totalParts) {
+      throw new Error(startJson.message || `Could not start secure upload (HTTP ${startResponse.status}).`);
+    }
+
+    let completed = false;
+    try {
+      const parts: AwsUploadPart[] = new Array(totalParts);
+      let nextPartNumber = 1;
+      let uploadedBytes = 0;
+      const uploadPart = async () => {
+        while (true) {
+          const partNumber = nextPartNumber;
+          nextPartNumber += 1;
+          if (partNumber > totalParts) return;
+
+          const partResponse = await authedFetch(
+            `${VIDEO_API_URL}/api/social/post-ad/jobs/${startedJobId}/upload-part-url`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ partNumber }),
+            },
+          );
+          const partJson: { success?: boolean; data?: { url?: string }; message?: string } =
+            await partResponse.json().catch(() => ({}));
+          if (!partResponse.ok || !partJson.success || !partJson.data?.url) {
+            throw new Error(partJson.message || `Could not authorize upload part ${partNumber}.`);
+          }
+
+          const start = (partNumber - 1) * partSize;
+          const part = adFile.slice(start, Math.min(start + partSize, adFile.size));
+          let uploadResponse: Response | null = null;
+          let lastError: Error | null = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              uploadResponse = await fetch(partJson.data.url, {
+                method: 'PUT',
+                body: part,
+                credentials: 'omit',
+              });
+              if (uploadResponse.ok) break;
+              lastError = new Error(`Storage rejected upload part ${partNumber} (HTTP ${uploadResponse.status}).`);
+            } catch {
+              lastError = new Error(`Connection interrupted while uploading part ${partNumber}.`);
+            }
+          }
+          if (!uploadResponse?.ok) throw lastError || new Error(`Upload part ${partNumber} failed.`);
+
+          const etag = uploadResponse.headers.get('ETag');
+          if (!etag) throw new Error('Storage did not return an ETag for an uploaded part. Check the bucket CORS configuration.');
+          parts[partNumber - 1] = { ETag: etag, PartNumber: partNumber };
+          uploadedBytes += part.size;
+          setUploadProgress(Math.min(99, Math.round(uploadedBytes / adFile.size * 100)));
+          setUploadStageMessage(`Uploading securely — part ${partNumber} of ${totalParts}`);
+        }
+      };
+
+      await Promise.all(Array.from({ length: Math.min(3, totalParts) }, () => uploadPart()));
+      setUploadStageMessage('Verifying upload and starting video processing…');
+      const completeResponse = await authedFetch(
+        `${VIDEO_API_URL}/api/social/post-ad/jobs/${startedJobId}/complete-upload`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parts }),
+        },
+      );
+      const completeJson: AdVideoUploadResponse = await completeResponse.json().catch(() => ({}));
+      if (!completeResponse.ok || !completeJson.success) {
+        throw new Error(completeJson.message || `Could not start video processing (HTTP ${completeResponse.status}).`);
+      }
+
+      completed = true;
+      setUploadProgress(100);
+      setJobId(String(startedJobId));
+      setJobPipeline('aws');
+      window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(startedJobId));
+      setJobStatus({
+        status: 'processing',
+        stage_message: completeJson.message
+          || (completeJson.data?.priorityApplied ? 'Priority processing started…' : 'Video uploaded; waiting for processing to start…'),
+        progress: 0,
+        priority_applied: completeJson.data?.priorityApplied,
+      });
+    } finally {
+      if (!completed) {
+        await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${startedJobId}/abort-upload`, {
+          method: 'POST',
+        }).catch(() => {});
+      }
+    }
+  };
+
+  // Keep the existing Cloudinary flow unchanged for videos within its size limit.
   const handleUpload = async () => {
     if (!provider || !adFile || adUploading) return;
-    if (!DEDICATED_VIDEO_API_URL && process.env.NODE_ENV === 'production') {
-      setJobConnectionWarning(
-        'No dedicated video-worker URL is configured yet; falling back to the main backend for this test upload.',
-      );
-    }
     if (adFile.size > MAX_AWS_VIDEO_SIZE_BYTES) {
-      setAdUploadError('Video exceeds the current maximum upload size of 100 GB.');
+      setAdUploadError(`This video exceeds the ${MAX_AWS_VIDEO_SIZE_GB} GB upload limit.`);
       return;
     }
     if (videoDuration == null) {
@@ -357,95 +502,14 @@ export default function PostAdModal({
     }
     setAdUploading(true);
     setUploadProgress(0);
+    setUploadStageMessage(adFile.size > MAX_VIDEO_SIZE_BYTES
+      ? 'Preparing long-video processing…'
+      : 'Uploading short video…');
     setAdUploadError('');
     setJobConnectionWarning('');
-    let awsUploadJobId: string | null = null;
     try {
-      const useAwsPipeline = adFile.size > MAX_VIDEO_SIZE_BYTES;
-      if (useAwsPipeline) {
-        const apiJson = async (url: string, body: unknown) => {
-          const response = await authedFetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-          const payload = await response.json().catch(() => null);
-          if (!response.ok || !payload?.success) {
-            throw new Error(payload?.message || `Video service request failed (HTTP ${response.status}).`);
-          }
-          return payload.data;
-        };
-        const started = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/${provider}/aws-upload`, {
-          filename: adFile.name,
-          contentType: adFile.type,
-          fileSize: adFile.size,
-          duration: videoDuration,
-          width: videoDimensions.width,
-          height: videoDimensions.height,
-          title: adTitle.trim() || adFile.name.replace(/\.[^.]+$/, '') || 'Ad Video',
-          description: adDescription.trim(),
-          privacy: adPrivacy,
-          claimedSlotTypes: hasRelevantClaims && includedSlots.length ? includedSlots : [],
-        });
-        const awsJobId = started?.jobId as string | number | undefined;
-        const partSize = Number(started?.partSize);
-        const totalParts = Number(started?.totalParts);
-        if (awsJobId) awsUploadJobId = String(awsJobId);
-        if (!awsJobId || !Number.isSafeInteger(partSize) || partSize <= 0
-          || !Number.isSafeInteger(totalParts) || totalParts <= 0) {
-          throw new Error('The video service returned invalid multipart-upload details.');
-        }
-
-        const uploadedParts: UploadedPart[] = new Array(totalParts);
-        const partProgress = new Array(totalParts).fill(0) as number[];
-        let bytesUploaded = 0;
-        let nextPart = 0;
-        const updatePartProgress = (index: number, loaded: number) => {
-          bytesUploaded += loaded - partProgress[index];
-          partProgress[index] = loaded;
-          setUploadProgress(Math.min(99, Math.round((bytesUploaded / adFile.size) * 100)));
-        };
-        const uploadNextPart = async () => {
-          while (true) {
-            const partIndex = nextPart;
-            nextPart += 1;
-            if (partIndex >= totalParts) return;
-            const start = partIndex * partSize;
-            const blob = adFile.slice(start, Math.min(adFile.size, start + partSize));
-            let etag: string | null = null;
-            for (let attempt = 0; attempt < 3 && !etag; attempt += 1) {
-              try {
-                const signed = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsJobId}/upload-part-url`, {
-                  partNumber: partIndex + 1,
-                });
-                etag = await uploadS3Part(blob, signed.url, (loaded) => {
-                  updatePartProgress(partIndex, loaded);
-                });
-              } catch (err) {
-                updatePartProgress(partIndex, 0);
-                if (attempt === 2) throw err;
-                await new Promise((resolve) => window.setTimeout(resolve, 500 * (2 ** attempt)));
-              }
-            }
-            if (!etag) throw new Error(`Upload part ${partIndex + 1} did not complete.`);
-            updatePartProgress(partIndex, blob.size);
-            uploadedParts[partIndex] = { PartNumber: partIndex + 1, ETag: etag };
-          }
-        };
-        await Promise.all(Array.from({ length: Math.min(3, totalParts) }, () => uploadNextPart()));
-        const completed = await apiJson(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsJobId}/complete-upload`, {
-          parts: uploadedParts,
-        });
-        if (!completed?.jobId) throw new Error('The video service did not return a processing job ID.');
-        awsUploadJobId = null;
-        setUploadProgress(100);
-        setJobId(String(completed.jobId));
-        window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(completed.jobId));
-        setJobStatus({
-          status: 'processing',
-          stage_message: 'Upload complete. AWS is preparing the video render…',
-          progress: 0,
-        });
+      if (adFile.size > MAX_VIDEO_SIZE_BYTES) {
+        await uploadLongVideo();
         return;
       }
       const form = new FormData();
@@ -489,19 +553,10 @@ export default function PostAdModal({
       window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(json.data.jobId));
       setJobStatus({ status: 'queued', stage_message: 'Waiting for an available processing slot…', progress: 0, queue_position: 1 });
     } catch (err) {
-      let message = err instanceof Error ? err.message : 'Something went wrong, please try again';
-      if (awsUploadJobId) {
-        try {
-          const cleanup = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${awsUploadJobId}/abort-upload`, {
-            method: 'POST',
-          });
-          if (!cleanup.ok) message += ' The incomplete upload could not be cancelled automatically.';
-        } catch {
-          message += ' The incomplete upload could not be cancelled automatically.';
-        }
-      }
-      setAdUploadError(message);
+      setAdUploadError(err instanceof Error ? err.message : 'Something went wrong, please try again');
       setAdUploading(false);
+    } finally {
+      setUploadStageMessage('');
     }
   };
 
@@ -554,6 +609,18 @@ export default function PostAdModal({
       const fileHandle = pickerWindow.showSaveFilePicker
         ? await pickerWindow.showSaveFilePicker({ suggestedName: 'yepper-ad-video.mp4' })
         : null;
+      if (!fileHandle && jobPipeline === 'aws') {
+        const response = await authedFetch(
+          `${VIDEO_API_URL}/api/social/post-ad/jobs/${jobId}/download?direct=1`,
+        );
+        const json: { success?: boolean; data?: { url?: string }; message?: string } =
+          await response.json().catch(() => ({}));
+        if (!response.ok || !json.success || !json.data?.url) {
+          throw new Error(json.message || `Download could not be started (${response.status}).`);
+        }
+        window.location.assign(json.data.url);
+        return;
+      }
       const response = await authedFetch(`${VIDEO_API_URL}/api/social/post-ad/jobs/${jobId}/download`);
       if (!response.ok) {
         const message: { message?: string } = await response.json().catch(() => ({}));
@@ -609,7 +676,7 @@ export default function PostAdModal({
   };
 
   const startAnotherVideo = () => {
-    if (!provider || !downloaded) return;
+    if (!downloaded) return;
     window.sessionStorage.removeItem(`yepper-ad-video-job:${provider}`);
     setJobId(null);
     setJobStatus(null);
@@ -636,7 +703,7 @@ export default function PostAdModal({
               {`Post Ad: ${provider.charAt(0).toUpperCase() + provider.slice(1)}`}
             </h3>
             <p className="text-xs text-(--color-muted) mt-0.5">
-              Upload your video — we inject the ad, then you download and publish it. Long videos are high-quality re-encodes at the source resolution.
+              Short videos use Cloudinary. Larger videos upload directly to secure storage for background processing.
             </p>
           </div>
           <button onClick={close} disabled={adUploading && !jobId} className="p-1 rounded-full hover:bg-(--color-surface-2) disabled:opacity-40">
@@ -647,13 +714,19 @@ export default function PostAdModal({
         {adUploading && !jobId ? (
           <div className="space-y-3 rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4" aria-live="polite">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-(--color-white)">Uploading video to the processing queue…</p>
+              <p className="text-sm font-medium text-(--color-white)">
+                {uploadStageMessage || 'Preparing video…'}
+              </p>
               <p className="shrink-0 text-xs font-bold text-(--color-white)">{uploadProgress}%</p>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface-3)">
               <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
             </div>
-            <p className="text-[10px] text-(--color-muted)">Keep this window open until the upload finishes. Processing will continue in the background after it is queued.</p>
+            <p className="text-[10px] text-(--color-muted)">
+              {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES
+              ? 'Uploading directly to secure storage. Processing may take hours; you can close this window after upload completes.'
+                : 'Keep this window open until the short-video upload finishes.'}
+            </p>
           </div>
         ) : jobId && !pendingPost ? (
           <div className="space-y-4">
@@ -671,7 +744,13 @@ export default function PostAdModal({
                 <span>{jobStatus?.status === 'queued' ? 'Queued' : 'Video processing'}</span>
                 <span>{jobStatus?.progress ?? 0}%</span>
               </div>
-              <p className="text-[10px] text-(--color-muted)">Long videos can take time to render. You can close this window; the job will keep running in the queue.</p>
+              <p className="text-[10px] text-(--color-muted)">
+                {jobStatus?.status === 'processing' && jobStatus.estimated_remaining_seconds != null
+                  ? `Estimated processing time remaining: ${formatDurationEstimate(jobStatus.estimated_remaining_seconds)}. This estimate is based on current progress and is not guaranteed.`
+                  : jobStatus?.stage_message?.includes('queue')
+                    ? 'Waiting for an AWS processing slot. The render-time estimate will appear after processing starts.'
+                  : 'Long videos can take hours. The processing-time estimate appears once enough progress is available. You can close this window; the job keeps running.'}
+              </p>
             </div>
             {jobConnectionWarning && (
               <p className="text-xs text-amber-300 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2" role="status">
@@ -731,41 +810,41 @@ export default function PostAdModal({
               </button>
             )}
 
-            <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-2">
-              <p className="text-xs font-bold text-(--color-muted) uppercase">1. Add this tracking ID to your description</p>
-              <div className="flex items-start gap-2">
-                <pre className="flex-1 whitespace-pre-wrap text-xs font-mono text-(--color-white) bg-(--color-surface-3) rounded-lg p-2.5">{pendingPost.description}</pre>
-                <button onClick={copyCode} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-(--color-surface-3) hover:bg-(--color-surface-1) text-[11px] font-medium text-(--color-white)">
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <p className="text-[10px] text-(--color-muted)">
-                {jobId
-                  ? `Publish the downloaded video on YouTube (${adPrivacy}) with this in the description.`
-                  : 'Download the advertiser images, edit them into your YouTube video, then publish it with this tracking ID in the description.'}
-              </p>
-            </div>
+            <>
+                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-2) p-4 space-y-2">
+                  <p className="text-xs font-bold text-(--color-muted) uppercase">1. Add this tracking ID to your description</p>
+                  <div className="flex items-start gap-2">
+                    <pre className="flex-1 whitespace-pre-wrap text-xs font-mono text-(--color-white) bg-(--color-surface-3) rounded-lg p-2.5">{pendingPost.description}</pre>
+                    <button onClick={copyCode} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-(--color-surface-3) hover:bg-(--color-surface-1) text-[11px] font-medium text-(--color-white)">
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-(--color-muted)">
+                    Publish the downloaded video on YouTube ({adPrivacy}) with this in the description.
+                  </p>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">2. Paste the published video link</label>
-              <input
-                value={publishedUrl}
-                onChange={(e) => setPublishedUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=…"
-                disabled={confirming}
-                className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30 disabled:opacity-50"
-              />
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">2. Paste the published video link</label>
+                  <input
+                    value={publishedUrl}
+                    onChange={(e) => setPublishedUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=…"
+                    disabled={confirming}
+                    className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30 disabled:opacity-50"
+                  />
+                </div>
 
-            {adUploadError && (
-              <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
-            )}
+                {adUploadError && (
+                  <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
+                )}
 
-            <div className="flex gap-3 pt-1">
-              <button onClick={close} disabled={confirming} className="flex-1 py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white) disabled:opacity-40">
-                Do this later
-              </button>
-            </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={close} disabled={confirming} className="flex-1 py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white) disabled:opacity-40">
+                    Do this later
+                  </button>
+                </div>
+            </>
           </div>
         ) : adUploadResult ? (
           <div className="space-y-4">
@@ -794,7 +873,13 @@ export default function PostAdModal({
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e) => setAdFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  setPriorityOffer(null);
+                  setPriorityRequested(false);
+                  setPriorityOfferError('');
+                  setAdFile(e.target.files?.[0] ?? null);
+                  setAdUploadError('');
+                }}
               />
               <button
                 onClick={() => fileRef.current?.click()}
@@ -805,8 +890,33 @@ export default function PostAdModal({
                 <span className="truncate">{adFile ? adFile.name : 'Choose your raw video file…'}</span>
                 {adFile && <span className="ml-auto shrink-0 text-[10px] text-(--color-muted)">{(adFile.size / 1024 / 1024).toFixed(1)} MB</span>}
               </button>
-              <p className="text-[10px] text-(--color-muted) mt-1">Upload the video as-is — Yepper injects the claimed ad(s) for you.</p>
-              <p className="text-[10px] text-(--color-muted)">Up to 2 hours and 4K. Videos over {MAX_VIDEO_SIZE_MB} MB use direct AWS upload (up to 100 GB); smaller videos use Cloudinary.</p>
+              <p className="text-[10px] text-(--color-muted) mt-1">
+                Videos up to {MAX_VIDEO_SIZE_MB} MB use the existing Cloudinary path. Larger videos (up to {MAX_AWS_VIDEO_SIZE_GB} GB) upload directly and process in the background.
+              </p>
+              {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && (
+                <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200" role="status">
+                  Long-video processing may take several hours and depends on processing capacity. The original video uploads directly to private storage. The finished MP4 is H.264 at 1080p maximum; 4K sources are downscaled.
+                </p>
+              )}
+              {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && priorityOffer?.enabled && (
+                <label className="mt-2 flex items-start gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2 text-[11px] text-(--color-white)">
+                  <input
+                    type="checkbox"
+                    checked={priorityRequested}
+                    onChange={(event) => setPriorityRequested(event.target.checked)}
+                    disabled={!priorityOffer.eligible || adUploading}
+                    className="mt-0.5 accent-emerald-500"
+                  />
+                  <span>
+                    Request priority processing for {priorityOffer.feeRwf.toLocaleString()} RWF from your creator wallet.
+                    {' '}Wallet balance: {priorityOffer.balanceRwf.toLocaleString()} RWF.
+                    {!priorityOffer.eligible && ' Add wallet credits to use priority; otherwise the video uses the standard queue.'}
+                  </span>
+                </label>
+              )}
+              {priorityOfferError && adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && (
+                <p className="mt-2 text-[10px] text-amber-200" role="status">{priorityOfferError}</p>
+              )}
             </div>
 
             {/* Confirm which claimed placements this edit actually includes */}
@@ -817,25 +927,37 @@ export default function PostAdModal({
                   {relevantClaimedSlots.map((slot) => {
                     const claim = pendingClaims.find((c) => c.slotType === slot.key);
                     return (
-                      <label key={slot.key} className="flex items-center gap-2 text-xs cursor-pointer text-(--color-white)">
-                        <input
-                          type="checkbox"
-                          checked={includedSlots.includes(slot.key)}
-                          onChange={() => toggleSlot(slot.key)}
-                          disabled={adUploading}
-                          className="accent-emerald-500"
-                        />
-                        {slot.label}
-                        {claim ? `: ${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize}` : ''}
-                      </label>
+                      <div key={slot.key} className="flex items-center justify-between gap-2">
+                        <label className="flex items-center gap-2 text-xs cursor-pointer text-(--color-white)">
+                          <input
+                            type="checkbox"
+                            checked={includedSlots.includes(slot.key)}
+                            onChange={() => toggleSlot(slot.key)}
+                            disabled={adUploading}
+                            className="accent-emerald-500"
+                          />
+                          {slot.label}
+                          {claim ? `: ${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize}` : ''}
+                        </label>
+                        {claim && (
+                          <a
+                            href={claim.imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="shrink-0 text-[10px] text-emerald-300 underline"
+                          >
+                            Open badge image
+                          </a>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
               </div>
             )}
 
-            {/* Title */}
-            <div>
+            {/* Metadata fields are only used by the existing short-video upload route. */}
+            {(!adFile || adFile.size <= MAX_VIDEO_SIZE_BYTES) && <div>
               <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Title</label>
               <input
                 value={adTitle}
@@ -844,10 +966,9 @@ export default function PostAdModal({
                 disabled={adUploading}
                 className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30 disabled:opacity-50"
               />
-            </div>
+            </div>}
 
-            {/* Description */}
-            <div>
+            {(!adFile || adFile.size <= MAX_VIDEO_SIZE_BYTES) && <div>
               <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Description / Caption</label>
               <textarea
                 value={adDescription}
@@ -858,10 +979,10 @@ export default function PostAdModal({
                 className="w-full bg-(--color-surface-2) border border-(--color-border) rounded-xl px-4 py-2.5 text-sm text-(--color-white) outline-none placeholder:text-(--color-muted) focus:border-white/30 resize-none disabled:opacity-50"
               />
               <p className="text-[10px] text-(--color-muted) mt-1">A tracking code (e.g. <span className="font-mono text-emerald-400">#YPR-YT-001</span>) will be appended automatically.</p>
-            </div>
+            </div>}
 
             {/* Privacy */}
-            <div>
+            {(!adFile || adFile.size <= MAX_VIDEO_SIZE_BYTES) && <div>
               <label className="block text-xs font-bold text-(--color-muted) uppercase mb-1.5">Privacy</label>
               <div className="flex gap-2">
                 {(['public', 'unlisted'] as const).map((p) => (
@@ -875,13 +996,12 @@ export default function PostAdModal({
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Error */}
             {adUploadError && (
               <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
             )}
-
             {/* Actions */}
             <div className="flex gap-3 pt-1">
               <button onClick={close} disabled={adUploading} className="flex-1 py-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-2) text-sm font-medium text-(--color-white) disabled:opacity-40">
@@ -889,11 +1009,11 @@ export default function PostAdModal({
               </button>
               <button
                 onClick={handleUpload}
-                disabled={!adFile || adUploading}
+                disabled={!adFile || adUploading || adFile.size > MAX_AWS_VIDEO_SIZE_BYTES}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white disabled:opacity-40"
               >
                 <CloudArrowUpIcon className="w-4 h-4" />
-                {adUploading ? 'Uploading…' : 'Upload & Process'}
+                {adUploading ? 'Uploading…' : adFile && adFile.size > MAX_VIDEO_SIZE_BYTES ? 'Upload & Process Long Video' : 'Upload & Process'}
               </button>
             </div>
           </div>

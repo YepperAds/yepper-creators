@@ -236,6 +236,12 @@ async function initCreatorsDatabase() {
     `CREATE INDEX IF NOT EXISTS ad_video_jobs_creator_idx ON ad_video_jobs (creator_id)`,
     `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0`,
     `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS output_path TEXT`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMPTZ`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS processing_completed_at TIMESTAMPTZ`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS ready_email_sent_at TIMESTAMPTZ`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS ready_email_claimed_at TIMESTAMPTZ`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS failure_email_sent_at TIMESTAMPTZ`,
+    `ALTER TABLE ad_video_jobs ADD COLUMN IF NOT EXISTS failure_email_claimed_at TIMESTAMPTZ`,
     `CREATE TABLE IF NOT EXISTS ad_video_processing_costs (
        id                  BIGSERIAL PRIMARY KEY,
        job_id              INTEGER NOT NULL REFERENCES ad_video_jobs(id) ON DELETE CASCADE,

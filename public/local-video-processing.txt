@@ -1,0 +1,48 @@
+Yepper local video helper
+=========================
+
+This helper processes the video on your computer. The video itself is never
+uploaded to Yepper or another processing service. Only the public ad image
+URLs are fetched from Cloudinary.
+
+Requirements
+------------
+- Node.js 20 or newer
+- FFmpeg and ffprobe installed and available on PATH
+- Internet access to download the selected public Cloudinary badge image(s)
+
+Run
+---
+1. Download local-video-helper.mjs and save it in a folder.
+2. Open a terminal in that folder.
+3. Use your input video path, output path, selected percentage slots, and each
+   selected slot's Cloudinary image URL:
+
+   node local-video-helper.mjs --input "my-video.mp4" --output "my-video-with-ads.mkv" --slots 8pct,25pct --badge "8pct=https://res.cloudinary.com/ACCOUNT/image/upload/BADGE1.png" --badge "25pct=https://res.cloudinary.com/ACCOUNT/image/upload/BADGE2.png"
+
+   Or download each badge image first and pass its local path:
+
+   node local-video-helper.mjs --input "my-video.mp4" --output "my-video-with-ads.mkv" --slots 8pct,25pct --badge "8pct=badge-8pct.png" --badge "25pct=badge-25pct.png"
+
+The slot timestamps are calculated from the source duration. Each badge is
+shown for 15 seconds at bottom-right. For every selected slot, the helper copies
+the untouched sections, re-encodes only the badge section with the source video
+codec/profile/pixel format/frame rate/bitrate when available, and joins the
+sections with FFmpeg's concat demuxer. Audio is stream-copied.
+
+The helper writes a Matroska (.mkv) output so common source codecs can remain
+unchanged. Check that the selected codec can be encoded by your local FFmpeg.
+The helper may fail for unsupported or unusual codecs, encrypted files,
+overlapping badge windows, or media with incompatible stream parameters. Keep
+the original video; processing never overwrites it.
+
+Limitations
+-----------
+- Cuts made with stream copy are keyframe-aligned. For source videos whose
+  keyframes do not line up with a requested percentage timestamp, a cut or
+  badge can begin slightly before or after the exact timestamp.
+- The final file keeps the source video codec and copies audio, but this
+  segment-based method cannot guarantee bit-for-bit continuity at every join.
+- The browser route has a conservative 256 MiB input cap. Actual capacity is
+  lower or higher depending on browser, available memory, codec, and output
+  size. Use this local helper for larger videos.

@@ -2,7 +2,7 @@ services:
   - type: web
     name: yepper-creators-video-worker
     runtime: node
-    plan: free
+    plan: starter
     rootDir: backend
     buildCommand: npm install
     startCommand: npm run worker
@@ -30,11 +30,21 @@ services:
         sync: false
       - key: AWS_MEDIACONVERT_ROLE_ARN
         sync: false
+      - key: AWS_MEDIACONVERT_ENDPOINT
+        sync: false
       - key: PROCESSING_BUDGET_PERCENT_OF_COMMISSION
         value: "10"
       - key: PROCESSING_COST_PER_MIN_USD
         sync: false
       - key: USD_RWF_RATE
+        sync: false
+      - key: AD_VIDEO_PRIORITY_FEE_RWF
+        value: "0"
+      - key: FRONTEND_URL
+        value: https://yepper.cc
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
         sync: false
       - key: VID_CLOUDINARY_NAME
         sync: false

@@ -64,6 +64,7 @@ router.post(
   controller.postAdVideo,
 );
 router.post('/api/social/post-ad/:provider/aws-upload', controller.startAwsAdVideoUpload);
+router.get('/api/social/post-ad/priority-offer', controller.getAdVideoPriorityOffer);
 router.post('/api/social/post-ad/jobs/:id/upload-part-url', controller.getAwsAdVideoPartUrl);
 router.post('/api/social/post-ad/jobs/:id/complete-upload', controller.completeAwsAdVideoUpload);
 router.post('/api/social/post-ad/jobs/:id/abort-upload', controller.abortAwsAdVideoUpload);

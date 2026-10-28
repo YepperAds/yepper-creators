@@ -4,6 +4,7 @@ const {
   MULTIPART_PART_SIZE,
   buildMediaConvertSettings,
   getMultipartPartCount,
+  normalizeMediaConvertPriority,
 } = require('./awsVideoPipeline');
 
 test('multipart upload part sizing stays within S3 limits for 50 GB inputs', () => {
@@ -12,6 +13,14 @@ test('multipart upload part sizing stays within S3 limits for 50 GB inputs', () 
   assert.equal(getMultipartPartCount(MULTIPART_PART_SIZE + 1), 2);
   assert.ok(getMultipartPartCount(100 * 1024 ** 3) <= 10_000);
   assert.ok(MULTIPART_PART_SIZE >= 5 * 1024 * 1024);
+});
+
+test('MediaConvert priority is bounded to the AWS supported 0-10 range', () => {
+  assert.equal(normalizeMediaConvertPriority(10), 10);
+  assert.equal(normalizeMediaConvertPriority(4.9), 4);
+  assert.equal(normalizeMediaConvertPriority(-1), 0);
+  assert.equal(normalizeMediaConvertPriority(11), 10);
+  assert.equal(normalizeMediaConvertPriority('not-a-number'), 0);
 });
 
 test('MediaConvert settings preserve source dimensions and overlay timing', () => {

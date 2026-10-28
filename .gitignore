@@ -39,7 +39,7 @@ yarn-error.log*
 # vercel
 .vercel
 
-# ffmpeg.wasm core — copied from node_modules/@ffmpeg/core by scripts/copy-ffmpeg-core.js
+# ffmpeg.wasm core — copied from node_modules/@ffmpeg/core by scripts/copy-ffmpeg-core.mjs
 # (postinstall), not committed since it's a multi-MB build artifact
 /public/ffmpeg/
 

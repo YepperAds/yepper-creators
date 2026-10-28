@@ -81,6 +81,12 @@ function getMultipartPartCount(fileSize) {
   return Math.ceil(fileSize / MULTIPART_PART_SIZE);
 }
 
+function normalizeMediaConvertPriority(priority) {
+  const parsedPriority = Number(priority);
+  if (!Number.isFinite(parsedPriority)) return 0;
+  return Math.max(0, Math.min(10, Math.trunc(parsedPriority)));
+}
+
 async function createVideoMultipartUpload({ creatorId, jobId, filename, contentType }) {
   const { region, bucket } = getAwsVideoConfig();
   const key = makeMultipartKey(creatorId, jobId, filename);
@@ -328,11 +334,12 @@ function buildMediaConvertSettings({ bucket, inputKey, outputPrefix, overlays })
   };
 }
 
-async function submitMediaConvertJob({ roleArn, settings, jobId }) {
+async function submitMediaConvertJob({ roleArn, settings, jobId, priority = 0 }) {
   const { region } = getAwsVideoConfig();
   const client = await getMediaConvertClient(region);
   const response = await client.send(new CreateJobCommand({
     Role: roleArn,
+    Priority: normalizeMediaConvertPriority(priority),
     UserMetadata: { yepperJobId: String(jobId) },
     Settings: settings,
     StatusUpdateInterval: 'SECONDS_60',
@@ -371,5 +378,6 @@ module.exports = {
   getCompletedVideoSize,
   getMediaConvertJob,
   getMultipartPartCount,
+  normalizeMediaConvertPriority,
   submitMediaConvertJob,
 };

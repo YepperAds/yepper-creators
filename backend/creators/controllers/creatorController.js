@@ -1583,6 +1583,65 @@ function trackingCode(provider, num) {
   return `#YPR-${prefix}-${String(num).padStart(3, '0')}`;
 }
 
+function escapeEmailHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+}
+
+async function sendAdVideoJobEmail(job, outcome) {
+  const ready = outcome === 'ready';
+  const sentColumn = ready ? 'ready_email_sent_at' : 'failure_email_sent_at';
+  const claimedColumn = ready ? 'ready_email_claimed_at' : 'failure_email_claimed_at';
+  const status = ready ? 'done' : 'error';
+  const claim = await query(
+    `UPDATE ad_video_jobs
+     SET ${claimedColumn}=NOW()
+     WHERE id=$1 AND status=$2 AND ${sentColumn} IS NULL
+       AND (${claimedColumn} IS NULL OR ${claimedColumn} < NOW() - INTERVAL '5 minutes')
+     RETURNING id`,
+    [job.id, status],
+  );
+  if (!claim.rowCount) return;
+
+  try {
+    const creatorResult = await query(
+      `SELECT email, full_name FROM creators WHERE id=$1`,
+      [job.creator_id],
+    );
+    const creator = creatorResult.rows[0];
+    if (!creator?.email) {
+      console.error(`[creators] adVideoJob#${job.id} email notification skipped: creator email is unavailable`);
+      return;
+    }
+
+    const dashboardUrl = new URL('/connect-accounts', FRONTEND_URL).toString();
+    const name = escapeEmailHtml(creator.full_name || 'creator');
+    const readyEmail = ready
+      ? `<p>Your processed video is ready to download from your Yepper dashboard. Add the tracking code <strong>${escapeEmailHtml(job.result?.trackingCode || '')}</strong> to the video description when you publish.</p>`
+      : '<p>We could not finish processing your video. Open the video job in Yepper to see the status and next steps.</p>';
+    const sent = await sendEmail(
+      creator.email,
+      ready ? 'Your Yepper video is ready' : 'Your Yepper video could not be processed',
+      `<p>Hi ${name},</p>${readyEmail}<p><a href="${escapeEmailHtml(dashboardUrl)}">Open your Yepper dashboard</a></p>`,
+    );
+    if (sent) {
+      await query(
+        `UPDATE ad_video_jobs
+         SET ${sentColumn}=NOW(), ${claimedColumn}=NULL
+         WHERE id=$1`,
+        [job.id],
+      );
+    }
+  } catch (err) {
+    console.error(`[creators] adVideoJob#${job.id} email notification failed:`, err?.message || err);
+  }
+}
+
 // Serializes every ad-video job's platform upload onto a single chain so
 // uploads landing at once never compete for the same Render instance's
 // CPU/RAM at the same time. Jobs sit at status='queued' until their turn.
@@ -1594,9 +1653,13 @@ function enqueueAdVideoJob(jobId, params) {
 }
 
 async function updateAdVideoJob(jobId, fields) {
-  const cols = Object.keys(fields);
+  const updates = { ...fields };
+  if (updates.status === 'error' && !Object.prototype.hasOwnProperty.call(updates, 'processing_completed_at')) {
+    updates.processing_completed_at = new Date();
+  }
+  const cols = Object.keys(updates);
   const sets = cols.map((c, i) => `${c} = $${i + 1}`);
-  const values = cols.map((c) => fields[c]);
+  const values = cols.map((c) => updates[c]);
   await query(
     `UPDATE ad_video_jobs SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${cols.length + 1}`,
     [...values, jobId],
@@ -1704,11 +1767,141 @@ async function fetchPublicYoutubeVideo(videoId, creatorId) {
 
 // The creator uploads their raw video here (no ad burned in yet). Yepper
 // injects the claimed creative(s) server-side (see runAdVideoJob /
-// videoAdInjector), the creator downloads the processed file at its
-// original quality, and publishes it themselves on their own channel — no
-// upload/manage OAuth scope on their account is ever needed for this.
+// videoAdInjector or the AWS MediaConvert path), and the creator downloads
+// the processed file and publishes it themselves — no YouTube upload scope is
+// needed. The AWS output is H.264 MP4 at 1080p maximum.
 const MAX_AWS_VIDEO_SIZE_BYTES = Number(process.env.MAX_AWS_AD_VIDEO_SIZE_GB || 100) * 1024 * 1024 * 1024;
 const MAX_AWS_VIDEO_DURATION_SEC = 2 * 60 * 60;
+
+function getAdVideoPriorityFeeRwf() {
+  const rawFee = process.env.AD_VIDEO_PRIORITY_FEE_RWF;
+  if (!rawFee) return 0;
+  const fee = Number(rawFee);
+  if (!Number.isFinite(fee) || fee < 0) {
+    throw new Error('AD_VIDEO_PRIORITY_FEE_RWF must be a non-negative number');
+  }
+  return fee === 0 ? 0 : Math.ceil(fee);
+}
+
+exports.getAdVideoPriorityOffer = async (req, res) => {
+  const creatorId = getCreatorId(req);
+  if (!creatorId) return res.status(401).json({ success: false });
+  try {
+    const feeRwf = getAdVideoPriorityFeeRwf();
+    const wallet = await Wallet.findByOwner(String(creatorId), 'webOwner');
+    const balanceRwf = Number(wallet?.balance || 0);
+    return res.json({
+      success: true,
+      data: {
+        enabled: feeRwf > 0,
+        feeRwf,
+        balanceRwf,
+        eligible: feeRwf > 0 && balanceRwf >= feeRwf,
+      },
+    });
+  } catch (err) {
+    console.error('[creators] ad-video priority offer lookup failed:', err);
+    return res.status(500).json({ success: false, message: 'Could not load priority processing options.' });
+  }
+};
+
+async function chargeAdVideoPriorityFee({ creatorId, jobId, amount }) {
+  const transactionHash = `ad-video-priority-${jobId}`;
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query(
+      `SELECT id FROM wallet_transactions WHERE transaction_hash=$1 AND type='debit'`,
+      [transactionHash],
+    );
+    if (existing.rowCount) {
+      await client.query('COMMIT');
+      return { charged: true, transactionId: existing.rows[0].id };
+    }
+
+    const walletResult = await client.query(
+      `SELECT id, balance FROM wallets
+       WHERE owner_id=$1 AND owner_type='webOwner'
+       FOR UPDATE`,
+      [String(creatorId)],
+    );
+    const wallet = walletResult.rows[0];
+    if (!wallet || Number(wallet.balance) < amount) {
+      await client.query('ROLLBACK');
+      return { charged: false, transactionId: null };
+    }
+    await client.query(
+      `UPDATE wallets
+       SET balance=balance-$1, total_spent=total_spent+$1,
+           last_updated=NOW(), updated_at=NOW()
+       WHERE id=$2`,
+      [amount, wallet.id],
+    );
+    const transaction = await client.query(
+      `INSERT INTO wallet_transactions
+         (wallet_id, amount, type, description, status, transaction_hash)
+       VALUES ($1,$2,'debit',$3,'completed',$4)
+       RETURNING id`,
+      [wallet.id, amount, `Priority processing for ad video job ${jobId}`, transactionHash],
+    );
+    await client.query('COMMIT');
+    return { charged: true, transactionId: transaction.rows[0].id };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function refundAdVideoPriorityFee({ creatorId, jobId, transactionId }) {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const originalResult = await client.query(
+      `SELECT id, wallet_id, amount
+       FROM wallet_transactions
+       WHERE id=$1 AND wallet_id IN (
+         SELECT id FROM wallets WHERE owner_id=$2 AND owner_type='webOwner'
+       )
+       FOR UPDATE`,
+      [transactionId, String(creatorId)],
+    );
+    if (!originalResult.rowCount) {
+      await client.query('COMMIT');
+      return;
+    }
+    const original = originalResult.rows[0];
+    const refundHash = `ad-video-priority-refund-${jobId}`;
+    const existingRefund = await client.query(
+      `SELECT id FROM wallet_transactions WHERE transaction_hash=$1`,
+      [refundHash],
+    );
+    if (existingRefund.rowCount) {
+      await client.query('COMMIT');
+      return;
+    }
+    await client.query(
+      `UPDATE wallets
+       SET balance=balance+$1, total_spent=GREATEST(0,total_spent-$1),
+           total_refunded=total_refunded+$1, last_updated=NOW(), updated_at=NOW()
+       WHERE id=$2`,
+      [original.amount, original.wallet_id],
+    );
+    await client.query(
+      `INSERT INTO wallet_transactions
+         (wallet_id, related_transaction_id, amount, type, description, status, transaction_hash)
+       VALUES ($1,$2,$3,'refund_credit',$4,'completed',$5)`,
+      [original.wallet_id, original.id, original.amount, `Refund for failed priority video job ${jobId}`, refundHash],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 function parseAdClaimSlotTypes(value) {
   let slotTypes = [];
@@ -1751,6 +1944,7 @@ exports.startAwsAdVideoUpload = async (req, res) => {
   }
 
   const { filename, contentType, fileSize, duration, width, height } = req.body;
+  const priorityRequested = req.body.priorityRequested === true;
   const expectedSize = Number(fileSize);
   const videoDuration = Number(duration);
   const videoWidth = Number(width);
@@ -1845,6 +2039,7 @@ exports.startAwsAdVideoUpload = async (req, res) => {
       title: String(req.body.title || '').slice(0, 500),
       description: String(req.body.description || '').slice(0, 5000),
       claimedSlotTypes,
+      priorityRequested,
     };
     await query(
       `UPDATE ad_video_jobs SET result=$1::jsonb, updated_at=NOW() WHERE id=$2 AND creator_id=$3`,
@@ -1950,11 +2145,24 @@ exports.completeAwsAdVideoUpload = async (req, res) => {
   }
 
   let mediaConvertJobId;
+  let priorityTransactionId = null;
+  let priorityApplied = false;
+  let priorityFeeRwf = 0;
   try {
     const parts = req.body.parts;
     const expectedPartCount = getMultipartPartCount(Number(upload.fileSize));
     if (!Array.isArray(parts) || parts.length !== expectedPartCount) {
       return res.status(400).json({ success: false, message: 'The uploaded video is missing one or more parts.' });
+    }
+    const completionClaim = await query(
+      `UPDATE ad_video_jobs
+       SET status='submitting', stage_message='Verifying upload and preparing render…', updated_at=NOW()
+       WHERE id=$1 AND creator_id=$2 AND status='uploading'
+       RETURNING id`,
+      [job.id, session],
+    );
+    if (!completionClaim.rowCount) {
+      return res.status(409).json({ success: false, message: 'This video upload is already being completed.' });
     }
     await completeVideoMultipartUpload({
       bucket: upload.bucket,
@@ -1986,34 +2194,66 @@ exports.completeAwsAdVideoUpload = async (req, res) => {
       overlays,
     });
     const { roleArn } = getAwsVideoConfig();
+    if (upload.priorityRequested) {
+      priorityFeeRwf = getAdVideoPriorityFeeRwf();
+      if (priorityFeeRwf > 0) {
+        const charge = await chargeAdVideoPriorityFee({
+          creatorId: session,
+          jobId: job.id,
+          amount: priorityFeeRwf,
+        });
+        priorityApplied = charge.charged;
+        priorityTransactionId = charge.transactionId;
+      }
+    }
     mediaConvertJobId = await submitMediaConvertJob({
       roleArn,
       settings,
       jobId: job.id,
+      priority: priorityApplied ? 10 : 0,
     });
     const result = {
       ...upload,
       mediaConvertJobId,
+      priorityApplied,
+      priorityFeeRwf: priorityApplied ? priorityFeeRwf : 0,
+      processingStartedAt: Date.now(),
       adPlacements: placements,
     };
     await query(
       `UPDATE ad_video_jobs
        SET status='processing', stage_message='AWS is rendering the video…', progress=1,
+           processing_started_at=NOW(),
            result=$1::jsonb, updated_at=NOW()
-       WHERE id=$2 AND creator_id=$3 AND status='uploading'`,
+       WHERE id=$2 AND creator_id=$3 AND status='submitting'`,
       [JSON.stringify(result), job.id, session],
     );
-    return res.json({ success: true, data: { jobId: job.id } });
+    return res.json({
+      success: true,
+      message: upload.priorityRequested && !priorityApplied
+        ? 'Your wallet does not have enough credits for priority processing. The video was submitted to the standard queue.'
+        : undefined,
+      data: { jobId: job.id, priorityApplied, priorityFeeRwf: priorityApplied ? priorityFeeRwf : 0 },
+    });
   } catch (err) {
     if (!mediaConvertJobId) {
+      if (priorityTransactionId) {
+        await refundAdVideoPriorityFee({
+          creatorId: session,
+          jobId: job.id,
+          transactionId: priorityTransactionId,
+        }).catch((refundError) => {
+          console.error(`[creators] adVideoJob#${job.id} priority fee refund failed:`, refundError.message);
+        });
+      }
       await releaseCampaignProcessingBudget(job.id).catch((releaseError) => {
         console.error(`[creators] adVideoJob#${job.id} budget release failed:`, releaseError.message);
       });
     }
     console.error(`[creators] adVideoJob#${job.id} AWS render submit error:`, err?.stack || err);
     await query(
-      `UPDATE ad_video_jobs SET status='error', error_message=$1, updated_at=NOW()
-       WHERE id=$2 AND creator_id=$3 AND status='uploading'`,
+      `UPDATE ad_video_jobs SET status='error', error_message=$1, processing_completed_at=NOW(), updated_at=NOW()
+       WHERE id=$2 AND creator_id=$3 AND status='submitting'`,
       [err?.message || 'Could not start AWS rendering.', job.id, session],
     ).catch((dbError) => console.error(`[creators] adVideoJob#${job.id} error update failed:`, dbError.message));
     return res.status(500).json({ success: false, message: err?.message || 'Could not start AWS rendering.' });
@@ -2392,6 +2632,7 @@ async function finalizeAwsAdVideoJob(jobId, creatorId, awsResult) {
     }
 
     const result = {
+      pipeline: 'aws',
       postId: postRes.rows[0].id,
       trackingCode: code,
       description: fullDescription,
@@ -2400,7 +2641,7 @@ async function finalizeAwsAdVideoJob(jobId, creatorId, awsResult) {
     await client.query(
       `UPDATE ad_video_jobs
        SET status='done', stage_message='Done', progress=100, output_path=$1,
-           result=$2::jsonb, updated_at=NOW()
+           result=$2::jsonb, processing_completed_at=NOW(), updated_at=NOW()
        WHERE id=$3 AND creator_id=$4`,
       [`s3://${awsResult.bucket}/${awsResult.outputKey}`, JSON.stringify(result), jobId, creatorId],
     );
@@ -2464,6 +2705,13 @@ async function refreshAwsAdVideoJob(job) {
       ...awsResult,
       outputKey: decodeURIComponent(outputUrl.pathname.slice(1)),
     };
+    const outputSize = await getCompletedVideoSize({
+      bucket: awsResult.bucket,
+      key: completedResult.outputKey,
+    });
+    if (!Number.isFinite(Number(outputSize)) || Number(outputSize) <= 0) {
+      throw new Error('AWS completed the render but the output file is empty or unavailable.');
+    }
     await finalizeAwsAdVideoJob(job.id, job.creator_id, completedResult);
     return;
   }
@@ -2484,9 +2732,44 @@ async function refreshAwsAdVideoJob(job) {
   const progress = Math.max(1, Math.min(99, Number(mediaJob.JobPercentComplete) || 1));
   await updateAdVideoJob(job.id, {
     progress,
-    stage_message: mediaJob.CurrentPhase ? `AWS rendering: ${mediaJob.CurrentPhase}` : 'AWS is rendering the video…',
+    stage_message: mediaJob.Status === 'SUBMITTED'
+      ? 'Waiting in the AWS processing queue…'
+      : mediaJob.CurrentPhase
+        ? `AWS rendering: ${mediaJob.CurrentPhase}`
+        : 'AWS is rendering the video…',
   });
 }
+
+exports.monitorAwsAdVideoJobs = async () => {
+  const jobsResult = await query(
+    `SELECT id, creator_id, status, result, error_message
+     FROM ad_video_jobs
+     WHERE result->>'pipeline'='aws'
+       AND (
+         status='processing'
+         OR (status='done' AND ready_email_sent_at IS NULL)
+         OR (status='error' AND failure_email_sent_at IS NULL)
+       )
+     ORDER BY updated_at ASC
+     LIMIT 100`,
+  );
+
+  for (const job of jobsResult.rows) {
+    if (job.status === 'processing') {
+      const lastCheck = Number(job.result?.lastMediaConvertCheckAt || 0);
+      if (Date.now() - lastCheck < 15_000) continue;
+      try {
+        const nextResult = { ...job.result, lastMediaConvertCheckAt: Date.now() };
+        await updateAdVideoJob(job.id, { result: JSON.stringify(nextResult) });
+        await refreshAwsAdVideoJob({ ...job, result: nextResult });
+      } catch (err) {
+        console.error(`[creators] adVideoJob#${job.id} background status check failed:`, err?.message || err);
+      }
+      continue;
+    }
+    await sendAdVideoJobEmail(job, job.status === 'done' ? 'ready' : 'failed');
+  }
+};
 
 exports.getAdVideoJobStatus = async (req, res) => {
   const session = getCreatorId(req);
@@ -2496,7 +2779,7 @@ exports.getAdVideoJobStatus = async (req, res) => {
   try {
     jobRes = await query(
       `SELECT job.id, job.creator_id, job.status, job.stage_message, job.progress, job.result,
-              job.error_message, job.error_code,
+              job.error_message, job.error_code, job.processing_started_at,
               CASE WHEN job.status IN ('queued', 'processing') THEN (
                 SELECT COUNT(*) FROM ad_video_jobs AS waiting
                 WHERE waiting.status IN ('queued', 'processing')
@@ -2528,7 +2811,8 @@ exports.getAdVideoJobStatus = async (req, res) => {
     try {
       jobRes = await query(
         `SELECT job.id, job.status, job.stage_message, job.progress, job.result,
-                job.error_message, job.error_code, 0 AS queue_position
+                job.error_message, job.error_code, job.processing_started_at,
+                0 AS queue_position
          FROM ad_video_jobs AS job WHERE job.id=$1 AND job.creator_id=$2`,
         [req.params.id, session],
       );
@@ -2540,7 +2824,19 @@ exports.getAdVideoJobStatus = async (req, res) => {
   }
   return res.json({
     success: true,
-    data: { ...job, result: job.status === 'done' ? job.result : null },
+    data: {
+      ...job,
+      pipeline: job.result?.pipeline || null,
+      estimated_remaining_seconds: job.status === 'processing'
+        && job.processing_started_at
+        && Number(job.progress) >= 5
+        ? Math.max(0, Math.round(
+          ((Date.now() - new Date(job.processing_started_at).getTime()) / 1000)
+          * (100 - Number(job.progress)) / Number(job.progress),
+        ))
+        : null,
+      result: job.status === 'done' ? job.result : null,
+    },
   });
 };
 
@@ -2600,6 +2896,9 @@ exports.downloadAdVideoJob = async (req, res) => {
         bucket,
         key: decodeURIComponent(url.pathname.slice(1)),
       });
+      if (req.query.direct === '1') {
+        return res.json({ success: true, data: { url: downloadUrl } });
+      }
       return res.redirect(302, downloadUrl);
     } catch (err) {
       console.error(`[creators] adVideoJob#${req.params.id} S3 download URL error:`, err);

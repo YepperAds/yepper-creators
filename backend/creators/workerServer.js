@@ -18,6 +18,7 @@ const { pool } = require('../config/db');
 const { initCreatorsDatabase } = require('./models/initDb');
 const creatorsRouter = require('./routes/creatorRoutes');
 const { acceptEagerRenderNotification } = require('./utils/videoCloudinary');
+const creatorController = require('./controllers/creatorController');
 
 const app = express();
 
@@ -93,6 +94,21 @@ async function startWorker() {
   await initCreatorsDatabase().catch((err) => {
     console.error('❌ [worker] Failed to initialise creators DB schema:', err.message);
   });
+
+  let adVideoMonitorRunning = false;
+  const monitorAdVideoJobs = async () => {
+    if (adVideoMonitorRunning) return;
+    adVideoMonitorRunning = true;
+    try {
+      await creatorController.monitorAwsAdVideoJobs();
+    } catch (err) {
+      console.error('[worker] Ad-video monitor failed:', err.message);
+    } finally {
+      adVideoMonitorRunning = false;
+    }
+  };
+  monitorAdVideoJobs();
+  setInterval(monitorAdVideoJobs, 15_000);
 
   app.listen(PORT, () => {
     console.log(`🚀 Ad-video worker running on port ${PORT}`);

@@ -18,11 +18,11 @@ const SAMPLE_ADS: { src: string; business: string }[] = [
 
 export default function AdsSamplePanel() {
   return (
-    <div className="rounded-3xl border border-(--color-coral)/15 bg-gradient-to-b from-(--color-coral)/[0.06] to-surface-2 p-4 sm:p-6">
+    <div className="@container rounded-3xl border border-(--color-coral)/15 bg-gradient-to-b from-(--color-coral)/[0.06] to-surface-2 p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-4">
         <p className="text-xs font-bold uppercase tracking-wide text-(--color-coral-text)">Sample Ads</p>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 gap-4 sm:gap-5 @3xl:grid-cols-3">
         {SAMPLE_ADS.map((ad, i) => (
           <div
             key={i}

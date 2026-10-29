@@ -109,6 +109,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [loadingSpaces, setLoadingSpaces] = useState(false);
   const [spacesError, setSpacesError] = useState('');
   const [collaborateWith, setCollaborateWith] = useState<PublicCreator | null>(null);
+  const [returnToFeedAfterDeepLink, setReturnToFeedAfterDeepLink] = useState(false);
   const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>([]);
   const [submittingInterest, setSubmittingInterest] = useState(false);
   const [interestError, setInterestError] = useState('');
@@ -161,16 +162,39 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     const creatorId = searchParams.get('creatorId');
     const websiteId = searchParams.get('websiteId');
     if (creatorId) {
-      const creator = creators.find((c) => String(c.id) === creatorId);
-      if (creator) setCollaborateWith(creator);
+      const creator = creatorList.find((c) => String(c.id) === creatorId);
+      if (creator) {
+        setCollaborateWith(creator);
+        setReturnToFeedAfterDeepLink(true);
+      }
     } else if (websiteId) {
-      const website = websites.find((w) => String(w.id) === websiteId);
-      if (website) openWebsite(website);
+      const website = websiteList.find((w) => String(w.id) === websiteId);
+      if (website) {
+        setReturnToFeedAfterDeepLink(true);
+        openWebsite(website);
+      }
     }
     if (creatorId || websiteId) router.replace('/?panel=advertise', { scroll: false });
     // Only resolve the deep-link target once, right after the redirect lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const closeCreatorModal = () => {
+    setCollaborateWith(null);
+    if (returnToFeedAfterDeepLink) {
+      setReturnToFeedAfterDeepLink(false);
+      onBackToFeed();
+    }
+  };
+
+  const backFromWebsite = () => {
+    if (returnToFeedAfterDeepLink) {
+      setReturnToFeedAfterDeepLink(false);
+      onBackToFeed();
+      return;
+    }
+    setActiveWebsite(null);
+  };
 
   const chooseAdSpace = (categoryId: string, tierKey?: string) => {
     if (!activeWebsite) return;
@@ -184,7 +208,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     return (
       <div>
         <button
-          onClick={() => setActiveWebsite(null)}
+          onClick={backFromWebsite}
           className="mb-4 flex items-center gap-1.5 text-sm font-medium text-subtle hover:text-white bg-surface-1 rounded-full px-3 py-1.5 border border-border transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" /> Back
@@ -381,7 +405,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
               {creatorList.map((creator) => (
                 <PlatformCreatorCard
-                  key={creator.id}
+                  key={`${creator.provider ?? 'youtube'}-${creator.id}`}
                   creator={creator}
                   onClick={() => setCollaborateWith(creator)}
                   className="w-[292px]"
@@ -392,7 +416,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
         )}
       </div>
 
-      <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={() => setCollaborateWith(null)} />
+      <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={closeCreatorModal} />
     </div>
   );
 }

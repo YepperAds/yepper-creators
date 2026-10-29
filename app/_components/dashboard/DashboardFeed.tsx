@@ -50,10 +50,21 @@ function WebsiteCard({ website, onOpen }: { website: PublicWebsite; onOpen: (web
   );
 }
 
-export default function DashboardFeed({ websites, creators = [] }: { websites: PublicWebsite[]; creators?: PublicCreator[] }) {
+export default function DashboardFeed({
+  websites,
+  creators = [],
+  onCreatorClick,
+}: {
+  websites: PublicWebsite[];
+  creators?: PublicCreator[];
+  onCreatorClick?: (creator: PublicCreator) => void;
+}) {
   const router = useRouter();
   const openWebsite = (website: PublicWebsite) => router.push(`/?panel=advertise&websiteId=${website.id}`, { scroll: false });
-  const openCreator = (creator: PublicCreator) => router.push(`/?panel=advertise&creatorId=${creator.id}`, { scroll: false });
+  const openCreator = (creator: PublicCreator) => {
+    if (onCreatorClick) onCreatorClick(creator);
+    else router.push(`/?panel=advertise&creatorId=${creator.id}`, { scroll: false });
+  };
 
   if (websites.length === 0 && creators.length === 0) {
     return (
@@ -67,7 +78,7 @@ export default function DashboardFeed({ websites, creators = [] }: { websites: P
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
       {creators.map((creator) => (
         <PlatformCreatorCard
-          key={`creator-${creator.id}`}
+          key={`creator-${creator.provider ?? 'youtube'}-${creator.id}`}
           creator={creator}
           onClick={() => openCreator(creator)}
           className="w-full"

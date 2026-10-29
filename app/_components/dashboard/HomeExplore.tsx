@@ -6,16 +6,18 @@ import { MegaphoneIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import DashboardFeed from './DashboardFeed';
 import AdsSamplePanel from './AdsSamplePanel';
-import PageHeader from './PageHeader';
+import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
-type Tab = 'all' | 'deals' | 'websites';
+type Tab = 'all' | 'deals' | 'websites' | 'youtube' | 'tiktok';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all',      label: 'All' },
   { id: 'deals',    label: 'Ads' },
   { id: 'websites', label: 'Websites' },
+  { id: 'youtube',  label: 'YouTube' },
+  { id: 'tiktok',   label: 'TikTok' },
 ];
 
 function TabPill({ active, onClick, children }: { active: boolean; onClick?: () => void; children: React.ReactNode }) {
@@ -23,7 +25,7 @@ function TabPill({ active, onClick, children }: { active: boolean; onClick?: () 
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+      className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
         active
           ? 'bg-surface-3 text-white'
           : onClick
@@ -48,14 +50,16 @@ export default function HomeExplore({
   dealId?: string;
 }) {
   const [tab, setTab] = useState<Tab>('all');
+  const [selectedCreator, setSelectedCreator] = useState<PublicCreator | null>(null);
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
+  const filteredCreators = tab === 'tiktok'
+    ? displayCreators.filter((creator) => creator.provider === 'tiktok')
+    : displayCreators.filter((creator) => creator.provider !== 'tiktok');
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <PageHeader title="Explore Hot Deals, Websites & Broadcast Media" />
-
-      <div className="shrink-0 flex flex-wrap items-center justify-center gap-2 pb-4 pt-2">
+      <div className="shrink-0 flex flex-nowrap items-center justify-start sm:justify-center gap-1 overflow-x-auto pb-4 pt-2">
         {TABS.map((t) => (
           <TabPill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
@@ -96,18 +100,30 @@ export default function HomeExplore({
             />
             <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
               <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
-              <DashboardFeed websites={displayWebsites} creators={displayCreators} />
+              <DashboardFeed websites={displayWebsites} creators={displayCreators} onCreatorClick={setSelectedCreator} />
             </div>
           </>
         ) : tab === 'deals' ? (
           <AdsSamplePanel />
-        ) : (
+        ) : tab === 'websites' ? (
           <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
             <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
             <DashboardFeed websites={displayWebsites} />
           </div>
+        ) : (
+          <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">
+              {tab === 'tiktok' ? 'TikTok creators' : 'YouTube creators'}
+            </p>
+            <DashboardFeed websites={[]} creators={filteredCreators} onCreatorClick={setSelectedCreator} />
+          </div>
         )}
       </div>
+      <AdSpacesModal
+        creator={selectedCreator}
+        open={!!selectedCreator}
+        onClose={() => setSelectedCreator(null)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Header from './Header';
 import LeftRail from './LeftRail';
 import RightRail from './RightRail';
 import CenterPanel from './CenterPanel';
+import SocialConnectLauncher from './SocialConnectLauncher';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 function CenterPanelSkeleton() {
@@ -35,7 +36,9 @@ export default function DashboardHome({
           PageHeader.tsx), so the sidebar, top header, and right rail never
           move when the page's content does. */}
       <div className="flex-1 min-w-0 h-screen flex flex-col overflow-hidden">
-        <Header />
+        <Suspense fallback={<div className="h-14 shrink-0" />}>
+          <Header />
+        </Suspense>
         <div className="flex-1 min-h-0 flex max-w-[1400px] w-full mx-auto">
           <main className="flex-1 min-w-0 h-full overflow-hidden flex flex-col px-4 sm:px-6">
             <Suspense fallback={<CenterPanelSkeleton />}>
@@ -47,6 +50,7 @@ export default function DashboardHome({
           </Suspense>
         </div>
       </div>
+      <SocialConnectLauncher />
     </div>
   );
 }

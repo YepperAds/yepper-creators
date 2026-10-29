@@ -96,6 +96,31 @@
   display: none;
 }
 
+/* Keep the dashboard's panels scrollable without the scrollbar track
+   visually crowding the fixed side rails. */
+.yp-dashboard-main,
+.yp-dashboard-main * {
+  scrollbar-width: none;
+}
+.yp-dashboard-main::-webkit-scrollbar,
+.yp-dashboard-main *::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes yp-ad-slot-pulse {
+  0%, 12%, 100% { box-shadow: inset 0 0 0 0 rgba(232, 71, 43, 0); background-color: rgba(232, 71, 43, 0.035); }
+  20%, 30% { box-shadow: inset 0 0 0 1.5px rgba(232, 71, 43, 0.4), 0 0 9px rgba(232, 71, 43, 0.1); background-color: rgba(232, 71, 43, 0.12); }
+}
+.yp-ad-slot-demo {
+  animation: yp-ad-slot-pulse 3.6s ease-in-out infinite;
+}
+.yp-ad-slot-step-2 { animation-delay: 1.2s; }
+.yp-ad-slot-step-3 { animation-delay: 2.4s; }
+@media (prefers-reduced-motion: reduce) {
+  .yp-ad-slot-demo { animation: none; }
+  .yp-ad-slot-step-1 { background-color: rgba(232, 71, 43, 0.12); box-shadow: inset 0 0 0 1.5px rgba(232, 71, 43, 0.3); }
+}
+
 /* Full-bleed: breaks a section out of its max-w-7xl parent to span
    the full viewport width for a solid color band; nest a max-w-7xl
    container inside for the actual content alignment. ── */

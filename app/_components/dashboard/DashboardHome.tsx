@@ -39,14 +39,16 @@ export default function DashboardHome({
         <Suspense fallback={<div className="h-14 shrink-0" />}>
           <Header />
         </Suspense>
-        <div className="flex-1 min-h-0 flex max-w-[1400px] w-full mx-auto">
-          <main className="flex-1 min-w-0 h-full overflow-hidden flex flex-col px-4 sm:px-6">
+        <div className="flex-1 min-h-0 flex max-w-[1400px] w-full mx-auto gap-3">
+          <main className="yp-dashboard-main flex-1 min-w-0 h-full overflow-hidden flex flex-col px-4 sm:px-6">
             <Suspense fallback={<CenterPanelSkeleton />}>
               <CenterPanel websites={websites} creators={creators} hotDeals={hotDeals} />
             </Suspense>
           </main>
-          <Suspense fallback={<div className="w-72 shrink-0" />}>
-            <RightRail />
+          <Suspense fallback={<div className="hidden xl:block w-72 shrink-0" />}>
+            <div className="hidden xl:block">
+              <RightRail />
+            </div>
           </Suspense>
         </div>
       </div>

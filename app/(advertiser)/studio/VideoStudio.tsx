@@ -20,8 +20,16 @@ import styles from './VideoStudio.module.css';
 
 type Plan = 'starter' | 'creator' | 'pro';
 
+interface StudioPlan {
+  code: Plan;
+  name: string;
+  priceRwf: number;
+  hoursIncluded: number;
+  enabled: boolean;
+}
+
 interface StudioJob {
-  id: string;
+  id: string | number;
   status: string;
   stage_message: string | null;
   progress: number | null;
@@ -35,12 +43,17 @@ interface StudioUsage {
   trial: { used: number; limit: number; remaining: number };
   subscription: {
     plan: string | null;
+    name?: string | null;
+    priceRwf?: number;
     status: string | null;
     hoursIncluded: number;
     hoursUsed: number;
     hoursRemaining: number;
     periodEnd: string | null;
-  };
+  } | null;
+  plans: StudioPlan[];
+  planRequests: { plan: string; status: string; createdAt: string }[];
+  extraHours: { enabled: boolean; priceRwf: number };
   verificationStatus: string;
   limits: {
     maxDurationMinutes: number;
@@ -57,11 +70,15 @@ interface UsageResponse {
   data?: StudioUsage;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
-const SHOW_PRO_PLAN = process.env.NEXT_PUBLIC_VIDEO_STUDIO_PRO_ENABLED === 'true';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  || process.env.NEXT_PUBLIC_AD_VIDEO_API_URL
+  || 'https://yepper-creators-video-worker.onrender.com';
 function formatHours(hours: number) {
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
+function formatRwf(amount: number) {
+  return `RWF ${Number(amount).toLocaleString()}`;
 }
 
 function formatDate(value: string | null) {
@@ -148,6 +165,11 @@ export default function VideoStudio() {
     return Math.min(100, Math.max(0, (usage.trial.used / usage.trial.limit) * 100));
   }, [usage]);
 
+  const pendingPlanRequests = useMemo(
+    () => new Set(usage?.planRequests.filter((request) => request.status === 'pending').map((request) => request.plan) || []),
+    [usage],
+  );
+
   async function requestPlan(plan: Plan) {
     setRequestingPlan(plan);
     setToast('');
@@ -233,27 +255,35 @@ export default function VideoStudio() {
           <section className={styles.overviewGrid} aria-label="Video usage overview">
             <article className={`${styles.card} ${styles.hoursCard}`}>
               <div className={styles.cardHeading}>
-                <div><span className={styles.sectionLabel}>SUBSCRIPTION USAGE</span><h2>Your processing hours</h2></div>
-                <span className={styles.planBadge}>{usage.subscription.plan ? statusLabel(usage.subscription.plan) : 'No plan'}</span>
+                <div><span className={styles.sectionLabel}>SUBSCRIPTION</span><h2>{usage.subscription?.name || 'Your processing hours'}</h2></div>
+                <span className={styles.planBadge}>{usage.subscription ? statusLabel(usage.subscription.status || 'active') : 'Free trial'}</span>
               </div>
-              <div className={styles.hoursContent}>
-                <div
-                  className={styles.hoursMeter}
-                  role="img"
-                  aria-label={`${formatHours(usage.subscription.hoursUsed)} of ${formatHours(usage.subscription.hoursIncluded)} subscription hours used`}
-                  style={{ '--meter-value': `${usage.subscription.hoursIncluded > 0 ? Math.min(100, Math.max(0, usage.subscription.hoursUsed / usage.subscription.hoursIncluded * 100)) : 0}%` } as CSSProperties}
-                >
-                  <div className={styles.meterCenter}>
-                    <strong>{formatHours(usage.subscription.hoursRemaining)}</strong>
-                    <span>hours left</span>
+              {usage.subscription ? (
+                <div className={styles.hoursContent}>
+                  <div
+                    className={styles.hoursMeter}
+                    role="img"
+                    aria-label={`${formatHours(usage.subscription.hoursUsed)} of ${formatHours(usage.subscription.hoursIncluded)} subscription hours used`}
+                    style={{ '--meter-value': `${usage.subscription.hoursIncluded > 0 ? Math.min(100, Math.max(0, usage.subscription.hoursUsed / usage.subscription.hoursIncluded * 100)) : 0}%` } as CSSProperties}
+                  >
+                    <div className={styles.meterCenter}>
+                      <strong>{formatHours(usage.subscription.hoursRemaining)}</strong>
+                      <span>hours left</span>
+                    </div>
+                  </div>
+                  <div className={styles.hoursDetails}>
+                    <div className={styles.hoursHeadline}><strong>{formatHours(usage.subscription.hoursUsed)}</strong><span> / {formatHours(usage.subscription.hoursIncluded)} hours used</span></div>
+                    <p>{usage.subscription.priceRwf != null ? `${formatRwf(usage.subscription.priceRwf)} per month. ` : ''}Included hours reset on your renewal date. Unused hours do not roll over.</p>
+                    <div className={styles.renewalRow}><Clock3 size={15} /> Renews {formatDate(usage.subscription.periodEnd)}</div>
                   </div>
                 </div>
-                <div className={styles.hoursDetails}>
-                  <div className={styles.hoursHeadline}><strong>{formatHours(usage.subscription.hoursUsed)}</strong><span> / {formatHours(usage.subscription.hoursIncluded)} hours used</span></div>
-                  <p>Your monthly allowance refreshes with your plan period.</p>
-                  <div className={styles.renewalRow}><Clock3 size={15} /> Renews {formatDate(usage.subscription.periodEnd)}</div>
+              ) : (
+                <div className={styles.noPlanState}>
+                  <strong>No paid plan is active</strong>
+                  <p>Your free trial is shown here. Choose a subscription below to get a recurring monthly processing allowance.</p>
+                  <a href="#plans-heading">Compare plans <ArrowRight size={14} /></a>
                 </div>
-              </div>
+              )}
             </article>
 
             <article className={`${styles.card} ${styles.trialCard}`}>
@@ -274,44 +304,48 @@ export default function VideoStudio() {
               >
                 <span style={{ width: `${trialPercent}%` }} />
               </div>
-              <p className={styles.trialNote}>{usage.trial.used} {usage.trial.used === 1 ? 'video' : 'videos'} used in your trial</p>
+              <p className={styles.trialNote}>{usage.trial.used} {usage.trial.used === 1 ? 'video' : 'videos'} used. Each trial video can be up to 2 hours.</p>
             </article>
           </section>
 
           <section className={styles.plansSection} aria-labelledby="plans-heading">
             <div className={styles.sectionHeader}>
               <div><span className={styles.sectionLabel}>FIND YOUR PACE</span><h2 id="plans-heading">Choose your studio plan</h2></div>
-              <p>Request a plan and our team will follow up with next steps.</p>
+              <p>Plans are activated by the Yepper team while online subscription payments are being connected.</p>
             </div>
             <div className={styles.planGrid}>
-              {([
-                { id: 'starter' as const, name: 'Starter', note: 'For a first step into long-form video', featured: false },
-                { id: 'creator' as const, name: 'Creator', note: 'For creators building a steady rhythm', featured: true },
-                ...(SHOW_PRO_PLAN ? [{ id: 'pro' as const, name: 'Pro', note: 'For creators ready to scale up', featured: false }] : []),
-              ]).map((plan) => {
-                const isCurrentPlan = usage.subscription.plan?.toLowerCase() === plan.id &&
-                  ['active', 'trialing', 'approved'].includes((usage.subscription.status || '').toLowerCase());
-                const busy = requestingPlan === plan.id;
+              {usage.plans.filter((plan) => plan.enabled).map((plan) => {
+                const isCurrentPlan = usage.subscription?.plan?.toLowerCase() === plan.code &&
+                  ['active', 'trialing', 'approved'].includes((usage.subscription?.status || '').toLowerCase());
+                const requestPending = pendingPlanRequests.has(plan.code);
+                const busy = requestingPlan === plan.code;
                 return (
-                  <article key={plan.id} className={`${styles.planCard} ${plan.featured ? styles.featuredPlan : ''}`}>
-                    {plan.featured && <span className={styles.popularTag}>MOST POPULAR</span>}
+                  <article key={plan.code} className={`${styles.planCard} ${plan.code === 'creator' ? styles.featuredPlan : ''}`}>
+                    {plan.code === 'creator' && <span className={styles.popularTag}>MOST POPULAR</span>}
                     <h3>{plan.name}</h3>
-                    <p>{plan.note}</p>
-                    <div className={styles.planHours}><strong>Monthly</strong><span>processing access</span></div>
+                    <p>{plan.code === 'starter' ? 'A practical allowance for occasional long-form posts.' : plan.code === 'creator' ? 'More room for a consistent publishing schedule.' : 'High-volume processing for established channels.'}</p>
+                    <div className={styles.planPrice}><strong>{formatRwf(plan.priceRwf)}</strong><span>/ month</span></div>
+                    <div className={styles.planAllowance}>{formatHours(plan.hoursIncluded)} processing hours included</div>
+                    <ul className={styles.planBenefits}>
+                      <li><Check size={14} /> Long videos up to {usage.limits.maxDurationMinutes} minutes</li>
+                      <li><Check size={14} /> Secure review before processing</li>
+                      <li><Check size={14} /> Renews monthly, unused hours do not roll over</li>
+                    </ul>
                     <button
                       type="button"
-                      className={plan.featured ? styles.primaryPlanButton : styles.secondaryPlanButton}
-                      disabled={Boolean(requestingPlan) || isCurrentPlan}
-                      onClick={() => void requestPlan(plan.id)}
+                      className={plan.code === 'creator' ? styles.primaryPlanButton : styles.secondaryPlanButton}
+                      disabled={Boolean(requestingPlan) || isCurrentPlan || requestPending}
+                      onClick={() => void requestPlan(plan.code)}
                     >
-                      {busy ? <LoaderCircle size={16} className={styles.spinning} /> : isCurrentPlan ? <Check size={16} /> : null}
-                      {busy ? 'Sending request' : isCurrentPlan ? 'Current plan' : 'Request this plan'}
-                      {!busy && !isCurrentPlan && <ArrowRight size={15} />}
+                      {busy ? <LoaderCircle size={16} className={styles.spinning} /> : isCurrentPlan || requestPending ? <Check size={16} /> : null}
+                      {busy ? 'Sending request' : isCurrentPlan ? 'Current plan' : requestPending ? 'Request received' : 'Request this plan'}
+                      {!busy && !isCurrentPlan && !requestPending && <ArrowRight size={15} />}
                     </button>
                   </article>
                 );
               })}
             </div>
+            <p className={styles.planFootnote}>Extra processing time is RWF {Number(usage.extraHours.priceRwf).toLocaleString()} per hour and is available with an active plan, subject to the monthly processing capacity.</p>
           </section>
 
           <section className={styles.jobsSection} aria-labelledby="jobs-heading">
@@ -340,7 +374,7 @@ export default function VideoStudio() {
                       </span>
                       <div className={styles.jobMain}>
                         <div className={styles.jobTitleRow}>
-                          <h3>Video job <span>#{job.id.slice(-8)}</span></h3>
+                          <h3>Video job <span>#{String(job.id).slice(-8)}</span></h3>
                           <span className={`${styles.statusBadge} ${isFailed ? styles.failedStatus : isComplete ? styles.completeStatus : ''}`}>{displayStatus}</span>
                         </div>
                         <p>{job.stage_message || (isFailed ? job.error_message : 'Your job status will update here.') || 'Your job status will update here.'}</p>

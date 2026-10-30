@@ -443,7 +443,7 @@ exports.getPendingClaims = async (req, res) => {
   if (!creatorId) return res.status(401).json({ success: false });
   try {
     const result = await query(
-      `SELECT claim.id, claim.slot_type, claim.image_url, claim.ad_type, claim.ad_size, claim.created_at,
+      `SELECT claim.id, claim.slot_type, claim.image_url, claim.ad_type, claim.ad_size, claim.status, claim.created_at,
               campaign.expires_at AS campaign_until,
               post.id AS post_id, post.tracking_code, post.description, post.video_url,
               post.status AS post_status, post.tracking_code_verified
@@ -469,7 +469,7 @@ exports.getPendingClaims = async (req, res) => {
       success: true,
       data: result.rows.map((r) => ({
         id: r.id, slotType: r.slot_type, imageUrl: r.image_url,
-        adType: r.ad_type, adSize: r.ad_size, createdAt: r.created_at,
+        adType: r.ad_type, adSize: r.ad_size, status: r.status, createdAt: r.created_at,
         campaignUntil: r.campaign_until,
         postId: r.post_id,
         trackingCode: r.tracking_code,

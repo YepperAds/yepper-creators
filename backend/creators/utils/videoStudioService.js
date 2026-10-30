@@ -296,6 +296,7 @@ async function getCreatorVideoUsage(creatorId) {
     subscriptionResult,
     jobResult,
     plans,
+    planRequestResult,
   ] = await Promise.all([
     query(`SELECT video_verification_status, video_verification_reason,
                   video_verification_request_url FROM creators WHERE id=$1`, [creatorId]),
@@ -306,7 +307,7 @@ async function getCreatorVideoUsage(creatorId) {
       [creatorId],
     ),
     query(
-      `SELECT subscription.id, subscription.plan_code, plan.name, subscription.status,
+      `SELECT subscription.id, subscription.plan_code, plan.name, plan.price_rwf, subscription.status,
               subscription.hours_included, subscription.hours_used,
               subscription.period_start, subscription.period_end,
               COALESCE(reserved.hours_reserved,0) AS hours_reserved
@@ -331,6 +332,13 @@ async function getCreatorVideoUsage(creatorId) {
       [creatorId],
     ),
     getPlanRows(),
+    query(
+      `SELECT plan_code, status, created_at
+       FROM video_plan_requests
+       WHERE creator_id=$1 AND status='pending'
+       ORDER BY created_at DESC`,
+      [creatorId],
+    ),
   ]);
   if (!creatorResult.rowCount) throw new Error('Creator account was not found.');
   const trial = trialResult.rows[0] || {};
@@ -348,6 +356,7 @@ async function getCreatorVideoUsage(creatorId) {
       id: subscription.id,
       plan: subscription.plan_code,
       name: subscription.name,
+      priceRwf: Number(subscription.price_rwf),
       status: subscription.status,
       hoursIncluded: Number(subscription.hours_included),
       hoursUsed: Number(subscription.hours_used),
@@ -366,6 +375,11 @@ async function getCreatorVideoUsage(creatorId) {
       maxMonthlyJobs: config.maxVideosPerMonth,
     },
     plans: plansVisible,
+    planRequests: planRequestResult.rows.map((request) => ({
+      plan: request.plan_code,
+      status: request.status,
+      createdAt: request.created_at,
+    })),
     extraHours: { enabled: extraHoursEnabled, priceRwf: config.extraHourPriceRwf },
     jobs: jobResult.rows.map((job) => ({
       id: job.id,

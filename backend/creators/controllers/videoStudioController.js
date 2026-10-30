@@ -321,7 +321,7 @@ exports.getCreators = async (_req, res) => {
               COALESCE(trial.used,0) AS trial_used,
               subscription.plan_code, subscription.status AS subscription_status,
               subscription.hours_included, subscription.hours_used,
-              subscription.period_end,
+              subscription.period_end, plan_request.plan_code AS requested_plan,
               COALESCE(subscription.hours_included-subscription.hours_used,0) AS hours_left
        FROM creators AS creator
        LEFT JOIN LATERAL (
@@ -334,6 +334,12 @@ exports.getCreators = async (_req, res) => {
          WHERE creator_id=creator.id AND status='active' AND period_end > NOW()
          ORDER BY period_end DESC LIMIT 1
        ) AS subscription ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT plan_code
+         FROM video_plan_requests
+         WHERE creator_id=creator.id AND status='pending'
+         ORDER BY created_at DESC LIMIT 1
+       ) AS plan_request ON TRUE
        ORDER BY creator.created_at DESC
        LIMIT 500`,
     );
@@ -463,6 +469,12 @@ exports.setSubscription = async (req, res) => {
        VALUES ($1,$2,'active',$3,$4,$5,$6)
        RETURNING id, plan_code, hours_included, period_start, period_end`,
       [creatorId, planCode, plan.hours_included, start, end, req.admin.username],
+    );
+    await client.query(
+      `UPDATE video_plan_requests
+       SET status=CASE WHEN plan_code=$2 THEN 'approved' ELSE 'closed' END
+       WHERE creator_id=$1 AND status='pending'`,
+      [creatorId, planCode],
     );
     await client.query('COMMIT');
     return res.json({ success: true, data: created.rows[0] });

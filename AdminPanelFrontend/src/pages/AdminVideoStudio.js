@@ -278,7 +278,12 @@ export default function AdminVideoStudio() {
                     </span>
                   </td>
                   <td style={{ padding: '13px 9px' }}>{Number(creator.trial_used || 0)} / 3</td>
-                  <td style={{ padding: '13px 9px' }}>{creator.plan_code || 'No active plan'}</td>
+                  <td style={{ padding: '13px 9px' }}>
+                    {creator.plan_code || 'No active plan'}
+                    {creator.requested_plan && (
+                      <div style={{ color: '#926819', fontSize: 11, marginTop: 4 }}>Request: {creator.requested_plan}</div>
+                    )}
+                  </td>
                   <td style={{ padding: '13px 9px' }}>{creator.hours_left == null ? '-' : Number(creator.hours_left).toFixed(2)}</td>
                   <td style={{ minWidth: 365, padding: '13px 9px' }}>
                     <label htmlFor={`verify-reason-${creator.id}`} style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>Admin note or rejection reason</label>
@@ -295,7 +300,7 @@ export default function AdminVideoStudio() {
                         <>
                           <select
                             aria-label={`Plan for ${creator.full_name || creator.email}`}
-                            value={selectedPlans[creator.id] || plans[0].code}
+                            value={selectedPlans[creator.id] || creator.requested_plan || plans[0].code}
                             onChange={(event) => setSelectedPlans((current) => ({ ...current, [creator.id]: event.target.value }))}
                             style={{ border: '1px solid #dce5e1', borderRadius: 7, padding: '7px 8px' }}
                           >

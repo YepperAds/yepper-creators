@@ -319,6 +319,41 @@
   min-width: 0;
 }
 
+.noPlanState {
+  display: flex;
+  min-height: 140px;
+  justify-content: center;
+  flex-direction: column;
+  margin-top: 20px;
+  padding: 18px 20px;
+  border: 1px solid #e6ece8;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8faf8, #fff);
+}
+
+.noPlanState strong {
+  color: #193b30;
+  font-size: 15px;
+}
+
+.noPlanState p {
+  max-width: 420px;
+  margin: 7px 0 11px;
+  color: #788780;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.noPlanState a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #287252;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
 .hoursHeadline strong {
   color: #193b30;
   font-size: 18px;
@@ -424,7 +459,9 @@
 
 .planCard {
   position: relative;
-  min-height: 188px;
+  display: flex;
+  min-height: 290px;
+  flex-direction: column;
   padding: 20px;
 }
 
@@ -461,21 +498,59 @@
   line-height: 1.5;
 }
 
-.planHours {
+.planPrice {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  margin-bottom: 15px;
+  margin: 1px 0 4px;
 }
 
-.planHours strong {
+.planPrice strong {
   color: #14392e;
-  font-size: 22px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.035em;
 }
 
-.planHours span {
+.planPrice span {
   color: #78877f;
+  font-size: 12px;
+}
+
+.planAllowance {
+  color: #31574a;
+  font-size: 12px;
+  font-weight: 750;
+  margin: 0 0 12px;
+}
+
+.planBenefits {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  color: #73817a;
+  font-size: 10px;
+  list-style: none;
+}
+
+.planBenefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  line-height: 1.4;
+}
+
+.planBenefits svg {
+  flex: 0 0 auto;
+  color: #25815b;
+}
+
+.planFootnote {
+  margin: 12px 2px 0;
+  color: #73817a;
   font-size: 11px;
+  line-height: 1.5;
 }
 
 .primaryPlanButton,
@@ -493,6 +568,7 @@
   font-weight: 750;
   cursor: pointer;
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+  margin-top: auto;
 }
 
 .primaryPlanButton {

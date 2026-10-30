@@ -52,7 +52,7 @@ function formatDurationEstimate(seconds: number): string {
 }
 
 interface AdSlot { key: string; label: string; time: number; }
-interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; }
+interface PendingClaim { slotType: string; imageUrl: string; adType: string; adSize: string; status: string; saved?: boolean; }
 interface AdPlacement { slotType: string; startsAt: number; endsAt: number; }
 interface AdVideoJobStatus {
   status: string;
@@ -289,7 +289,9 @@ export default function PostAdModal({
       .then((json) => {
         const claims = Array.isArray(json?.data) ? json.data : [];
         setPendingClaims(claims);
-        setIncludedSlots(claims.map((claim: PendingClaim) => claim.slotType));
+        setIncludedSlots(claims
+          .filter((claim: PendingClaim) => claim.status === 'pending')
+          .map((claim: PendingClaim) => claim.slotType));
       })
       .catch(() => setPendingClaims([]));
   }, [open]);
@@ -340,20 +342,21 @@ export default function PostAdModal({
     return () => URL.revokeObjectURL(url);
   }, [adFile]);
 
-  const claimedSlotKeys      = new Set(pendingClaims.map((c) => c.slotType));
+  const claimedSlotKeys      = new Set(pendingClaims.filter((claim) => claim.status === 'pending').map((c) => c.slotType));
   const adSlots               = videoDuration != null ? getAdSlots(videoDuration) : [];
-  const relevantClaimedSlots = adSlots.filter((s) => claimedSlotKeys.has(s.key));
-  const hasRelevantClaims    = relevantClaimedSlots.length > 0;
+  const relevantClaimedSlots = adSlots.filter((slot) => pendingClaims.some((claim) => claim.slotType === slot.key));
+  const hasRelevantClaims    = relevantClaimedSlots.some((slot) => claimedSlotKeys.has(slot.key));
+  const hasSelectedClaim     = includedSlots.some((slot) => claimedSlotKeys.has(slot));
 
   // Defaults to every relevant claimed slot once they're known. The creator can
   // choose one or several percentage-based slots instead of a single forced position.
-  const relevantSlotsKey = relevantClaimedSlots.map((s) => s.key).join(',');
+  const relevantSlotsKey = relevantClaimedSlots.filter((slot) => claimedSlotKeys.has(slot.key)).map((slot) => slot.key).join(',');
   if (relevantSlotsKey !== prevSlotsKey) {
     setPrevSlotsKey(relevantSlotsKey);
-    if (relevantSlotsKey) setIncludedSlots(relevantClaimedSlots.map((s) => s.key));
+    if (relevantSlotsKey) setIncludedSlots(relevantClaimedSlots.filter((slot) => claimedSlotKeys.has(slot.key)).map((slot) => slot.key));
   }
 
-  const showSlotConfirmPanel = !!adFile && videoDuration != null && hasRelevantClaims;
+  const showSlotConfirmPanel = !!adFile && videoDuration != null && relevantClaimedSlots.length > 0;
 
   const toggleSlot = (key: string) => {
     setIncludedSlots((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -914,6 +917,12 @@ export default function PostAdModal({
                   {videoDuration != null && ` Estimated allowance: ${(videoDuration / 3600).toFixed(2)} hours.`}
                 </p>
               )}
+              {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && videoDuration != null && !hasRelevantClaims && (
+                <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/5 p-2 text-[11px] leading-5 text-red-200" role="status">
+                  No unused, paid advertiser placement is available for this video&apos;s slots. A processing subscription covers your video hours, but an advertiser must separately purchase a placement before you can process the ad video.
+                  {' '}<a href="/studio" className="font-semibold text-emerald-300 underline underline-offset-2">Review Video Studio plans</a>
+                </p>
+              )}
               {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && priorityOffer?.enabled && (
                 <label className="mt-2 flex items-start gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2 text-[11px] text-(--color-white)">
                   <input
@@ -941,19 +950,22 @@ export default function PostAdModal({
                 <p className="text-xs font-bold text-(--color-white)">Which percentage slots did you include in this edit?</p>
                 <div className="space-y-1.5">
                   {relevantClaimedSlots.map((slot) => {
-                    const claim = pendingClaims.find((c) => c.slotType === slot.key);
+                    const claimsForSlot = pendingClaims.filter((claim) => claim.slotType === slot.key);
+                    const claim = claimsForSlot.find((item) => item.status === 'pending') || claimsForSlot[0];
+                    const available = claimsForSlot.some((item) => item.status === 'pending');
                     return (
                       <div key={slot.key} className="flex items-center justify-between gap-2">
-                        <label className="flex items-center gap-2 text-xs cursor-pointer text-(--color-white)">
+                        <label className={`flex items-center gap-2 text-xs ${available ? 'cursor-pointer text-(--color-white)' : 'cursor-not-allowed text-(--color-muted)'}`}>
                           <input
                             type="checkbox"
-                            checked={includedSlots.includes(slot.key)}
+                            checked={available && includedSlots.includes(slot.key)}
                             onChange={() => toggleSlot(slot.key)}
-                            disabled={adUploading}
+                            disabled={adUploading || !available}
                             className="accent-emerald-500"
                           />
                           {slot.label}
                           {claim ? `: ${claim.adType === 'lbar' ? 'L-Bar' : 'Corner Badge'}, ${claim.adSize}` : ''}
+                          {!available && <span className="text-[10px] text-amber-300">Already used</span>}
                         </label>
                         {claim && (
                           <a
@@ -969,6 +981,11 @@ export default function PostAdModal({
                     );
                   })}
                 </div>
+                {!hasRelevantClaims && (
+                  <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] leading-5 text-amber-100" role="status">
+                    These paid placements have already been used. Only a new, unused paid advertiser placement can be added to another video.
+                  </p>
+                )}
               </div>
             )}
 
@@ -1016,7 +1033,15 @@ export default function PostAdModal({
 
             {/* Error */}
             {adUploadError && (
-              <p className="text-xs text-red-400 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2">{adUploadError}</p>
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2" role="alert">
+                <p className="text-xs text-red-300">{adUploadError}</p>
+                {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && adUploadError.toLowerCase().includes('paid ad claim') && (
+                  <p className="mt-2 text-[11px] leading-5 text-(--color-muted)">
+                    A video-processing plan covers your creator processing hours. It does not replace an advertiser&apos;s paid ad slot.
+                    <a href="/studio" className="ml-1 font-semibold text-emerald-300 underline underline-offset-2">View Video Studio plans</a>
+                  </p>
+                )}
+              </div>
             )}
             {/* Actions */}
             <div className="flex gap-3 pt-1">
@@ -1025,7 +1050,7 @@ export default function PostAdModal({
               </button>
               <button
                 onClick={handleUpload}
-                disabled={!adFile || adUploading || adFile.size > MAX_AWS_VIDEO_SIZE_BYTES}
+                disabled={!adFile || adUploading || adFile.size > MAX_AWS_VIDEO_SIZE_BYTES || (adFile.size > MAX_VIDEO_SIZE_BYTES && !hasSelectedClaim)}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white disabled:opacity-40"
               >
                 <CloudArrowUpIcon className="w-4 h-4" />

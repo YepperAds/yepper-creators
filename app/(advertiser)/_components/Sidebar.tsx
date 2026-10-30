@@ -15,6 +15,7 @@ import {
   WifiIcon as OutlineWifi,
   BanknotesIcon as OutlineBanknotes,
   FireIcon as OutlineFire,
+  FilmIcon as OutlineFilm,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -29,6 +30,7 @@ import {
   WifiIcon as SolidWifi,
   BanknotesIcon as SolidBanknotes,
   FireIcon as SolidFire,
+  FilmIcon as SolidFilm,
 } from '@heroicons/react/24/solid';
 
 import { api, AUTH_ENDPOINTS, BASE_URL } from '@/app/_lib/api';
@@ -146,6 +148,7 @@ export default function Sidebar() {
         { label: 'Hot Deals',        href: '/deals',                   icon: OutlineFire,      activeIcon: SolidFire },
         { label: 'Analytics',        href: '/?panel=analytics',        icon: OutlineChart,     activeIcon: SolidChart },
         { label: 'Connect accounts', href: '/?panel=connect-accounts', icon: OutlineLink,      activeIcon: SolidLink },
+        { label: 'Video Studio',     href: '/studio',                  icon: OutlineFilm,      activeIcon: SolidFilm },
         { label: 'My Profile',       href: '/?panel=profile',          icon: OutlineUser,      activeIcon: SolidUser },
       ]
     },

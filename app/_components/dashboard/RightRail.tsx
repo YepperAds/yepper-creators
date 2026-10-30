@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GlobeAltIcon, FilmIcon, PhotoIcon, PlayCircleIcon, PlusIcon } from '@heroicons/react/24/outline';
@@ -202,6 +202,33 @@ export default function RightRail() {
   const [youtubeChannels, setYoutubeChannels] = useState<YoutubeChannel[]>([]);
   const [loading, setLoading]               = useState(true);
   const [collapsed, setCollapsed]           = useState(false);
+  const [expandedContentReady, setExpandedContentReady] = useState(true);
+  const expandTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const toggleCollapsed = () => {
+    if (collapsed) {
+      setCollapsed(false);
+      setExpandedContentReady(false);
+      if (expandTimer.current) clearTimeout(expandTimer.current);
+      expandTimer.current = setTimeout(() => {
+        setExpandedContentReady(true);
+        expandTimer.current = null;
+      }, 500);
+      return;
+    }
+
+    if (expandTimer.current) clearTimeout(expandTimer.current);
+    setExpandedContentReady(false);
+    expandTimer.current = setTimeout(() => {
+      setCollapsed(true);
+      setExpandedContentReady(true);
+      expandTimer.current = null;
+    }, 300);
+  };
+
+  useEffect(() => () => {
+    if (expandTimer.current) clearTimeout(expandTimer.current);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,19 +252,22 @@ export default function RightRail() {
 
   return (
     <aside
-      className={`shrink-0 self-start sticky top-4 py-4 transition-all duration-300 ease-in-out ${
+      className={`shrink-0 self-start sticky top-4 py-4 transition-[width,padding] duration-500 ease-in-out will-change-[width] ${
         collapsed ? 'w-16 pr-2 pl-2' : 'w-72 pr-4 pl-2'
       }`}
     >
       <button
-        onClick={() => setCollapsed((c) => !c)}
-        className={`mb-4 p-1.5 rounded-lg hover:bg-surface-3 text-white transition-colors ${collapsed ? 'mx-auto flex' : 'ml-auto flex'}`}
+        onClick={toggleCollapsed}
+        className={`mb-4 p-1.5 rounded-lg hover:bg-surface-3 text-white transition-[margin] duration-300 ease-in-out ${collapsed ? 'mx-auto flex' : 'ml-auto flex'}`}
         title={collapsed ? 'Expand panel' : 'Collapse panel'}
       >
         <SidebarToggleIcon className="w-5 h-5" />
       </button>
 
-      <div className="space-y-4">
+      <div
+        aria-hidden={!collapsed && !expandedContentReady}
+        className={`space-y-4 transition-opacity duration-300 ${!collapsed && !expandedContentReady ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
         <PlatformsBox
           websites={websites}
           channels={youtubeChannels}

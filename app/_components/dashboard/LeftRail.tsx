@@ -56,12 +56,21 @@ function NavRow({
     <Link
       href={href}
       scroll={false}
-      className={`group/navitem relative flex items-center rounded-lg text-base font-semibold text-white transition-colors ${
-        collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
+      className={`group/navitem relative flex items-center rounded-lg text-base font-semibold text-white transition-[gap,padding,background-color] delay-300 duration-300 ease-in-out ${
+        collapsed ? 'justify-center px-3 py-3' : 'gap-3 px-3 py-2.5'
       } ${active ? 'bg-surface-3' : 'hover:bg-surface-3'}`}
     >
       <Icon className="w-5 h-5 shrink-0" />
-      {!collapsed && <span className="truncate">{label}</span>}
+      <span
+        aria-hidden={collapsed}
+        className={`overflow-hidden whitespace-nowrap ease-in-out ${
+          collapsed
+            ? 'max-w-0 -translate-x-1 opacity-0 transition-[max-width,opacity,transform] duration-300'
+            : 'max-w-40 translate-x-0 opacity-100 transition-[max-width,opacity,transform] delay-300 duration-200'
+        }`}
+      >
+        {label}
+      </span>
 
       {collapsed && (
         <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-surface-3 text-white text-xs font-semibold rounded-md opacity-0 pointer-events-none group-hover/navitem:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
@@ -119,29 +128,54 @@ export default function LeftRail() {
 
   return (
       <aside
-        className={`h-screen shrink-0 bg-background flex flex-col pt-6 pb-6 transition-all duration-300 ease-in-out ${
-          collapsed ? 'w-20' : 'w-64'
+        className={`h-screen shrink-0 bg-background flex flex-col pt-6 pb-6 transition-[width] duration-500 ease-in-out will-change-[width] ${
+          collapsed ? 'w-20 delay-300' : 'w-64'
         }`}
       >
         {/* Logo + collapse toggle */}
-        <div className={`px-4 mb-8 flex ${collapsed ? 'flex-col gap-6 items-center' : 'items-center justify-between'}`}>
-          <Link href="/" className="flex items-center shrink-0 min-h-[28px]">
-            <Image
-              src="/logos/yepper-logo.png"
-              alt="Yepper"
-              width={collapsed ? 32 : 100}
-              height={collapsed ? 32 : 28}
-              className={collapsed ? 'w-8 h-8 object-contain' : 'h-8 w-auto object-contain'}
-              priority
-            />
-          </Link>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg hover:bg-surface-3 text-white transition-colors shrink-0"
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <SidebarToggleIcon className="w-5 h-5" />
-          </button>
+        <div className={`px-4 mb-8 flex ${collapsed ? 'justify-center' : 'items-center justify-between'}`}>
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="group relative flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-surface-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+            >
+              <Image
+                src="/logos/yepper-logo.png"
+                alt=""
+                width={32}
+                height={32}
+                priority
+                className="h-8 w-8 object-contain transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
+              />
+              <span className="absolute inset-0 flex items-center justify-center text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                <SidebarToggleIcon className="h-5 w-5" />
+              </span>
+            </button>
+          ) : (
+            <div className="flex w-full items-center justify-between gap-3">
+              <Link href="/" className="flex min-h-[28px] shrink-0 items-center">
+                <Image
+                  src="/logos/yepper-logo.png"
+                  alt="Yepper"
+                  width={100}
+                  height={28}
+                  priority
+                  className="h-8 w-auto object-contain"
+                />
+              </Link>
+              <button
+                onClick={() => setCollapsed(true)}
+                className="shrink-0 rounded-lg p-1.5 text-white transition-colors hover:bg-surface-3"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <SidebarToggleIcon className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navigation: one flat list, centered in the space between the
@@ -182,12 +216,21 @@ export default function LeftRail() {
 
             <button
               onClick={() => setMoreOpen((o) => !o)}
-              className={`w-full flex items-center rounded-lg text-base font-semibold text-white transition-colors ${
-                collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
+              className={`w-full flex items-center rounded-lg text-base font-semibold text-white transition-[gap,padding,background-color] delay-300 duration-300 ease-in-out ${
+                collapsed ? 'justify-center px-3 py-3' : 'gap-3 px-3 py-2.5'
               } ${moreOpen ? 'bg-surface-3' : 'hover:bg-surface-3'}`}
             >
               <Bars3Icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span>More</span>}
+              <span
+                aria-hidden={collapsed}
+                className={`overflow-hidden whitespace-nowrap ease-in-out ${
+                  collapsed
+                    ? 'max-w-0 -translate-x-1 opacity-0 transition-[max-width,opacity,transform] duration-300'
+                    : 'max-w-40 translate-x-0 opacity-100 transition-[max-width,opacity,transform] delay-300 duration-200'
+                }`}
+              >
+                More
+              </span>
             </button>
           </div>
         </div>

@@ -17,6 +17,7 @@ import AdminHotDeals from './pages/AdminHotDeals';
 import AdminHotDealBuilder from './pages/AdminHotDealBuilder';
 import AdminProspectWebsites from './pages/AdminProspectWebsites';
 import AdminAdSpacePreview from './pages/AdminAdSpacePreview';
+import AdminVideoStudio from './pages/AdminVideoStudio';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ function App() {
             <Route path="hot-deals/:id" element={<AdminHotDealBuilder />} />
             <Route path="prospect-websites" element={<AdminProspectWebsites />} />
             <Route path="ad-space-preview" element={<AdminAdSpacePreview />} />
+            <Route path="video-studio" element={<AdminVideoStudio />} />
           </Route>
         </Routes>
       </AdminAuthProvider>

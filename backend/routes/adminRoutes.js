@@ -7,6 +7,7 @@ const ctrl = require('../controllers/adminController');
 const pricing = require('../controllers/pricingController');
 const hotDeals = require('../controllers/hotDealsController');
 const prospects = require('../controllers/prospectController');
+const videoStudio = require('../creators/controllers/videoStudioController');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────
@@ -76,5 +77,18 @@ router.post('/prospect-websites',       adminAuth, prospects.createProspectWebsi
 router.delete('/prospect-websites/:id', adminAuth, prospects.deleteProspectWebsite);
 router.get('/prospect-interests',       adminAuth, prospects.listProspectInterests);
 router.post('/prospect-websites/:id/send-invite', adminAuth, prospects.sendProspectInvite);
+
+router.get('/video-processing/queue', adminAuth, videoStudio.getReviewQueue);
+router.post('/video-processing/jobs/:id/approve', adminAuth, videoStudio.approveJob);
+router.post('/video-processing/jobs/:id/reject', adminAuth, videoStudio.rejectJob);
+router.get('/video-processing/creators', adminAuth, videoStudio.getCreators);
+router.put('/video-processing/creators/:creatorId/verification', adminAuth, videoStudio.setCreatorVerification);
+router.post('/video-processing/creators/:creatorId/subscription', adminAuth, videoStudio.setSubscription);
+router.get('/video-processing/kill-switch', adminAuth, videoStudio.getKillSwitch);
+router.put('/video-processing/kill-switch', adminAuth, videoStudio.setKillSwitch);
+router.get('/video-processing/summary', adminAuth, videoStudio.getSummary);
+router.get('/video-processing/plans', adminAuth, videoStudio.getPlans);
+router.put('/video-processing/plans/:code', adminAuth, videoStudio.updatePlan);
+router.post('/video-processing/decision-link', videoStudio.decideFromEmail);
 
 module.exports = router;

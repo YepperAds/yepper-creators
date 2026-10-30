@@ -311,6 +311,7 @@ async function initCreatorsDatabase() {
       }
     }
   }
+  await require('../../migrations/20261030_video_studio').up();
   console.log('[creators] Database schema initialised.');
 }
 

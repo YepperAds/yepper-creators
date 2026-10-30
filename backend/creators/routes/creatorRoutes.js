@@ -11,6 +11,7 @@ const adSpaces   = require('../controllers/adSpaceController');
 const claimPayment = require('../controllers/youtubeClaimPaymentController');
 const youtubeSubscription = require('../controllers/youtubeSubscriptionController');
 const tiktokSponsorship = require('../controllers/tiktokSponsorshipController');
+const videoStudio = require('../controllers/videoStudioController');
 
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 100);
 
@@ -64,6 +65,10 @@ router.post(
   controller.postAdVideo,
 );
 router.post('/api/social/post-ad/:provider/aws-upload', controller.startAwsAdVideoUpload);
+router.get('/api/social/video-studio/usage', videoStudio.getCreatorUsage);
+router.post('/api/social/video-studio/plan-request', videoStudio.requestPlan);
+router.post('/api/social/video-studio/verification-request', videoStudio.requestVerification);
+router.post('/api/social/video-studio/payment-webhook', videoStudio.paymentWebhookPlaceholder);
 router.get('/api/social/post-ad/priority-offer', controller.getAdVideoPriorityOffer);
 router.post('/api/social/post-ad/jobs/:id/upload-part-url', controller.getAwsAdVideoPartUrl);
 router.post('/api/social/post-ad/jobs/:id/complete-upload', controller.completeAwsAdVideoUpload);

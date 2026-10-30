@@ -14,7 +14,8 @@ import TikTokSponsoredPosts from './TikTokSponsoredPosts';
 // Large videos go directly to the paid backend so they do not pass through
 // the frontend deployment's request-size and execution limits.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
-const DEDICATED_VIDEO_API_URL = process.env.NEXT_PUBLIC_AD_VIDEO_API_URL;
+const DEDICATED_VIDEO_API_URL = process.env.NEXT_PUBLIC_AD_VIDEO_API_URL
+  || 'https://yepper-creators-video-worker.onrender.com';
 const VIDEO_API_URL = (
   DEDICATED_VIDEO_API_URL || BACKEND_URL
 ).replace(/\/$/, '');
@@ -22,7 +23,8 @@ const MAX_VIDEO_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_AD_VIDEO_SIZE_MB ||
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MAX_AWS_VIDEO_SIZE_GB = Number(process.env.NEXT_PUBLIC_MAX_AWS_AD_VIDEO_SIZE_GB || 100);
 const MAX_AWS_VIDEO_SIZE_BYTES = MAX_AWS_VIDEO_SIZE_GB * 1024 * 1024 * 1024;
-const MAX_VIDEO_DURATION_SEC = 2 * 60 * 60;
+const MAX_VIDEO_DURATION_MINUTES = Number(process.env.NEXT_PUBLIC_MAX_LONG_VIDEO_MINUTES || 150);
+const MAX_VIDEO_DURATION_SEC = MAX_VIDEO_DURATION_MINUTES * 60;
 const MAX_VIDEO_WIDTH = 3840;
 const MAX_VIDEO_HEIGHT = 2160;
 
@@ -253,6 +255,9 @@ export default function PostAdModal({
         } else if (json.data.status === 'error') {
           setAdUploadError(json.data.error_message || 'Processing failed, please try again');
           setAdUploading(false);
+        } else if (json.data.status === 'rejected') {
+          setAdUploadError(json.data.error_message || 'Your video was not approved for processing.');
+          setAdUploading(false);
         } else {
           scheduleRetry(5000);
         }
@@ -321,7 +326,7 @@ export default function PostAdModal({
       setVideoDuration(video.duration);
       setVideoDimensions({ width: video.videoWidth, height: video.videoHeight });
       if (video.duration > MAX_VIDEO_DURATION_SEC) {
-        setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
+        setAdUploadError(`Video is too long. Please choose a video no longer than ${MAX_VIDEO_DURATION_MINUTES} minutes.`);
         setVideoResolutionValid(false);
       } else if (video.videoWidth > MAX_VIDEO_WIDTH || video.videoHeight > MAX_VIDEO_HEIGHT) {
         setAdUploadError('Video resolution is too high. Please export it at 4K or lower.');
@@ -440,7 +445,7 @@ export default function PostAdModal({
           parts[partNumber - 1] = { ETag: etag, PartNumber: partNumber };
           uploadedBytes += part.size;
           setUploadProgress(Math.min(99, Math.round(uploadedBytes / adFile.size * 100)));
-          setUploadStageMessage(`Uploading securely — part ${partNumber} of ${totalParts}`);
+          setUploadStageMessage(`Uploading securely, part ${partNumber} of ${totalParts}`);
         }
       };
 
@@ -465,7 +470,7 @@ export default function PostAdModal({
       setJobPipeline('aws');
       window.sessionStorage.setItem(`yepper-ad-video-job:${provider}`, String(startedJobId));
       setJobStatus({
-        status: 'processing',
+        status: 'pending_approval',
         stage_message: completeJson.message
           || (completeJson.data?.priorityApplied ? 'Priority processing started…' : 'Video uploaded; waiting for processing to start…'),
         progress: 0,
@@ -492,7 +497,7 @@ export default function PostAdModal({
       return;
     }
     if (videoDuration > MAX_VIDEO_DURATION_SEC) {
-      setAdUploadError('Video is too long. Please choose a video no longer than 2 hours.');
+      setAdUploadError(`Video is too long. Please choose a video no longer than ${MAX_VIDEO_DURATION_MINUTES} minutes.`);
       return;
     }
     if (videoResolutionValid === false) return;
@@ -561,7 +566,7 @@ export default function PostAdModal({
   };
 
   // Step 2: they've published on their own channel with the code in the
-  // description — verify it via the public YouTube API (no OAuth) and mark
+  // description, verify it via the public YouTube API (no OAuth) and mark
   // this post live.
   const handleConfirm = async () => {
     if (!provider || !pendingPost || !publishedUrl.trim() || confirming) return;
@@ -734,18 +739,28 @@ export default function PostAdModal({
               <FilmIcon className="w-8 h-8 text-(--color-muted) mx-auto animate-pulse" />
               <p className="text-center text-sm font-medium text-(--color-white)">
                 {jobStatus?.status === 'queued'
-                  ? `Waiting for processing${jobStatus.queue_position && jobStatus.queue_position > 1 ? ` — position ${jobStatus.queue_position} in queue` : '…'}`
-                  : jobStatus?.stage_message || 'Processing…'}
+                  ? `Waiting for processing${jobStatus.queue_position && jobStatus.queue_position > 1 ? `, position ${jobStatus.queue_position} in queue` : '...'}`
+                  : jobStatus?.stage_message || 'Processing...'}
               </p>
               <div className="w-full h-2 rounded-full bg-(--color-surface-3) overflow-hidden">
                 <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${jobStatus?.progress ?? 0}%` }} />
               </div>
               <div className="flex items-center justify-between text-[10px] text-(--color-muted)">
-                <span>{jobStatus?.status === 'queued' ? 'Queued' : 'Video processing'}</span>
+                <span>{jobStatus?.status === 'pending_approval'
+                  ? 'Pending approval'
+                  : jobStatus?.status === 'approved'
+                    ? 'Approved'
+                    : jobStatus?.status === 'queued'
+                      ? 'Queued'
+                      : 'Video processing'}</span>
                 <span>{jobStatus?.progress ?? 0}%</span>
               </div>
               <p className="text-[10px] text-(--color-muted)">
-                {jobStatus?.status === 'processing' && jobStatus.estimated_remaining_seconds != null
+                {jobStatus?.status === 'pending_approval'
+                  ? 'Your upload is secure. Processing begins after Yepper approves it.'
+                  : jobStatus?.status === 'approved'
+                    ? 'Your video was approved. MediaConvert will start shortly.'
+                    : jobStatus?.status === 'processing' && jobStatus.estimated_remaining_seconds != null
                   ? `Estimated processing time remaining: ${formatDurationEstimate(jobStatus.estimated_remaining_seconds)}. This estimate is based on current progress and is not guaranteed.`
                   : jobStatus?.stage_message?.includes('queue')
                     ? 'Waiting for an AWS processing slot. The render-time estimate will appear after processing starts.'
@@ -773,7 +788,7 @@ export default function PostAdModal({
                   {pendingPost.adPlacements.map((placement) => (
                     `${formatTime(placement.startsAt)}–${formatTime(placement.endsAt)}`
                   )).join(' · ')}
-                  {' '}— seek to these times to verify the ads.
+                  {' '}Seek to these times to verify the ads.
                 </p>
               </div>
             ) : null}
@@ -787,7 +802,7 @@ export default function PostAdModal({
               {downloading
                 ? `Saving video… ${downloadProgress ?? 0}%`
                 : downloaded
-                  ? 'Downloaded — download again'
+                  ? 'Downloaded. Download again'
                   : 'Download processed video'}
             </button>
             {downloadProgress !== null && (
@@ -896,6 +911,7 @@ export default function PostAdModal({
               {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && (
                 <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200" role="status">
                   Long-video processing may take several hours and depends on processing capacity. The original video uploads directly to private storage. The finished MP4 is H.264 at 1080p maximum; 4K sources are downscaled.
+                  {videoDuration != null && ` Estimated allowance: ${(videoDuration / 3600).toFixed(2)} hours.`}
                 </p>
               )}
               {adFile && adFile.size > MAX_VIDEO_SIZE_BYTES && priorityOffer?.enabled && (

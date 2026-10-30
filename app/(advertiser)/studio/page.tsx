@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import VideoStudio from './VideoStudio';
 
 export default function StudioPage() {
-  redirect('/connect-accounts');
+  return <VideoStudio />;
 }

@@ -12,6 +12,7 @@ const NAV = [
   { to: '/hot-deals', label: 'Hot Deals', icon: '🔥' },
   { to: '/prospect-websites', label: 'Prospect Sites', icon: '🎯' },
   { to: '/ad-space-preview', label: 'Ad Space Preview', icon: '🧩' },
+  { to: '/video-studio', label: 'Video Studio', icon: '🎬' },
 ];
 
 export default function AdminLayout() {

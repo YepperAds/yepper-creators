@@ -11,15 +11,19 @@ export default function AdminYoutubers() {
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
+  const [verificationBusy, setVerificationBusy] = useState({});
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const d = await adminFetch(`/youtubers?search=${encodeURIComponent(search)}&page=${page}&limit=20`, {}, adminHeaders);
       setYoutubers(d.youtubers);
       setTotal(d.total);
     } catch (e) {
-      console.error(e);
+      setError(e.message || 'Could not load connected YouTube channels.');
     } finally {
       setLoading(false);
     }
@@ -36,14 +40,49 @@ export default function AdminYoutubers() {
 
   const pages = Math.ceil(total / 20);
 
+  const toggleVerification = async (creator) => {
+    const currentlyVerified = creator.videoVerificationStatus === 'verified';
+    const nextStatus = currentlyVerified ? 'unverified' : 'verified';
+    setVerificationBusy(current => ({ ...current, [creator._id]: true }));
+    setError('');
+    setNotice('');
+    try {
+      await adminFetch(`/video-processing/creators/${creator._id}/verification`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: nextStatus }),
+      }, adminHeaders);
+      setYoutubers(current => current.map(item => (
+        item._id === creator._id
+          ? { ...item, videoVerificationStatus: nextStatus }
+          : item
+      )));
+      setNotice(`${creator.channelName || creator.name || 'YouTube channel'} ${nextStatus === 'verified' ? 'verified' : 'verification removed'}.`);
+    } catch (e) {
+      setError(e.message || 'Could not update channel verification.');
+    } finally {
+      setVerificationBusy(current => ({ ...current, [creator._id]: false }));
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 700 }}>Youtubers</h2>
-          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} connected YouTube channels</p>
+          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} connected YouTube channels. Tick a channel to verify its creator for long-video processing.</p>
         </div>
       </div>
+
+      {error && (
+        <div role="alert" style={{ background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: 8, padding: '10px 14px', color: '#c53030', marginBottom: 14, fontSize: 13 }}>
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div role="status" style={{ background: '#f0fff4', border: '1px solid #9ae6b4', borderRadius: 8, padding: '10px 14px', color: '#276749', marginBottom: 14, fontSize: 13 }}>
+          {notice}
+        </div>
+      )}
 
       {/* Search */}
       <div style={{ marginBottom: 20 }}>
@@ -60,16 +99,16 @@ export default function AdminYoutubers() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead style={{ background: '#fafafa' }}>
             <tr>
-              {['Name','Email','Channel','Subscribers','Total Views','Connected','Actions'].map(h => (
+              {['Name','Email','Channel','Subscribers','Total Views','Connected','Long-video verification','Actions'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
             ) : youtubers.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No youtubers found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No youtubers found</td></tr>
             ) : youtubers.map(u => (
               <tr key={u._id} style={{ borderBottom: '1px solid #f7f7f7' }}>
                 <td style={{ padding: '12px 16px', fontWeight: 500 }}>
@@ -85,6 +124,19 @@ export default function AdminYoutubers() {
                 <td style={{ padding: '12px 16px', color: '#888' }}>{u.totalViews ?? 0}</td>
                 <td style={{ padding: '12px 16px', color: '#aaa', fontSize: 13 }}>
                   {u.connectedAt ? new Date(u.connectedAt).toLocaleDateString() : '—'}
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#555', fontSize: 12, cursor: verificationBusy[u._id] ? 'wait' : 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={u.videoVerificationStatus === 'verified'}
+                      disabled={Boolean(verificationBusy[u._id])}
+                      onChange={() => toggleVerification(u)}
+                      aria-label={`Verify ${u.channelName || u.name || 'YouTube channel'} for long-video processing`}
+                      style={{ width: 16, height: 16, accentColor: '#16835d' }}
+                    />
+                    <span>{verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Not verified'}</span>
+                  </label>
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', gap: 8 }}>

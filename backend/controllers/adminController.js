@@ -171,6 +171,7 @@ exports.getYoutubers = async (req, res) => {
 
     const ytRes = await query(
       `SELECT c.id, c.full_name, c.username, c.email, c.avatar, c.google_id, c.created_at, c.updated_at,
+              c.video_verification_status,
               sc.username AS channel_name, sc.profile_url AS channel_url,
               sc.followers_count AS subscribers, sc.total_views, sc.total_posts, sc.connected_at
        FROM creators c
@@ -185,6 +186,7 @@ exports.getYoutubers = async (req, res) => {
       ...safeUser(row),
       channelName: row.channel_name,
       channelUrl:  row.channel_url,
+      videoVerificationStatus: row.video_verification_status || 'unverified',
       subscribers: row.subscribers,
       totalViews:  row.total_views,
       totalPosts:  row.total_posts,

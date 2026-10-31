@@ -112,7 +112,7 @@ export default function AdminYoutubers() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 700 }}>Youtubers</h2>
-          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} connected YouTube channels. Tick a channel to verify its creator for long-video processing.</p>
+          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} connected YouTube channels. Channel verification only confirms creator eligibility. Each long video still needs separate admin approval.</p>
         </div>
       </div>
 
@@ -219,7 +219,7 @@ export default function AdminYoutubers() {
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{ display: 'block', marginBottom: 7, color: u.videoVerificationStatus === 'verified' ? '#21633c' : '#777', fontSize: 12, fontWeight: 700 }}>
-                    {u.videoVerificationStatus === 'verified' ? 'Verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Not verified'}
+                    {u.videoVerificationStatus === 'verified' ? 'Channel verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Channel not verified'}
                   </span>
                   <button
                     type="button"
@@ -227,7 +227,7 @@ export default function AdminYoutubers() {
                     onClick={() => {
                       const status = u.videoVerificationStatus === 'verified' ? 'unverified' : 'verified';
                       setCreatorVerification(u, status)
-                        .then(() => setNotice(`${u.channelName || u.name || 'YouTube channel'} ${status === 'verified' ? 'verified' : 'unverified'} for long-video processing.`))
+                        .then(() => setNotice(`${u.channelName || u.name || 'YouTube channel'} ${status === 'verified' ? 'verified' : 'unverified'} for creator eligibility. Video approval remains separate.`))
                         .catch(e => setError(e.message));
                     }}
                     style={{
@@ -240,7 +240,7 @@ export default function AdminYoutubers() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Unverify' : 'Verify channel'}
+                    {verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Unverify channel' : 'Verify channel'}
                   </button>
                 </td>
                 <td style={{ padding: '12px 16px' }}>

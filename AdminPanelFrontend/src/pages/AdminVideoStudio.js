@@ -215,7 +215,7 @@ export default function AdminVideoStudio() {
         <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <h2 style={{ fontSize: 19, margin: '0 0 5px' }}>Approval queue</h2>
-            <p style={{ color: '#7b8784', fontSize: 13, margin: 0 }}>No job is sent to MediaConvert until approved.</p>
+            <p style={{ color: '#7b8784', fontSize: 13, margin: 0 }}>Channel verification confirms creator eligibility only. Every video stays pending until you approve that specific job. No job is sent to MediaConvert before approval.</p>
           </div>
           <span style={{ background: '#fff5e3', borderRadius: 999, color: '#926819', fontSize: 12, fontWeight: 800, padding: '7px 11px' }}>{queue.length} awaiting review</span>
         </div>
@@ -237,7 +237,7 @@ export default function AdminVideoStudio() {
                 </div>
               </div>
               <span style={{ background: job.verificationStatus === 'verified' ? '#eaf6ed' : '#fff1ef', borderRadius: 999, color: job.verificationStatus === 'verified' ? '#286541' : '#9b382c', fontSize: 11, fontWeight: 800, padding: '7px 10px' }}>
-                Verification: {job.verificationStatus || 'unverified'}
+                Creator channel: {job.verificationStatus || 'unverified'}
               </span>
             </div>
             <label style={{ color: '#65726e', display: 'block', fontSize: 12, fontWeight: 700, margin: '14px 0 6px' }} htmlFor={`reject-${job.id}`}>Rejection reason, if needed</label>
@@ -262,7 +262,7 @@ export default function AdminVideoStudio() {
           <table style={{ borderCollapse: 'collapse', minWidth: 900, width: '100%' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e7ece9', color: '#77837f', fontSize: 11, textAlign: 'left', textTransform: 'uppercase' }}>
-                {['Creator', 'Verification', 'Trial used', 'Plan', 'Hours left', 'Quick actions'].map((heading) => <th key={heading} style={{ padding: '11px 9px' }}>{heading}</th>)}
+                {['Creator', 'Channel verification', 'Trial used', 'Plan', 'Hours left', 'Quick actions'].map((heading) => <th key={heading} style={{ padding: '11px 9px' }}>{heading}</th>)}
               </tr>
             </thead>
             <tbody>

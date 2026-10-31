@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import PWAInstallButton from './PWAInstallButton';
 
 const NAV_LINKS = [
   { label: 'For advertisers', href: '/advertisers' },
@@ -46,7 +47,8 @@ export default function HomeHeader() {
         </nav>
 
         {/* CTA group */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <PWAInstallButton />
           <Link
             href="/login"
             className="hidden text-[13.5px] font-medium text-[#444] transition hover:text-[#0E0E0F] sm:inline-flex"

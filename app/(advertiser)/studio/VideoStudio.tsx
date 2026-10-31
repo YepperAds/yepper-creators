@@ -72,7 +72,7 @@ interface UsageResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
   || process.env.NEXT_PUBLIC_AD_VIDEO_API_URL
-  || 'https://yepper-creators-video-worker.onrender.com';
+  || 'https://yepper-creators-video-worker-2ohx.onrender.com';
 function formatHours(hours: number) {
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
 }

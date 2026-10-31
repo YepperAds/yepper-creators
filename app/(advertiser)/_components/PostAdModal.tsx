@@ -15,7 +15,7 @@ import TikTokSponsoredPosts from './TikTokSponsoredPosts';
 // the frontend deployment's request-size and execution limits.
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 const DEDICATED_VIDEO_API_URL = process.env.NEXT_PUBLIC_AD_VIDEO_API_URL
-  || 'https://yepper-creators-video-worker.onrender.com';
+  || 'https://yepper-creators-video-worker-2ohx.onrender.com';
 const VIDEO_API_URL = (
   DEDICATED_VIDEO_API_URL || BACKEND_URL
 ).replace(/\/$/, '');

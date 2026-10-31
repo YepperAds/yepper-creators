@@ -12,6 +12,8 @@ export default function AdminYoutubers() {
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
   const [verificationBusy, setVerificationBusy] = useState({});
+  const [selectedCreators, setSelectedCreators] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -34,18 +36,23 @@ export default function AdminYoutubers() {
   // Debounce search
   const [searchInput, setSearchInput] = useState('');
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+      setSelectedCreators([]);
+    }, 400);
     return () => clearTimeout(t);
   }, [searchInput]);
 
   const pages = Math.ceil(total / 20);
+  const visibleCreatorIds = youtubers.map(creator => String(creator._id));
+  const visibleSelectedCount = visibleCreatorIds.filter(id => selectedCreators.includes(id)).length;
+  const allVisibleSelected = visibleCreatorIds.length > 0
+    && visibleCreatorIds.every(id => selectedCreators.includes(id));
 
-  const toggleVerification = async (creator) => {
-    const currentlyVerified = creator.videoVerificationStatus === 'verified';
-    const nextStatus = currentlyVerified ? 'unverified' : 'verified';
+  const setCreatorVerification = async (creator, nextStatus) => {
     setVerificationBusy(current => ({ ...current, [creator._id]: true }));
     setError('');
-    setNotice('');
     try {
       await adminFetch(`/video-processing/creators/${creator._id}/verification`, {
         method: 'PUT',
@@ -56,12 +63,48 @@ export default function AdminYoutubers() {
           ? { ...item, videoVerificationStatus: nextStatus }
           : item
       )));
-      setNotice(`${creator.channelName || creator.name || 'YouTube channel'} ${nextStatus === 'verified' ? 'verified' : 'verification removed'}.`);
+      return true;
     } catch (e) {
-      setError(e.message || 'Could not update channel verification.');
+      throw new Error(e.message || `Could not update ${creator.channelName || creator.name || 'channel'}.`);
     } finally {
       setVerificationBusy(current => ({ ...current, [creator._id]: false }));
     }
+  };
+
+  const toggleSelection = (creatorId) => {
+    const id = String(creatorId);
+    setSelectedCreators(current => current.includes(id)
+      ? current.filter(selected => selected !== id)
+      : [...current, id]);
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedCreators(current => allVisibleSelected
+      ? current.filter(id => !visibleCreatorIds.includes(id))
+      : [...new Set([...current, ...visibleCreatorIds])]);
+  };
+
+  const applyBulkVerification = async (nextStatus) => {
+    const targets = youtubers.filter(creator => selectedCreators.includes(String(creator._id)));
+    if (!targets.length || bulkBusy) return;
+    setBulkBusy(true);
+    setError('');
+    setNotice('');
+    const failures = [];
+    for (const creator of targets) {
+      try {
+        await setCreatorVerification(creator, nextStatus);
+      } catch (e) {
+        failures.push(e.message);
+      }
+    }
+    setSelectedCreators(current => current.filter(id => !targets.some(target => String(target._id) === id)));
+    setBulkBusy(false);
+    if (failures.length) {
+      setError(`${targets.length - failures.length} of ${targets.length} channels updated. ${failures.join(' ')}`);
+      return;
+    }
+    setNotice(`${targets.length} channel${targets.length === 1 ? '' : 's'} ${nextStatus === 'verified' ? 'verified' : 'unverified'} for long-video processing.`);
   };
 
   return (
@@ -84,6 +127,39 @@ export default function AdminYoutubers() {
         </div>
       )}
 
+      <section
+        aria-label="Bulk channel verification"
+        style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16, padding: '12px 14px', background: '#fff', border: '1px solid #e6eaf0', borderRadius: 10 }}
+      >
+        <strong style={{ color: '#333', fontSize: 13 }}>{visibleSelectedCount} selected on this page</strong>
+        <button
+          type="button"
+          onClick={() => applyBulkVerification('verified')}
+          disabled={visibleSelectedCount === 0 || bulkBusy}
+          style={{ ...pageBtn, background: '#e8f6ee', borderColor: '#b7dec6', color: '#21633c', fontWeight: 700, opacity: visibleSelectedCount === 0 || bulkBusy ? 0.55 : 1 }}
+        >
+          {bulkBusy ? 'Updating…' : 'Verify selected'}
+        </button>
+        <button
+          type="button"
+          onClick={() => applyBulkVerification('unverified')}
+          disabled={visibleSelectedCount === 0 || bulkBusy}
+          style={{ ...pageBtn, background: '#fff6e8', borderColor: '#ead6b2', color: '#7b581b', fontWeight: 700, opacity: visibleSelectedCount === 0 || bulkBusy ? 0.55 : 1 }}
+        >
+          Unverify selected
+        </button>
+        {visibleSelectedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedCreators([])}
+            disabled={bulkBusy}
+            style={{ ...pageBtn, background: '#fff', color: '#666' }}
+          >
+            Clear selection
+          </button>
+        )}
+      </section>
+
       {/* Search */}
       <div style={{ marginBottom: 20 }}>
         <input
@@ -99,6 +175,14 @@ export default function AdminYoutubers() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead style={{ background: '#fafafa' }}>
             <tr>
+              <th style={{ width: 42, textAlign: 'left', padding: '12px 12px', borderBottom: '1px solid #f0f0f0' }}>
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleVisibleSelection}
+                  aria-label="Select all visible YouTube channels"
+                />
+              </th>
               {['Name','Email','Channel','Subscribers','Total Views','Connected','Long-video verification','Actions'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{h}</th>
               ))}
@@ -106,11 +190,19 @@ export default function AdminYoutubers() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
             ) : youtubers.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No youtubers found</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No youtubers found</td></tr>
             ) : youtubers.map(u => (
               <tr key={u._id} style={{ borderBottom: '1px solid #f7f7f7' }}>
+                <td style={{ padding: '12px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCreators.includes(String(u._id))}
+                    onChange={() => toggleSelection(u._id)}
+                    aria-label={`Select ${u.channelName || u.name || 'YouTube channel'}`}
+                  />
+                </td>
                 <td style={{ padding: '12px 16px', fontWeight: 500 }}>
                   <Link to={`/users/${u._id}`} style={{ color: '#111', textDecoration: 'none' }}>{u.name}</Link>
                 </td>
@@ -126,17 +218,30 @@ export default function AdminYoutubers() {
                   {u.connectedAt ? new Date(u.connectedAt).toLocaleDateString() : '—'}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#555', fontSize: 12, cursor: verificationBusy[u._id] ? 'wait' : 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={u.videoVerificationStatus === 'verified'}
-                      disabled={Boolean(verificationBusy[u._id])}
-                      onChange={() => toggleVerification(u)}
-                      aria-label={`Verify ${u.channelName || u.name || 'YouTube channel'} for long-video processing`}
-                      style={{ width: 16, height: 16, accentColor: '#16835d' }}
-                    />
-                    <span>{verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Not verified'}</span>
-                  </label>
+                  <span style={{ display: 'block', marginBottom: 7, color: u.videoVerificationStatus === 'verified' ? '#21633c' : '#777', fontSize: 12, fontWeight: 700 }}>
+                    {u.videoVerificationStatus === 'verified' ? 'Verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Not verified'}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={Boolean(verificationBusy[u._id]) || bulkBusy}
+                    onClick={() => {
+                      const status = u.videoVerificationStatus === 'verified' ? 'unverified' : 'verified';
+                      setCreatorVerification(u, status)
+                        .then(() => setNotice(`${u.channelName || u.name || 'YouTube channel'} ${status === 'verified' ? 'verified' : 'unverified'} for long-video processing.`))
+                        .catch(e => setError(e.message));
+                    }}
+                    style={{
+                      ...pageBtn,
+                      padding: '5px 9px',
+                      background: u.videoVerificationStatus === 'verified' ? '#fff6e8' : '#e8f6ee',
+                      borderColor: u.videoVerificationStatus === 'verified' ? '#ead6b2' : '#b7dec6',
+                      color: u.videoVerificationStatus === 'verified' ? '#7b581b' : '#21633c',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Unverify' : 'Verify channel'}
+                  </button>
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -158,9 +263,9 @@ export default function AdminYoutubers() {
         {/* Pagination */}
         {pages > 1 && (
           <div style={{ display: 'flex', gap: 8, padding: '16px', justifyContent: 'center', borderTop: '1px solid #f0f0f0' }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={pageBtn}>← Prev</button>
+            <button onClick={() => { setSelectedCreators([]); setPage(p => Math.max(1, p - 1)); }} disabled={page === 1} style={pageBtn}>← Prev</button>
             <span style={{ padding: '6px 12px', fontSize: 13, color: '#666' }}>{page} / {pages}</span>
-            <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages} style={pageBtn}>Next →</button>
+            <button onClick={() => { setSelectedCreators([]); setPage(p => Math.min(pages, p + 1)); }} disabled={page === pages} style={pageBtn}>Next →</button>
           </div>
         )}
       </div>

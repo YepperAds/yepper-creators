@@ -361,10 +361,10 @@ exports.setCreatorVerification = async (req, res) => {
     const updated = await query(
       `UPDATE creators
        SET video_verification_status=$1, video_verification_reason=$2,
-           video_verified_at=CASE WHEN $1='verified' THEN NOW() ELSE NULL END,
+           video_verified_at=CASE WHEN $3 THEN NOW() ELSE NULL END,
            updated_at=NOW()
-       WHERE id=$3 RETURNING id`,
-      [status, reason || null, creatorId],
+       WHERE id=$4 RETURNING id`,
+      [status, reason || null, status === 'verified', creatorId],
     );
     if (!updated.rowCount) return res.status(404).json({ success: false, message: 'Creator not found.' });
     await writeVideoProcessingAudit({

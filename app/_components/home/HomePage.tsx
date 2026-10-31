@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import HomeHeader from './HomeHeader';
+import MarketingFooter from './MarketingFooter';
 import Hero from './Hero';
-import WebsiteRow from './WebsiteRow';
+import ExploreDirectory from './ExploreDirectory';
 import HotDealsSection from './HotDealsSection';
-import SectionIntro from './SectionIntro';
-import SystemInfoPanel from './SystemInfoPanel';
+import MarketingShowcase from './MarketingShowcase';
 import MarketingSections from './MarketingSections';
 import Reveal from '@/app/_components/shared/Reveal';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
@@ -21,32 +21,60 @@ export default function HomePage({
   hotDeals: HotDeal[];
   dealId?: string;
 }) {
-  // Placeholder content while the network is thin, see app/_lib/mock-home-data.ts
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
+  const usesSampleWebsites = websites.length === 0;
+  const usesSampleCreators = creators.length === 0;
 
   return (
-    <div className="bg-[color:var(--mkt-bg)] min-h-screen">
-      <div data-yepper-space="f997d5cb-85c4-47ea-adc8-214bc2fbc293"></div>
+    <div className="min-h-screen bg-[#FAFAF8] text-[#0E0E0F]">
+      <div data-yepper-space="f997d5cb-85c4-47ea-adc8-214bc2fbc293" />
       <HomeHeader />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main>
+        {/* ── Hero ──────────────────────────────────────────────────── */}
         <Hero />
-      </div>
 
-      <div id="explore" className="scroll-mt-24">
-        {/* Full-bleed color bands: no border, no inset card, just a
-            confident wall of brand color behind each real-content row. */}
+        {/* ── Three-pillar trust bar ──────────────────────────────── */}
+        <section className="border-y border-[#E4E2DC] bg-white">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-[#E4E2DC] px-5 py-2 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-10">
+            {[
+              { title: 'One place to discover', text: 'Websites, YouTube channels, and TikTok creators in a single marketplace.' },
+              { title: 'See it all before you commit', text: 'Every listing shows full placement details, pricing, and terms upfront.' },
+              { title: 'Built for both sides', text: 'Whether you buy ad space or sell it, Yepper has a clear path for you.' },
+            ].map((item) => (
+              <div key={item.title} className="px-5 py-5 sm:px-8">
+                <p className="text-sm font-bold text-[#0E0E0F]">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-[#5A5A60]">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Feature showcase ────────────────────────────────────── */}
+        <MarketingShowcase />
+
+        {/* ── Hot Deals ───────────────────────────────────────────── */}
         {hotDeals.length > 0 && (
-          <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#FDEDE9' }}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <section className="border-t border-[#E4E2DC] bg-white py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
               <Reveal>
-                <SectionIntro
-                  eyebrow="Fastest way in"
-                  title="Skip the search. Start with a Hot Deal."
-                  body="Every Hot Deal bundles YouTube slots and website ad spaces an admin has already vetted and priced together, at a discount. Instead of piecing together your own media plan from scratch, grab a ready-made bundle and launch today."
-                  accent="coral"
-                />
+                <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+                  <div className="max-w-2xl">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1090C8]">Curated campaigns</p>
+                    <h2 className="mt-2 font-(--font-display) text-3xl font-bold leading-tight tracking-tight text-[#0E0E0F] sm:text-4xl">
+                      Ready-made media bundles
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-[#5A5A60]">
+                      Hot Deals bundle website placements and creator channels into one curated offer — priced and ready to run.
+                    </p>
+                  </div>
+                  <Link
+                    href="/how-it-works"
+                    className="inline-flex w-fit items-center rounded-full border border-[#C8C5BE] px-4 py-2 text-xs font-semibold text-[#0E0E0F] transition hover:border-[#9A9A9F]"
+                  >
+                    See how it works
+                  </Link>
+                </div>
                 <HotDealsSection
                   deals={hotDeals}
                   initialDealId={dealId}
@@ -61,35 +89,50 @@ export default function HomePage({
           </section>
         )}
 
-        <section className="yp-full-bleed py-16 sm:py-20" style={{ backgroundColor: '#E8F4FA' }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ── Explore Directory (Overhauled Grid & Filters) ────────── */}
+        <section
+          id="explore"
+          className="scroll-mt-24 border-t border-[#E4E2DC] bg-[#FAFAF8] py-16 sm:py-24"
+        >
+          <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
             <Reveal>
-              <SectionIntro
-                eyebrow="Pick it yourself"
-                title="Browse websites directly"
-                body="Prefer to choose your own placement? Every listed website is sorted into a real traffic tier, so you know exactly what audience you're reaching before you book. No cold outreach, no guessing."
-                accent="blue"
+              <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div className="max-w-2xl">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1090C8]">Explore directory</p>
+                  <h2 className="mt-2 font-(--font-display) text-3xl font-bold leading-tight tracking-tight text-[#0E0E0F] sm:text-5xl">
+                    Find the audience that fits.
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[#5A5A60] sm:text-base">
+                    Browse verified website placements and creator channels. Click any listing to review ad formats, audience demographics, and direct booking options.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Link href="/advertisers" className="text-xs font-semibold text-[#1090C8] hover:underline">
+                    Advertiser guide →
+                  </Link>
+                  <span className="text-[#C8C5BE]">·</span>
+                  <Link href="/publishers" className="text-xs font-semibold text-[#1090C8] hover:underline">
+                    Creator monetization →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Responsive 3-column Directory */}
+              <ExploreDirectory
+                websites={displayWebsites}
+                creators={displayCreators}
+                usesSampleWebsites={usesSampleWebsites}
+                usesSampleCreators={usesSampleCreators}
               />
-              <WebsiteRow websites={displayWebsites} />
             </Reveal>
           </div>
         </section>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
-        <SystemInfoPanel />
+        {/* ── Final CTA ───────────────────────────────────────────── */}
         <MarketingSections />
-      </div>
-
-      <footer className="border-t border-[color:var(--mkt-border)] py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-[color:var(--mkt-ink-muted)]">© {new Date().getFullYear()} Yepper Inc.</p>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-xs text-[color:var(--mkt-ink-muted)] hover:text-[color:var(--mkt-ink)] transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="text-xs text-[color:var(--mkt-ink-muted)] hover:text-[color:var(--mkt-ink)] transition-colors">Terms of Use</Link>
-          </div>
-        </div>
-      </footer>
+      </main>
+      <MarketingFooter />
     </div>
   );
 }

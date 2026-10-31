@@ -1,6 +1,5 @@
 # Only deploy the root Next.js app. These are backend, legacy app, or local-only files.
 backend/
-AdminPanelFrontend/
 app/photos/
 md Plans/
 Microsoft/

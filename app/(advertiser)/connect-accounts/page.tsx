@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { api, AUTH_ENDPOINTS, SOCIAL_ENDPOINTS } from '@/app/_lib/api';
 import type { YouTubePricingResult } from '@/app/_lib/pricing/youtubePricing';
 import type { AuthResponse, User } from '@/app/_types/auth';
@@ -123,38 +124,11 @@ const TIER_BADGE: Record<string, string> = {
 };
 
 const PLATFORMS = [
-  { id: 'youtube', label: 'YouTube', color: '#FF0000', comingSoon: false, statLabel: 'Subscribers' },
-  { id: 'instagram', label: 'Instagram', color: '#E1306C', comingSoon: true, statLabel: 'Followers' },
-  { id: 'facebook', label: 'Facebook', color: '#1877F2', comingSoon: true, statLabel: 'Followers' },
-  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', comingSoon: false, statLabel: 'Followers' },
+  { id: 'youtube', label: 'YouTube', color: '#FF0000', logo: '/socials-icon/youtube-icon.png', comingSoon: false, statLabel: 'Subscribers' },
+  { id: 'instagram', label: 'Instagram', color: '#E1306C', logo: '/socials-icon/instagram-icon.png', comingSoon: true, statLabel: 'Followers' },
+  { id: 'facebook', label: 'Facebook', color: '#1877F2', logo: '/socials-icon/facebook-icon.png', comingSoon: true, statLabel: 'Followers' },
+  { id: 'tiktok', label: 'TikTok', color: '#25F4EE', logo: '/socials-icon/tiktok-icon.png', comingSoon: false, statLabel: 'Followers' },
 ] as const;
-
-function PlatformIcon({ id }: { id: string }) {
-  if (id === 'youtube') {
-    return (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55A3.016 3.016 0 0 0 .501 6.186C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 0 0 2.122 2.136C4.495 20.5 12 20.5 12 20.5s7.505 0 9.376-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-      </svg>
-    );
-  }
-  if (id === 'instagram') {
-    return (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="2" width="20" height="20" rx="5" />
-        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-        <path d="M17.5 6.5h.01" />
-      </svg>
-    );
-  }
-  if (id === 'facebook') {
-    return (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M24 12.073C24 5.446 18.627.073 12 .073S0 5.446 0 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.063 24 12.073z" />
-      </svg>
-    );
-  }
-  return <span className="text-xs font-black">TT</span>;
-}
 
 export default function ConnectAccountsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -673,7 +647,7 @@ export default function ConnectAccountsPage() {
   };
 
   const SocialPanel = (
-    <section className={`bg-(--color-surface-1) border border-(--color-border) rounded-2xl p-6 ${socialLocked ? 'opacity-70' : ''}`}>
+    <section className={`bg-(--color-surface-1) border border-(--color-border) rounded-2xl p-4 sm:p-5 ${socialLocked ? 'opacity-70' : ''}`}>
       <div className="flex items-center justify-between gap-4 border-b border-(--color-border) pb-4 mb-4">
         <div>
           <h2 className="text-sm font-bold text-(--color-white)">Social Media</h2>
@@ -689,7 +663,7 @@ export default function ConnectAccountsPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {PLATFORMS.map((platform) => {
           const connected = accounts.some((account) => account.provider === platform.id);
           const disabled = loading || platform.comingSoon || socialLocked;
@@ -698,25 +672,32 @@ export default function ConnectAccountsPage() {
               key={platform.id}
               onClick={() => handleConnect(platform.id)}
               disabled={disabled}
-              className={`relative flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+              className={`relative flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                 connected
                   ? 'bg-emerald-500/5 border-emerald-500/20'
                   : 'bg-(--color-surface-2) border-(--color-border) hover:bg-(--color-surface-3)'
               } disabled:cursor-not-allowed`}
             >
-              <div className="w-10 h-10 rounded-full bg-(--color-surface-3) border border-(--color-border) flex items-center justify-center" style={{ color: connected ? '#10B981' : platform.color }}>
-                {connected ? <CheckCircleIcon className="w-6 h-6" /> : socialLocked ? <LockClosedIcon className="w-5 h-5" /> : <PlatformIcon id={platform.id} />}
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-(--color-border) bg-(--color-surface-3) p-1.5">
+                <Image src={platform.logo} alt="" width={24} height={24} className="h-full w-full object-contain" />
+                {(connected || socialLocked) && (
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-(--color-surface-1) bg-(--color-surface-2)">
+                    {connected
+                      ? <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-400" />
+                      : <LockClosedIcon className="h-2.5 w-2.5 text-(--color-muted)" />}
+                  </span>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className={`text-sm font-bold ${connected ? 'text-emerald-400' : 'text-(--color-white)'}`}>{platform.label}</p>
+                  <p className={`text-[13px] font-bold ${connected ? 'text-emerald-400' : 'text-(--color-white)'}`}>{platform.label}</p>
                   {platform.comingSoon && <span className="rounded bg-(--color-surface-3) px-1.5 py-0.5 text-[9px] font-bold uppercase text-(--color-muted)">Coming soon</span>}
                 </div>
-                <p className="text-[11px] text-(--color-muted)">
+                <p className="text-[10px] text-(--color-muted)">
                   {connected ? 'View analysis' : platform.comingSoon ? ' ' : socialLocked ? 'Locked for web developer flow' : `Connect ${platform.label}`}
                 </p>
               </div>
-              {!connected && !platform.comingSoon && !socialLocked && <PlusCircleIcon className="w-5 h-5 text-(--color-muted)" />}
+              {!connected && !platform.comingSoon && !socialLocked && <PlusCircleIcon className="h-4 w-4 shrink-0 text-(--color-muted)" />}
             </button>
           );
         })}
@@ -813,8 +794,8 @@ export default function ConnectAccountsPage() {
                   <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: platform.color }} />
                   <span className="flex w-full items-center justify-between gap-3">
                     <span className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 items-center justify-center" style={{ color: platform.color }}>
-                        <PlatformIcon id={platform.id} />
+                      <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white">
+                        <Image src={platform.logo} alt="" width={28} height={28} className="h-full w-full object-cover" />
                       </span>
                       <span className="text-sm font-bold text-white">{platform.label}</span>
                     </span>
@@ -827,8 +808,8 @@ export default function ConnectAccountsPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={account.avatar} alt="" className="h-11 w-11 rounded-full border border-white/15 object-cover" />
                     ) : (
-                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5" style={{ color: platform.color }}>
-                        <PlatformIcon id={platform.id} />
+                      <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white">
+                        <Image src={platform.logo} alt="" width={44} height={44} className="h-full w-full object-cover" />
                       </span>
                     )}
                     <span className="min-w-0 flex-1">

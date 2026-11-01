@@ -62,13 +62,19 @@
    site and the dashboard are two different products visually and were never
    meant to share one "dark mode" look; the marketing site is its own
    always-on-this-way brand identity, so it gets its own token set instead
-   of borrowing the dashboard's --bg, --surface-1/2/3, --text-main tokens. ── */
+   of borrowing the dashboard's --bg, --surface-1/2/3, --text-main tokens. */
 :root {
-  --mkt-bg:        #FFFFFF;
-  --mkt-surface:   #F7F6F3;
-  --mkt-ink:       #0B0B0C;
-  --mkt-ink-muted: #5B5B5F;
-  --mkt-border:    #E8E6E1;
+  --mkt-bg:        #FAFAF8;
+  --mkt-surface:   #F5F3EE;
+  --mkt-card:      #FFFFFF;
+  --mkt-ink:       #0E0E0F;
+  --mkt-ink-muted: #5A5A60;
+  --mkt-ink-light: #9A9A9F;
+  --mkt-border:    #E4E2DC;
+  --mkt-blue:      #1090C8;
+  --mkt-coral:     #E8472B;
+  --mkt-cream:     #F0ECE3;
+  --mkt-sky:       #D4E8F5;
 }
 
 /* Hero gradient: Yepper's two brand colors (coral + blue) meeting in a
@@ -475,4 +481,87 @@ select:disabled {
     69.4% 58.0%, 85.4% 85.4%, 58.0% 69.4%, 50.0% 100.0%, 42.0% 69.4%,
     14.6% 85.4%, 30.6% 58.0%, 0.0% 50.0%, 30.6% 42.0%, 14.6% 14.6%, 42.0% 30.6%
   );
+}
+/* -- Marketing site: light editorial utilities -------------------------------- */
+
+/* Soft gradient hero: sky blue -> white -> cream, exactly like the Aetherfield vibe */
+.mkt-hero-gradient {
+  background: linear-gradient(160deg, #C8DFF0 0%, #DFF0F8 15%, #EEF5F9 35%, #F8F8F5 60%, #F5F0E8 100%);
+}
+
+/* Cream/warm texture section */
+.mkt-cream-section {
+  background-color: #F0ECE3;
+}
+
+/* Off-white body */
+.mkt-body-bg {
+  background-color: #FAFAF8;
+}
+
+/* Black pill CTA - the signature Aetherfield button */
+.mkt-cta-black {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 9999px;
+  background: #0E0E0F;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.mkt-cta-black:hover {
+  background: #2A2A2B;
+  transform: translateY(-1px);
+}
+
+/* Ghost pill CTA */
+.mkt-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 1.5px solid #C8C5BE;
+  color: #0E0E0F;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.mkt-cta-ghost:hover {
+  border-color: #8A8780;
+  background: rgba(0,0,0,0.03);
+}
+
+/* Numbered feature divider row */
+.mkt-feature-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid #E4E2DC;
+}
+.mkt-feature-row:last-child {
+  border-bottom: 1px solid #E4E2DC;
+}
+
+/* Card with light border */
+.mkt-card {
+  background: #FFFFFF;
+  border: 1px solid #E4E2DC;
+  border-radius: 16px;
+  padding: 28px;
+}
+
+/* Subtle noise texture overlay (warm) */
+.mkt-warm-noise {
+  background-color: #F0ECE3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
 }

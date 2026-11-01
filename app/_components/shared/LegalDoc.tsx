@@ -1,4 +1,5 @@
 import HomeHeader from '@/app/_components/home/HomeHeader';
+import MarketingFooter from '@/app/_components/home/MarketingFooter';
 import type { LegalSection } from './LegalContent';
 
 // Turns plain-text URLs inside a policy point into real links (needed so
@@ -79,11 +80,7 @@ export default function LegalDoc({
         </div>
       </div>
 
-      <footer className="border-t border-[color:var(--mkt-border)] py-6">
-        <div className="max-w-6xl mx-auto px-6 sm:px-10 text-center">
-          <p className="text-xs text-[color:var(--mkt-ink-muted)]">© {new Date().getFullYear()} Yepper Inc.</p>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

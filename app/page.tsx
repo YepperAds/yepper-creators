@@ -1,10 +1,16 @@
 
 // app/page.tsx: server component
 import { cookies } from 'next/headers';
+import type { Metadata } from 'next';
 import HomePage from '@/app/_components/home/HomePage';
 import DashboardHome from '@/app/_components/dashboard/DashboardHome';
 import ProtectedRoute from '@/app/_components/auth/ProtectedRoute';
 import { getPublicWebsites, getPublicCreators, getPublicHotDeals } from '@/app/_lib/public-home';
+
+export const metadata: Metadata = {
+  title: 'A direct advertising marketplace',
+  description: 'Discover website and creator ad placements, or make your audience visible to brands with Yepper.',
+};
 
 export default async function RootPage({
   searchParams,

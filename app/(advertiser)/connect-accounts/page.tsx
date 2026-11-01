@@ -161,6 +161,7 @@ export default function ConnectAccountsPage() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLocalhost, setIsLocalhost] = useState(false);
   
   const [error, setError] = useState('');
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
@@ -198,6 +199,10 @@ export default function ConnectAccountsPage() {
 
   const isWebDeveloper = user?.what_they_do === 'Web Developer';
   const socialLocked = isWebDeveloper && !socialUnlocked;
+
+  useEffect(() => {
+    setIsLocalhost(window.location.hostname === 'localhost');
+  }, []);
 
   const formatCount = (n: number | undefined | null): string => {
     if (n === undefined || n === null) return '0';
@@ -845,15 +850,17 @@ export default function ConnectAccountsPage() {
                     <p className="text-sm font-bold text-(--color-white)">Channel insights</p>
                     <p className="text-xs text-(--color-muted) mt-1">@{account.username}</p>
                   </div>
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => openPostAdModal(account.provider)}
-                      className="flex max-w-64 items-center gap-1.5 rounded-lg bg-(--color-surface-3) px-3 py-2 text-left text-xs font-bold leading-snug text-(--color-white) transition-colors hover:bg-(--color-surface-2)"
-                    >
-                      <CloudArrowUpIcon className="w-3.5 h-3.5" />
-                      {account.provider === 'youtube' ? 'Inject ads into your video' : 'Post Ad'}
-                    </button>
-                  </div>
+                  {(account.provider !== 'youtube' || isLocalhost) && (
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => openPostAdModal(account.provider)}
+                        className="flex max-w-64 items-center gap-1.5 rounded-lg bg-(--color-surface-3) px-3 py-2 text-left text-xs font-bold leading-snug text-(--color-white) transition-colors hover:bg-(--color-surface-2)"
+                      >
+                        <CloudArrowUpIcon className="w-3.5 h-3.5" />
+                        {account.provider === 'youtube' ? 'Inject ads into your video' : 'Post Ad'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-(--color-border)">

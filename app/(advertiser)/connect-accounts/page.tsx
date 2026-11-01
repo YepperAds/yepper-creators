@@ -678,10 +678,10 @@ export default function ConnectAccountsPage() {
                   : 'bg-(--color-surface-2) border-(--color-border) hover:bg-(--color-surface-3)'
               } disabled:cursor-not-allowed`}
             >
-              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-(--color-border) bg-(--color-surface-3) p-1.5">
-                <Image src={platform.logo} alt="" width={24} height={24} className="h-full w-full object-contain" />
+              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+                <Image src={platform.logo} alt="" width={44} height={44} className="h-full w-full object-contain" />
                 {(connected || socialLocked) && (
-                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-(--color-surface-1) bg-(--color-surface-2)">
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-(--color-surface-1) bg-(--color-surface-2)">
                     {connected
                       ? <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-400" />
                       : <LockClosedIcon className="h-2.5 w-2.5 text-(--color-muted)" />}

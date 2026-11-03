@@ -20,6 +20,12 @@ export default function PWAInstallButton({
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
+    const installCheck = window.setTimeout(() => {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches
+        || ('standalone' in navigator && navigator.standalone === true);
+      if (standalone) setInstalled(true);
+    }, 0);
+
     const handleBeforeInstall = (event: Event) => {
       event.preventDefault();
       setPromptEvent(event as InstallPrompt);
@@ -33,6 +39,7 @@ export default function PWAInstallButton({
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     window.addEventListener('appinstalled', handleInstalled);
     return () => {
+      window.clearTimeout(installCheck);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleInstalled);
     };

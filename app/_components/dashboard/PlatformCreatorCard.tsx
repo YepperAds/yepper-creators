@@ -58,6 +58,7 @@ export default function PlatformCreatorCard({
     <button
       type="button"
       onClick={onClick}
+      disabled={creator.isDemo}
       className={`shrink-0 overflow-hidden rounded-xl border bg-[#101010] text-left transition-colors ${className}`}
       style={{ borderColor: `${accent}88` }}
     >
@@ -93,7 +94,7 @@ export default function PlatformCreatorCard({
             </span>
           )}
         </span>
-        {video && <span className="shrink-0 text-[10px] text-white/55">{formatCount(video.views)} views</span>}
+        {video && (!creator.isDemo || video.views > 0) && <span className="shrink-0 text-[10px] text-white/55">{formatCount(video.views)} views</span>}
       </span>
       <span className="block border-t border-white/10 px-3.5 py-2.5 text-xs font-semibold" style={{ color: accent }}>
         {actionText || `Advertise on ${channelName}`}

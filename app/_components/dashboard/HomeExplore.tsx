@@ -10,6 +10,7 @@ import DashboardFeed from './DashboardFeed';
 import AdsSamplePanel from './AdsSamplePanel';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
+import { DEMO_YOUTUBE_CHANNELS } from '@/app/_lib/demo-youtube-channels';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 type Tab = 'all' | 'deals' | 'websites' | 'youtube' | 'tiktok';
@@ -58,9 +59,10 @@ export default function HomeExplore({
   const [websiteIntroOpen, setWebsiteIntroOpen] = useState(false);
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
+  const feedCreators = [...DEMO_YOUTUBE_CHANNELS, ...displayCreators];
   const filteredCreators = tab === 'tiktok'
-    ? displayCreators.filter((creator) => creator.provider === 'tiktok')
-    : displayCreators.filter((creator) => creator.provider !== 'tiktok');
+    ? feedCreators.filter((creator) => creator.provider === 'tiktok')
+    : feedCreators.filter((creator) => creator.provider !== 'tiktok');
 
   useEffect(() => {
     if (!websiteIntroOpen) return;
@@ -117,7 +119,7 @@ export default function HomeExplore({
             />
             <div className="rounded-3xl border border-border bg-surface-2 p-4 sm:p-6">
               <p className="text-xs font-bold uppercase tracking-wide text-muted mb-4">Platforms</p>
-              <DashboardFeed websites={displayWebsites} creators={displayCreators} onCreatorClick={setSelectedCreator} />
+              <DashboardFeed websites={displayWebsites} creators={feedCreators} onCreatorClick={setSelectedCreator} />
             </div>
           </>
         ) : tab === 'deals' ? (

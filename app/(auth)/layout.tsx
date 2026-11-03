@@ -12,17 +12,9 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen overflow-hidden flex bg-black">
-
-      {/* Auth panel — full width. The scrolling campaign mosaic (several
-          autoplaying videos + gifs + images, all decorative/aria-hidden)
-          used to sit to the right of this; it added real page weight right
-          at the moment someone's trying to click "Continue with Google",
-          so it's gone from this route. Still used on /onboarding. */}
-      <div className="relative flex flex-col w-full h-screen overflow-y-auto">
-
-        {/* Logo */}
-        <div className="absolute top-8 left-8 xl:left-12 z-10 w-32">
+    <div className="min-h-dvh overflow-hidden bg-[#0b0b0b] text-white lg:grid lg:grid-cols-2">
+      <section className="relative flex min-h-dvh flex-col overflow-y-auto font-(--font-poppins)">
+        <div className="absolute left-7 top-7 z-10 w-32 sm:left-10 sm:top-9 lg:left-12">
           <Image
             src="/logos/yepper-logo.png"
             alt="Yepper"
@@ -32,76 +24,28 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             priority
           />
         </div>
-
-        <div className="flex flex-1 items-center justify-center px-8 py-24">
-          <div className="w-full max-w-[380px]">
+        <div className="flex flex-1 items-center justify-center px-6 pb-20 pt-28 sm:px-10 lg:px-12">
+          <div className="w-full max-w-[420px]">
             <AuthGuard>{children}</AuthGuard>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="absolute bottom-6 left-8 xl:left-12">
-          <p className="text-[11px]" style={{ color: '#333' }}>
+        <div className="absolute bottom-6 left-7 sm:left-10 lg:left-12">
+          <p className="text-[11px] text-white/30">
             © {new Date().getFullYear()} Yepper Inc.
           </p>
         </div>
-      </div>
-
+      </section>
+      <aside className="relative hidden min-h-dvh overflow-hidden rounded-l-3xl lg:block" aria-label="Yepper advertising">
+        <Image
+          src="/banners/billboard-banner.png"
+          alt="Yepper double-sided advertising billboard"
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-black/20" />
+      </aside>
     </div>
   );
 }
-
-
-
-// import type { Metadata } from 'next';
-// import Image from 'next/image';
-// import AuthGuard from '@/app/_components/auth/AuthGuard';
-// import CampaignMosaic from '@/app/_components/auth/CampaignMosaic';
-
-// export const metadata: Metadata = {
-//   title: {
-//     template: "%s | Yepper",
-//     default: 'Campaigns powered by yepper',
-//   },
-//   description: "Africa's first Media Observability and Performance Infrastructure.",
-// };
-
-// export default function AuthLayout({ children }: { children: React.ReactNode }) {
-//   return (
-//     <div className="h-screen overflow-hidden flex bg-black">
-
-//       {/* LEFT: auth panel */}
-//       <div className="relative flex flex-col w-full lg:w-[65%] h-screen overflow-y-auto">
-
-//         {/* Logo */}
-//         <div className="absolute top-8 left-8 xl:left-12 z-10 w-32">
-//           <Image
-//             src="/logos/yepper-logo.png"
-//             alt="Yepper"
-//             width={120}
-//             height={32}
-//             className="h-9 w-auto object-contain"
-//             priority
-//           />
-//         </div>
-
-//         <div className="flex flex-1 items-center justify-center px-8 py-24">
-//           <div className="w-full max-w-[380px]">
-//             <AuthGuard>{children}</AuthGuard>
-//           </div>
-//         </div>
-
-//         {/* Footer */}
-//         <div className="absolute bottom-6 left-8 xl:left-12">
-//           <p className="text-[11px]" style={{ color: '#333' }}>
-//             © {new Date().getFullYear()} Yepper Inc.
-//           </p>
-//         </div>
-//       </div>
-
-//       {/* RIGHT: scrolling campaign mosaic */}
-//       <CampaignMosaic />
-
-//     </div>
-//   );
-// }

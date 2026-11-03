@@ -24,14 +24,15 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5" style={{ fontFamily: 'var(--font-poppins)' }}>
       <button
         type="button"
         onClick={handleGoogleLogin}
         disabled={googleLoading}
-        className="w-full flex items-center justify-center gap-3 rounded-full border border-border
+        style={{ fontFamily: 'var(--font-poppins)' }}
+        className="w-full flex items-center justify-center gap-3 rounded-xl border border-border
           bg-surface-2 hover:bg-surface-3 text-white text-sm font-medium
-          py-2.5 px-4 transition-colors disabled:opacity-60"
+          py-3 px-4 transition-colors disabled:opacity-60"
       >
         {googleLoading
           ? <span className="w-4 h-4 border-2 border-border border-t-coral rounded-full animate-spin" />
@@ -43,9 +44,10 @@ export default function LoginForm() {
       {process.env.NODE_ENV !== 'production' && (
         <a
           href="/api/auth/dev-login"
-          className="w-full flex items-center justify-center gap-2 rounded-full border border-dashed border-amber-500/40
+          style={{ fontFamily: 'var(--font-poppins)' }}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-amber-500/40
             bg-amber-500/10 hover:bg-amber-500/15 text-amber-400 text-xs font-medium
-            py-2.5 px-4 transition-colors"
+            py-3 px-4 transition-colors"
         >
           Continue as Local Dev (testing only)
         </a>

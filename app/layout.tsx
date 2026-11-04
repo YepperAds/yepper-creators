@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import type { Metadata, Viewport } from "next";
-import { Inter, Bricolage_Grotesque } from "next/font/google";
+import { Inter, Bricolage_Grotesque, Poppins } from "next/font/google";
 import "./globals.css";
 import Script from 'next/script';
 
@@ -14,6 +14,13 @@ const inter = Inter({
 const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -53,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${bricolage.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-(--font-inter)">
         <QueryProviders>
           <BackendWarmup />

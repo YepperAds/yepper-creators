@@ -36,6 +36,7 @@ export type SocialPlatform = 'youtube' | 'tiktok';
 export interface PublicCreator {
   id: string;
   provider?: SocialPlatform;
+  isDemo?: boolean;
   username: string;
   name: string;
   avatar: string | null;

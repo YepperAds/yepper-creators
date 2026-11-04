@@ -8,26 +8,48 @@ type InstallPrompt = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-export default function PWAInstallButton() {
+export default function PWAInstallButton({
+  label = 'Install app',
+  alwaysVisible = false,
+}: {
+  label?: string;
+  alwaysVisible?: boolean;
+}) {
   const [promptEvent, setPromptEvent] = useState<InstallPrompt | null>(null);
+  const [installUnavailable, setInstallUnavailable] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
+    const installCheck = window.setTimeout(() => {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches
+        || ('standalone' in navigator && navigator.standalone === true);
+      if (standalone) setInstalled(true);
+    }, 0);
+
     const handleBeforeInstall = (event: Event) => {
       event.preventDefault();
       setPromptEvent(event as InstallPrompt);
+      setInstallUnavailable(false);
     };
-    const handleInstalled = () => setPromptEvent(null);
+    const handleInstalled = () => {
+      setPromptEvent(null);
+      setInstalled(true);
+    };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     window.addEventListener('appinstalled', handleInstalled);
     return () => {
+      window.clearTimeout(installCheck);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleInstalled);
     };
   }, []);
 
   const install = async () => {
-    if (!promptEvent) return;
+    if (!promptEvent) {
+      setInstallUnavailable(true);
+      return;
+    }
     try {
       await promptEvent.prompt();
       await promptEvent.userChoice;
@@ -36,17 +58,24 @@ export default function PWAInstallButton() {
     }
   };
 
-  if (!promptEvent) return null;
+  if ((!promptEvent && !alwaysVisible) || installed) return null;
 
   return (
-    <button
-      type="button"
-      onClick={install}
-      aria-label="Install Yepper as an app"
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#C94F12] bg-[#C94F12] text-sm font-semibold text-white transition hover:border-[#A83D0C] hover:bg-[#A83D0C] sm:h-10 sm:w-auto sm:gap-2 sm:px-4"
-    >
-      <ArrowDownTrayIcon className="h-4 w-4" />
-      <span className="sr-only sm:not-sr-only">Install app</span>
-    </button>
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={install}
+        aria-label={label}
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.12] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.18]"
+      >
+        <ArrowDownTrayIcon className="h-4 w-4" />
+        <span>{label}</span>
+      </button>
+      {installUnavailable && (
+        <p role="status" className="text-center text-xs text-white/45">
+          Use your browser&apos;s install option to add Yepper to your desktop.
+        </p>
+      )}
+    </div>
   );
 }

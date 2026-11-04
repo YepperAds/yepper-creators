@@ -831,17 +831,28 @@ export default function ConnectAccountsPage() {
                     <p className="text-sm font-bold text-(--color-white)">Channel insights</p>
                     <p className="text-xs text-(--color-muted) mt-1">@{account.username}</p>
                   </div>
-                  {(account.provider !== 'youtube' || isLocalhost) && (
-                    <div className="flex items-center">
+                  <div className="flex items-center gap-2">
+                    {account.provider === 'youtube' && isLocalhost && (
                       <button
                         onClick={() => openPostAdModal(account.provider)}
                         className="flex max-w-64 items-center gap-1.5 rounded-lg bg-(--color-surface-3) px-3 py-2 text-left text-xs font-bold leading-snug text-(--color-white) transition-colors hover:bg-(--color-surface-2)"
                       >
                         <CloudArrowUpIcon className="w-3.5 h-3.5" />
-                        {account.provider === 'youtube' ? 'Inject ads into your video' : 'Post Ad'}
+                        Inject ads into your video
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmText('');
+                        setDisconnectingProvider(account.provider);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs font-bold text-red-400 transition-colors hover:border-red-500/50 hover:bg-red-500/10"
+                    >
+                      <XMarkIcon className="h-3.5 w-3.5" />
+                      Disconnect
+                    </button>
+                  </div>
                 </div>
                 {/* Stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-(--color-border)">
@@ -1125,7 +1136,7 @@ export default function ConnectAccountsPage() {
                         })}
                       </div>
                     )}
-                    <p className="text-[10px] text-(--color-muted) mt-2">Advertisers claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed; once claimed, their ad is offered automatically next time you hit Post Ad.</p>
+                    <p className="text-[10px] text-(--color-muted) mt-2">Advertisers can claim a slot by clicking "Collaborate with {account.username}" on the Explore or Advertise feed. Claimed ads are available for your sponsored posts.</p>
                   </div>
 
                   <SendAdInviteModal
@@ -1180,15 +1191,6 @@ export default function ConnectAccountsPage() {
                   )}
                 </div>
               )}
-              <details className="border-t border-(--color-border) px-6 py-3">
-                <summary className="w-fit cursor-pointer text-[10px] font-medium text-(--color-muted) hover:text-(--color-white)">Connection settings</summary>
-                <button
-                  onClick={() => setDisconnectingProvider(account.provider)}
-                  className="mt-2 text-[10px] font-medium text-(--color-muted) hover:text-red-400"
-                >
-                  Disconnect channel
-                </button>
-              </details>
                   </div>
                 )}
               </div>

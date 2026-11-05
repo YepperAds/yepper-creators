@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRightIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import TierBadge from '@/app/_components/shared/TierBadge';
+import { demoCreatorAPI } from '@/app/_lib/adsense-api';
 import type { PublicWebsite, PublicCreator } from '@/app/_lib/public-home';
 import PlatformCreatorCard from './PlatformCreatorCard';
 import WebsiteAdPreview from './WebsiteAdPreview';
@@ -70,10 +71,38 @@ export default function DashboardFeed({
   onCreatorClick?: (creator: PublicCreator) => void;
 }) {
   const router = useRouter();
+  const [selectedDemoChannelIds, setSelectedDemoChannelIds] = useState<string[]>([]);
+  const [submittingDemoInterest, setSubmittingDemoInterest] = useState(false);
+  const [demoInterestError, setDemoInterestError] = useState('');
+  const [demoInterestSubmitted, setDemoInterestSubmitted] = useState(false);
   const openWebsite = (website: PublicWebsite) => router.push(`/?panel=advertise&websiteId=${website.id}`, { scroll: false });
   const openCreator = (creator: PublicCreator) => {
+    if (creator.isDemo) {
+      setSelectedDemoChannelIds((current) => (
+        current.includes(creator.id)
+          ? current.filter((id) => id !== creator.id)
+          : [...current, creator.id]
+      ));
+      setDemoInterestError('');
+      setDemoInterestSubmitted(false);
+      return;
+    }
     if (onCreatorClick) onCreatorClick(creator);
     else router.push(`/?panel=advertise&creatorId=${creator.id}`, { scroll: false });
+  };
+
+  const submitDemoInterest = async () => {
+    if (selectedDemoChannelIds.length === 0 || submittingDemoInterest) return;
+    setSubmittingDemoInterest(true);
+    setDemoInterestError('');
+    try {
+      await demoCreatorAPI.expressYoutubeChannelInterest(selectedDemoChannelIds);
+      setDemoInterestSubmitted(true);
+    } catch (error) {
+      setDemoInterestError(error instanceof Error ? error.message : 'Could not submit your channel interest. Please try again.');
+    } finally {
+      setSubmittingDemoInterest(false);
+    }
   };
 
   if (websites.length === 0 && creators.length === 0) {
@@ -85,19 +114,46 @@ export default function DashboardFeed({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-      {creators.map((creator) => (
-        <PlatformCreatorCard
-          key={`creator-${creator.provider ?? 'youtube'}-${creator.id}`}
-          creator={creator}
-          onClick={() => openCreator(creator)}
-          className="w-full"
-          actionText={`Choose a ${creator.provider === 'tiktok' ? 'TikTok' : 'YouTube'} ad space`}
-        />
-      ))}
-      {websites.map((website) => (
-        <WebsiteCard key={website.id} website={website} onOpen={openWebsite} />
-      ))}
+    <div className="space-y-4">
+      {selectedDemoChannelIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {selectedDemoChannelIds.length} demo channel{selectedDemoChannelIds.length === 1 ? '' : 's'} selected
+            </p>
+            {demoInterestSubmitted && <p className="mt-1 text-xs text-emerald-400">Your interest has been recorded.</p>}
+            {demoInterestError && <p role="alert" className="mt-1 text-xs text-coral-text">{demoInterestError}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={submitDemoInterest}
+            disabled={submittingDemoInterest || demoInterestSubmitted}
+            className="rounded-lg bg-coral px-4 py-2 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submittingDemoInterest ? 'Submitting…' : demoInterestSubmitted ? 'Interest recorded' : 'Request selected channels'}
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+        {creators.map((creator) => {
+          const isSelected = selectedDemoChannelIds.includes(creator.id);
+          return (
+            <PlatformCreatorCard
+              key={`creator-${creator.provider ?? 'youtube'}-${creator.id}`}
+              creator={creator}
+              onClick={() => openCreator(creator)}
+              className="w-full"
+              actionText={`Choose a ${creator.provider === 'tiktok' ? 'TikTok' : 'YouTube'} ad space`}
+              enableDemoSelection={creator.isDemo}
+              selected={isSelected}
+            />
+          );
+        })}
+        {websites.map((website) => (
+          <WebsiteCard key={website.id} website={website} onOpen={openWebsite} />
+        ))}
+      </div>
     </div>
   );
 }

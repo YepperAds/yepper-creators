@@ -5,6 +5,7 @@
 // feed. Advertisers can pick ad spaces on it and "express interest" — no
 // payment, no live booking — which lands in the Interests table below so the
 // admin knows exactly who wants what before going to sign the site owner.
+// Interest in the demo YouTube channels is also listed here.
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminFetch } from '../utils/adminApi';
@@ -18,6 +19,7 @@ export default function AdminProspectWebsites() {
   const [spaceTypes, setSpaceTypes] = useState([]);
   const [websites, setWebsites] = useState([]);
   const [interests, setInterests] = useState([]);
+  const [youtubeInterests, setYoutubeInterests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -40,14 +42,16 @@ export default function AdminProspectWebsites() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [meta, sites, ints] = await Promise.all([
+      const [meta, sites, ints, channelInts] = await Promise.all([
         adminFetch('/prospect-websites/meta', {}, adminHeaders),
         adminFetch('/prospect-websites', {}, adminHeaders),
         adminFetch('/prospect-interests', {}, adminHeaders),
+        adminFetch('/demo-youtube-interests', {}, adminHeaders),
       ]);
       setSpaceTypes(meta.data?.spaceTypes || []);
       setWebsites(sites.data || []);
       setInterests(ints.data || []);
+      setYoutubeInterests(channelInts.data || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -141,7 +145,7 @@ export default function AdminProspectWebsites() {
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 700 }}>Prospect Websites</h2>
         <p style={{ margin: 0, color: '#888', fontSize: 14 }}>
-          Add a website you're pitching but haven't onboarded yet — it shows up in the advertiser feed like any other site. Advertisers can express interest in an ad space (no payment); check the Interests table below to see who wants what before you go sign the site.
+          Add a website you're pitching but haven't onboarded yet — it shows up in the advertiser feed like any other site. Advertisers can express interest in an ad space (no payment); check the interests below for website and mock YouTube channel requests.
         </p>
       </div>
 
@@ -264,6 +268,35 @@ export default function AdminProspectWebsites() {
                     Send Invite
                   </button>
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style={{ fontSize: 16, fontWeight: 700, margin: '32px 0 12px 0' }}>Mock YouTube Channel Interests ({youtubeInterests.length})</h3>
+      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead style={{ background: '#fafafa' }}>
+            <tr>
+              {['YouTube Channel', 'Advertiser', 'Requested'].map((h) => (
+                <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={3} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</td></tr>
+            ) : youtubeInterests.length === 0 ? (
+              <tr><td colSpan={3} style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>No mock YouTube channel interest yet</td></tr>
+            ) : youtubeInterests.map((interest) => (
+              <tr key={interest.id} style={{ borderBottom: '1px solid #f7f7f7' }}>
+                <td style={{ padding: '12px 16px', fontWeight: 500 }}>{interest.channel_name}</td>
+                <td style={{ padding: '12px 16px', fontWeight: 500 }}>
+                  {interest.full_name || interest.email || '—'}
+                  {interest.full_name && interest.email && <div style={{ color: '#aaa', fontSize: 12 }}>{interest.email}</div>}
+                </td>
+                <td style={{ padding: '12px 16px', color: '#888', fontSize: 13 }}>{new Date(interest.created_at).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

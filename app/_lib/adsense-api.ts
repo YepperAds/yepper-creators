@@ -187,6 +187,11 @@ export const categoryAPI = {
     adsenseHttp.post(`/api/ad-categories/reject/${adId}/website/${websiteId}/${categoryId}`),
 };
 
+export const demoCreatorAPI = {
+  expressYoutubeChannelInterest: (channelIds: string[]) =>
+    adsenseHttp.post('/api/social/youtube/demo-interests', { channelIds }),
+};
+
 // ═══════════════════════════════════════════════════════════════
 // WEB ADVERTISE  (AdOwner: advertiser side)
 // ═══════════════════════════════════════════════════════════════

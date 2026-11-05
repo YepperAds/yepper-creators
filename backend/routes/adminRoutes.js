@@ -8,6 +8,7 @@ const pricing = require('../controllers/pricingController');
 const hotDeals = require('../controllers/hotDealsController');
 const prospects = require('../controllers/prospectController');
 const videoStudio = require('../creators/controllers/videoStudioController');
+const demoYoutubeInterest = require('../creators/controllers/demoYoutubeInterestController');
 const { adminLoginLimiter } = require('../middleware/rateLimiters');
 
 // ── Public: credential verification — this is the login endpoint ─────────────
@@ -77,6 +78,7 @@ router.post('/prospect-websites',       adminAuth, prospects.createProspectWebsi
 router.delete('/prospect-websites/:id', adminAuth, prospects.deleteProspectWebsite);
 router.get('/prospect-interests',       adminAuth, prospects.listProspectInterests);
 router.post('/prospect-websites/:id/send-invite', adminAuth, prospects.sendProspectInvite);
+router.get('/demo-youtube-interests', adminAuth, demoYoutubeInterest.listInterests);
 
 router.get('/video-processing/queue', adminAuth, videoStudio.getReviewQueue);
 router.post('/video-processing/jobs/:id/approve', adminAuth, videoStudio.approveJob);

@@ -39,11 +39,15 @@ export default function PlatformCreatorCard({
   onClick,
   className = '',
   actionText,
+  enableDemoSelection = false,
+  selected = false,
 }: {
   creator: PublicCreator;
   onClick: () => void;
   className?: string;
   actionText?: string;
+  enableDemoSelection?: boolean;
+  selected?: boolean;
 }) {
   const isTikTok = creator.provider === 'tiktok';
   const platformName = isTikTok ? 'TikTok' : 'YouTube';
@@ -58,9 +62,10 @@ export default function PlatformCreatorCard({
     <button
       type="button"
       onClick={onClick}
-      disabled={creator.isDemo}
+      disabled={creator.isDemo && !enableDemoSelection}
+      aria-pressed={creator.isDemo && enableDemoSelection ? selected : undefined}
       className={`shrink-0 overflow-hidden rounded-xl border bg-[#101010] text-left transition-colors ${className}`}
-      style={{ borderColor: `${accent}88` }}
+      style={{ borderColor: selected ? accent : `${accent}88` }}
     >
       <span className="block h-1 w-full" style={{ backgroundColor: accent }} />
       <span className="flex items-center gap-3 px-3.5 py-3">
@@ -97,7 +102,9 @@ export default function PlatformCreatorCard({
         {video && (!creator.isDemo || video.views > 0) && <span className="shrink-0 text-[10px] text-white/55">{formatCount(video.views)} views</span>}
       </span>
       <span className="block border-t border-white/10 px-3.5 py-2.5 text-xs font-semibold" style={{ color: accent }}>
-        {actionText || `Advertise on ${channelName}`}
+        {creator.isDemo && enableDemoSelection
+          ? selected ? 'Selected · click to remove' : actionText || 'Select channel'
+          : actionText || `Advertise on ${channelName}`}
       </span>
     </button>
   );

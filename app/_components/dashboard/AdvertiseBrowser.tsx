@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon, ArrowRightIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/24/solid';
-import { categoryAPI } from '@/app/_lib/adsense-api';
+import { categoryAPI, demoCreatorAPI } from '@/app/_lib/adsense-api';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteAdPreview from './WebsiteAdPreview';
@@ -132,6 +132,10 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [interestError, setInterestError] = useState('');
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<'all' | 'websites' | 'youtube' | 'tiktok'>('all');
+  const [selectedDemoChannelIds, setSelectedDemoChannelIds] = useState<string[]>([]);
+  const [submittingDemoInterest, setSubmittingDemoInterest] = useState(false);
+  const [demoInterestError, setDemoInterestError] = useState('');
+  const [demoInterestSubmitted, setDemoInterestSubmitted] = useState(false);
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
@@ -169,6 +173,30 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       setInterestError('Could not submit your interest. Please try again.');
     } finally {
       setSubmittingInterest(false);
+    }
+  };
+
+  const toggleDemoChannel = (channelId: string) => {
+    setSelectedDemoChannelIds((current) => (
+      current.includes(channelId)
+        ? current.filter((id) => id !== channelId)
+        : [...current, channelId]
+    ));
+    setDemoInterestError('');
+    setDemoInterestSubmitted(false);
+  };
+
+  const submitDemoInterest = async () => {
+    if (selectedDemoChannelIds.length === 0 || submittingDemoInterest) return;
+    setSubmittingDemoInterest(true);
+    setDemoInterestError('');
+    try {
+      await demoCreatorAPI.expressYoutubeChannelInterest(selectedDemoChannelIds);
+      setDemoInterestSubmitted(true);
+    } catch (error) {
+      setDemoInterestError(error instanceof Error ? error.message : 'Could not submit your channel interest. Please try again.');
+    } finally {
+      setSubmittingDemoInterest(false);
     }
   };
 
@@ -445,11 +473,42 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
         {showYoutube && websiteCreators.length > 0 && (
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
-              <div><h4 className="text-base font-bold text-white">YouTube channels</h4><p className="mt-1 text-xs text-white/50">Promote your brand through creator videos and audiences.</p></div>
+              <div><h4 className="text-base font-bold text-white">YouTube channels</h4><p className="mt-1 text-xs text-white/50">Select demo channels to register interest, or choose a creator to browse ad options.</p></div>
               <span className="text-xs text-white/40">{websiteCreators.length} {websiteCreators.length === 1 ? 'channel' : 'channels'}</span>
             </div>
+            {selectedDemoChannelIds.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {selectedDemoChannelIds.length} demo channel{selectedDemoChannelIds.length === 1 ? '' : 's'} selected
+                  </p>
+                  {demoInterestSubmitted && <p className="mt-1 text-xs text-emerald-400">Your interest has been recorded.</p>}
+                  {demoInterestError && <p role="alert" className="mt-1 text-xs text-coral-text">{demoInterestError}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={submitDemoInterest}
+                  disabled={submittingDemoInterest || demoInterestSubmitted}
+                  className="rounded-lg bg-coral px-4 py-2 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submittingDemoInterest ? 'Submitting…' : demoInterestSubmitted ? 'Interest recorded' : 'Request selected channels'}
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {websiteCreators.map((creator) => <PlatformCreatorCard key={`youtube-${creator.id}`} creator={creator} onClick={() => setCollaborateWith(creator)} className="w-full min-w-0" />)}
+              {websiteCreators.map((creator) => {
+                const isSelected = selectedDemoChannelIds.includes(creator.id);
+                return (
+                  <PlatformCreatorCard
+                    key={`youtube-${creator.id}`}
+                    creator={creator}
+                    onClick={() => creator.isDemo ? toggleDemoChannel(creator.id) : setCollaborateWith(creator)}
+                    className="w-full min-w-0"
+                    enableDemoSelection={creator.isDemo}
+                    selected={isSelected}
+                  />
+                );
+              })}
             </div>
           </section>
         )}

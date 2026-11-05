@@ -582,7 +582,7 @@ export default function ConnectAccountsPage() {
       }
 
       if (!data.success || !data.url) {
-        setError(data.message || `Failed to initiate ${provider} connection.`);
+        setError(data.message || data.error || `Failed to initiate ${provider} connection.`);
         return;
       }
 

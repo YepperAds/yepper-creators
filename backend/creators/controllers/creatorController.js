@@ -1316,7 +1316,10 @@ exports.socialConnect = (req, res) => {
   if (provider === 'tiktok') {
     const clientId    = TIKTOK_CLIENT_KEY;
     const redirectUri = process.env.TIKTOK_CALLBACK_URL || `${backendUrl}/api/connect/tiktok/callback`;
-    if (!clientId) return res.status(500).json({ error: 'TikTok client key not configured' });
+    if (!clientId || !TIKTOK_CLIENT_SECRET) {
+      const message = 'TikTok connection is not configured on this server.';
+      return res.status(503).json({ success: false, error: message, message });
+    }
 
     const authUrl = new URL(TIKTOK_AUTH_URL);
     authUrl.searchParams.set('client_key', clientId);

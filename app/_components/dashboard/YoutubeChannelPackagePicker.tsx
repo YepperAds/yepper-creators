@@ -39,20 +39,23 @@ export default function YoutubeChannelPackagePicker({
   channel: PublicCreator | null;
   onClose: () => void;
 }) {
-  const [packageCode, setPackageCode] = useState<(typeof CHANNEL_PACKAGES)[number]['code']>('social_video');
+  const [step, setStep] = useState<'channel' | 'package'>('channel');
+  const [packageCode, setPackageCode] = useState<(typeof CHANNEL_PACKAGES)[number]['code'] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   useEffect(() => {
+    setStep('channel');
+    setPackageCode(null);
     setSubmitted(false);
     setError('');
   }, [channel?.id]);
 
   if (!channel) return null;
-  const selectedPackage = CHANNEL_PACKAGES.find((item) => item.code === packageCode) ?? CHANNEL_PACKAGES[0];
+  const selectedPackage = CHANNEL_PACKAGES.find((item) => item.code === packageCode);
 
   const submitRequest = async () => {
-    if (submitting || submitted) return;
+    if (!packageCode || submitting || submitted) return;
     setSubmitting(true);
     setError('');
     try {
@@ -74,55 +77,86 @@ export default function YoutubeChannelPackagePicker({
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-coral-text">YouTube channel</p>
             <h4 className="mt-1 text-xl font-bold">{channel.channelName}</h4>
-            <h5 className="mt-4 text-sm font-bold">Choose an advertising package</h5>
-            <p className="mt-1 text-xs text-white/55">
-              Package pricing is for this channel. This channel is not connected to Yepper checkout yet, so continue to send a request and our team will follow up. No payment is taken here.
-            </p>
+            <p className="mt-1 text-xs text-white/55">{step === 'channel' ? 'Review this channel, then continue to see advertising packages.' : 'Choose one package for this channel. Your request will be sent to the Yepper team.'}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close channel packages" className="rounded-full px-3 py-1 text-xl text-white/55 hover:bg-white/10 hover:text-white">×</button>
         </div>
-        <div className="grid gap-2 lg:grid-cols-3">
-        {CHANNEL_PACKAGES.map((option) => (
-          <label
-            key={option.code}
-            className={`cursor-pointer rounded-lg border p-3 transition-colors ${
-              packageCode === option.code ? 'border-coral bg-coral/10' : 'border-white/10 hover:border-white/25'
-            }`}
-          >
-            <span className="flex items-start gap-2">
-              <input
-                type="radio"
-                name="youtube-package"
-                value={option.code}
-                checked={packageCode === option.code}
-                onChange={() => {
-                  setPackageCode(option.code);
-                  setError('');
-                }}
-                className="mt-0.5 accent-[#e8472b]"
-              />
-              <span>
-                <span className="block text-xs font-bold text-white">{option.name}</span>
-                <span className="mt-1 block text-[11px] leading-4 text-white/55">{option.details}</span>
-                <span className="mt-2 block text-xs font-bold text-coral-text">{option.priceDetails}</span>
-              </span>
-            </span>
-          </label>
-        ))}
-      </div>
-        {error && <p role="alert" className="mt-3 text-xs text-coral-text">{error}</p>}
-        {submitted && <p role="status" className="mt-3 text-xs text-emerald-400">Your request has been recorded. Our team will follow up.</p>}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-white">{formatRwf(selectedPackage.totalRwf)} <span className="text-xs font-normal text-white/55">for {channel.channelName}</span></p>
-          <button
-            type="button"
-            onClick={submitRequest}
-            disabled={submitting || submitted}
-            className="rounded-lg bg-coral px-4 py-2 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? 'Submitting…' : submitted ? 'Request sent' : 'Send request'}
-          </button>
-        </div>
+        {step === 'channel' ? (
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            {channel.avatar && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={channel.avatar} alt={`${channel.channelName} channel`} className="h-20 w-20 rounded-full border border-white/15 object-cover" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white">{channel.channelName}</p>
+              <p className="mt-1 text-xs text-white/55">{channel.subscribers.toLocaleString('en-US')} subscribers</p>
+              {channel.videos[0]?.url && (
+                <a
+                  href={channel.videos[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-xs font-semibold text-coral-text hover:underline"
+                >
+                  View featured video
+                </a>
+              )}
+            </div>
+            <button type="button" onClick={() => setStep('package')} className="rounded-lg bg-coral px-5 py-2.5 text-sm font-bold text-white">
+              Continue to prices
+            </button>
+          </div>
+        ) : (
+          <>
+            <h5 className="mb-3 text-sm font-bold">Select one package</h5>
+            <div className="grid gap-2 lg:grid-cols-3">
+              {CHANNEL_PACKAGES.map((option) => (
+                <label
+                  key={option.code}
+                  className={`cursor-pointer rounded-lg border p-3 transition-colors ${
+                    packageCode === option.code ? 'border-coral bg-coral/10' : 'border-white/10 hover:border-white/25'
+                  }`}
+                >
+                  <span className="flex items-start gap-2">
+                    <input
+                      type="radio"
+                      name={`youtube-package-${channel.id}`}
+                      value={option.code}
+                      checked={packageCode === option.code}
+                      onChange={() => {
+                        setPackageCode(option.code);
+                        setError('');
+                      }}
+                      className="mt-0.5 accent-[#e8472b]"
+                    />
+                    <span>
+                      <span className="block text-xs font-bold text-white">{option.name}</span>
+                      <span className="mt-1 block text-[11px] leading-4 text-white/55">{option.details}</span>
+                      <span className="mt-2 block text-xs font-bold text-coral-text">{option.priceDetails}</span>
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {error && <p role="alert" className="mt-3 text-xs text-coral-text">{error}</p>}
+            {submitted && <p role="status" className="mt-3 text-xs text-emerald-400">Your request has been recorded. The Yepper team will follow up.</p>}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <button type="button" onClick={() => setStep('channel')} className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/5">
+                Back
+              </button>
+              <div className="flex items-center gap-3">
+                {selectedPackage && <p className="text-sm font-semibold text-white">{formatRwf(selectedPackage.totalRwf)}</p>}
+                <button
+                  type="button"
+                  onClick={submitRequest}
+                  disabled={!packageCode || submitting || submitted}
+                  className="rounded-lg bg-coral px-4 py-2 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? 'Submitting…' : submitted ? 'Request sent' : 'Request package'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

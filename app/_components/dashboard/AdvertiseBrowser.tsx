@@ -133,7 +133,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [interestError, setInterestError] = useState('');
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<'all' | 'websites' | 'youtube' | 'tiktok'>('all');
-  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [selectedPartnerChannel, setSelectedPartnerChannel] = useState<PublicCreator | null>(null);
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
@@ -174,14 +174,6 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     }
   };
 
-  const togglePartnerChannel = (channelId: string) => {
-    setSelectedChannelIds((current) => (
-      current.includes(channelId)
-        ? current.filter((id) => id !== channelId)
-        : [...current, channelId]
-    ));
-  };
-
   // Coming from a "Collaborate"/"Advertise on" click on the logged-out home
   // page: the login redirect carries the target's id back here so the user
   // lands directly in the same place they clicked from, instead of the bare
@@ -192,7 +184,8 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     if (creatorId) {
       const creator = creatorList.find((c) => String(c.id) === creatorId);
       if (creator) {
-        setCollaborateWith(creator);
+        if (creator.isPartnerChannel) setSelectedPartnerChannel(creator);
+        else setCollaborateWith(creator);
         setReturnToFeedAfterDeepLink(true);
       }
     } else if (websiteId) {
@@ -209,6 +202,14 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
 
   const closeCreatorModal = () => {
     setCollaborateWith(null);
+    if (returnToFeedAfterDeepLink) {
+      setReturnToFeedAfterDeepLink(false);
+      onBackToFeed();
+    }
+  };
+
+  const closePartnerChannel = () => {
+    setSelectedPartnerChannel(null);
     if (returnToFeedAfterDeepLink) {
       setReturnToFeedAfterDeepLink(false);
       onBackToFeed();
@@ -458,18 +459,15 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
               <div><h4 className="text-base font-bold text-white">YouTube channels</h4><p className="mt-1 text-xs text-white/50">Select channels to choose an advertising package, or browse ad options for connected creators.</p></div>
               <span className="text-xs text-white/40">{websiteCreators.length} {websiteCreators.length === 1 ? 'channel' : 'channels'}</span>
             </div>
-            <YoutubeChannelPackagePicker channelIds={selectedChannelIds} />
             <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {websiteCreators.map((creator) => {
-                const isSelected = selectedChannelIds.includes(creator.id);
                 return (
                   <PlatformCreatorCard
                     key={`youtube-${creator.id}`}
                     creator={creator}
-                    onClick={() => creator.isPartnerChannel ? togglePartnerChannel(creator.id) : setCollaborateWith(creator)}
+                    onClick={() => creator.isPartnerChannel ? setSelectedPartnerChannel(creator) : setCollaborateWith(creator)}
                     className="w-full min-w-0"
                     enablePartnerSelection={creator.isPartnerChannel}
-                    selected={isSelected}
                   />
                 );
               })}
@@ -498,6 +496,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       </div>
 
       <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={closeCreatorModal} />
+      <YoutubeChannelPackagePicker channel={selectedPartnerChannel} onClose={closePartnerChannel} />
     </div>
   );
 }

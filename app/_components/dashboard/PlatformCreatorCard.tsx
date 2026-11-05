@@ -103,7 +103,7 @@ export default function PlatformCreatorCard({
       </span>
       <span className="block border-t border-white/10 px-3.5 py-2.5 text-xs font-semibold" style={{ color: accent }}>
         {creator.isPartnerChannel && enablePartnerSelection
-          ? selected ? 'Selected · click to remove' : actionText || 'Select channel'
+          ? selected ? 'Selected' : actionText || 'View packages'
           : actionText || `Advertise on ${channelName}`}
       </span>
     </button>

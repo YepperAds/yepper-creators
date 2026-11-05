@@ -71,15 +71,11 @@ export default function DashboardFeed({
   onCreatorClick?: (creator: PublicCreator) => void;
 }) {
   const router = useRouter();
-  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [selectedPartnerChannel, setSelectedPartnerChannel] = useState<PublicCreator | null>(null);
   const openWebsite = (website: PublicWebsite) => router.push(`/?panel=advertise&websiteId=${website.id}`, { scroll: false });
   const openCreator = (creator: PublicCreator) => {
     if (creator.isPartnerChannel) {
-      setSelectedChannelIds((current) => (
-        current.includes(creator.id)
-          ? current.filter((id) => id !== creator.id)
-          : [...current, creator.id]
-      ));
+      setSelectedPartnerChannel(creator);
       return;
     }
     if (onCreatorClick) onCreatorClick(creator);
@@ -96,20 +92,16 @@ export default function DashboardFeed({
 
   return (
     <div className="space-y-4">
-      <YoutubeChannelPackagePicker channelIds={selectedChannelIds} />
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
         {creators.map((creator) => {
-          const isSelected = selectedChannelIds.includes(creator.id);
           return (
             <PlatformCreatorCard
               key={`creator-${creator.provider ?? 'youtube'}-${creator.id}`}
               creator={creator}
               onClick={() => openCreator(creator)}
               className="w-full"
-              actionText={`Choose a ${creator.provider === 'tiktok' ? 'TikTok' : 'YouTube'} ad space`}
+              actionText={creator.isPartnerChannel ? 'View packages' : `Choose a ${creator.provider === 'tiktok' ? 'TikTok' : 'YouTube'} ad space`}
               enablePartnerSelection={creator.isPartnerChannel}
-              selected={isSelected}
             />
           );
         })}
@@ -117,6 +109,10 @@ export default function DashboardFeed({
           <WebsiteCard key={website.id} website={website} onOpen={openWebsite} />
         ))}
       </div>
+      <YoutubeChannelPackagePicker
+        channel={selectedPartnerChannel}
+        onClose={() => setSelectedPartnerChannel(null)}
+      />
     </div>
   );
 }

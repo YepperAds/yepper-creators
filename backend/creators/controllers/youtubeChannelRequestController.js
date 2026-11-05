@@ -27,22 +27,18 @@ const PARTNER_CHANNEL_VALUES = PARTNER_CHANNELS
 
 exports.createInterest = async (req, res) => {
   const advertiserId = String(req.user?.userId || '');
-  const { channelIds, packageCode } = req.body || {};
+  const { channelId, packageCode } = req.body || {};
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Login required' });
-  if (!Array.isArray(channelIds) || channelIds.length === 0) {
-    return res.status(400).json({ success: false, message: 'Select at least one YouTube channel' });
-  }
-  if (channelIds.length > PARTNER_CHANNELS.length) {
-    return res.status(400).json({ success: false, message: 'You can select up to 10 YouTube channels' });
+  if (typeof channelId !== 'string') {
+    return res.status(400).json({ success: false, message: 'Select a YouTube channel' });
   }
   if (typeof packageCode !== 'string' || !Object.hasOwn(PACKAGE_PRICES, packageCode)) {
     return res.status(400).json({ success: false, message: 'Select a valid advertising package' });
   }
 
-  const selectedIds = [...new Set(channelIds)];
   const allowedIds = new Set(PARTNER_CHANNELS.map(([id]) => id));
-  if (selectedIds.some((id) => typeof id !== 'string' || !allowedIds.has(id))) {
-    return res.status(400).json({ success: false, message: 'One or more selected channels are invalid' });
+  if (!allowedIds.has(channelId)) {
+    return res.status(400).json({ success: false, message: 'Selected channel is invalid' });
   }
 
   const packagePrice = PACKAGE_PRICES[packageCode];
@@ -53,9 +49,14 @@ exports.createInterest = async (req, res) => {
          (channel_id, channel_name, advertiser_id, request_group_id, package_code, package_price_rwf)
        SELECT channel.channel_id, channel.channel_name, $2, request_group.id, $3, $4
        FROM request_group
-       CROSS JOIN unnest($1::text[]) AS selected(channel_id)
-       JOIN (VALUES ${PARTNER_CHANNEL_VALUES}) AS channel(channel_id, channel_name) USING (channel_id)`,
-      [selectedIds, advertiserId, packageCode, packagePrice]
+       JOIN (VALUES ${PARTNER_CHANNEL_VALUES}) AS channel(channel_id, channel_name) ON channel.channel_id = $1
+       WHERE TRUE
+       ON CONFLICT (channel_id, advertiser_id) DO UPDATE
+         SET request_group_id = EXCLUDED.request_group_id,
+             package_code = EXCLUDED.package_code,
+             package_price_rwf = EXCLUDED.package_price_rwf,
+             updated_at = NOW()`,
+      [channelId, advertiserId, packageCode, packagePrice]
     );
     res.status(201).json({ success: true });
   } catch (error) {

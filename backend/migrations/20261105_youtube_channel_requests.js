@@ -42,6 +42,10 @@ async function up() {
      ON youtube_channel_requests (request_group_id, channel_id)`
   );
   await query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS youtube_channel_requests_channel_advertiser_unique
+     ON youtube_channel_requests (channel_id, advertiser_id)`
+  );
+  await query(
     `DO $$
      BEGIN
        IF to_regclass('public.demo_youtube_interests') IS NOT NULL THEN

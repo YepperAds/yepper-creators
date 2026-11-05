@@ -188,8 +188,8 @@ export const categoryAPI = {
 };
 
 export const youtubeChannelAPI = {
-  requestPackage: (channelIds: string[], packageCode: string) =>
-    adsenseHttp.post('/api/social/youtube/channel-requests', { channelIds, packageCode }),
+  requestPackage: (channelId: string, packageCode: string) =>
+    adsenseHttp.post('/api/social/youtube/channel-requests', { channelId, packageCode }),
 };
 
 // ═══════════════════════════════════════════════════════════════

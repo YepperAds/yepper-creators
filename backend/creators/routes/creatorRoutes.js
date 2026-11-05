@@ -12,7 +12,7 @@ const claimPayment = require('../controllers/youtubeClaimPaymentController');
 const youtubeSubscription = require('../controllers/youtubeSubscriptionController');
 const tiktokSponsorship = require('../controllers/tiktokSponsorshipController');
 const videoStudio = require('../controllers/videoStudioController');
-const demoYoutubeInterest = require('../controllers/demoYoutubeInterestController');
+const youtubeChannelRequest = require('../controllers/youtubeChannelRequestController');
 const authMiddleware = require('../../middleware/authmiddleware');
 
 const MAX_VIDEO_SIZE_MB = Number(process.env.MAX_AD_VIDEO_SIZE_MB || 100);
@@ -41,7 +41,7 @@ router.post('/auth/creator/logout',         controller.logout);
 
 // ─── Public ────────────────────────────────────────────────────────────────────
 router.get('/api/creators/public',              controller.getPublicCreators);
-router.post('/api/social/youtube/demo-interests', authMiddleware, demoYoutubeInterest.createInterest);
+router.post('/api/social/youtube/channel-requests', authMiddleware, youtubeChannelRequest.createInterest);
 
 // ─── Social stats ─────────────────────────────────────────────────────────────
 router.get('/api/social/stats',                 controller.getSocialStats);

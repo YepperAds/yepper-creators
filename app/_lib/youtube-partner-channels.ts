@@ -1,6 +1,6 @@
 import type { PublicCreator } from './public-home';
 
-const demoChannels = [
+const partnerChannels = [
   {
     name: 'Rocky Entertainment',
     avatar: 'https://yt3.googleusercontent.com/IAszSeN436Bi60JUU92N0Wy3AiITa3fP0_0a9PiLuwWg-VNMo0IZtSBVy9pWHSibDNq_PZb17Q=s160-c-k-c0x00ffffff-no-rj',
@@ -63,10 +63,10 @@ const demoChannels = [
   },
 ] as const;
 
-export const DEMO_YOUTUBE_CHANNELS: PublicCreator[] = demoChannels.map((channel, index) => ({
-  id: `demo-youtube-${index + 1}`,
+export const YOUTUBE_PARTNER_CHANNELS: PublicCreator[] = partnerChannels.map((channel, index) => ({
+  id: `partner-youtube-${index + 1}`,
   provider: 'youtube',
-  isDemo: true,
+  isPartnerChannel: true,
   username: channel.name,
   name: channel.name,
   avatar: channel.avatar,

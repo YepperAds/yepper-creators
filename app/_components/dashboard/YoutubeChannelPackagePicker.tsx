@@ -4,27 +4,38 @@ import { useEffect, useState } from 'react';
 import { youtubeChannelAPI } from '@/app/_lib/adsense-api';
 import type { PublicCreator } from '@/app/_lib/public-home';
 
+const CHANNEL_TIERS = [
+  { name: 'Test', minSubscribers: 0, maxSubscribers: 999, cornerAd: 10_000, dailyRate: 2_061, fiveAdRate: 30_000 },
+  { name: 'Nano', minSubscribers: 1_000, maxSubscribers: 4_999, cornerAd: 200_000, dailyRate: 1_717, fiveAdRate: 30_000 },
+  { name: 'Micro', minSubscribers: 5_000, maxSubscribers: 19_999, cornerAd: 200_000, dailyRate: 2_747, fiveAdRate: 30_000 },
+  { name: 'Mid', minSubscribers: 20_000, maxSubscribers: 49_999, cornerAd: 200_000, dailyRate: 5_152, fiveAdRate: 30_000 },
+  { name: 'Macro', minSubscribers: 50_000, maxSubscribers: 149_999, cornerAd: 200_000, dailyRate: 7_899, fiveAdRate: 30_000 },
+  { name: 'Mega', minSubscribers: 150_000, maxSubscribers: Infinity, cornerAd: 1_000_000, dailyRate: 11_000, fiveAdRate: 80_000 },
+] as const;
+
 const CHANNEL_PACKAGES = [
   {
-    code: 'social_video',
-    name: 'One video + social media promotion',
-    details: 'One ad in a video, promoted across social media.',
-    totalRwf: 1_000_000,
-    priceDetails: 'One-time package',
+    code: 'corner_ad',
+    name: 'One Corner ad',
+    details: 'One 60-second ad placement in a video.',
+    total: (tier: (typeof CHANNEL_TIERS)[number]) => tier.cornerAd,
+    priceDetails: (tier: (typeof CHANNEL_TIERS)[number]) => `${formatRwf(tier.cornerAd)} one time`,
   },
   {
-    code: 'weekly',
-    name: 'Weekly promotion',
-    details: 'One ad per video, 5 videos per month at RWF 100,000 per video.',
-    totalRwf: 500_000,
-    priceDetails: 'RWF 500,000 per month',
+    code: 'daily_30_days',
+    name: 'Daily Corner ads for 30 days',
+    details: 'One 60-second ad placement per day for 30 days.',
+    total: (tier: (typeof CHANNEL_TIERS)[number]) => tier.dailyRate * 30,
+    priceDetails: (tier: (typeof CHANNEL_TIERS)[number]) =>
+      `${formatRwf(tier.dailyRate)} per day × 30 = ${formatRwf(tier.dailyRate * 30)} for 30 days`,
   },
   {
-    code: 'thirty_days',
-    name: '30-day promotion',
-    details: 'One ad per video for 30 days at RWF 11,000 per video.',
-    totalRwf: 330_000,
-    priceDetails: 'RWF 330,000 for 30 days',
+    code: 'five_monthly',
+    name: '5 Corner ads per month',
+    details: 'One 60-second ad placement in each of 5 videos per month.',
+    total: (tier: (typeof CHANNEL_TIERS)[number]) => tier.fiveAdRate * 5,
+    priceDetails: (tier: (typeof CHANNEL_TIERS)[number]) =>
+      `${formatRwf(tier.fiveAdRate)} per ad × 5 = ${formatRwf(tier.fiveAdRate * 5)} per month`,
   },
 ] as const;
 
@@ -52,6 +63,7 @@ export default function YoutubeChannelPackagePicker({
   }, [channel?.id]);
 
   if (!channel) return null;
+  const tier = CHANNEL_TIERS.find((item) => channel.subscribers >= item.minSubscribers && channel.subscribers <= item.maxSubscribers)!;
   const selectedPackage = CHANNEL_PACKAGES.find((item) => item.code === packageCode);
 
   const submitRequest = async () => {
@@ -107,7 +119,10 @@ export default function YoutubeChannelPackagePicker({
           </div>
         ) : (
           <>
-            <h5 className="mb-3 text-sm font-bold">Select one package</h5>
+            <h5 className="mb-1 text-sm font-bold">Select one package</h5>
+            <p className="mb-3 text-xs text-white/55">
+              {tier.name} tier · 60-second Corner ad · {channel.subscribers.toLocaleString('en-US')} subscribers
+            </p>
             <div className="grid gap-2 lg:grid-cols-3">
               {CHANNEL_PACKAGES.map((option) => (
                 <label
@@ -131,7 +146,7 @@ export default function YoutubeChannelPackagePicker({
                     <span>
                       <span className="block text-xs font-bold text-white">{option.name}</span>
                       <span className="mt-1 block text-[11px] leading-4 text-white/55">{option.details}</span>
-                      <span className="mt-2 block text-xs font-bold text-coral-text">{option.priceDetails}</span>
+                      <span className="mt-2 block text-xs font-bold text-coral-text">{option.priceDetails(tier)}</span>
                     </span>
                   </span>
                 </label>
@@ -139,12 +154,13 @@ export default function YoutubeChannelPackagePicker({
             </div>
             {error && <p role="alert" className="mt-3 text-xs text-coral-text">{error}</p>}
             {submitted && <p role="status" className="mt-3 text-xs text-emerald-400">Your request has been recorded. The Yepper team will follow up.</p>}
+            <p className="mt-3 text-[11px] text-white/45">Advertiser prices shown before the 70% creator / 30% Yepper revenue split.</p>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <button type="button" onClick={() => setStep('channel')} className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/5">
                 Back
               </button>
               <div className="flex items-center gap-3">
-                {selectedPackage && <p className="text-sm font-semibold text-white">{formatRwf(selectedPackage.totalRwf)}</p>}
+                {selectedPackage && <p className="text-sm font-semibold text-white">{formatRwf(selectedPackage.total(tier))}</p>}
                 <button
                   type="button"
                   onClick={submitRequest}

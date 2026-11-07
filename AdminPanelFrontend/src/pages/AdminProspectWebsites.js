@@ -12,6 +12,9 @@ import { adminFetch } from '../utils/adminApi';
 
 const ALLOWED_ICON_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
 const YOUTUBE_PACKAGE_NAMES = {
+  corner_ad: 'One 60-second Corner ad',
+  daily_30_days: 'Daily 60-second Corner ads for 30 days',
+  five_monthly: '5 60-second Corner ads per month',
   social_video: 'One video + social media promotion',
   weekly: 'Weekly promotion (5 videos/month)',
   thirty_days: '30-day promotion',

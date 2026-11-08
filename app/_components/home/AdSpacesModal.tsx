@@ -14,9 +14,9 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 const DURATION_BANDS = ['30 seconds'] as const;
 const CORNER_AD_DURATION = '60 seconds';
 const CORNER_PACKAGE_OPTIONS = [
-  { code: 'corner_ad', title: 'One Corner ad', description: 'One 60-second ad insertion.' },
-  { code: 'daily_30_days', title: 'Daily Corner ad · 30 days', description: '30 ad insertions, one per day.' },
-  { code: 'five_monthly', title: '5 Corner ads per month', description: 'Five 60-second ad insertions in one month.' },
+  { code: 'corner_ad', title: 'One Corner ad' },
+  { code: 'daily_30_days', title: 'Daily Corner ad · 30 days' },
+  { code: 'five_monthly', title: '5 Corner ads per month' },
 ] as const;
 const CAMPAIGN_PACKAGE_OPTIONS = [
   { value: '1 month', months: 1, days: 30 },
@@ -266,12 +266,6 @@ export default function AdSpacesModal({
       : cornerPackageCode === 'daily_30_days'
         ? channelPackagePricing.dailyTotal
         : channelPackagePricing.fiveMonthlyTotal;
-  const getCornerPlanRate = (code: typeof cornerPackageCode) => {
-    if (!channelPackagePricing) return null;
-    if (code === 'corner_ad') return channelPackagePricing.cornerAd;
-    if (code === 'daily_30_days') return channelPackagePricing.dailyRate;
-    return channelPackagePricing.fiveAdRate;
-  };
 
   const submitTikTokBooking = async () => {
     if (!creator || !tiktokQuote || !tiktokCreative || tiktokBooking) return;
@@ -601,13 +595,9 @@ export default function AdSpacesModal({
                 {isCornerPackageFlow ? (
                   <div>
                     <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Choose a Corner ad plan</p>
-                    <p className="text-xs text-(--color-muted) mb-3">
-                      {tier} tier · 60-second ad · prices are before the 70% creator / 30% Yepper split.
-                    </p>
                     <div className="grid gap-2">
                       {CORNER_PACKAGE_OPTIONS.map((plan) => {
                         const selected = cornerPackageCode === plan.code;
-                        const pricePerUnit = getCornerPlanRate(plan.code);
                         return (
                           <label
                             key={plan.code}
@@ -625,13 +615,6 @@ export default function AdSpacesModal({
                             />
                             <span className="min-w-0 flex-1">
                               <span className="block text-xs font-bold">{plan.title}</span>
-                              <span className={`mt-1 block text-[11px] ${selected ? 'text-black/60' : 'text-(--color-muted)'}`}>
-                                {plan.code === 'daily_30_days' && channelPackagePricing
-                                  ? `RWF ${pricePerUnit?.toLocaleString('en-US')} per day × 30`
-                                  : plan.code === 'five_monthly' && channelPackagePricing
-                                    ? `RWF ${pricePerUnit?.toLocaleString('en-US')} per ad × 5`
-                                    : plan.description}
-                              </span>
                             </span>
                             <span className="shrink-0 text-xs font-extrabold">
                               {cornerPackageTotal !== null ? `RWF ${(
@@ -744,10 +727,11 @@ export default function AdSpacesModal({
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Duration</p>
-                  <div className="flex gap-2">
-                    {(isCornerPackageFlow ? [CORNER_AD_DURATION] : DURATION_BANDS).map((band) => (
+                {!isCornerPackageFlow && (
+                  <div>
+                    <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Duration</p>
+                    <div className="flex gap-2">
+                      {DURATION_BANDS.map((band) => (
                       <button
                         key={band}
                         onClick={() => setDurationBand(band)}
@@ -755,9 +739,10 @@ export default function AdSpacesModal({
                       >
                         {band}
                       </button>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -776,27 +761,23 @@ export default function AdSpacesModal({
             </div>
 
             <div className="mt-8 flex items-end justify-between gap-4 border-t border-(--color-border) pt-6">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
-                {displayTotal !== null ? `${displayTotal.toLocaleString()} RWF` : '—'}
-              </p>
               <button
                 onClick={submitClaim}
                 disabled={!canSubmit || (!!selectedSlot && claimingSlot === selectedSlot)}
-                className="shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
+                className="ml-auto shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
               >
                 {!!selectedSlot && claimingSlot === selectedSlot
                   ? 'Processing…'
                   : isCornerPackageFlow
-                    ? `Continue to payment · RWF ${displayTotal?.toLocaleString() ?? '—'}`
+                    ? 'Continue to payment'
                     : purchaseMode === 'campaign'
-                      ? `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Start Campaign`
-                      : `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Claim Slot`}
+                      ? `Start Campaign · ${displayTotal?.toLocaleString() ?? '—'} RWF`
+                      : `Claim Slot · ${displayTotal?.toLocaleString() ?? '—'} RWF`}
               </button>
             </div>
           </div>
         )}
 
-        <p className="mt-6 text-[11px] text-(--color-muted)">Note: videos under 60 seconds get the ad overlaid across the full video rather than at a fixed slot position.</p>
       </div>
     </div>
   );

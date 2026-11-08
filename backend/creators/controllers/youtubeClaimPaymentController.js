@@ -17,7 +17,7 @@ const {
   upsertWallet,
   generateUniqueTransactionRef,
 } = require('../../AdOwner/controllers/PaymentController');
-const { priceFor } = require('../utils/youtubeTierPricing');
+const { getYoutubeChannelPackagePricing, priceFor } = require('../utils/youtubeTierPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
 const { CREATOR_SHARE } = require('../utils/processingBudget');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('./adSpaceController');
@@ -29,7 +29,7 @@ exports.initiateClaimPayment = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to claim an ad space' });
 
   const { creatorId } = req.params;
-  const { slotType, durationBand } = req.body;
+  const { slotType, durationBand, package_code: packageCode } = req.body;
   const adSize = AD_SIZES.includes(req.body.adSize) ? req.body.adSize : 'medium';
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
@@ -64,7 +64,16 @@ exports.initiateClaimPayment = async (req, res) => {
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
     // Price follows the creator's own fixed ad_type (corner/lbar) — the
     // advertiser doesn't get a separate "ad kind" choice.
-    const priced = priceFor(subscribers, durationBand, adType);
+    let priced;
+    if (adType === 'corner') {
+      if (packageCode !== 'corner_ad' || durationBand !== '60 seconds') {
+        return res.status(400).json({ success: false, message: 'Select the 60-second Corner ad package' });
+      }
+      const channelPricing = getYoutubeChannelPackagePricing(subscribers);
+      priced = { tier: channelPricing.tier, amount: channelPricing.cornerAd };
+    } else {
+      priced = priceFor(subscribers, durationBand, adType);
+    }
     if (!priced) return res.status(400).json({ success: false, message: 'Invalid duration' });
     const { tier, amount: totalCost } = priced;
 

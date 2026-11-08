@@ -5,7 +5,7 @@ const multer = require('multer');
 const { query }  = require('../../config/db');
 const cloudinary  = require('../../config/storage');
 const { AD_FORMATS, AD_TYPES, AD_SIZES } = require('../utils/adOverlay');
-const { getYoutubeTierPricing } = require('../utils/youtubeTierPricing');
+const { getYoutubeTierPricing, getYoutubeChannelPackagePricing } = require('../utils/youtubeTierPricing');
 const sendEmailNotification = require('../../controllers/emailService');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -278,6 +278,7 @@ exports.getAdSpaces = async (req, res) => {
     );
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
     const { tier, rows: pricingRows } = getYoutubeTierPricing(subscribers);
+    const channelPackagePricing = getYoutubeChannelPackagePricing(subscribers);
     const postingEstimate = await getPostingEstimate(creatorId);
     const postingFrequency = await getCreatorPostingFrequency(creatorId);
 
@@ -291,6 +292,7 @@ exports.getAdSpaces = async (req, res) => {
         activeSlots,
         tier,
         pricingRows,
+        channelPackagePricing,
         postingEstimate,
         postingFrequency,
       },

@@ -15,7 +15,10 @@ const WithdrawalRequest = require('../../AdPromoter/models/WithdrawalModel');
 const { getWithdrawalCooldown, getEarningsHold } = require('../../AdPromoter/utils/withdrawalCooldown');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES, getPostingEstimate } = require('./adSpaceController');
 const { generateFlutterwavePaymentUrl, verifyFlutterwaveTransaction, upsertWallet, generateUniqueTransactionRef } = require('../../AdOwner/controllers/PaymentController');
-const { priceFor } = require('../utils/youtubeTierPricing');
+const {
+  getYoutubeChannelCampaignPricing,
+  priceFor,
+} = require('../utils/youtubeTierPricing');
 const { fetchLatestTikTokVideo } = require('./tiktokSponsorshipController');
 const { AD_SIZES } = require('../utils/adOverlay');
 const {
@@ -668,42 +671,70 @@ exports.createAdCampaign = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to start a campaign' });
 
   const { creatorId } = req.params;
+  const packageCode = String(req.body?.package_code || '');
+  const fixedPackage = ['daily_30_days', 'five_monthly'].includes(packageCode);
   const rawPackageMonths = Number(req.body?.package_months ?? req.body?.packageMonths ?? req.body?.packageLength ?? 3);
   const requestedTotalInsertions = Number(req.body?.total_insertions ?? req.body?.totalInsertions ?? 0);
   const { slotType, durationBand, adSize } = req.body;
 
   if (!SLOT_TYPES.includes(slotType)) return res.status(400).json({ success: false, message: 'Invalid slot type' });
   if (!req.file) return res.status(400).json({ success: false, message: 'No ad image uploaded' });
-  if (![1, 3, 6].includes(rawPackageMonths)) return res.status(400).json({ success: false, message: 'Invalid package length' });
+  if (packageCode && !fixedPackage) return res.status(400).json({ success: false, message: 'Invalid YouTube package' });
+  if (!fixedPackage && ![1, 3, 6].includes(rawPackageMonths)) return res.status(400).json({ success: false, message: 'Invalid package length' });
 
   try {
     const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
     if (!creatorRes.rowCount) return res.status(404).json({ success: false, message: 'Creator not found' });
     const adType = creatorRes.rows[0].ad_type_preference || 'corner';
 
-    const postingEstimate = await getPostingEstimate(creatorId);
-    if (postingEstimate.source === 'none' || !postingEstimate.estimates) {
+    if (fixedPackage && (adType !== 'corner' || durationBand !== '60 seconds')) {
+      return res.status(400).json({ success: false, message: 'These packages are available for 60-second Corner ads only' });
+    }
+    if (adType === 'corner' && !fixedPackage) {
+      return res.status(400).json({ success: false, message: 'Select a Corner ad package to continue' });
+    }
+
+    const postingEstimate = fixedPackage
+      ? { source: 'pricing_sheet', estimates: null, avgDaysBetweenPosts: null }
+      : await getPostingEstimate(creatorId);
+    if (!fixedPackage && (postingEstimate.source === 'none' || !postingEstimate.estimates)) {
       return res.status(400).json({ success: false, message: 'Campaigns are unavailable until this creator sets a posting pace.' });
     }
 
-    const packageDays = rawPackageMonths * 30;
-    const baseEstimate = Number(postingEstimate.estimates[packageDays] ?? Math.floor(packageDays / Math.max(postingEstimate.avgDaysBetweenPosts || 1, 1)));
-    const totalInsertions = Number.isFinite(requestedTotalInsertions) && requestedTotalInsertions > 0
-      ? Math.max(1, Math.round(requestedTotalInsertions))
-      : baseEstimate;
-    if (!totalInsertions || totalInsertions < 1) {
-      return res.status(400).json({ success: false, message: 'Posting estimate is too low to create a campaign' });
-    }
+    const packageMonths = fixedPackage ? 1 : rawPackageMonths;
+    const packageDays = packageMonths * 30;
+    const baseEstimate = fixedPackage
+      ? 0
+      : Number(postingEstimate.estimates[packageDays] ?? Math.floor(packageDays / Math.max(postingEstimate.avgDaysBetweenPosts || 1, 1)));
 
     const subsRes = await query(
       `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
       [creatorId],
     );
     const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
-    const priced = priceFor(subscribers, durationBand, adType);
+    const channelCampaignPricing = fixedPackage ? getYoutubeChannelCampaignPricing(subscribers, packageCode) : null;
+    if (fixedPackage && !channelCampaignPricing) {
+      return res.status(400).json({ success: false, message: 'Invalid YouTube package' });
+    }
+    const totalInsertions = fixedPackage
+      ? channelCampaignPricing.totalInsertions
+      : Number.isFinite(requestedTotalInsertions) && requestedTotalInsertions > 0
+        ? Math.max(1, Math.round(requestedTotalInsertions))
+        : baseEstimate;
+    if (!totalInsertions || totalInsertions < 1) {
+      return res.status(400).json({ success: false, message: 'Posting estimate is too low to create a campaign' });
+    }
+    const priced = fixedPackage
+      ? {
+          tier: channelCampaignPricing.tier,
+          amount: channelCampaignPricing.amountPerInsertion,
+        }
+      : priceFor(subscribers, durationBand, adType);
     if (!priced) return res.status(400).json({ success: false, message: 'Invalid duration' });
 
-    const totalCost = Math.round(priced.amount * totalInsertions);
+    const totalCost = fixedPackage
+      ? channelCampaignPricing.totalCost
+      : Math.round(priced.amount * totalInsertions);
     const advertiser = await Creator.findById(advertiserId);
     const wallet = await Wallet.findByOwner(String(advertiserId), 'advertiser');
     const walletBalance = wallet ? parseFloat(wallet.balance) : 0;
@@ -712,7 +743,7 @@ exports.createAdCampaign = async (req, res) => {
     const creatorEarnings = Math.round(totalCost * CREATOR_SHARE);
     const yepperCut = totalCost - creatorEarnings;
     const imageUrl = await uploadCreativeToCloudinary(req.file);
-    const tx_ref = generateUniqueTransactionRef('yt_campaign_flw', advertiserId, `${creatorId}_${slotType}_${rawPackageMonths}`);
+    const tx_ref = generateUniqueTransactionRef('yt_campaign_flw', advertiserId, `${creatorId}_${slotType}_${packageMonths}`);
     const expiresAt = new Date(Date.now() + (packageDays * 24 * 60 * 60 * 1000));
 
     const client = await getClient();
@@ -761,11 +792,11 @@ exports.createAdCampaign = async (req, res) => {
           amount: totalCost, currency: 'RWF', status: 'successful',
           walletApplied: walletToUse, amountPaid: 0,
           paymentMethod: 'wallet_only',
-          metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths: rawPackageMonths, source: postingEstimate.source },
+          metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths, packageCode: packageCode || null, source: postingEstimate.source },
           paidAt: new Date(),
         });
 
-        return res.status(200).json({ success: true, allPaid: true, tier: priced.tier, totalCost, walletApplied: walletToUse, totalInsertions, packageMonths: rawPackageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
+        return res.status(200).json({ success: true, allPaid: true, tier: priced.tier, totalCost, walletApplied: walletToUse, totalInsertions, packageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
       }
 
       await client.query('COMMIT');
@@ -773,7 +804,7 @@ exports.createAdCampaign = async (req, res) => {
         tx_ref, amount: remainingAmount,
         redirectPath: '/youtube-payment-callback',
         customer: { email: advertiser?.email, name: advertiser?.full_name || 'Advertiser' },
-        customizations: { description: `YouTube campaign — ${slotType} (${durationBand}, ${adType}, ${rawPackageMonths} months)` },
+        customizations: { description: `YouTube campaign — ${slotType} (${durationBand}, ${adType}, ${packageMonths} months)` },
       });
 
       await Payment.create({
@@ -782,10 +813,10 @@ exports.createAdCampaign = async (req, res) => {
         flutterwaveData: { paymentUrl }, walletApplied: walletToUse,
         amountPaid: remainingAmount,
         paymentMethod: walletToUse > 0 ? 'wallet_hybrid' : 'flutterwave',
-        metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths: rawPackageMonths, source: postingEstimate.source },
+        metadata: { kind: 'youtube_campaign', claimId, campaignId, creatorId, slotType, adSize, durationBand, adType, tier: priced.tier, creatorEarnings, yepperCut, totalInsertions, packageMonths, packageCode: packageCode || null, source: postingEstimate.source },
       });
 
-      return res.status(200).json({ success: true, allPaid: false, tier: priced.tier, totalCost, walletApplied: walletToUse, amountPaid: remainingAmount, paymentUrl, tx_ref, totalInsertions, packageMonths: rawPackageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
+      return res.status(200).json({ success: true, allPaid: false, tier: priced.tier, totalCost, walletApplied: walletToUse, amountPaid: remainingAmount, paymentUrl, tx_ref, totalInsertions, packageMonths, data: { slotType, imageUrl, adType, adSize, campaignId, expiresAt: expiresAt.toISOString() } });
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       throw err;

@@ -35,6 +35,23 @@ function formatRwf(amount: number): string {
   return `RWF ${amount.toLocaleString('en-US')}`;
 }
 
+function CornerAdPreview() {
+  return (
+    <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/youtube-ad-preview/creator.png"
+        alt="Video preview"
+        className="absolute inset-0 h-full w-full object-contain"
+      />
+      <div className="absolute bottom-[15%] right-[5%] w-[32%] overflow-hidden border border-white bg-white shadow-lg">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/youtube-ad-preview/ad.png" alt="Example Corner ad" className="block h-auto w-full" />
+      </div>
+    </div>
+  );
+}
+
 export default function YoutubeChannelPackagePicker({
   channel,
   onClose,
@@ -100,31 +117,34 @@ export default function YoutubeChannelPackagePicker({
         ) : (
           <>
             <h5 className="mb-3 text-sm font-bold">Select one package</h5>
-            <div className="grid gap-2">
-              {CHANNEL_PACKAGES.map((option) => (
-                <label
-                  key={option.code}
-                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
-                    packageCode === option.code ? 'border-coral bg-coral/10' : 'border-white/10 hover:border-white/25'
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`youtube-package-${channel.id}`}
-                      value={option.code}
-                      checked={packageCode === option.code}
-                      onChange={() => {
-                        setPackageCode(option.code);
-                        setError('');
-                      }}
-                      className="mt-0.5 accent-[#e8472b]"
-                    />
-                    <span className="block text-xs font-bold text-white">{option.name}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-bold text-coral-text">{formatRwf(option.total(tier))}</span>
-                </label>
-              ))}
+            <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+              <div className="grid gap-2">
+                {CHANNEL_PACKAGES.map((option) => (
+                  <label
+                    key={option.code}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
+                      packageCode === option.code ? 'border-coral bg-coral/10' : 'border-white/10 hover:border-white/25'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`youtube-package-${channel.id}`}
+                        value={option.code}
+                        checked={packageCode === option.code}
+                        onChange={() => {
+                          setPackageCode(option.code);
+                          setError('');
+                        }}
+                        className="mt-0.5 accent-[#e8472b]"
+                      />
+                      <span className="block text-xs font-bold text-white">{option.name}</span>
+                    </span>
+                    <span className="shrink-0 text-xs font-bold text-coral-text">{formatRwf(option.total(tier))}</span>
+                  </label>
+                ))}
+              </div>
+              <CornerAdPreview />
             </div>
             {error && <p role="alert" className="mt-3 text-xs text-coral-text">{error}</p>}
             {submitted && <p role="status" className="mt-3 text-xs text-emerald-400">Your request has been recorded. The Yepper team will follow up.</p>}

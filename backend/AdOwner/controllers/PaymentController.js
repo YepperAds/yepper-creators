@@ -11,7 +11,8 @@ const { Wallet, WalletTransaction } = require('../../AdPromoter/models/walletMod
 const { getClient } = require('../../config/db');
 
 // ─── Flutterwave helpers ───────────────────────────────────────────────────
-const FLW_TEST_MODE = process.env.FLUTTERWAVE_TEST_MODE !== 'false';
+const FLW_TEST_MODE = process.env.FLUTTERWAVE_TEST_MODE === 'true'
+  || (!process.env.FLUTTERWAVE_TEST_MODE && process.env.NODE_ENV !== 'production');
 // Picks whichever key set matches FLUTTERWAVE_TEST_MODE. Previously this
 // always used FLW_TEST_SECRET_KEY no matter what FLUTTERWAVE_TEST_MODE was
 // set to, so flipping that flag to "false" never actually switched Flutterwave
@@ -21,6 +22,7 @@ const FLW_TEST_MODE = process.env.FLUTTERWAVE_TEST_MODE !== 'false';
 // page) alongside FLUTTERWAVE_TEST_MODE=false to actually go live.
 const FLW_SECRET_KEY = FLW_TEST_MODE ? process.env.FLW_TEST_SECRET_KEY : process.env.FLW_LIVE_SECRET_KEY;
 const FLW_BASE_URL = 'https://api.flutterwave.com/v3';
+exports.isFlutterwaveTestMode = FLW_TEST_MODE;
 
 const flwHeaders = () => ({
   Authorization: `Bearer ${FLW_SECRET_KEY}`,

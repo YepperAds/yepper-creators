@@ -9,6 +9,9 @@ export default function AdminYoutubers() {
   const [youtubers, setYoutubers] = useState([]);
   const [total,   setTotal]   = useState(0);
   const [loading, setLoading] = useState(true);
+  const [partnerRequests, setPartnerRequests] = useState([]);
+  const [partnerRequestsLoading, setPartnerRequestsLoading] = useState(true);
+  const [partnerRequestsError, setPartnerRequestsError] = useState('');
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
   const [verificationBusy, setVerificationBusy] = useState({});
@@ -32,6 +35,21 @@ export default function AdminYoutubers() {
   }, [search, page, adminHeaders]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadPartnerRequests = useCallback(async () => {
+    setPartnerRequestsLoading(true);
+    setPartnerRequestsError('');
+    try {
+      const response = await adminFetch('/youtube-channel-requests', {}, adminHeaders);
+      setPartnerRequests(response.data || []);
+    } catch (e) {
+      setPartnerRequestsError(e.message || 'Could not load partner YouTube channel requests.');
+    } finally {
+      setPartnerRequestsLoading(false);
+    }
+  }, [adminHeaders]);
+
+  useEffect(() => { loadPartnerRequests(); }, [loadPartnerRequests]);
 
   // Debounce search
   const [searchInput, setSearchInput] = useState('');
@@ -268,6 +286,53 @@ export default function AdminYoutubers() {
             <button onClick={() => { setSelectedCreators([]); setPage(p => Math.min(pages, p + 1)); }} disabled={page === pages} style={pageBtn}>Next →</button>
           </div>
         )}
+      </div>
+
+      <h3 style={{ fontSize: 18, fontWeight: 700, margin: '32px 0 12px 0' }}>
+        Manually Added Channel Requests ({partnerRequests.length})
+      </h3>
+      {partnerRequestsError && (
+        <div role="alert" style={{ background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: 8, padding: '10px 14px', color: '#c53030', marginBottom: 14, fontSize: 13 }}>
+          {partnerRequestsError}
+        </div>
+      )}
+      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead style={{ background: '#fafafa' }}>
+            <tr>
+              {['YouTube Channel', 'Advertiser', 'Package', 'Price', 'Requested'].map((heading) => (
+                <th key={heading} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{heading}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {partnerRequestsLoading ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>Loading requests…</td></tr>
+            ) : partnerRequests.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>No manually added channel requests yet</td></tr>
+            ) : partnerRequests.map((request) => (
+              <tr key={request.id} style={{ borderBottom: '1px solid #f7f7f7' }}>
+                <td style={{ padding: '12px 16px', fontWeight: 500 }}>{request.channel_names}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  {request.full_name || request.email || '—'}
+                  {request.full_name && request.email && <div style={{ color: '#aaa', fontSize: 12 }}>{request.email}</div>}
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  {{
+                    corner_ad: 'One 60-second Corner ad',
+                    daily_30_days: 'Daily Corner ads for 30 days',
+                    five_monthly: '5 Corner ads per month',
+                    social_video: 'One video + social media promotion',
+                    weekly: 'Weekly promotion (5 videos/month)',
+                    thirty_days: '30-day promotion',
+                  }[request.package_code] || request.package_code}
+                </td>
+                <td style={{ padding: '12px 16px', fontWeight: 600 }}>RWF {Number(request.package_price_rwf || 0).toLocaleString('en-US')}</td>
+                <td style={{ padding: '12px 16px', color: '#888', fontSize: 13 }}>{new Date(request.updated_at || request.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ const PARTNER_CHANNELS = [
   { id: 'partner-youtube-3', name: 'MIE Empire', subscribers: 1_060_000 },
   { id: 'partner-youtube-4', name: 'Ines', subscribers: 1_120 },
   { id: 'partner-youtube-5', name: 'Quick Homes Rwanda', subscribers: 22_700 },
-  { id: 'partner-youtube-6', name: 'IGIHE', subscribers: 868_000 },
   { id: 'partner-youtube-7', name: 'Rwanda updates', subscribers: 822_000 },
   { id: 'partner-youtube-8', name: 'THE QUICKTIMES NEWS', subscribers: 333_000 },
   { id: 'partner-youtube-9', name: 'cheymuv', subscribers: 131_000 },

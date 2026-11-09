@@ -16,13 +16,6 @@ const partnerChannels = [
     videoId: 'kRbscHPx21U',
   },
   {
-    id: 'partner-youtube-3',
-    name: 'MIE Empire',
-    avatar: 'https://yt3.googleusercontent.com/H5evud0AJD-cnp0flAV6KdIxL72LEoqzckV3TvqHLFOnSo-GvD9nKETh44CTQOkhLQUkw7oLsw=s160-c-k-c0x00ffffff-no-rj',
-    subscribers: 1_060_000,
-    videoId: '11ct3se_8eU',
-  },
-  {
     id: 'partner-youtube-4',
     name: 'Ines',
     avatar: 'https://yt3.googleusercontent.com/tpWgyhOpKBxRjHlOl503eP-7_0iZ4s8QtiK2cs8S8kK5uDD4mTahrKP1mT7NObnBwBGTFfDmdXs=s160-c-k-c0x00ffffff-no-rj',

@@ -5,7 +5,6 @@ const { query } = require('../../config/db');
 const PARTNER_CHANNELS = [
   { id: 'partner-youtube-1', name: 'Rocky Entertainment', subscribers: 1_610_000 },
   { id: 'partner-youtube-2', name: 'Chita magic', subscribers: 848_000 },
-  { id: 'partner-youtube-3', name: 'MIE Empire', subscribers: 1_060_000 },
   { id: 'partner-youtube-4', name: 'Ines', subscribers: 1_120 },
   { id: 'partner-youtube-5', name: 'Quick Homes Rwanda', subscribers: 22_700 },
   { id: 'partner-youtube-7', name: 'Rwanda updates', subscribers: 822_000 },

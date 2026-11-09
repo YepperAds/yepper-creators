@@ -84,10 +84,10 @@ exports.listInterests = async (req, res) => {
               STRING_AGG(request.channel_name, ', ' ORDER BY request.channel_name) AS channel_names,
               request.package_code, MAX(request.package_price_rwf) AS package_price_rwf,
               MIN(request.created_at) AS created_at, MAX(request.updated_at) AS updated_at,
-              request.advertiser_id, advertiser.name AS full_name, advertiser.email
+              request.advertiser_id, advertiser.full_name, advertiser.email
        FROM youtube_channel_requests request
-       LEFT JOIN users advertiser ON advertiser.id = request.advertiser_id
-       GROUP BY request.request_group_id, request.package_code, request.advertiser_id, advertiser.name, advertiser.email
+       LEFT JOIN creators advertiser ON advertiser.id::text = request.advertiser_id
+       GROUP BY request.request_group_id, request.package_code, request.advertiser_id, advertiser.full_name, advertiser.email
        ORDER BY MAX(request.updated_at) DESC`
     );
     res.json({ success: true, data: rows });

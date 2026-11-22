@@ -61,6 +61,48 @@ const demoChannels = [
     subscribers: 2_860,
     videoId: 'WzcIXpcNVKY',
   },
+  {
+    name: 'Benie',
+    avatar: 'https://yt3.googleusercontent.com/ZWy0FsfHrXF4pJnpQDw5T0kcK26nRi6t4Xw3vvHjYLpupR68LHFDbZymNW4z6TEpo57Nmaqf=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 3_650,
+    videoId: 'tXwSqBNJztM',
+  },
+  {
+    name: 'Darina Kayumba',
+    avatar: 'https://yt3.googleusercontent.com/HZ9iB996-X1S4Ff_zctHO2K5ZPmgboUZvc2wVJZRHXVP7s3dl0moy8JdSaFSrzDhGXKJ5GYw=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 50_600,
+    videoId: 'vGh1i_1Fb1I',
+  },
+  {
+    name: 'The New Times Rwanda',
+    avatar: 'https://yt3.googleusercontent.com/33dN6_xF6f8Q6_a_RelTOKAomfvEcXP70iCfuOE54HLv0Kt59tP6PyRSrmEmiyExHU2qQIdv=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 176_000,
+    videoId: 'ED6lAZfrN1o',
+  },
+  {
+    name: 'Kigali Today',
+    avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_lTjQJCTI2odV4R__tFwUpGEAoPDesGoz16YSOG9pvKOT8=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 1_200_000,
+    videoId: 'i_SLLoQhtd4',
+  },
+  {
+    name: 'B&B Kigali 89.7FM',
+    avatar: 'https://yt3.googleusercontent.com/vgkVbbIY6GdH18OS5Nc6HKzkhHeraadHdqbzRF1642ByAokFxHSTcS0IyWZhVous7okk3gGP5u0=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 773_000,
+    videoId: 'oiOYAWkrQQM',
+  },
+  {
+    name: 'TV1 Rwanda',
+    avatar: 'https://yt3.googleusercontent.com/zSAlAYsqNs-8TQixdXE28xJZZ2r8FhbGsW11cCjJX2yhnZSvaOWjDCvi1_EMVQ40n2ERu9OVoQ=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 736_000,
+    videoId: 'k59FGHg_7sQ',
+  },
+  {
+    name: '102.3 KISS FM',
+    avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_ka7nhlPSSSEBt76l2G9uH3PXVL3L9ioh9ynf_J1FdXn00=s160-c-k-c0x00ffffff-no-rj',
+    subscribers: 164_000,
+    videoId: 'SvfmABD8QM8',
+  },
 ] as const;
 
 export const DEMO_YOUTUBE_CHANNELS: PublicCreator[] = demoChannels.map((channel, index) => ({

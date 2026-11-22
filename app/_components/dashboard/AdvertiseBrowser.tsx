@@ -9,7 +9,8 @@ import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteAdPreview from './WebsiteAdPreview';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import { DEMO_YOUTUBE_CHANNELS } from '@/app/_lib/demo-youtube-channels';
+import { YOUTUBE_PARTNER_CHANNELS } from '@/app/_lib/youtube-partner-channels';
+import YoutubeChannelPackagePicker from './YoutubeChannelPackagePicker';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 import PlatformCreatorCard from './PlatformCreatorCard';
@@ -119,7 +120,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteList = websites.length > 0 ? websites : MOCK_WEBSITES;
-  const creatorList = [...DEMO_YOUTUBE_CHANNELS, ...(creators.length > 0 ? creators : MOCK_CREATORS)];
+  const creatorList = [...YOUTUBE_PARTNER_CHANNELS, ...(creators.length > 0 ? creators : MOCK_CREATORS)];
 
   const [activeWebsite, setActiveWebsite] = useState<PublicWebsite | null>(null);
   const [adSpaces, setAdSpaces] = useState<AdSpace[]>([]);
@@ -132,6 +133,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [interestError, setInterestError] = useState('');
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<'all' | 'websites' | 'youtube' | 'tiktok'>('all');
+  const [selectedPartnerChannel, setSelectedPartnerChannel] = useState<PublicCreator | null>(null);
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
@@ -182,7 +184,8 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
     if (creatorId) {
       const creator = creatorList.find((c) => String(c.id) === creatorId);
       if (creator) {
-        setCollaborateWith(creator);
+        if (creator.isPartnerChannel) setSelectedPartnerChannel(creator);
+        else setCollaborateWith(creator);
         setReturnToFeedAfterDeepLink(true);
       }
     } else if (websiteId) {
@@ -199,6 +202,14 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
 
   const closeCreatorModal = () => {
     setCollaborateWith(null);
+    if (returnToFeedAfterDeepLink) {
+      setReturnToFeedAfterDeepLink(false);
+      onBackToFeed();
+    }
+  };
+
+  const closePartnerChannel = () => {
+    setSelectedPartnerChannel(null);
     if (returnToFeedAfterDeepLink) {
       setReturnToFeedAfterDeepLink(false);
       onBackToFeed();
@@ -445,11 +456,21 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
         {showYoutube && websiteCreators.length > 0 && (
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
-              <div><h4 className="text-base font-bold text-white">YouTube channels</h4><p className="mt-1 text-xs text-white/50">Promote your brand through creator videos and audiences.</p></div>
+              <div><h4 className="text-base font-bold text-white">YouTube channels</h4><p className="mt-1 text-xs text-white/50">Select channels to choose an advertising package, or browse ad options for connected creators.</p></div>
               <span className="text-xs text-white/40">{websiteCreators.length} {websiteCreators.length === 1 ? 'channel' : 'channels'}</span>
             </div>
             <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {websiteCreators.map((creator) => <PlatformCreatorCard key={`youtube-${creator.id}`} creator={creator} onClick={() => setCollaborateWith(creator)} className="w-full min-w-0" />)}
+              {websiteCreators.map((creator) => {
+                return (
+                  <PlatformCreatorCard
+                    key={`youtube-${creator.id}`}
+                    creator={creator}
+                    onClick={() => creator.isPartnerChannel ? setSelectedPartnerChannel(creator) : setCollaborateWith(creator)}
+                    className="w-full min-w-0"
+                    enablePartnerSelection={creator.isPartnerChannel}
+                  />
+                );
+              })}
             </div>
           </section>
         )}
@@ -475,6 +496,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
       </div>
 
       <AdSpacesModal creator={collaborateWith} open={!!collaborateWith} onClose={closeCreatorModal} />
+      <YoutubeChannelPackagePicker channel={selectedPartnerChannel} onClose={closePartnerChannel} />
     </div>
   );
 }

@@ -255,6 +255,15 @@ async function startServer() {
     console.warn('⚠️  Migration 20260903_ad_category_is_active skipped:', err.message?.split('\n')[0]);
   }
 
+  // Persist advertiser requests for selectable YouTube partner channels.
+  try {
+    const { up: createYoutubeChannelRequests } = require('./migrations/20261105_youtube_channel_requests');
+    await createYoutubeChannelRequests();
+    console.log('✓ YouTube channel requests ready');
+  } catch (err) {
+    console.warn('⚠️  Migration 20261105_youtube_channel_requests skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

@@ -187,6 +187,11 @@ export const categoryAPI = {
     adsenseHttp.post(`/api/ad-categories/reject/${adId}/website/${websiteId}/${categoryId}`),
 };
 
+export const youtubeChannelAPI = {
+  requestPackage: (channelId: string, packageCode: string) =>
+    adsenseHttp.post('/api/social/youtube/channel-requests', { channelId, packageCode }),
+};
+
 // ═══════════════════════════════════════════════════════════════
 // WEB ADVERTISE  (AdOwner: advertiser side)
 // ═══════════════════════════════════════════════════════════════

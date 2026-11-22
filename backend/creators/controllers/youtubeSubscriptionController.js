@@ -10,10 +10,11 @@ const {
   generateFlutterwavePaymentUrl,
   generateUniqueTransactionRef,
   verifyFlutterwaveTransaction,
+  isFlutterwaveTestMode,
 } = require('../../AdOwner/controllers/PaymentController');
 
 const MONTHLY_PRICE_RWF = 20000;
-const PLAN_KEY = `youtube_creator_monthly_${process.env.FLUTTERWAVE_TEST_MODE === 'false' ? 'live' : 'test'}`;
+const PLAN_KEY = `youtube_creator_monthly_${isFlutterwaveTestMode ? 'test' : 'live'}`;
 
 async function getOrCreatePlanId() {
   const configuredPlanId = process.env.FLW_YOUTUBE_CREATOR_PLAN_ID;

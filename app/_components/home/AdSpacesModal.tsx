@@ -12,6 +12,12 @@ import { getToken } from '@/app/(adsense)/utils/token';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 const DURATION_BANDS = ['30 seconds'] as const;
+const CORNER_AD_DURATION = '60 seconds';
+const CORNER_PACKAGE_OPTIONS = [
+  { code: 'corner_ad', title: 'One Corner ad' },
+  { code: 'daily_30_days', title: 'Daily Corner ad · 30 days' },
+  { code: 'five_monthly', title: '5 Corner ads per month' },
+] as const;
 const CAMPAIGN_PACKAGE_OPTIONS = [
   { value: '1 month', months: 1, days: 30 },
   { value: '3 months', months: 3, days: 90 },
@@ -28,6 +34,15 @@ interface PricingRow {
   duration: string;
   corner: number;
   lbar: number;
+}
+
+interface ChannelPackagePricing {
+  tier: string;
+  cornerAd: number;
+  dailyRate: number;
+  dailyTotal: number;
+  fiveAdRate: number;
+  fiveMonthlyTotal: number;
 }
 
 interface TikTokQuote {
@@ -121,6 +136,7 @@ export default function AdSpacesModal({
   const [adTypeDescription, setAdTypeDescription] = useState('');
   const [tier, setTier]         = useState('');
   const [pricingRows, setPricingRows] = useState<PricingRow[]>([]);
+  const [channelPackagePricing, setChannelPackagePricing] = useState<ChannelPackagePricing | null>(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [claimingSlot, setClaimingSlot] = useState<string | null>(null);
@@ -131,6 +147,7 @@ export default function AdSpacesModal({
   const [adSize, setAdSize] = useState('medium');
   const [durationBand, setDurationBand] = useState<string>(DURATION_BANDS[0]);
   const [purchaseMode, setPurchaseMode] = useState<'single' | 'campaign'>('campaign');
+  const [cornerPackageCode, setCornerPackageCode] = useState<'corner_ad' | 'daily_30_days' | 'five_monthly'>('corner_ad');
   const [packageLength, setPackageLength] = useState<'1 month' | '3 months' | '6 months'>('3 months');
   const [campaignInsertionsByPackage, setCampaignInsertionsByPackage] = useState<Record<'1 month' | '3 months' | '6 months', number>>({
     '1 month': 20,
@@ -163,6 +180,7 @@ export default function AdSpacesModal({
     setPendingFile(null);
     setPendingFileUrl(null);
     setPurchaseMode('campaign');
+    setCornerPackageCode('corner_ad');
     if (creator.provider === 'tiktok') {
       setTikTokQuote(null);
       setTikTokReports([]);
@@ -201,6 +219,8 @@ export default function AdSpacesModal({
         setAdTypeDescription(spacesJson?.data?.adTypeDescription ?? '');
         setTier(spacesJson?.data?.tier ?? '');
         setPricingRows(spacesJson?.data?.pricingRows ?? []);
+        setChannelPackagePricing(spacesJson?.data?.channelPackagePricing ?? null);
+        setDurationBand((spacesJson?.data?.adType ?? 'corner') === 'corner' ? CORNER_AD_DURATION : DURATION_BANDS[0]);
         setPostingFrequency(spacesJson?.data?.postingFrequency ?? null);
         const estimate = spacesJson?.data?.postingEstimate ?? null;
         setPostingEstimate(estimate);
@@ -238,6 +258,14 @@ export default function AdSpacesModal({
   };
 
   const price = priceForSelection();
+  const isCornerPackageFlow = adType === 'corner';
+  const cornerPackageTotal = !channelPackagePricing
+    ? null
+    : cornerPackageCode === 'corner_ad'
+      ? channelPackagePricing.cornerAd
+      : cornerPackageCode === 'daily_30_days'
+        ? channelPackagePricing.dailyTotal
+        : channelPackagePricing.fiveMonthlyTotal;
 
   const submitTikTokBooking = async () => {
     if (!creator || !tiktokQuote || !tiktokCreative || tiktokBooking) return;
@@ -297,11 +325,17 @@ export default function AdSpacesModal({
 
   const campaignTotal = price !== null ? price * estimatedInsertions : null;
   const selectedSlotPosition = selectedSlot ? Number.parseInt(selectedSlot.replace('pct', ''), 10) || 0 : 0;
-  const canSubmit = purchaseMode === 'campaign'
-    ? !!(pendingFile && selectedSlot && campaignTotal !== null && estimatedInsertions > 0)
-    : !!(pendingFile && selectedSlot);
+  const canSubmit = isCornerPackageFlow
+    ? !!(pendingFile && selectedSlot && cornerPackageTotal !== null)
+    : purchaseMode === 'campaign'
+      ? !!(pendingFile && selectedSlot && campaignTotal !== null && estimatedInsertions > 0)
+      : !!(pendingFile && selectedSlot);
 
-  const displayTotal = purchaseMode === 'campaign' ? campaignTotal : price;
+  const displayTotal = isCornerPackageFlow
+    ? cornerPackageTotal
+    : purchaseMode === 'campaign'
+      ? campaignTotal
+      : price;
 
   const previewPosition = selectedSlot ? selectedSlotPosition : 45;
 
@@ -317,8 +351,13 @@ export default function AdSpacesModal({
       formData.append('image', pendingFile);
       formData.append('slotType', slotType);
       formData.append('adSize', adSize);
-      formData.append('durationBand', durationBand);
-      if (purchaseMode === 'campaign') {
+      formData.append('durationBand', isCornerPackageFlow ? CORNER_AD_DURATION : durationBand);
+      const isCampaign = isCornerPackageFlow
+        ? cornerPackageCode !== 'corner_ad'
+        : purchaseMode === 'campaign';
+      if (isCornerPackageFlow) {
+        formData.append('package_code', cornerPackageCode);
+      } else if (isCampaign) {
         formData.append('package_months', String(CAMPAIGN_PACKAGE_OPTIONS.find((option) => option.value === packageLength)?.months ?? 3));
         formData.append('total_insertions', String(Math.max(1, Math.round(estimatedInsertions))));
       }
@@ -327,7 +366,7 @@ export default function AdSpacesModal({
       // backend's; it won't ride along on this cross-origin request, so
       // send the same JWT explicitly via the non-httpOnly yepper_token cookie.
       const token = getToken();
-      const endpoint = purchaseMode === 'campaign'
+      const endpoint = isCampaign
         ? `${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/campaign/initiate`
         : `${BACKEND_URL}/api/social/youtube/ad-spaces/${creator.id}/claim/initiate`;
       const res = await fetch(endpoint, {
@@ -341,7 +380,7 @@ export default function AdSpacesModal({
       if (res.status === 401) {
         setNeedsLogin(true);
       } else if (!json.success) {
-        setError(json.message || (purchaseMode === 'campaign' ? 'Failed to start campaign' : 'Failed to claim ad space'));
+        setError(json.message || (isCampaign ? 'Failed to start campaign' : 'Failed to claim ad space'));
       } else if (json.allPaid === true) {
         setSlots((prev) => prev.map((s) => (s.slotType === slotType ? { ...s, status: 'claimed' } : s)));
         setClaimedJustNow(slotType);
@@ -353,7 +392,7 @@ export default function AdSpacesModal({
         setError('Payment could not be started.');
       }
     } catch {
-      setError(purchaseMode === 'campaign' ? 'Failed to start campaign' : 'Failed to claim ad space');
+      setError('Failed to start payment');
     } finally {
       setClaimingSlot(null);
     }
@@ -553,74 +592,114 @@ export default function AdSpacesModal({
             <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
               {/* Controls */}
               <div className="space-y-5">
-                <div>
-                  <div className="flex gap-2 p-1 rounded-xl bg-(--color-surface-2)">
-                    {(['campaign', 'single'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          setPurchaseMode(mode);
-                        }}
-                        className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${purchaseMode === mode ? 'bg-white text-black' : 'text-(--color-muted)'}`}
-                      >
-                        {mode === 'single' ? 'Single insertion' : 'Campaign (1 / 3 / 6 months)'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {purchaseMode === 'campaign' && (!postingEstimate || postingEstimate.source === 'none') ? (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-200">
-                    This creator has no posting pace yet, so campaign purchase is unavailable. Switch to Single insertions.
-                  </div>
-                ) : purchaseMode === 'campaign' ? (
+                {isCornerPackageFlow ? (
                   <div>
-                    <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Package length</p>
-                    <p className="text-xs text-(--color-muted) mb-3">Choose your campaign period and how many times you want your ads to come up in that period</p>
-                    <div className="grid max-w-md grid-cols-2 gap-2">
-                      {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
-                        const isSelected = packageLength === option.value;
-                        const defaultCount = getDefaultInsertionsForPackage(option.value);
-                        const value = Number(campaignInsertionsByPackage[option.value] ?? defaultCount) || defaultCount || 0;
+                    <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Choose a Corner ad plan</p>
+                    <div className="grid gap-2">
+                      {CORNER_PACKAGE_OPTIONS.map((plan) => {
+                        const selected = cornerPackageCode === plan.code;
                         return (
-                          <div
-                            key={option.value}
-                            className={`rounded-lg border p-2.5 transition-colors ${isSelected ? 'border-white bg-white text-black' : 'border-(--color-border) bg-[#303030] text-white'}`}
+                          <label
+                            key={plan.code}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                              selected ? 'border-white bg-white text-black' : 'border-(--color-border) bg-[#303030] text-white'
+                            }`}
                           >
-                            <button
-                              type="button"
-                              onClick={() => setPackageLength(option.value)}
-                              className="flex w-full items-center justify-between gap-2 text-left"
-                            >
-                              <span className="text-xs font-bold">{option.value}</span>
-                            </button>
-                            <div className="mt-2 flex items-center justify-between gap-1.5">
-                              <label htmlFor={`campaign-insertions-${option.months}`} className={`text-[10px] ${isSelected ? 'text-black/60' : 'text-(--color-muted)'}`}>Insertions</label>
-                              <input
-                                id={`campaign-insertions-${option.months}`}
-                                type="number"
-                                min={1}
-                                max={100000}
-                                value={value}
-                                onFocus={() => setPackageLength(option.value)}
-                                onChange={(e) => {
-                                  const nextValue = Number(e.target.value) || 0;
-                                  setCampaignInsertionsByPackage((prev) => ({
-                                    ...prev,
-                                    [option.value]: Math.max(1, nextValue),
-                                  }));
-                                  setPackageLength(option.value);
-                                }}
-                                className={`w-14 rounded border px-1.5 py-1 text-right text-xs font-bold ${isSelected ? 'border-black/20 bg-black text-white' : 'border-black bg-black text-white'}`}
-                              />
-                            </div>
-                          </div>
+                            <input
+                              type="radio"
+                              name={`youtube-corner-plan-${creator.id}`}
+                              value={plan.code}
+                              checked={selected}
+                              onChange={() => setCornerPackageCode(plan.code)}
+                              className="mt-1 accent-red-600"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-xs font-bold">{plan.title}</span>
+                            </span>
+                            <span className="shrink-0 text-xs font-extrabold">
+                              {cornerPackageTotal !== null ? `RWF ${(
+                                plan.code === 'corner_ad'
+                                  ? channelPackagePricing?.cornerAd
+                                  : plan.code === 'daily_30_days'
+                                    ? channelPackagePricing?.dailyTotal
+                                    : channelPackagePricing?.fiveMonthlyTotal
+                              )?.toLocaleString('en-US')}` : '—'}
+                            </span>
+                          </label>
                         );
                       })}
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <>
+                    <div>
+                      <div className="flex gap-2 p-1 rounded-xl bg-(--color-surface-2)">
+                        {(['campaign', 'single'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setPurchaseMode(mode)}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${purchaseMode === mode ? 'bg-white text-black' : 'text-(--color-muted)'}`}
+                          >
+                            {mode === 'single' ? 'Single insertion' : 'Campaign (1 / 3 / 6 months)'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {purchaseMode === 'campaign' && (!postingEstimate || postingEstimate.source === 'none') ? (
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-200">
+                        This creator has no posting pace yet, so campaign purchase is unavailable. Switch to Single insertions.
+                      </div>
+                    ) : purchaseMode === 'campaign' ? (
+                      <div>
+                        <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-1">Package length</p>
+                        <p className="text-xs text-(--color-muted) mb-3">Choose your campaign period and how many times you want your ads to come up in that period</p>
+                        <div className="grid max-w-md grid-cols-2 gap-2">
+                          {CAMPAIGN_PACKAGE_OPTIONS.map((option) => {
+                            const isSelected = packageLength === option.value;
+                            const defaultCount = getDefaultInsertionsForPackage(option.value);
+                            const value = Number(campaignInsertionsByPackage[option.value] ?? defaultCount) || defaultCount || 0;
+                            return (
+                              <div
+                                key={option.value}
+                                className={`rounded-lg border p-2.5 transition-colors ${isSelected ? 'border-white bg-white text-black' : 'border-(--color-border) bg-[#303030] text-white'}`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setPackageLength(option.value)}
+                                  className="flex w-full items-center justify-between gap-2 text-left"
+                                >
+                                  <span className="text-xs font-bold">{option.value}</span>
+                                </button>
+                                <div className="mt-2 flex items-center justify-between gap-1.5">
+                                  <label htmlFor={`campaign-insertions-${option.months}`} className={`text-[10px] ${isSelected ? 'text-black/60' : 'text-(--color-muted)'}`}>Insertions</label>
+                                  <input
+                                    id={`campaign-insertions-${option.months}`}
+                                    type="number"
+                                    min={1}
+                                    max={100000}
+                                    value={value}
+                                    onFocus={() => setPackageLength(option.value)}
+                                    onChange={(e) => {
+                                      const nextValue = Number(e.target.value) || 0;
+                                      setCampaignInsertionsByPackage((prev) => ({
+                                        ...prev,
+                                        [option.value]: Math.max(1, nextValue),
+                                      }));
+                                      setPackageLength(option.value);
+                                    }}
+                                    className={`w-14 rounded border px-1.5 py-1 text-right text-xs font-bold ${isSelected ? 'border-black/20 bg-black text-white' : 'border-black bg-black text-white'}`}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
 
                 <div>
                   <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Slot position</p>
@@ -648,10 +727,11 @@ export default function AdSpacesModal({
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Duration</p>
-                  <div className="flex gap-2">
-                    {DURATION_BANDS.map((band) => (
+                {!isCornerPackageFlow && (
+                  <div>
+                    <p className="text-xs font-bold text-(--color-white) uppercase tracking-wide mb-2">Duration</p>
+                    <div className="flex gap-2">
+                      {DURATION_BANDS.map((band) => (
                       <button
                         key={band}
                         onClick={() => setDurationBand(band)}
@@ -659,9 +739,10 @@ export default function AdSpacesModal({
                       >
                         {band}
                       </button>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -680,25 +761,23 @@ export default function AdSpacesModal({
             </div>
 
             <div className="mt-8 flex items-end justify-between gap-4 border-t border-(--color-border) pt-6">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
-                {displayTotal !== null ? `${displayTotal.toLocaleString()} RWF` : '—'}
-              </p>
               <button
                 onClick={submitClaim}
                 disabled={!canSubmit || (!!selectedSlot && claimingSlot === selectedSlot)}
-                className="shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
+                className="ml-auto shrink-0 px-8 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold text-white disabled:opacity-50"
               >
                 {!!selectedSlot && claimingSlot === selectedSlot
                   ? 'Processing…'
-                  : purchaseMode === 'campaign'
-                    ? `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Start Campaign`
-                    : `Pay ${displayTotal?.toLocaleString() ?? '—'} RWF & Claim Slot`}
+                  : isCornerPackageFlow
+                    ? 'Continue to payment'
+                    : purchaseMode === 'campaign'
+                      ? `Start Campaign · ${displayTotal?.toLocaleString() ?? '—'} RWF`
+                      : `Claim Slot · ${displayTotal?.toLocaleString() ?? '—'} RWF`}
               </button>
             </div>
           </div>
         )}
 
-        <p className="mt-6 text-[11px] text-(--color-muted)">Note: videos under 60 seconds get the ad overlaid across the full video rather than at a fixed slot position.</p>
       </div>
     </div>
   );

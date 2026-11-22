@@ -10,7 +10,7 @@ import DashboardFeed from './DashboardFeed';
 import AdsSamplePanel from './AdsSamplePanel';
 import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import { DEMO_YOUTUBE_CHANNELS } from '@/app/_lib/demo-youtube-channels';
+import { YOUTUBE_PARTNER_CHANNELS } from '@/app/_lib/youtube-partner-channels';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 type Tab = 'all' | 'deals' | 'websites' | 'youtube' | 'tiktok';
@@ -59,7 +59,7 @@ export default function HomeExplore({
   const [websiteIntroOpen, setWebsiteIntroOpen] = useState(false);
   const displayWebsites = websites.length > 0 ? websites : MOCK_WEBSITES;
   const displayCreators = creators.length > 0 ? creators : MOCK_CREATORS;
-  const feedCreators = [...DEMO_YOUTUBE_CHANNELS, ...displayCreators];
+  const feedCreators = [...YOUTUBE_PARTNER_CHANNELS, ...displayCreators];
   const filteredCreators = tab === 'tiktok'
     ? feedCreators.filter((creator) => creator.provider === 'tiktok')
     : feedCreators.filter((creator) => creator.provider !== 'tiktok');

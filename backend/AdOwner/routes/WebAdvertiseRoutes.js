@@ -651,7 +651,7 @@ router.post('/payment/verify-callback', async (req, res) => {
 });
 
 router.get('/payment/debug-config', (req, res) => {
-  const sandboxMode = process.env.FLUTTERWAVE_TEST_MODE !== 'false'; // default true
+  const sandboxMode = PaymentController.isFlutterwaveTestMode;
   const flwKey     = sandboxMode ? process.env.FLW_TEST_SECRET_KEY : process.env.FLW_LIVE_SECRET_KEY;
 
   res.json({

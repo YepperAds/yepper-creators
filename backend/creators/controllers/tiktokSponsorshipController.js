@@ -114,12 +114,32 @@ async function refreshVideoMetrics(sponsorship) {
   if (!video) return sponsorship;
   const updated = await query(
     `UPDATE tiktok_sponsorships
-     SET views = $1, likes = $2, comments = $3, last_stats_at = NOW(), updated_at = NOW()
-     WHERE id = $4 RETURNING *`,
-    [Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), sponsorship.id],
+     SET views = $1, likes = $2, comments = $3, shares = $4, last_stats_at = NOW(), updated_at = NOW()
+     WHERE id = $5 RETURNING *`,
+    [Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), Number(video.share_count || 0), sponsorship.id],
   );
   return updated.rows[0] || sponsorship;
 }
+
+exports.refreshAllTikTokStats = async () => {
+  const result = await query(
+    `SELECT id, creator_id, tiktok_video_id, last_stats_at
+     FROM tiktok_sponsorships
+     WHERE payment_status = 'paid'
+       AND status <> 'cancelled'
+       AND tiktok_video_id IS NOT NULL
+       AND (last_stats_at IS NULL OR last_stats_at < NOW() - INTERVAL '15 minutes')
+     ORDER BY last_stats_at ASC NULLS FIRST
+     LIMIT 100`,
+  );
+  for (const sponsorship of result.rows) {
+    try {
+      await refreshVideoMetrics(sponsorship);
+    } catch (error) {
+      console.error(`[tiktokSponsorship] Scheduled stats refresh failed for sponsorship ${sponsorship.id}:`, error.message);
+    }
+  }
+};
 
 async function fetchLatestTikTokVideo(creatorId) {
   const accessToken = await getCreatorTikTokToken(creatorId);
@@ -441,7 +461,7 @@ exports.getPendingForCreator = async (req, res) => {
                   `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, campaign_brief,
                     creative_image_url,
               destination_url, tracking_token, amount, status, video_url, views, likes,
-              comments, clicks, created_at, posted_at
+              comments, shares, clicks, created_at, posted_at
        FROM tiktok_sponsorships
        WHERE creator_id = $1 AND payment_status = 'paid' AND status <> 'cancelled'
        ORDER BY created_at DESC LIMIT 50`,
@@ -470,6 +490,7 @@ exports.getPendingForCreator = async (req, res) => {
         views: Number(row.views || 0),
         likes: Number(row.likes || 0),
         comments: Number(row.comments || 0),
+        shares: Number(row.shares || 0),
         clicks: Number(row.clicks || 0),
         createdAt: row.created_at,
         postedAt: row.posted_at,
@@ -489,7 +510,7 @@ exports.getAdvertiserCampaigns = async (req, res) => {
       `SELECT sponsorship.id, sponsorship.creator_id, sponsorship.tiktok_video_id,
               sponsorship.last_stats_at, sponsorship.brand_name, sponsorship.creative_image_url,
               sponsorship.status, sponsorship.video_url, sponsorship.views, sponsorship.likes,
-              sponsorship.comments, sponsorship.clicks, sponsorship.created_at,
+              sponsorship.comments, sponsorship.shares, sponsorship.clicks, sponsorship.created_at,
               COALESCE(connection.username, creator.username, creator.full_name, 'TikTok creator') AS creator_name
        FROM tiktok_sponsorships sponsorship
        JOIN creators creator ON creator.id = sponsorship.creator_id
@@ -516,6 +537,7 @@ exports.getAdvertiserCampaigns = async (req, res) => {
         views: Number(current.views || 0),
         likes: Number(current.likes || 0),
         comments: Number(current.comments || 0),
+        shares: Number(current.shares || 0),
         clicks: Number(current.clicks || 0),
         createdAt: current.created_at,
       };
@@ -549,10 +571,10 @@ exports.submitVideo = async (req, res) => {
 
     const result = await query(
       `UPDATE tiktok_sponsorships
-       SET tiktok_video_id = $1, video_url = $2, views = $3, likes = $4, comments = $5,
+       SET tiktok_video_id = $1, video_url = $2, views = $3, likes = $4, comments = $5, shares = $6,
            link_added = TRUE, status = 'submitted', posted_at = NOW(), last_stats_at = NOW(), updated_at = NOW()
-       WHERE id = $6 AND creator_id = $7 AND status = 'pending_post' RETURNING id, views, likes, comments, clicks, video_url`,
-      [videoId, video.share_url || videoUrl, Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), req.params.id, creatorId],
+       WHERE id = $7 AND creator_id = $8 AND status = 'pending_post' RETURNING id, views, likes, comments, shares, clicks, video_url`,
+      [videoId, video.share_url || videoUrl, Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), Number(video.share_count || 0), req.params.id, creatorId],
     );
     if (!result.rowCount) return res.status(409).json({ success: false, message: 'This sponsorship was already submitted' });
     return res.json({ success: true, data: result.rows[0] });
@@ -568,7 +590,7 @@ exports.getAdvertiserReports = async (req, res) => {
   try {
     const result = await query(
             `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, amount, status,
-              video_url, views, likes, comments, clicks, created_at, posted_at
+              video_url, views, likes, comments, shares, clicks, created_at, posted_at
        FROM tiktok_sponsorships
        WHERE advertiser_id = $1 AND creator_id = $2 AND payment_status = 'paid'
        ORDER BY created_at DESC LIMIT 20`,
@@ -589,6 +611,7 @@ exports.getAdvertiserReports = async (req, res) => {
         views: Number(current.views || 0),
         likes: Number(current.likes || 0),
         comments: Number(current.comments || 0),
+        shares: Number(current.shares || 0),
         clicks: Number(current.clicks || 0),
         createdAt: current.created_at,
         postedAt: current.posted_at,

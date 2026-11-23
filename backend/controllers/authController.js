@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmailNotification = require('./emailService');
 const { createNotification } = require('../creators/utils/notificationUtils');
+const { isConfigured: isWhatsAppConfigured, sendTestMessage } = require('../utils/whatsappReportService');
 
 // Generate JWT Token — embeds user fields so middleware never needs a DB lookup
 const generateToken = (userOrId) => {
@@ -396,6 +397,8 @@ exports.getProfile = async (req, res) => {
         username: creator.username,
         what_they_do: creator.what_they_do,
         whatTheyDo: creator.what_they_do,
+        whatsappPhoneNumber: creator.whatsapp_phone_number || '',
+        whatsappReportsEnabled: Boolean(creator.whatsapp_reports_enabled),
         createdAt: creator.created_at,
         updatedAt: creator.updated_at,
       },
@@ -425,6 +428,8 @@ exports.getCurrentUser = async (req, res) => {
         username: creator.username,
         what_they_do: creator.what_they_do,
         whatTheyDo: creator.what_they_do,
+        whatsappPhoneNumber: creator.whatsapp_phone_number || '',
+        whatsappReportsEnabled: Boolean(creator.whatsapp_reports_enabled),
         googleId: creator.google_id,
         createdAt: creator.created_at,
         updatedAt: creator.updated_at,
@@ -469,6 +474,7 @@ exports.googleExchange = async (req, res) => {
 
     // Try to find existing creator by googleId first, then by email
     let creator = await Creator.findByGoogleId(googleId);
+    let isNew = false;
 
     if (!creator) {
       creator = await Creator.findByEmail(email);
@@ -478,6 +484,7 @@ exports.googleExchange = async (req, res) => {
       } else {
         // Brand new user via Google — create and return full creator
         creator = await Creator.create({ googleId, email, fullName: name || email.split('@')[0], avatar: avatar || '' });
+        isNew = true;
       }
     }
 
@@ -491,6 +498,7 @@ exports.googleExchange = async (req, res) => {
     return res.json({
       success: true,
       token,
+      isNew,
       needsProfile: Boolean(needsProfile),
       user: {
         id:         creator.id,
@@ -577,5 +585,97 @@ exports.completeProfile = async (req, res) => {
   } catch (err) {
     console.error('completeProfile error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getWhatsAppReports = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+    const creator = await Creator.findById(userId);
+    if (!creator) return res.status(404).json({ success: false, message: 'User not found' });
+
+    return res.json({
+      success: true,
+      data: {
+        phoneNumber: creator.whatsapp_phone_number || '',
+        enabled: Boolean(creator.whatsapp_reports_enabled),
+      },
+    });
+  } catch (error) {
+    console.error('Get WhatsApp report settings error:', error);
+    return res.status(500).json({ success: false, message: 'Could not load WhatsApp report settings' });
+  }
+};
+
+exports.updateWhatsAppReports = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+    const rawPhone = typeof req.body?.phoneNumber === 'string' ? req.body.phoneNumber.trim() : '';
+    const phoneNumber = rawPhone.replace(/[\s().-]/g, '');
+    const enabled = req.body?.enabled === true;
+
+    if (phoneNumber && !/^\+[1-9]\d{7,14}$/.test(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter a valid phone number in international format, such as +14155552671.',
+      });
+    }
+    if (enabled && !phoneNumber) {
+      return res.status(400).json({ success: false, message: 'Add a phone number before enabling weekly reports.' });
+    }
+
+    const fields = {
+      whatsapp_phone_number: phoneNumber || null,
+      whatsapp_reports_enabled: enabled,
+    };
+    if (enabled) fields.whatsapp_reports_consent_at = new Date();
+
+    const updated = await Creator.update(userId, fields);
+    if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
+
+    return res.json({
+      success: true,
+      data: {
+        phoneNumber: updated.whatsapp_phone_number || '',
+        enabled: Boolean(updated.whatsapp_reports_enabled),
+      },
+      message: 'WhatsApp report settings saved.',
+    });
+  } catch (error) {
+    console.error('Update WhatsApp report settings error:', error);
+    return res.status(500).json({ success: false, message: 'Could not save WhatsApp report settings' });
+  }
+};
+
+exports.sendWhatsAppReportTest = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+    if (!isWhatsAppConfigured()) {
+      return res.status(503).json({
+        success: false,
+        message: 'WhatsApp sending is not configured on the backend yet.',
+      });
+    }
+
+    const creator = await Creator.findById(userId);
+    if (!creator) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!creator.whatsapp_phone_number || !creator.whatsapp_reports_enabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Save a phone number and enable weekly reports before sending a test.',
+      });
+    }
+
+    await sendTestMessage(creator.whatsapp_phone_number, creator.full_name);
+    return res.json({ success: true, message: 'Test WhatsApp report sent.' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown WhatsApp delivery error';
+    console.error('WhatsApp test message failed:', message);
+    return res.status(502).json({ success: false, message: 'WhatsApp test failed. Check the Meta API configuration and recipient eligibility.' });
   }
 };

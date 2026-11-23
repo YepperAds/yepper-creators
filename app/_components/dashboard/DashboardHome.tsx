@@ -4,6 +4,7 @@ import LeftRail from './LeftRail';
 import RightRail from './RightRail';
 import CenterPanel from './CenterPanel';
 import SocialConnectLauncher from './SocialConnectLauncher';
+import WhatsAppReportsSetupPrompt from './WhatsAppReportsSetupPrompt';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 function CenterPanelSkeleton() {
@@ -53,6 +54,9 @@ export default function DashboardHome({
         </div>
       </div>
       <SocialConnectLauncher />
+      <Suspense fallback={null}>
+        <WhatsAppReportsSetupPrompt />
+      </Suspense>
     </div>
   );
 }

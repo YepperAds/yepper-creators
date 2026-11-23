@@ -20,4 +20,13 @@ const adminLoginLimiter = rateLimit({
   message: { success: false, code: 'ERR_NODE_AUTH' },
 });
 
-module.exports = { emailLimiter, adminLoginLimiter };
+// Test WhatsApp messages can consume the Meta test sender's limited quota.
+const whatsappTestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many WhatsApp test messages. Try again in an hour.' },
+});
+
+module.exports = { emailLimiter, adminLoginLimiter, whatsappTestLimiter };

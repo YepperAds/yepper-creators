@@ -19,6 +19,10 @@ async function initCreatorsDatabase() {
     `ALTER TABLE creators ALTER COLUMN what_they_do DROP NOT NULL`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS what_they_do VARCHAR(100)`,
+    `ALTER TABLE creators
+       ADD COLUMN IF NOT EXISTS whatsapp_phone_number VARCHAR(20),
+       ADD COLUMN IF NOT EXISTS whatsapp_reports_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+       ADD COLUMN IF NOT EXISTS whatsapp_reports_consent_at TIMESTAMPTZ`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_name VARCHAR(255)`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_url TEXT`,
     `ALTER TABLE creators ADD COLUMN IF NOT EXISTS website_domain VARCHAR(255)`,
@@ -277,6 +281,7 @@ async function initCreatorsDatabase() {
        views BIGINT NOT NULL DEFAULT 0,
        likes BIGINT NOT NULL DEFAULT 0,
        comments BIGINT NOT NULL DEFAULT 0,
+       shares BIGINT NOT NULL DEFAULT 0,
        clicks BIGINT NOT NULL DEFAULT 0,
        link_added BOOLEAN NOT NULL DEFAULT FALSE,
        posted_at TIMESTAMP WITH TIME ZONE,
@@ -284,6 +289,21 @@ async function initCreatorsDatabase() {
        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
+     `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS shares BIGINT NOT NULL DEFAULT 0`,
+     `CREATE TABLE IF NOT EXISTS whatsapp_report_deliveries (
+        advertiser_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
+        report_week DATE NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'sending',
+        attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        sent_at TIMESTAMPTZ,
+        payload JSONB,
+        sent_parts INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        PRIMARY KEY (advertiser_id, report_week)
+      )`,
+     `ALTER TABLE whatsapp_report_deliveries
+        ADD COLUMN IF NOT EXISTS payload JSONB,
+        ADD COLUMN IF NOT EXISTS sent_parts INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS creative_image_url TEXT`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_creator_idx ON tiktok_sponsorships (creator_id, status, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_advertiser_idx ON tiktok_sponsorships (advertiser_id, created_at DESC)`,

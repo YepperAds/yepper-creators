@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startDemoSession } from '@/app/_lib/demo-session';
+import WhatsAppReportsSettings from './WhatsAppReportsSettings';
 
 export default function SettingsPanel() {
   const router = useRouter();
@@ -47,6 +48,10 @@ export default function SettingsPanel() {
           Start demo
         </button>
       </section>
+
+      <div className="mt-4">
+        <WhatsAppReportsSettings />
+      </div>
     </div>
   );
 }

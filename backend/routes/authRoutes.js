@@ -3,7 +3,7 @@ const express = require('express');
 const passport = require('passport');
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middleware/authmiddleware');
-const { emailLimiter } = require('../middleware/rateLimiters');
+const { emailLimiter, whatsappTestLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
 
@@ -22,6 +22,9 @@ router.post('/resend-waitlist-verification', emailLimiter, authController.resend
 
 // Get profile (protected route)
 router.get('/profile', authMiddleware, authController.getProfile);
+router.get('/whatsapp-reports', authMiddleware, authController.getWhatsAppReports);
+router.put('/whatsapp-reports', authMiddleware, authController.updateWhatsAppReports);
+router.post('/whatsapp-reports/test', authMiddleware, whatsappTestLimiter, authController.sendWhatsAppReportTest);
 
 // Get user (protected route)
 router.get('/me', authMiddleware, authController.getCurrentUser);

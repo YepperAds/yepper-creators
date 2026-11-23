@@ -3290,6 +3290,7 @@ exports.refreshAllAdPostStats = async () => {
        FROM ad_video_posts
        WHERE status = 'live' AND platform_video_id IS NOT NULL
          AND (last_stats_at IS NULL OR last_stats_at < NOW() - INTERVAL '30 minutes')
+       ORDER BY last_stats_at ASC NULLS FIRST
        LIMIT 100`,
     );
     for (const post of posts.rows) {

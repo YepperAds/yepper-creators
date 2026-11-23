@@ -40,6 +40,8 @@ const creatorsRouter                           = require('./creators/routes/crea
 const { initCreatorsDatabase }                 = require('./creators/models/initDb');
 const { refreshAllAdPostStats }                = require('./creators/controllers/creatorController');
 const cron                                     = require('node-cron');
+const { sendWeeklyReports }                    = require('./utils/whatsappReportService');
+const { refreshAllTikTokStats }                 = require('./creators/controllers/tiktokSponsorshipController');
 
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
@@ -146,6 +148,18 @@ async function startServer() {
   await initCreatorsDatabase().catch((err) => {
     console.error('❌ Failed to initialise creators DB schema:', err.message);
   });
+
+  const whatsappReportCron = process.env.WHATSAPP_REPORT_CRON || '0 9 * * 1';
+  cron.schedule(whatsappReportCron, async () => {
+    try {
+      await refreshAllAdPostStats();
+      await refreshAllTikTokStats();
+      await sendWeeklyReports();
+    } catch (err) {
+      console.error('[whatsapp-reports] Weekly report run failed:', err);
+    }
+  }, { timezone: 'UTC' });
+  console.log(`✓ WhatsApp weekly reports scheduled (UTC): ${whatsappReportCron}`);
 
   // Drop owner_id FK constraints that block creators from creating websites/ad-spaces
   try {

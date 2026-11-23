@@ -15,6 +15,7 @@ import ConnectAccountsPage from '@/app/(advertiser)/connect-accounts/page';
 import SupportPage from '@/app/(advertiser)/support/page';
 import DealsGrid from '@/app/(advertiser)/_components/DealsGrid';
 import WebsitesList from '@/app/(advertiser)/_components/WebsitesList';
+import SettingsPanel from './SettingsPanel';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 
 // Solid pill, not just bare text on the mesh backdrop. The panels using
@@ -106,6 +107,8 @@ export default function CenterPanel({
     content = <LegacyPanel onBack={backToFeed}><WalletPage /></LegacyPanel>;
   } else if (panel === 'profile') {
     content = <LegacyPanel onBack={backToFeed}><ProfilePage /></LegacyPanel>;
+  } else if (panel === 'settings') {
+    content = <SettingsPanel />;
   } else if (panel === 'notifications') {
     content = <NotificationsPage onBack={backToFeed} />;
   } else if (panel === 'connect-accounts') {

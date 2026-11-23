@@ -323,3 +323,7 @@ reader.onload = (event) => {
 | `components/MarketingAssistant.tsx` | 74 | `never[]`, implicit `any` |
 | `utils/api.tsx` | 69 | Untyped function parameters |
 | `ad-promoter/pages/create-categories/[websiteId]/page.tsx` | 64 | Wrong imports + state types |
+
+## Advertiser demo
+
+Authenticated users can open **More > Settings > Start demo**. The YouTube demo uses fictional channels and stores completed campaigns, uploaded creative previews, and sample reports only in `sessionStorage`; no campaign or payment API is called. Closing the tab clears the demo session. The payment action is simulated, and `/api/collector` ignores demo-page visits.

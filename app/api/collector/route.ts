@@ -14,6 +14,10 @@ export async function POST(req: Request) {
       is_estimated = false,
     } = body || {};
 
+    if (typeof url === 'string' && new URL(url, req.url).pathname === '/demo') {
+      return new Response(JSON.stringify({ ok: true, demo: true }), { status: 200 });
+    }
+
     const ip = (req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '').toString();
 
     await query(

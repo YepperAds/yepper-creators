@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   HomeIcon as OutlineHome,
   FireIcon as OutlineFire,
@@ -15,6 +15,7 @@ import {
   GlobeAltIcon as OutlineGlobe,
   FilmIcon as OutlineFilm,
   ArrowLeftEndOnRectangleIcon as OutlineLogout,
+  Cog6ToothIcon as OutlineSettings,
   Bars3Icon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -104,6 +105,7 @@ function MenuRow({
 }
 
 export default function LeftRail() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activePanel = searchParams.get('panel');
@@ -210,6 +212,14 @@ export default function LeftRail() {
                   label="Report a problem"
                   onClick={() => { window.location.href = 'mailto:support@yepper.cc'; closeMore(); }}
                 /> */}
+                <MenuRow
+                  icon={OutlineSettings}
+                  label="Settings"
+                  onClick={() => {
+                    router.push('/?panel=settings', { scroll: false });
+                    closeMore();
+                  }}
+                />
                 <MenuRow icon={OutlineLogout} label={loggingOut ? 'Signing out…' : 'Log out'} onClick={handleLogout} />
               </div>
             )}

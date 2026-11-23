@@ -1,6 +1,8 @@
-import type { PublicCreator } from './public-home';
+'use strict';
 
-const partnerChannels = [
+const { getClient } = require('../config/db');
+
+const MOCK_CHANNELS = [
   {
     id: 'partner-youtube-1',
     name: 'Rocky Entertainment',
@@ -58,63 +60,101 @@ const partnerChannels = [
     videoId: 'WzcIXpcNVKY',
   },
   {
+    id: 'partner-youtube-darina-kayumba',
     name: 'Darina Kayumba',
     avatar: 'https://yt3.googleusercontent.com/HZ9iB996-X1S4Ff_zctHO2K5ZPmgboUZvc2wVJZRHXVP7s3dl0moy8JdSaFSrzDhGXKJ5GYw=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 50_600,
     videoId: 'vGh1i_1Fb1I',
   },
   {
+    id: 'partner-youtube-the-new-times-rwanda',
     name: 'The New Times Rwanda',
     avatar: 'https://yt3.googleusercontent.com/33dN6_xF6f8Q6_a_RelTOKAomfvEcXP70iCfuOE54HLv0Kt59tP6PyRSrmEmiyExHU2qQIdv=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 176_000,
     videoId: 'ED6lAZfrN1o',
   },
   {
+    id: 'partner-youtube-kigali-today',
     name: 'Kigali Today',
     avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_lTjQJCTI2odV4R__tFwUpGEAoPDesGoz16YSOG9pvKOT8=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 1_200_000,
     videoId: 'i_SLLoQhtd4',
   },
   {
+    id: 'partner-youtube-b-b-kigali-89-7fm',
     name: 'B&B Kigali 89.7FM',
     avatar: 'https://yt3.googleusercontent.com/vgkVbbIY6GdH18OS5Nc6HKzkhHeraadHdqbzRF1642ByAokFxHSTcS0IyWZhVous7okk3gGP5u0=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 773_000,
     videoId: 'oiOYAWkrQQM',
   },
   {
+    id: 'partner-youtube-tv1-rwanda',
     name: 'TV1 Rwanda',
     avatar: 'https://yt3.googleusercontent.com/zSAlAYsqNs-8TQixdXE28xJZZ2r8FhbGsW11cCjJX2yhnZSvaOWjDCvi1_EMVQ40n2ERu9OVoQ=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 736_000,
     videoId: 'k59FGHg_7sQ',
   },
   {
+    id: 'partner-youtube-102-3-kiss-fm',
     name: '102.3 KISS FM',
     avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_ka7nhlPSSSEBt76l2G9uH3PXVL3L9ioh9ynf_J1FdXn00=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 164_000,
     videoId: 'SvfmABD8QM8',
   },
-] as const;
+];
 
-export const YOUTUBE_PARTNER_CHANNELS: PublicCreator[] = partnerChannels.map((channel) => ({
-  id: 'id' in channel
-    ? channel.id
-    : `partner-youtube-${channel.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-  provider: 'youtube',
-  isPartnerChannel: true,
-  username: channel.name,
-  name: channel.name,
-  avatar: channel.avatar,
-  whatTheyDo: null,
-  channelName: channel.name,
-  channelUrl: null,
-  subscribers: channel.subscribers,
-  totalViews: 0,
-  videos: [{
-    title: 'Featured video',
-    views: 0,
-    likes: 0,
-    published_at: null,
-    thumbnail: `https://img.youtube.com/vi/${channel.videoId}/hqdefault.jpg`,
-    url: `https://www.youtube.com/watch?v=${channel.videoId}`,
-  }],
-}));
+async function up() {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE`);
+
+    for (const channel of MOCK_CHANNELS) {
+      const email = `${channel.id}@mock.yepper.invalid`;
+      const username = `mock_${channel.id.replace(/[^a-z0-9]+/gi, '_')}`;
+      const creatorRes = await client.query(
+        `INSERT INTO creators (google_id, email, full_name, avatar, username, is_mock)
+         VALUES ($1,$2,$3,$4,$5,TRUE)
+         ON CONFLICT (google_id) DO UPDATE SET
+           full_name=EXCLUDED.full_name, avatar=EXCLUDED.avatar, is_mock=TRUE, updated_at=NOW()
+         RETURNING id`,
+        [`mock-youtube:${channel.id}`, email, channel.name, channel.avatar, username],
+      );
+      const creatorId = creatorRes.rows[0].id;
+      const videoUrl = `https://www.youtube.com/watch?v=${channel.videoId}`;
+      await client.query(
+        `INSERT INTO social_connections
+           (creator_id, provider, username, followers_count, avatar_url, total_views, total_posts, last_public_video_refresh_at)
+         VALUES ($1,'youtube',$2,$3,$4,0,0,NOW())
+         ON CONFLICT (creator_id, provider) DO UPDATE SET
+           username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
+           avatar_url=EXCLUDED.avatar_url, last_public_video_refresh_at=NOW()`,
+        [creatorId, channel.name, channel.subscribers, channel.avatar],
+      );
+      await client.query(
+        `INSERT INTO social_video_stats (creator_id, provider, title, thumbnail_url, video_url)
+         VALUES ($1,'youtube','Featured video',$2,$3)
+         ON CONFLICT (creator_id, provider, video_url) WHERE video_url IS NOT NULL DO UPDATE SET
+           thumbnail_url=EXCLUDED.thumbnail_url, fetched_at=NOW()`,
+        [creatorId, `https://img.youtube.com/vi/${channel.videoId}/hqdefault.jpg`, videoUrl],
+      );
+    }
+
+    await client.query('COMMIT');
+    console.log(`Mock YouTube channels ready (${MOCK_CHANNELS.length} seeded).`);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+if (require.main === module) {
+  up().then(() => process.exit(0)).catch((error) => {
+    console.error('Mock YouTube channel migration failed:', error);
+    process.exit(1);
+  });
+}
+
+module.exports = { up };

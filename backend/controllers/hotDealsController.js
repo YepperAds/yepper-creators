@@ -26,7 +26,7 @@ const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('..
 const sendEmailNotification = require('./emailService');
 
 const CREATOR_SHARE = 0.70; // creator keeps 70% of the deal price, Yepper takes the rest
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 // ── Deal email — mirrors the on-site Hot Deal card ──────────────────────────
 // Same visual identity as HotDealsSection.tsx/HotDealPlatformCard.tsx (dark
@@ -230,6 +230,7 @@ function mapDeal(row) {
     status: row.status,
     soldAt: row.sold_at,
     createdAt: row.created_at,
+    shareUrl: `${FRONTEND_URL}/?dealId=${row.id}`,
   };
 }
 

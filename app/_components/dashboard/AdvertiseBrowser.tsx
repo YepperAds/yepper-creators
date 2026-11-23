@@ -9,7 +9,6 @@ import AdSpacesModal from '@/app/_components/home/AdSpacesModal';
 import HotDealsSection from '@/app/_components/home/HotDealsSection';
 import WebsiteAdPreview from './WebsiteAdPreview';
 import { MOCK_WEBSITES, MOCK_CREATORS } from '@/app/_lib/mock-home-data';
-import { YOUTUBE_PARTNER_CHANNELS } from '@/app/_lib/youtube-partner-channels';
 import YoutubeChannelPackagePicker from './YoutubeChannelPackagePicker';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
@@ -120,7 +119,7 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteList = websites.length > 0 ? websites : MOCK_WEBSITES;
-  const creatorList = [...YOUTUBE_PARTNER_CHANNELS, ...(creators.length > 0 ? creators : MOCK_CREATORS)];
+  const creatorList = creators.length > 0 ? creators : MOCK_CREATORS;
 
   const [activeWebsite, setActiveWebsite] = useState<PublicWebsite | null>(null);
   const [adSpaces, setAdSpaces] = useState<AdSpace[]>([]);

@@ -19,6 +19,17 @@ export default function AdminYoutubers() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [mockFormOpen, setMockFormOpen] = useState(false);
+  const [mockSaving, setMockSaving] = useState(false);
+  const [mockForm, setMockForm] = useState({
+    channelName: '',
+    channelUrl: '',
+    subscribers: '0',
+    totalViews: '0',
+    totalPosts: '0',
+    avatarUrl: '',
+    featuredVideoUrl: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +62,35 @@ export default function AdminYoutubers() {
 
   useEffect(() => { loadPartnerRequests(); }, [loadPartnerRequests]);
 
+  const addMockYoutuber = async (event) => {
+    event.preventDefault();
+    setMockSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      await adminFetch('/youtubers/mocks', {
+        method: 'POST',
+        body: JSON.stringify(mockForm),
+      }, adminHeaders);
+      setMockForm({
+        channelName: '',
+        channelUrl: '',
+        subscribers: '0',
+        totalViews: '0',
+        totalPosts: '0',
+        avatarUrl: '',
+        featuredVideoUrl: '',
+      });
+      setMockFormOpen(false);
+      setNotice('Mock YouTube channel added. It is now available in the Hot Deal builder.');
+      await load();
+    } catch (e) {
+      setError(e.message || 'Could not add mock YouTube channel.');
+    } finally {
+      setMockSaving(false);
+    }
+  };
+
   // Debounce search
   const [searchInput, setSearchInput] = useState('');
   useEffect(() => {
@@ -63,7 +103,7 @@ export default function AdminYoutubers() {
   }, [searchInput]);
 
   const pages = Math.ceil(total / 20);
-  const visibleCreatorIds = youtubers.map(creator => String(creator._id));
+  const visibleCreatorIds = youtubers.filter(creator => !creator.isMock).map(creator => String(creator._id));
   const visibleSelectedCount = visibleCreatorIds.filter(id => selectedCreators.includes(id)).length;
   const allVisibleSelected = visibleCreatorIds.length > 0
     && visibleCreatorIds.every(id => selectedCreators.includes(id));
@@ -130,8 +170,15 @@ export default function AdminYoutubers() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 700 }}>Youtubers</h2>
-          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} connected YouTube channels. Channel verification only confirms creator eligibility. Each long video still needs separate admin approval.</p>
+          <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{total} YouTube channels, including mock profiles. Verification confirms eligibility for real creators; each long video still needs separate admin approval.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setMockFormOpen(open => !open)}
+          style={{ ...pageBtn, background: '#111', borderColor: '#111', color: '#fff', fontWeight: 700 }}
+        >
+          {mockFormOpen ? 'Cancel' : '+ Add mock channel'}
+        </button>
       </div>
 
       {error && (
@@ -143,6 +190,41 @@ export default function AdminYoutubers() {
         <div role="status" style={{ background: '#f0fff4', border: '1px solid #9ae6b4', borderRadius: 8, padding: '10px 14px', color: '#276749', marginBottom: 14, fontSize: 13 }}>
           {notice}
         </div>
+      )}
+
+      {mockFormOpen && (
+        <form onSubmit={addMockYoutuber} style={{ background: '#fff', border: '1px solid #e6eaf0', borderRadius: 10, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Add a mock YouTube channel</h3>
+          <p style={{ margin: '0 0 14px', color: '#888', fontSize: 12 }}>
+            Mock channels are labeled in admin and can be selected as YouTube items when building Hot Deals.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+            <label style={fieldLabel}>Channel name
+              <input required maxLength={255} value={mockForm.channelName} onChange={e => setMockForm(current => ({ ...current, channelName: e.target.value }))} style={inputStyle} placeholder="Channel name" />
+            </label>
+            <label style={fieldLabel}>Subscribers
+              <input type="number" min="0" step="1" value={mockForm.subscribers} onChange={e => setMockForm(current => ({ ...current, subscribers: e.target.value }))} style={inputStyle} />
+            </label>
+            <label style={fieldLabel}>Total views
+              <input type="number" min="0" step="1" value={mockForm.totalViews} onChange={e => setMockForm(current => ({ ...current, totalViews: e.target.value }))} style={inputStyle} />
+            </label>
+            <label style={fieldLabel}>Total videos
+              <input type="number" min="0" step="1" value={mockForm.totalPosts} onChange={e => setMockForm(current => ({ ...current, totalPosts: e.target.value }))} style={inputStyle} />
+            </label>
+            <label style={fieldLabel}>YouTube channel URL
+              <input type="url" value={mockForm.channelUrl} onChange={e => setMockForm(current => ({ ...current, channelUrl: e.target.value }))} style={inputStyle} placeholder="https://youtube.com/@channel" />
+            </label>
+            <label style={fieldLabel}>Avatar image URL
+              <input type="url" value={mockForm.avatarUrl} onChange={e => setMockForm(current => ({ ...current, avatarUrl: e.target.value }))} style={inputStyle} placeholder="https://…" />
+            </label>
+            <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>Featured YouTube video URL (optional)
+              <input type="url" value={mockForm.featuredVideoUrl} onChange={e => setMockForm(current => ({ ...current, featuredVideoUrl: e.target.value }))} style={inputStyle} placeholder="https://www.youtube.com/watch?v=…" />
+            </label>
+          </div>
+          <button type="submit" disabled={mockSaving} style={{ ...pageBtn, marginTop: 14, background: '#111', borderColor: '#111', color: '#fff', fontWeight: 700, opacity: mockSaving ? 0.6 : 1 }}>
+            {mockSaving ? 'Adding…' : 'Add mock channel'}
+          </button>
+        </form>
       )}
 
       <section
@@ -198,6 +280,7 @@ export default function AdminYoutubers() {
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={toggleVisibleSelection}
+                  disabled={visibleCreatorIds.length === 0}
                   aria-label="Select all visible YouTube channels"
                 />
               </th>
@@ -218,17 +301,19 @@ export default function AdminYoutubers() {
                     type="checkbox"
                     checked={selectedCreators.includes(String(u._id))}
                     onChange={() => toggleSelection(u._id)}
+                    disabled={u.isMock}
                     aria-label={`Select ${u.channelName || u.name || 'YouTube channel'}`}
                   />
                 </td>
                 <td style={{ padding: '12px 16px', fontWeight: 500 }}>
                   <Link to={`/users/${u._id}`} style={{ color: '#111', textDecoration: 'none' }}>{u.name}</Link>
                 </td>
-                <td style={{ padding: '12px 16px', color: '#666' }}>{u.email}</td>
+                <td style={{ padding: '12px 16px', color: '#666' }}>{u.isMock ? '— (mock profile)' : u.email}</td>
                 <td style={{ padding: '12px 16px', color: '#888' }}>
                   {u.channelUrl
                     ? <a href={u.channelUrl} target="_blank" rel="noreferrer" style={{ color: '#555' }}>{u.channelName || u.channelUrl}</a>
                     : (u.channelName || '—')}
+                  {u.isMock && <span style={{ marginLeft: 7, padding: '2px 6px', borderRadius: 999, background: '#fff4d6', color: '#8a5a00', fontSize: 10, fontWeight: 700 }}>MOCK</span>}
                 </td>
                 <td style={{ padding: '12px 16px', color: '#888' }}>{u.subscribers ?? 0}</td>
                 <td style={{ padding: '12px 16px', color: '#888' }}>{u.totalViews ?? 0}</td>
@@ -236,30 +321,36 @@ export default function AdminYoutubers() {
                   {u.connectedAt ? new Date(u.connectedAt).toLocaleDateString() : '—'}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
-                  <span style={{ display: 'block', marginBottom: 7, color: u.videoVerificationStatus === 'verified' ? '#21633c' : '#777', fontSize: 12, fontWeight: 700 }}>
-                    {u.videoVerificationStatus === 'verified' ? 'Channel verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Channel not verified'}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={Boolean(verificationBusy[u._id]) || bulkBusy}
-                    onClick={() => {
-                      const status = u.videoVerificationStatus === 'verified' ? 'unverified' : 'verified';
-                      setCreatorVerification(u, status)
-                        .then(() => setNotice(`${u.channelName || u.name || 'YouTube channel'} ${status === 'verified' ? 'verified' : 'unverified'} for creator eligibility. Video approval remains separate.`))
-                        .catch(e => setError(e.message));
-                    }}
-                    style={{
-                      ...pageBtn,
-                      padding: '5px 9px',
-                      background: u.videoVerificationStatus === 'verified' ? '#fff6e8' : '#e8f6ee',
-                      borderColor: u.videoVerificationStatus === 'verified' ? '#ead6b2' : '#b7dec6',
-                      color: u.videoVerificationStatus === 'verified' ? '#7b581b' : '#21633c',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Unverify channel' : 'Verify channel'}
-                  </button>
+                  {u.isMock ? (
+                    <span style={{ color: '#8a5a00', fontSize: 12, fontWeight: 700 }}>Mock inventory only</span>
+                  ) : (
+                    <>
+                      <span style={{ display: 'block', marginBottom: 7, color: u.videoVerificationStatus === 'verified' ? '#21633c' : '#777', fontSize: 12, fontWeight: 700 }}>
+                        {u.videoVerificationStatus === 'verified' ? 'Channel verified' : u.videoVerificationStatus === 'pending' ? 'Pending review' : u.videoVerificationStatus === 'rejected' ? 'Rejected' : 'Channel not verified'}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={Boolean(verificationBusy[u._id]) || bulkBusy}
+                        onClick={() => {
+                          const status = u.videoVerificationStatus === 'verified' ? 'unverified' : 'verified';
+                          setCreatorVerification(u, status)
+                            .then(() => setNotice(`${u.channelName || u.name || 'YouTube channel'} ${status === 'verified' ? 'verified' : 'unverified'} for creator eligibility. Video approval remains separate.`))
+                            .catch(e => setError(e.message));
+                        }}
+                        style={{
+                          ...pageBtn,
+                          padding: '5px 9px',
+                          background: u.videoVerificationStatus === 'verified' ? '#fff6e8' : '#e8f6ee',
+                          borderColor: u.videoVerificationStatus === 'verified' ? '#ead6b2' : '#b7dec6',
+                          color: u.videoVerificationStatus === 'verified' ? '#7b581b' : '#21633c',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {verificationBusy[u._id] ? 'Saving…' : u.videoVerificationStatus === 'verified' ? 'Unverify channel' : 'Verify channel'}
+                      </button>
+                    </>
+                  )}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -340,3 +431,4 @@ export default function AdminYoutubers() {
 
 const inputStyle = { display: 'block', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '9px 14px', fontSize: 14, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' };
 const pageBtn = { background: '#f4f5f7', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 };
+const fieldLabel = { display: 'block', color: '#777', fontSize: 12, fontWeight: 600 };

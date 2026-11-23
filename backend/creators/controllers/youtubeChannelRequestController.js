@@ -2,17 +2,6 @@
 
 const { query } = require('../../config/db');
 
-const PARTNER_CHANNELS = [
-  { id: 'partner-youtube-1', name: 'Rocky Entertainment', subscribers: 1_610_000 },
-  { id: 'partner-youtube-2', name: 'Chita magic', subscribers: 848_000 },
-  { id: 'partner-youtube-4', name: 'Ines', subscribers: 1_120 },
-  { id: 'partner-youtube-5', name: 'Quick Homes Rwanda', subscribers: 22_700 },
-  { id: 'partner-youtube-7', name: 'Rwanda updates', subscribers: 822_000 },
-  { id: 'partner-youtube-8', name: 'THE QUICKTIMES NEWS', subscribers: 333_000 },
-  { id: 'partner-youtube-9', name: 'cheymuv', subscribers: 131_000 },
-  { id: 'partner-youtube-10', name: 'Benitha & Kelly', subscribers: 2_860 },
-];
-
 const PACKAGE_CODES = new Set(['corner_ad', 'daily_30_days', 'five_monthly']);
 const PACKAGE_PRICES_BY_TIER = {
   test: { corner_ad: 10_000, daily_30_days: 61_830, five_monthly: 150_000 },
@@ -22,10 +11,6 @@ const PACKAGE_PRICES_BY_TIER = {
   macro: { corner_ad: 200_000, daily_30_days: 236_970, five_monthly: 150_000 },
   mega: { corner_ad: 1_000_000, daily_30_days: 330_000, five_monthly: 400_000 },
 };
-
-const PARTNER_CHANNEL_VALUES = PARTNER_CHANNELS
-  .map(({ id, name }) => `('${id}', '${name.replace(/'/g, "''")}')`)
-  .join(', ');
 
 function getChannelTier(subscribers) {
   if (subscribers < 1_000) return 'test';
@@ -47,28 +32,31 @@ exports.createInterest = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Select a valid advertising package' });
   }
 
-  const channel = PARTNER_CHANNELS.find((item) => item.id === channelId);
-  if (!channel) {
-    return res.status(400).json({ success: false, message: 'Selected channel is invalid' });
-  }
-
-  const tier = getChannelTier(channel.subscribers);
-  const packagePrice = PACKAGE_PRICES_BY_TIER[tier][packageCode];
   try {
+    const channelRes = await query(
+      `SELECT c.id, sc.username AS name, sc.followers_count AS subscribers
+       FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
+       WHERE c.is_mock = TRUE
+         AND (c.id::text = $1 OR c.google_id = $2)
+       LIMIT 1`,
+      [channelId, `mock-youtube:${channelId}`],
+    );
+    const channel = channelRes.rows[0];
+    if (!channel) return res.status(400).json({ success: false, message: 'Selected channel is invalid' });
+
+    const tier = getChannelTier(Number(channel.subscribers || 0));
+    const packagePrice = PACKAGE_PRICES_BY_TIER[tier][packageCode];
     await query(
-      `WITH request_group AS (SELECT gen_random_uuid() AS id)
-       INSERT INTO youtube_channel_requests
+      `INSERT INTO youtube_channel_requests
          (channel_id, channel_name, advertiser_id, request_group_id, package_code, package_price_rwf)
-       SELECT channel.channel_id, channel.channel_name, $2, request_group.id, $3, $4
-       FROM request_group
-       JOIN (VALUES ${PARTNER_CHANNEL_VALUES}) AS channel(channel_id, channel_name) ON channel.channel_id = $1
-       WHERE TRUE
+       VALUES ($1,$2,$3,gen_random_uuid(),$4,$5)
        ON CONFLICT (channel_id, advertiser_id) DO UPDATE
          SET request_group_id = EXCLUDED.request_group_id,
              package_code = EXCLUDED.package_code,
              package_price_rwf = EXCLUDED.package_price_rwf,
              updated_at = NOW()`,
-      [channelId, advertiserId, packageCode, packagePrice]
+      [channelId, channel.name, advertiserId, packageCode, packagePrice]
     );
     res.status(201).json({ success: true });
   } catch (error) {

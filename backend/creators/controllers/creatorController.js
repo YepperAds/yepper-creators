@@ -834,7 +834,7 @@ exports.getPublicCreators = async (req, res) => {
   try {
     const result = await query(
       `SELECT
-         c.id, c.username AS profile_username, c.what_they_do,
+         c.id, c.username AS profile_username, c.what_they_do, c.is_mock,
          sc.provider, sc.username AS channel_name, sc.profile_url AS channel_url,
          sc.avatar_url AS platform_avatar, sc.followers_count AS subscribers,
          sc.tiktok_profile, sc.last_public_video_refresh_at,
@@ -866,7 +866,7 @@ exports.getPublicCreators = async (req, res) => {
       const lastRefreshAt = r.last_public_video_refresh_at ? new Date(r.last_public_video_refresh_at).getTime() : 0;
       const isCacheStale = !lastRefreshAt || lastRefreshAt < Date.now() - 6 * 60 * 60 * 1000;
 
-      if (refreshedVideoCount < 12 && isCacheStale && (r.provider === 'youtube' || r.provider === 'tiktok')) {
+      if (!r.is_mock && refreshedVideoCount < 12 && isCacheStale && (r.provider === 'youtube' || r.provider === 'tiktok')) {
         refreshedVideoCount += 1;
         try {
           const latest = r.provider === 'tiktok'
@@ -910,6 +910,7 @@ exports.getPublicCreators = async (req, res) => {
       return {
         id:          String(r.id),
         provider:    r.provider || 'youtube',
+        isPartnerChannel: Boolean(r.is_mock),
         username:    platformName,
         name:        platformName || (r.provider === 'youtube' ? 'YouTube creator' : 'TikTok creator'),
         avatar:      r.platform_avatar || null,

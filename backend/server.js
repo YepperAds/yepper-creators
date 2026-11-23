@@ -278,6 +278,14 @@ async function startServer() {
     console.warn('⚠️  Migration 20261105_youtube_channel_requests skipped:', err.message?.split('\n')[0]);
   }
 
+  // Make the existing YouTube partner inventory admin-managed mock creators.
+  try {
+    const { up: seedMockYoutubeChannels } = require('./migrations/20261123_mock_youtube_channels');
+    await seedMockYoutubeChannels();
+  } catch (err) {
+    console.warn('⚠️  Migration 20261123_mock_youtube_channels skipped:', err.message?.split('\n')[0]);
+  }
+
   // Ad post stats are fetched live from YouTube on every getAdPosts call — no cron needed.
 
   function bindPort(port) {

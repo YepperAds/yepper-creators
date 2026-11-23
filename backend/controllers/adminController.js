@@ -171,9 +171,10 @@ exports.getYoutubers = async (req, res) => {
 
     const ytRes = await query(
       `SELECT c.id, c.full_name, c.username, c.email, c.avatar, c.google_id, c.created_at, c.updated_at,
-              c.video_verification_status,
+              c.video_verification_status, c.is_mock,
               sc.username AS channel_name, sc.profile_url AS channel_url,
-              sc.followers_count AS subscribers, sc.total_views, sc.total_posts, sc.connected_at
+              sc.avatar_url AS channel_avatar, sc.followers_count AS subscribers,
+              sc.total_views, sc.total_posts, sc.connected_at
        FROM creators c
        JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'youtube'
        ${where}
@@ -186,6 +187,8 @@ exports.getYoutubers = async (req, res) => {
       ...safeUser(row),
       channelName: row.channel_name,
       channelUrl:  row.channel_url,
+      channelAvatar: row.channel_avatar,
+      isMock: Boolean(row.is_mock),
       videoVerificationStatus: row.video_verification_status || 'unverified',
       subscribers: row.subscribers,
       totalViews:  row.total_views,
@@ -197,6 +200,89 @@ exports.getYoutubers = async (req, res) => {
   } catch (err) {
     console.error('getYoutubers error:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/admin/youtubers/mocks
+exports.createMockYoutuber = async (req, res) => {
+  const { channelName, channelUrl, subscribers, totalViews, totalPosts, avatarUrl, featuredVideoUrl } = req.body || {};
+  const name = typeof channelName === 'string' ? channelName.trim() : '';
+  if (!name) return res.status(400).json({ success: false, message: 'Channel name is required' });
+  if (name.length > 255) return res.status(400).json({ success: false, message: 'Channel name must be 255 characters or fewer' });
+
+  const parseCount = (value, label, max) => {
+    if (value === undefined || value === null || value === '') return 0;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > max) {
+      throw Object.assign(new Error(`${label} must be a non-negative whole number`), { status: 400 });
+    }
+    return parsed;
+  };
+  const validateUrl = (value, label, allowedHosts) => {
+    if (!value) return null;
+    try {
+      const url = new URL(String(value).trim());
+      if (!['http:', 'https:'].includes(url.protocol) || (allowedHosts && !allowedHosts.includes(url.hostname.toLowerCase()))) {
+        throw new Error();
+      }
+      return url.toString();
+    } catch {
+      throw Object.assign(new Error(`${label} must be a valid ${allowedHosts ? 'YouTube' : 'HTTP(S)'} URL`), { status: 400 });
+    }
+  };
+
+  let connection;
+  try {
+    const subscriberCount = parseCount(subscribers, 'Subscribers', 2_147_483_647);
+    const viewsCount = parseCount(totalViews, 'Total views', Number.MAX_SAFE_INTEGER);
+    const postsCount = parseCount(totalPosts, 'Total videos', 2_147_483_647);
+    const profileUrl = validateUrl(channelUrl, 'Channel URL', ['youtube.com', 'www.youtube.com', 'm.youtube.com']);
+    const imageUrl = validateUrl(avatarUrl, 'Avatar URL');
+    const videoUrl = validateUrl(featuredVideoUrl, 'Featured video URL', ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be']);
+    let videoId = null;
+    if (videoUrl) {
+      const parsed = new URL(videoUrl);
+      videoId = parsed.hostname.includes('youtu.be')
+        ? parsed.pathname.slice(1).split('/')[0]
+        : parsed.searchParams.get('v') || parsed.pathname.match(/\/(?:shorts|embed)\/([^/?]+)/)?.[1];
+      if (!videoId) return res.status(400).json({ success: false, message: 'Featured video URL must link to a YouTube video' });
+    }
+
+    const { randomUUID } = require('crypto');
+    const mockId = randomUUID();
+    const connectionId = `mock-youtube:${mockId}`;
+    const email = `mock-youtube-${mockId}@mock.yepper.invalid`;
+    const username = `mock_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 35)}_${mockId.slice(0, 8)}`;
+
+    connection = await getClient();
+    await connection.query('BEGIN');
+    const creatorRes = await connection.query(
+      `INSERT INTO creators (google_id, email, full_name, avatar, username, is_mock)
+       VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING id`,
+      [connectionId, email, name, imageUrl, username],
+    );
+    const creatorId = creatorRes.rows[0].id;
+    await connection.query(
+      `INSERT INTO social_connections
+         (creator_id, provider, username, followers_count, profile_url, avatar_url, total_views, total_posts, last_public_video_refresh_at)
+       VALUES ($1,'youtube',$2,$3,$4,$5,$6,$7,NOW())`,
+      [creatorId, name, subscriberCount, profileUrl, imageUrl, viewsCount, postsCount],
+    );
+    if (videoUrl) {
+      await connection.query(
+        `INSERT INTO social_video_stats (creator_id, provider, title, thumbnail_url, video_url, fetched_at)
+         VALUES ($1,'youtube','Featured video',$2,$3,NOW())`,
+        [creatorId, `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`, videoUrl],
+      );
+    }
+    await connection.query('COMMIT');
+    return res.status(201).json({ success: true, youtuberId: creatorId });
+  } catch (err) {
+    if (connection) await connection.query('ROLLBACK');
+    console.error('createMockYoutuber error:', err);
+    return res.status(err.status || 500).json({ success: false, message: err.message || 'Could not add mock YouTube channel' });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

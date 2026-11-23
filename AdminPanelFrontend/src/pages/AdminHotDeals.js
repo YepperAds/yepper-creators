@@ -19,6 +19,7 @@ export default function AdminHotDeals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [emailTarget, setEmailTarget] = useState(null); // deal currently in the "send email" modal
+  const [copiedDealId, setCopiedDealId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +58,11 @@ export default function AdminHotDeals() {
       </div>
 
       {error && <div style={{ color: '#b91c1c', marginBottom: 16, fontSize: 13 }}>Error: {error}</div>}
+      {copiedDealId && (
+        <div role="status" style={{ color: '#166534', marginBottom: 12, fontSize: 13 }}>
+          Deal link copied. You can paste it into a message to share with users.
+        </div>
+      )}
 
       <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -96,6 +102,21 @@ export default function AdminHotDeals() {
                       {!d.soldAt && (
                         <button onClick={() => setEmailTarget(d)} style={{ fontSize: 12, color: '#1d4ed8', border: '1px solid #bfdbfe', background: '#fff', padding: '4px 10px', borderRadius: 6, cursor: 'pointer' }}>
                           Send Email
+                        </button>
+                      )}
+                      {!d.soldAt && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(d.shareUrl);
+                              setCopiedDealId(d.id);
+                            } catch (e) {
+                              setError(`Could not copy the deal link: ${e.message || 'Clipboard access is unavailable.'}`);
+                            }
+                          }}
+                          style={{ fontSize: 12, color: '#166534', border: '1px solid #bbf7d0', background: '#fff', padding: '4px 10px', borderRadius: 6, cursor: 'pointer' }}
+                        >
+                          Copy link
                         </button>
                       )}
                       {!d.soldAt && (

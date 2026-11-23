@@ -298,6 +298,7 @@ export default function AdminHotDealBuilder() {
                 {ytResults.map((u) => (
                   <div key={u._id} onClick={() => { setYtPicked(u); setYtResults([]); }} style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f5f5f5' }}>
                     <b>{u.name}</b> — {u.channelName || u.email} ({u.subscribers ?? 0} subs)
+                    {u.isMock && <span style={{ marginLeft: 6, color: '#8a5a00', fontSize: 10, fontWeight: 700 }}>MOCK</span>}
                   </div>
                 ))}
               </div>

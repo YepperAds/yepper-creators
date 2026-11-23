@@ -58,12 +58,6 @@ const partnerChannels = [
     videoId: 'WzcIXpcNVKY',
   },
   {
-    name: 'Benie',
-    avatar: 'https://yt3.googleusercontent.com/ZWy0FsfHrXF4pJnpQDw5T0kcK26nRi6t4Xw3vvHjYLpupR68LHFDbZymNW4z6TEpo57Nmaqf=s160-c-k-c0x00ffffff-no-rj',
-    subscribers: 3_650,
-    videoId: 'tXwSqBNJztM',
-  },
-  {
     name: 'Darina Kayumba',
     avatar: 'https://yt3.googleusercontent.com/HZ9iB996-X1S4Ff_zctHO2K5ZPmgboUZvc2wVJZRHXVP7s3dl0moy8JdSaFSrzDhGXKJ5GYw=s160-c-k-c0x00ffffff-no-rj',
     subscribers: 50_600,
@@ -102,7 +96,9 @@ const partnerChannels = [
 ] as const;
 
 export const YOUTUBE_PARTNER_CHANNELS: PublicCreator[] = partnerChannels.map((channel) => ({
-  id: channel.id,
+  id: 'id' in channel
+    ? channel.id
+    : `partner-youtube-${channel.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   provider: 'youtube',
   isPartnerChannel: true,
   username: channel.name,

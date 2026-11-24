@@ -108,8 +108,21 @@ async function up() {
   try {
     await client.query('BEGIN');
     await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS deleted_mock_youtube_channels (
+         google_id TEXT PRIMARY KEY,
+         deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+       )`,
+    );
 
     for (const channel of MOCK_CHANNELS) {
+      const googleId = `mock-youtube:${channel.id}`;
+      const deleted = await client.query(
+        `SELECT 1 FROM deleted_mock_youtube_channels WHERE google_id = $1`,
+        [googleId],
+      );
+      if (deleted.rowCount) continue;
+
       const email = `${channel.id}@mock.yepper.invalid`;
       const username = `mock_${channel.id.replace(/[^a-z0-9]+/gi, '_')}`;
       const creatorRes = await client.query(
@@ -118,7 +131,7 @@ async function up() {
          ON CONFLICT (google_id) DO UPDATE SET
            full_name=EXCLUDED.full_name, avatar=EXCLUDED.avatar, is_mock=TRUE, updated_at=NOW()
          RETURNING id`,
-        [`mock-youtube:${channel.id}`, email, channel.name, channel.avatar, username],
+        [googleId, email, channel.name, channel.avatar, username],
       );
       const creatorId = creatorRes.rows[0].id;
       const videoUrl = `https://www.youtube.com/watch?v=${channel.videoId}`;

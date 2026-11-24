@@ -15,6 +15,7 @@ export default function AdminYoutubers() {
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
   const [verificationBusy, setVerificationBusy] = useState({});
+  const [mockDeleting, setMockDeleting] = useState({});
   const [selectedCreators, setSelectedCreators] = useState([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [error, setError] = useState('');
@@ -88,6 +89,29 @@ export default function AdminYoutubers() {
       setError(e.message || 'Could not add mock YouTube channel.');
     } finally {
       setMockSaving(false);
+    }
+  };
+
+  const deleteMockYoutuber = async (creator) => {
+    const name = creator.channelName || creator.name || 'this mock channel';
+    if (!window.confirm(`Permanently remove "${name}"? It will disappear from mock inventory and Hot Deals.`)) return;
+    setMockDeleting(current => ({ ...current, [creator._id]: true }));
+    setError('');
+    setNotice('');
+    try {
+      await adminFetch(`/youtubers/mocks/${encodeURIComponent(creator._id)}`, {
+        method: 'DELETE',
+      }, adminHeaders);
+      setYoutubers(current => current.filter(item => item._id !== creator._id));
+      setTotal(current => Math.max(0, current - 1));
+      setSelectedCreators(current => current.filter(id => id !== String(creator._id)));
+      setNotice(`Mock YouTube channel "${name}" permanently removed.`);
+      await loadPartnerRequests();
+      if (youtubers.length === 1 && page > 1) setPage(current => Math.max(1, current - 1));
+    } catch (e) {
+      setError(e.message || `Could not permanently remove "${name}".`);
+    } finally {
+      setMockDeleting(current => ({ ...current, [creator._id]: false }));
     }
   };
 
@@ -362,6 +386,26 @@ export default function AdminYoutubers() {
                       style={{ fontSize: 12, color: '#555', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: 6, textDecoration: 'none' }}>
                       📦 Content
                     </Link>
+                    {u.isMock && (
+                      <button
+                        type="button"
+                        onClick={() => deleteMockYoutuber(u)}
+                        disabled={Boolean(mockDeleting[u._id])}
+                        style={{
+                          fontSize: 12,
+                          color: '#b42318',
+                          border: '1px solid #f3c7c4',
+                          background: '#fff',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          cursor: mockDeleting[u._id] ? 'wait' : 'pointer',
+                          opacity: mockDeleting[u._id] ? 0.6 : 1,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {mockDeleting[u._id] ? 'Removing…' : 'Remove permanently'}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

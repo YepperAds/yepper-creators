@@ -286,6 +286,56 @@ exports.createMockYoutuber = async (req, res) => {
   }
 };
 
+// DELETE /api/admin/youtubers/mocks/:creatorId
+exports.deleteMockYoutuber = async (req, res) => {
+  let connection;
+  try {
+    connection = await getClient();
+    await connection.query('BEGIN');
+    await connection.query(
+      `CREATE TABLE IF NOT EXISTS deleted_mock_youtube_channels (
+         google_id TEXT PRIMARY KEY,
+         deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+       )`,
+    );
+    const creatorRes = await connection.query(
+      `SELECT id, google_id FROM creators
+       WHERE id = $1 AND is_mock = TRUE
+       FOR UPDATE`,
+      [req.params.creatorId],
+    );
+    const creator = creatorRes.rows[0];
+    if (!creator) {
+      await connection.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Mock YouTube channel not found' });
+    }
+
+    await connection.query(
+      `INSERT INTO deleted_mock_youtube_channels (google_id)
+       VALUES ($1) ON CONFLICT (google_id) DO NOTHING`,
+      [creator.google_id],
+    );
+    await connection.query('DELETE FROM hot_deal_items WHERE creator_id = $1', [creator.id]);
+    await connection.query(
+      `DELETE FROM youtube_channel_requests
+       WHERE channel_id = $1 OR channel_id = $2`,
+      [String(creator.id), creator.google_id],
+    );
+    await connection.query(
+      `DELETE FROM creators WHERE id = $1 AND is_mock = TRUE`,
+      [creator.id],
+    );
+    await connection.query('COMMIT');
+    return res.json({ success: true });
+  } catch (err) {
+    if (connection) await connection.query('ROLLBACK');
+    console.error('deleteMockYoutuber error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Could not delete mock YouTube channel' });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/users/:userId
 // ─────────────────────────────────────────────────────────────────────────────

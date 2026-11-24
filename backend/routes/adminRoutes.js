@@ -34,6 +34,7 @@ router.post('/init', adminLoginLimiter, (req, res) => {
 router.get('/users',                           adminAuth, ctrl.getUsers);
 router.get('/youtubers',                       adminAuth, ctrl.getYoutubers);
 router.post('/youtubers/mocks',                adminAuth, ctrl.createMockYoutuber);
+router.delete('/youtubers/mocks/:creatorId',   adminAuth, ctrl.deleteMockYoutuber);
 router.get('/users/:userId',                   adminAuth, ctrl.getUserDetail);
 router.get('/grants',                          adminAuth, ctrl.getGrants);
 router.get('/stats',                           adminAuth, ctrl.getStats);

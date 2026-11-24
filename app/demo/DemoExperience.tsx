@@ -31,58 +31,8 @@ interface DemoChannel {
   subscribers: number;
   videoTitle: string;
   description: string;
+  avatar: string | null;
 }
-
-const CHANNELS: DemoChannel[] = [
-  {
-    id: 'kigali-kitchen',
-    name: 'Kigali Kitchen Club',
-    category: 'Food & cooking',
-    subscribers: 48_600,
-    videoTitle: 'Easy weekend recipes for the whole family',
-    description: 'Practical recipes and food discoveries from Kigali.',
-  },
-  {
-    id: 'curious-corner',
-    name: 'Curious Corner',
-    category: 'Education',
-    subscribers: 182_000,
-    videoTitle: 'Five surprising facts about our planet',
-    description: 'Short explainers and curious stories for lifelong learners.',
-  },
-  {
-    id: 'everyday-style',
-    name: 'Everyday Style Lab',
-    category: 'Fashion & lifestyle',
-    subscribers: 7_650,
-    videoTitle: 'Build a simple wardrobe that works',
-    description: 'Style ideas, local finds, and everyday inspiration.',
-  },
-  {
-    id: 'road-stories',
-    name: 'Rwanda Road Stories',
-    category: 'Travel',
-    subscribers: 32_000,
-    videoTitle: 'A quiet weekend in the hills',
-    description: 'Travel guides and stories from around the region.',
-  },
-  {
-    id: 'creative-bytes',
-    name: 'Creative Bytes',
-    category: 'Technology',
-    subscribers: 241_000,
-    videoTitle: 'Make your next big idea happen',
-    description: 'Friendly guides to creative tools and technology.',
-  },
-  {
-    id: 'healthy-habits',
-    name: 'Healthy Habits Studio',
-    category: 'Health & wellness',
-    subscribers: 1_200,
-    videoTitle: 'Small routines for a brighter morning',
-    description: 'Approachable wellness and healthy daily habits.',
-  },
-];
 
 const PACKAGE_OPTIONS = [
   { code: 'corner_ad', name: 'One Corner ad', summary: 'One ad placement in a creator video.' },
@@ -190,6 +140,8 @@ function MetricCard({ label, value, icon: Icon }: { label: string; value: string
 export default function DemoExperience() {
   const router = useRouter();
   const [session, setSession] = useState<DemoSession | null>(null);
+  const [channels, setChannels] = useState<DemoChannel[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(true);
   const [view, setView] = useState<View>('channels');
   const [selectedChannel, setSelectedChannel] = useState<DemoChannel | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<(typeof PACKAGE_OPTIONS)[number]['code']>('corner_ad');
@@ -213,6 +165,40 @@ export default function DemoExperience() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const loadMockChannels = async () => {
+      try {
+        const response = await fetch('/api/proxy/api/creators/public', { cache: 'no-store', credentials: 'include' });
+        const json = await response.json().catch(() => ({}));
+        const creators = Array.isArray(json?.data) ? json.data : [];
+        const mockChannels: DemoChannel[] = creators
+          .filter((creator: Record<string, unknown>) =>
+            creator.isPartnerChannel === true &&
+            creator.provider === 'youtube'
+          )
+          .map((creator: Record<string, unknown>) => {
+            const videos = Array.isArray(creator.videos) ? creator.videos : [];
+            const video = videos[0] as Record<string, unknown> | undefined;
+            return {
+              id: String(creator.id),
+              name: String(creator.channelName || creator.name || 'Mock YouTube channel'),
+              category: String(creator.whatTheyDo || 'YouTube creator'),
+              subscribers: Number(creator.subscribers || 0),
+              videoTitle: String(video?.title || 'Featured mock video'),
+              description: 'Fictional mock profile used only for this demo.',
+              avatar: typeof creator.avatar === 'string' ? creator.avatar : null,
+            };
+          });
+        setChannels(mockChannels);
+      } catch {
+        setChannels([]);
+      } finally {
+        setChannelsLoading(false);
+      }
+    };
+    void loadMockChannels();
   }, []);
 
   const selectedPackageOption = PACKAGE_OPTIONS.find((option) => option.code === selectedPackage)!;
@@ -377,13 +363,26 @@ export default function DemoExperience() {
               <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Choose a YouTube channel</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Pick a fictional creator to see packages, add a sample campaign, and review its simulated audience report.</p>
             </div>
+            {channelsLoading ? (
+              <div className="rounded-2xl border border-white/10 px-5 py-12 text-center text-sm text-white/45">Loading mock YouTube channels…</div>
+            ) : channels.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/15 px-5 py-12 text-center">
+                <p className="text-sm font-semibold">No mock YouTube channels are available</p>
+                <p className="mt-1 text-xs text-white/45">The demo cannot function until mock inventory is seeded.</p>
+              </div>
+            ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {CHANNELS.map((channel, index) => (
+              {channels.map((channel, index) => (
                 <article key={channel.id} className="rounded-2xl border border-white/10 bg-[#141414] p-4">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${['bg-sky-400/15 text-sky-200', 'bg-violet-400/15 text-violet-200', 'bg-pink-400/15 text-pink-200'][index % 3]}`}>
-                      {channel.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
-                    </div>
+                    {channel.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={channel.avatar} alt={`${channel.name} mock channel`} className="h-12 w-12 shrink-0 rounded-full border border-white/15 object-cover" />
+                    ) : (
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${['bg-sky-400/15 text-sky-200', 'bg-violet-400/15 text-violet-200', 'bg-pink-400/15 text-pink-200'][index % 3]}`}>
+                        {channel.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <h2 className="truncate text-sm font-bold">{channel.name}</h2>
                       <p className="mt-1 text-xs text-white/50">{channel.subscribers.toLocaleString()} subscribers · {channel.category}</p>
@@ -400,6 +399,7 @@ export default function DemoExperience() {
                 </article>
               ))}
             </div>
+            )}
           </section>
         )}
 

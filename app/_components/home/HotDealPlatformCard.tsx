@@ -26,6 +26,9 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   const metricLabel = creator.provider === 'tiktok' ? 'followers' : 'subscribers';
   const followerCount = creator.followers ?? creator.subscribers ?? 0;
+  const creatorIdentity = creator.provider === 'tiktok' && creator.username
+    ? `@${creator.username.replace(/^@+/, '')}`
+    : creator.channelName || creator.name;
   return (
     <div className="w-24 shrink-0">
       <div className="h-9 flex items-center gap-1.5 mb-1.5">
@@ -33,11 +36,13 @@ function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={creator.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0 ring-2 ring-[#ff0000]/25" />
         ) : (
-          <div className="w-5 h-5 rounded-full bg-black/10 shrink-0" />
+          <div className="flex w-5 h-5 shrink-0 items-center justify-center rounded-full bg-black/10 text-[8px] font-bold text-black/70">
+            {creatorIdentity.trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
+          </div>
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-1">
-            <p className="text-[11px] font-bold text-black truncate">{creator.channelName || creator.name}</p>
+            <p className="text-[11px] font-bold text-black truncate">{creatorIdentity}</p>
             <CheckBadgeIcon className="w-2.5 h-2.5 text-[#3ea6ff] shrink-0" />
           </div>
           <p className="text-[9px] text-black/55">{formatCount(followerCount)} {metricLabel}</p>

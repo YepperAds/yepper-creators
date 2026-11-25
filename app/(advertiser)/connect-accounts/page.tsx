@@ -45,11 +45,21 @@ interface SocialAccount {
 interface TikTokMediaKit {
   postsPerWeek: number;
   sponsoredPostsPerMonth: number;
+  enabledPackages: string[];
 }
+
+const TIKTOK_PACKAGE_OPTIONS = [
+  { code: 'brand_visit_video', label: 'Brand Visit Video' },
+  { code: 'creator_location_video', label: 'Creator-Location Video' },
+  { code: 'creator_captured_photo', label: 'Creator-Captured Photo' },
+  { code: 'advertiser_image_post', label: 'Advertiser-Provided Image Post' },
+  { code: 'story', label: 'Story' },
+] as const;
 
 const EMPTY_TIKTOK_MEDIA_KIT: TikTokMediaKit = {
   postsPerWeek: 1,
   sponsoredPostsPerMonth: 0,
+  enabledPackages: TIKTOK_PACKAGE_OPTIONS.map((option) => option.code),
 };
 
 interface SocialStatsResponse {
@@ -807,6 +817,10 @@ export default function ConnectAccountsPage() {
                     {account.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={account.avatar} alt="" className="h-11 w-11 rounded-full border border-white/15 object-cover" />
+                    ) : account.provider === 'tiktok' ? (
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-[#25F4EE]/15 text-sm font-bold text-white">
+                        {account.username.trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
+                      </span>
                     ) : (
                       <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white">
                         <Image src={platform.logo} alt="" width={44} height={44} className="h-full w-full object-cover" />
@@ -910,6 +924,27 @@ export default function ConnectAccountsPage() {
                       </label>
                     </div>
                   </div>
+                  <fieldset className="mt-4">
+                    <legend className="mb-2 text-xs font-semibold text-(--color-white)">Packages advertisers can book</legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {TIKTOK_PACKAGE_OPTIONS.map((option) => (
+                        <label key={option.code} className="flex cursor-pointer items-center gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-xs text-(--color-white)">
+                          <input
+                            type="checkbox"
+                            checked={tiktokMediaKit.enabledPackages.includes(option.code)}
+                            onChange={(event) => setTikTokMediaKit((current) => ({
+                              ...current,
+                              enabledPackages: event.target.checked
+                                ? [...current.enabledPackages, option.code]
+                                : current.enabledPackages.filter((code) => code !== option.code),
+                            }))}
+                            className="accent-emerald-500"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"

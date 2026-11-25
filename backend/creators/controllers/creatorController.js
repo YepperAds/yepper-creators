@@ -20,6 +20,7 @@ const {
   priceFor,
 } = require('../utils/youtubeTierPricing');
 const { fetchLatestTikTokVideo } = require('./tiktokSponsorshipController');
+const { TIKTOK_PACKAGES } = require('../utils/socialCampaignPricing');
 const { AD_SIZES } = require('../utils/adOverlay');
 const {
   CREATOR_SHARE,
@@ -450,13 +451,18 @@ exports.manualConnectSocial = async (req, res) => {
   if (!username || !String(username).trim()) {
     return res.status(400).json({ success: false, message: 'Channel name is required' });
   }
+  const channelName = String(username).trim().replace(/^@+/, '');
+  const profileUrl = provider === 'tiktok'
+    ? `https://www.tiktok.com/@${encodeURIComponent(channelName)}`
+    : `https://www.youtube.com/@${encodeURIComponent(channelName)}`;
   try {
     await query(
-      `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, access_token, refresh_token, total_views, total_posts)
-       VALUES ($1,$2,$3,$4,$5,NULL,NULL,0,0)
+      `INSERT INTO social_connections (creator_id, provider, username, followers_count, profile_url, avatar_url, access_token, refresh_token, total_views, total_posts)
+       VALUES ($1,$2,$3,$4,$5,$6,NULL,NULL,0,0)
        ON CONFLICT (creator_id, provider) DO UPDATE SET
-         username=EXCLUDED.username, followers_count=EXCLUDED.followers_count, profile_url=EXCLUDED.profile_url`,
-      [session, provider, String(username).trim(), Number(followers) || 0, avatar ? String(avatar).trim() : null],
+         username=EXCLUDED.username, followers_count=EXCLUDED.followers_count,
+         profile_url=EXCLUDED.profile_url, avatar_url=EXCLUDED.avatar_url`,
+      [session, provider, channelName, Number(followers) || 0, profileUrl, avatar ? String(avatar).trim() : null],
     );
     return res.json({ success: true });
   } catch (err) {
@@ -477,7 +483,7 @@ exports.getSocialStats = async (req, res) => {
     );
     const data = result.rows.map(r => ({
       provider:  r.provider,
-      username:  r.username || '',
+      username:  String(r.username || '').replace(/^@+/, ''),
       followers: normalizeSocialFollowerCount(r.followers_count),
       avatar:    r.avatar_url || '',
       channelUrl: r.profile_url || '',
@@ -534,7 +540,11 @@ function normalizeTikTokMediaKit(profile) {
   const sponsoredPostsPerMonth = Number(profile.sponsoredPostsPerMonth);
   if (!Number.isInteger(postsPerWeek) || postsPerWeek < 1 || postsPerWeek > 100) return null;
   if (!Number.isInteger(sponsoredPostsPerMonth) || sponsoredPostsPerMonth < 0 || sponsoredPostsPerMonth > 100) return null;
-  return { postsPerWeek, sponsoredPostsPerMonth };
+  const validPackageCodes = new Set(TIKTOK_PACKAGES.map((item) => item.code));
+  const enabledPackages = Array.isArray(profile.enabledPackages)
+    ? [...new Set(profile.enabledPackages.filter((code) => validPackageCodes.has(code)))]
+    : [...validPackageCodes];
+  return { postsPerWeek, sponsoredPostsPerMonth, enabledPackages };
 }
 
 exports.getTikTokProfile = async (req, res) => {
@@ -560,6 +570,7 @@ exports.updateTikTokProfile = async (req, res) => {
 
   const postsPerWeek = Number(req.body?.postsPerWeek);
   const sponsoredPostsPerMonth = Number(req.body?.sponsoredPostsPerMonth);
+  const enabledPackages = req.body?.enabledPackages;
 
   if (!Number.isInteger(postsPerWeek) || postsPerWeek < 1 || postsPerWeek > 100) {
     return res.status(400).json({ success: false, message: 'Posts per week must be between 1 and 100' });
@@ -567,8 +578,11 @@ exports.updateTikTokProfile = async (req, res) => {
   if (!Number.isInteger(sponsoredPostsPerMonth) || sponsoredPostsPerMonth < 0 || sponsoredPostsPerMonth > 100) {
     return res.status(400).json({ success: false, message: 'Sponsored posts per month must be between 0 and 100' });
   }
+  if (!Array.isArray(enabledPackages) || enabledPackages.some((code) => !TIKTOK_PACKAGES.some((item) => item.code === code))) {
+    return res.status(400).json({ success: false, message: 'Choose valid TikTok packages to enable' });
+  }
 
-  const profile = { postsPerWeek, sponsoredPostsPerMonth };
+  const profile = { postsPerWeek, sponsoredPostsPerMonth, enabledPackages: [...new Set(enabledPackages)] };
   try {
     const result = await query(
       `UPDATE social_connections SET tiktok_profile = $1::jsonb
@@ -907,15 +921,16 @@ exports.getPublicCreators = async (req, res) => {
         url: video.url || null,
         embedUrl: video.embedUrl || null,
       }));
+      const channelHandle = platformName.replace(/^@+/, '');
       return {
         id:          String(r.id),
         provider:    r.provider || 'youtube',
         isPartnerChannel: Boolean(r.is_mock),
-        username:    platformName,
-        name:        platformName || (r.provider === 'youtube' ? 'YouTube creator' : 'TikTok creator'),
+        username:    channelHandle,
+        name:        channelHandle || (r.provider === 'youtube' ? 'YouTube channel' : 'TikTok profile'),
         avatar:      r.platform_avatar || null,
         whatTheyDo:  r.what_they_do || null,
-        channelName: platformName,
+        channelName: channelHandle,
         channelUrl:  r.channel_url || null,
         tiktokProfile: r.provider === 'tiktok' ? tiktokProfile : null,
         subscribers: followers,
@@ -1357,7 +1372,7 @@ exports.socialConnect = (req, res) => {
     authUrl.searchParams.set('client_key', clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', 'user.info.basic,user.info.stats,video.list');
+    authUrl.searchParams.set('scope', 'user.info.basic,user.info.profile,user.info.stats,video.list');
     authUrl.searchParams.set('state', user_uuid || '');
     return res.redirect(authUrl.toString());
   }
@@ -1528,14 +1543,16 @@ exports.socialConnectCallback = async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/oauth-callback?error=token_error`);
       }
 
-      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,profile_deep_link,follower_count,following_count,likes_count,video_count', {
+      const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,username,display_name,avatar_url,avatar_url_100,avatar_large_url,profile_deep_link,follower_count,following_count,likes_count,video_count', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
       const userData = await userRes.json().catch(() => null);
       const tiktokUser = userData?.data?.user || userData?.data || null;
-      const username = tiktokUser?.display_name || tiktokUser?.nickname || `@creator-${creatorId}`;
-      const profileUrl = tiktokUser?.profile_url || tiktokUser?.profile_deep_link || `https://www.tiktok.com/@${String(username).replace(/^@/, '')}`;
-      const avatarUrl = tiktokUser?.avatar_url || '';
+      const profileDeepLink = String(tiktokUser?.profile_deep_link || '');
+      const linkedUsername = profileDeepLink.match(/\/@([^/?]+)/)?.[1];
+      const username = String(tiktokUser?.username || linkedUsername || tiktokUser?.display_name || tiktokUser?.nickname || `creator-${creatorId}`).trim().replace(/^@+/, '');
+      const profileUrl = tiktokUser?.profile_url || profileDeepLink || `https://www.tiktok.com/@${encodeURIComponent(username)}`;
+      const avatarUrl = tiktokUser?.avatar_large_url || tiktokUser?.avatar_url || tiktokUser?.avatar_url_100 || '';
       const followers = normalizeSocialFollowerCount(
         tiktokUser?.follower_count ??
         tiktokUser?.followers_count ??

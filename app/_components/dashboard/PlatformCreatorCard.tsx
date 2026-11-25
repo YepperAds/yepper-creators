@@ -56,6 +56,9 @@ export default function PlatformCreatorCard({
   const audienceCount = creator.followers ?? creator.subscribers ?? 0;
   const audienceLabel = isTikTok ? 'followers' : 'subscribers';
   const channelName = creator.channelName || creator.username || creator.name;
+  const identityLabel = isTikTok && creator.username
+    ? `@${creator.username.replace(/^@+/, '')}`
+    : channelName;
   const video = creator.videos?.[0];
 
   return (
@@ -72,13 +75,17 @@ export default function PlatformCreatorCard({
         {creator.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={creator.avatar} alt={`${channelName} profile`} className="h-10 w-10 rounded-full border border-white/15 object-cover" />
+        ) : isTikTok ? (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[#25F4EE]/15 text-sm font-bold text-white">
+            {channelName.trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
+          </span>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt={platformName} className="h-10 w-10 rounded-full bg-white object-contain p-1.5" />
         )}
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="truncate text-sm font-bold text-white">{channelName}</span>
+            <span className="truncate text-sm font-bold text-white">{identityLabel}</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl} alt="" className="h-4 w-4 shrink-0 object-contain" />
           </span>

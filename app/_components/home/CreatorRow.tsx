@@ -32,12 +32,19 @@ function CreatorTile({ creator, previewOnly = false }: { creator: PublicCreator;
           // eslint-disable-next-line @next/next/no-img-element
           <img src={creator.avatar} alt="" className="absolute -bottom-5 left-3 h-11 w-11 rounded-full border-[3px] border-white bg-white object-cover" />
         )}
+        {!creator.avatar && isTikTok && (
+          <span className="absolute -bottom-5 left-3 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white bg-[#25F4EE] text-xs font-bold text-[#101014]">
+            {(creator.channelName || creator.username || creator.name).trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
+          </span>
+        )}
       </div>
       <div className="p-4 pt-7">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-bold text-[color:var(--mkt-ink)]">{creator.channelName || creator.name}</h3>
-            <p className="mt-1 truncate text-xs text-[color:var(--mkt-ink-muted)]">{creator.whatTheyDo || `${platform} creator`}</p>
+            <p className="mt-1 truncate text-xs text-[color:var(--mkt-ink-muted)]">
+              {isTikTok && creator.username ? `@${creator.username.replace(/^@+/, '')}` : creator.whatTheyDo || `${platform} channel`}
+            </p>
           </div>
           <p className="shrink-0 text-right text-xs font-bold text-[color:var(--mkt-ink)]">{audience.toLocaleString()}<span className="mt-0.5 block text-[10px] font-medium text-[color:var(--mkt-ink-muted)]">{isTikTok ? 'followers' : 'subscribers'}</span></p>
         </div>

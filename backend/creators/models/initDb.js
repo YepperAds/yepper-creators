@@ -266,7 +266,7 @@ async function initCreatorsDatabase() {
        advertiser_id VARCHAR(255) NOT NULL,
        brand_name VARCHAR(160) NOT NULL,
        campaign_brief TEXT NOT NULL,
-      creative_image_url TEXT NOT NULL,
+      creative_image_url TEXT,
        destination_url TEXT NOT NULL,
        tracking_token VARCHAR(48) UNIQUE NOT NULL,
        amount NUMERIC(12,2) NOT NULL,
@@ -309,6 +309,7 @@ async function initCreatorsDatabase() {
         ADD COLUMN IF NOT EXISTS payload JSONB,
         ADD COLUMN IF NOT EXISTS sent_parts INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS creative_image_url TEXT`,
+    `ALTER TABLE tiktok_sponsorships ALTER COLUMN creative_image_url DROP NOT NULL`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_creator_idx ON tiktok_sponsorships (creator_id, status, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS tiktok_sponsorships_advertiser_idx ON tiktok_sponsorships (advertiser_id, created_at DESC)`,
      `CREATE UNIQUE INDEX IF NOT EXISTS tiktok_sponsorships_active_creator_unique

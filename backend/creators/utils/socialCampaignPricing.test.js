@@ -32,6 +32,21 @@ test('calculates platform-specific prices and commitment discounts once', () => 
   assert.equal(tiktok.yepperRevenue, 25_650);
 });
 
+test('matches workbook Entry-tier prices for all TikTok packages', () => {
+  const expectedPrices = {
+    brand_visit_video: 30_000,
+    creator_location_video: 25_000,
+    creator_captured_photo: 15_000,
+    advertiser_image_post: 8_000,
+    story: 5_000,
+  };
+
+  for (const [packageCode, amount] of Object.entries(expectedPrices)) {
+    const priced = calculateSocialItemPrice({ platform: 'tiktok', audienceCount: 1_000, packageCode });
+    assert.equal(priced.totalPrice, amount, packageCode);
+  }
+});
+
 test('applies the bundle discount to each selected platform and removes it when one is removed', () => {
   const selections = [
     { platform: 'youtube', audienceCount: 1_000, packageCode: 'youtube_video', commitmentMonths: 1 },

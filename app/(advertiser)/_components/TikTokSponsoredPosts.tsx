@@ -9,7 +9,7 @@ interface TikTokSponsorship {
   id: number;
   brandName: string;
   campaignBrief: string;
-  creativeImageUrl: string;
+  creativeImageUrl: string | null;
   destinationUrl: string;
   trackingUrl: string;
   amount: number;
@@ -125,8 +125,10 @@ export default function TikTokSponsoredPosts({ onClose }: { onClose: () => void 
                     {post.status === 'submitted' ? 'Submitted' : 'Awaiting post'}
                   </span>
                 </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={post.creativeImageUrl} alt={`${post.brandName} ad creative`} className="mt-3 max-h-56 w-full rounded-lg border border-(--color-border) bg-(--color-surface-1) object-contain" />
+                {post.creativeImageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.creativeImageUrl} alt={`${post.brandName} ad creative`} className="mt-3 max-h-56 w-full rounded-lg border border-(--color-border) bg-(--color-surface-1) object-contain" />
+                )}
                 <a href={post.destinationUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block break-all text-xs font-semibold text-emerald-300 underline underline-offset-2">
                   Campaign destination: {new URL(post.destinationUrl).hostname}
                 </a>

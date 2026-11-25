@@ -29,6 +29,7 @@ export interface PublicVideo {
 export interface TikTokMediaKit {
   postsPerWeek: number;
   sponsoredPostsPerMonth: number;
+  enabledPackages?: string[];
 }
 
 export type SocialPlatform = 'youtube' | 'tiktok';

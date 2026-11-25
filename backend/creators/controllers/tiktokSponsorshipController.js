@@ -12,6 +12,7 @@ const {
   generateUniqueTransactionRef,
 } = require('../../AdOwner/controllers/PaymentController');
 const {
+  TIKTOK_PACKAGES,
   TIKTOK_SPONSORSHIP_PACKAGE_CODE,
   calculateSocialItemPrice,
 } = require('../utils/socialCampaignPricing');
@@ -177,7 +178,6 @@ exports.fetchLatestTikTokVideo = fetchLatestTikTokVideo;
 
 exports.getQuote = async (req, res) => {
   if (!getSessionUserId(req)) return res.status(401).json({ success: false, message: 'Log in to view TikTok promotion pricing' });
-  const packageCode = TIKTOK_SPONSORSHIP_PACKAGE_CODE;
   try {
     const creatorId = String(req.params.creatorId || '');
     const connection = await query(
@@ -188,6 +188,13 @@ exports.getQuote = async (req, res) => {
     if (!connection.rowCount) return res.status(404).json({ success: false, message: 'TikTok account not found' });
     const profile = connection.rows[0].tiktok_profile || {};
     const monthlyCapacity = Number(profile.sponsoredPostsPerMonth || 0);
+    const enabledPackageCodes = Array.isArray(profile.enabledPackages)
+      ? profile.enabledPackages
+      : TIKTOK_PACKAGES.map((item) => item.code);
+    const availablePackages = TIKTOK_PACKAGES.filter((item) => enabledPackageCodes.includes(item.code));
+    if (!availablePackages.length) return res.status(409).json({ success: false, message: 'This creator has no TikTok packages available' });
+    const packageCode = String(req.query?.packageCode || availablePackages[0].code || TIKTOK_SPONSORSHIP_PACKAGE_CODE);
+    if (!availablePackages.some((item) => item.code === packageCode)) return res.status(409).json({ success: false, message: 'This TikTok package is not available from the creator' });
     const bookings = await query(
       `SELECT COUNT(*)::int AS count FROM tiktok_sponsorships
        WHERE creator_id = $1 AND payment_status = 'paid'
@@ -207,19 +214,24 @@ exports.getQuote = async (req, res) => {
     if (followerCount < 1_000) {
       return res.status(409).json({ success: false, message: 'TikTok pricing starts at 1,000 followers' });
     }
-    const priced = calculateSocialItemPrice({
-      platform: 'tiktok',
-      audienceCount: followerCount,
-      packageCode,
-      commitmentMonths: 1,
+    const packagePrices = availablePackages.map((item) => {
+      const itemPrice = calculateSocialItemPrice({
+        platform: 'tiktok',
+        audienceCount: followerCount,
+        packageCode: item.code,
+        commitmentMonths: 1,
+      });
+      return { ...item, amount: itemPrice.totalPrice, tier: itemPrice.tier };
     });
+    const priced = packagePrices.find((item) => item.code === packageCode);
     return res.json({
       success: true,
       data: {
         followers: followerCount,
         tier: priced.tier,
-        packageCode: priced.packageCode,
-        amount: priced.totalPrice,
+        packageCode: priced.code,
+        amount: priced.amount,
+        packages: packagePrices,
         monthlyCapacity,
         remainingCapacity: activeBooking.rowCount
           ? 0
@@ -239,9 +251,14 @@ exports.initiate = async (req, res) => {
   const creatorId = String(req.params.creatorId || '');
   const brandName = String(req.body?.brandName || '').trim();
   const campaignBrief = String(req.body?.campaignBrief || '').trim();
-  const packageCode = TIKTOK_SPONSORSHIP_PACKAGE_CODE;
+  const packageCode = String(req.body?.packageCode || TIKTOK_SPONSORSHIP_PACKAGE_CODE);
   const destinationUrl = safeUrl(req.body?.destinationUrl);
-  if (!req.file) return res.status(400).json({ success: false, message: 'Import an image creative for this TikTok promotion' });
+  if (!TIKTOK_PACKAGES.some((item) => item.code === packageCode)) {
+    return res.status(400).json({ success: false, message: 'Choose a valid TikTok package' });
+  }
+  if (packageCode === 'advertiser_image_post' && !req.file) {
+    return res.status(400).json({ success: false, message: 'Import an image for the Advertiser-Provided Image Post package' });
+  }
   if (!brandName || brandName.length > 160) return res.status(400).json({ success: false, message: 'Brand name is required (160 characters max)' });
   if (!campaignBrief || campaignBrief.length > 2000) return res.status(400).json({ success: false, message: 'Campaign brief is required (2,000 characters max)' });
   if (!destinationUrl) return res.status(400).json({ success: false, message: 'Enter a valid http or https destination link' });
@@ -255,6 +272,12 @@ exports.initiate = async (req, res) => {
     );
     if (!connection.rowCount) return res.status(404).json({ success: false, message: 'TikTok account not found' });
     const profile = connection.rows[0].tiktok_profile || {};
+    const enabledPackageCodes = Array.isArray(profile.enabledPackages)
+      ? profile.enabledPackages
+      : TIKTOK_PACKAGES.map((item) => item.code);
+    if (!enabledPackageCodes.includes(packageCode)) {
+      return res.status(409).json({ success: false, message: 'This TikTok package is not available from the creator' });
+    }
     const monthlyCapacity = Number(profile.sponsoredPostsPerMonth || 0);
     if (!Number.isInteger(monthlyCapacity) || monthlyCapacity < 1) {
       return res.status(409).json({ success: false, message: 'This creator has not opened sponsored-post capacity yet' });
@@ -302,7 +325,7 @@ exports.initiate = async (req, res) => {
     const amount = priced.totalPrice;
     const creatorEarnings = priced.creatorEarnings;
     const yepperCut = priced.yepperRevenue;
-    const creativeImageUrl = await uploadCreativeToCloudinary(req.file);
+    const creativeImageUrl = req.file ? await uploadCreativeToCloudinary(req.file) : null;
     const advertiser = await Creator.findById(advertiserId);
     if (!advertiser?.email) return res.status(404).json({ success: false, message: 'Advertiser account not found' });
     const txRef = generateUniqueTransactionRef('tt_sponsor', advertiserId, creatorId);

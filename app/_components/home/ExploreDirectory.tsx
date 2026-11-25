@@ -268,7 +268,7 @@ export default function ExploreDirectory({
                         {creator.channelName || creator.name}
                       </p>
                       <p className="truncate text-[11px] text-white/80">
-                        {creator.whatTheyDo || `${platform} creator`}
+                        {isTikTok && creator.username ? `@${creator.username.replace(/^@+/, '')}` : creator.whatTheyDo || `${platform} channel`}
                       </p>
                     </div>
                   </div>

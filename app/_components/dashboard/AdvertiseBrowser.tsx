@@ -13,6 +13,23 @@ import YoutubeChannelPackagePicker from './YoutubeChannelPackagePicker';
 import { getAdSpaceImage, getAdSpaceDescription } from '@/app/_lib/ad-spaces';
 import type { PublicWebsite, PublicCreator, HotDeal } from '@/app/_lib/public-home';
 import PlatformCreatorCard from './PlatformCreatorCard';
+import { getToken } from '@/app/(adsense)/utils/token';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+const TIKTOK_CAMPAIGN_PACKAGES = [
+  { code: 'brand_visit_video', label: 'Brand Visit Video' },
+  { code: 'creator_location_video', label: 'Creator-Location Video' },
+  { code: 'creator_captured_photo', label: 'Creator-Captured Photo' },
+  { code: 'advertiser_image_post', label: 'Advertiser-Provided Image Post' },
+  { code: 'story', label: 'Story' },
+] as const;
+
+interface SocialCampaignQuote {
+  bundled: boolean;
+  bundleDiscountRate: number;
+  items: Array<{ platform: 'youtube' | 'tiktok'; bundleDiscountAmount: number }>;
+  total: number;
+}
 
 interface PricingTier {
   key: string;
@@ -120,6 +137,8 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const searchParams = useSearchParams();
   const websiteList = websites.length > 0 ? websites : MOCK_WEBSITES;
   const creatorList = creators.length > 0 ? creators : MOCK_CREATORS;
+  const campaignYoutubeCreators = creators.filter((creator) => creator.provider === 'youtube' && !creator.isPartnerChannel);
+  const campaignTikTokCreators = creators.filter((creator) => creator.provider === 'tiktok' && !creator.isPartnerChannel);
 
   const [activeWebsite, setActiveWebsite] = useState<PublicWebsite | null>(null);
   const [adSpaces, setAdSpaces] = useState<AdSpace[]>([]);
@@ -133,6 +152,52 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<'all' | 'websites' | 'youtube' | 'tiktok'>('all');
   const [selectedPartnerChannel, setSelectedPartnerChannel] = useState<PublicCreator | null>(null);
+  const [bundleYoutubeId, setBundleYoutubeId] = useState('');
+  const [bundleTikTokId, setBundleTikTokId] = useState('');
+  const [bundleTikTokPackageCode, setBundleTikTokPackageCode] = useState('brand_visit_video');
+  const [bundleCommitmentMonths, setBundleCommitmentMonths] = useState(1);
+  const [bundleQuote, setBundleQuote] = useState<SocialCampaignQuote | null>(null);
+  const [bundleQuoteLoading, setBundleQuoteLoading] = useState(false);
+  const [bundleQuoteError, setBundleQuoteError] = useState('');
+
+  const selectedBundleYoutube = campaignYoutubeCreators.find((creator) => String(creator.id) === bundleYoutubeId) ?? campaignYoutubeCreators[0];
+  const selectedBundleTikTok = campaignTikTokCreators.find((creator) => String(creator.id) === bundleTikTokId) ?? campaignTikTokCreators[0];
+  const creatorEnabledPackages = selectedBundleTikTok?.tiktokProfile?.enabledPackages;
+  const availableBundlePackages = creatorEnabledPackages !== undefined
+    ? TIKTOK_CAMPAIGN_PACKAGES.filter((option) => creatorEnabledPackages.includes(option.code))
+    : TIKTOK_CAMPAIGN_PACKAGES;
+  const selectedBundlePackageCode = availableBundlePackages.some((option) => option.code === bundleTikTokPackageCode)
+    ? bundleTikTokPackageCode
+    : availableBundlePackages[0]?.code;
+
+  const calculateBundleQuote = async () => {
+    if (!selectedBundleYoutube || !selectedBundleTikTok || !selectedBundlePackageCode) return;
+    setBundleQuoteLoading(true);
+    setBundleQuoteError('');
+    try {
+      const token = getToken();
+      const response = await fetch(`${BACKEND_URL}/api/social/campaigns/quote`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ items: [
+          { creatorId: Number(selectedBundleYoutube.id), platform: 'youtube', packageCode: 'youtube_video', commitmentMonths: bundleCommitmentMonths },
+          { creatorId: Number(selectedBundleTikTok.id), platform: 'tiktok', packageCode: selectedBundlePackageCode, commitmentMonths: bundleCommitmentMonths },
+        ] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.success) throw new Error(result?.message || 'Could not calculate the combined quote.');
+      setBundleQuote(result.data);
+    } catch (error) {
+      setBundleQuote(null);
+      setBundleQuoteError(error instanceof Error ? error.message : 'Could not calculate the combined quote.');
+    } finally {
+      setBundleQuoteLoading(false);
+    }
+  };
 
   const openWebsite = async (website: PublicWebsite) => {
     setActiveWebsite(website);
@@ -438,6 +503,56 @@ export default function AdvertiseBrowser({ websites, creators, hotDeals, initial
           ))}
         </div>
       </header>
+
+      {campaignYoutubeCreators.length > 0 && campaignTikTokCreators.length > 0 && (
+        <section className="border-y border-white/10 py-5" aria-label="YouTube and TikTok campaign estimate">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h4 className="text-base font-bold text-white">YouTube + TikTok bundle estimate</h4>
+              <p className="mt-1 text-xs text-white/55">Combine one channel from each platform to see the cross-platform price.</p>
+            </div>
+            {bundleQuote?.bundled && <span className="text-xs font-bold text-emerald-300">{Math.round(bundleQuote.bundleDiscountRate * 100)}% bundle discount applied</span>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="text-xs font-semibold text-white/75">
+              YouTube channel
+              <select value={selectedBundleYoutube ? String(selectedBundleYoutube.id) : ''} onChange={(event) => { setBundleYoutubeId(event.target.value); setBundleQuote(null); }} className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#161616] px-3 py-2.5 text-sm text-white">
+                {campaignYoutubeCreators.map((creator) => <option key={creator.id} value={creator.id}>{creator.channelName || creator.username} · {(creator.subscribers ?? 0).toLocaleString()} subs</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-white/75">
+              TikTok creator
+              <select value={selectedBundleTikTok ? String(selectedBundleTikTok.id) : ''} onChange={(event) => { setBundleTikTokId(event.target.value); setBundleQuote(null); }} className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#161616] px-3 py-2.5 text-sm text-white">
+                {campaignTikTokCreators.map((creator) => <option key={creator.id} value={creator.id}>{creator.channelName || creator.username} · {(creator.followers ?? 0).toLocaleString()} followers</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-white/75">
+              TikTok package
+              <select value={selectedBundlePackageCode ?? ''} onChange={(event) => { setBundleTikTokPackageCode(event.target.value); setBundleQuote(null); }} className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#161616] px-3 py-2.5 text-sm text-white">
+                {availableBundlePackages.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-white/75">
+              Commitment
+              <select value={bundleCommitmentMonths} onChange={(event) => { setBundleCommitmentMonths(Number(event.target.value)); setBundleQuote(null); }} className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#161616] px-3 py-2.5 text-sm text-white">
+                <option value={1}>1 month</option>
+                <option value={3}>3 months</option>
+                <option value={6}>6 months</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-white/45">Estimate only. These platform bookings are completed separately.</p>
+            <div className="flex items-center gap-3">
+              {bundleQuote && <p className="text-sm font-bold text-white">Combined total: RWF {bundleQuote.total.toLocaleString()}</p>}
+              <button type="button" onClick={calculateBundleQuote} disabled={bundleQuoteLoading || !availableBundlePackages.length} className="rounded-lg bg-white px-4 py-2.5 text-xs font-bold text-black disabled:opacity-50">
+                {bundleQuoteLoading ? 'Calculating…' : 'Calculate bundle price'}
+              </button>
+            </div>
+          </div>
+          {bundleQuoteError && <p role="alert" className="mt-2 text-xs text-rose-300">{bundleQuoteError}</p>}
+        </section>
+      )}
 
       <div className="space-y-8">
         {showWebsites && websiteList.length > 0 && (

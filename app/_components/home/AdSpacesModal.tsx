@@ -45,18 +45,23 @@ interface ChannelPackagePricing {
   fiveMonthlyTotal: number;
 }
 
+interface TikTokPackageQuote {
+  code: string;
+  name: string;
+  description: string;
+  amount: number;
+  tier: string;
+}
+
 interface TikTokQuote {
   followers: number;
   tier: string;
   packageCode: string;
   amount: number;
+  packages: TikTokPackageQuote[];
   monthlyCapacity: number;
   remainingCapacity: number;
 }
-
-const TIKTOK_PACKAGE_LABELS: Record<string, string> = {
-  brand_visit_video: 'Brand Visit Video',
-};
 
 interface TikTokCampaignReport {
   id: number;
@@ -164,6 +169,7 @@ export default function AdSpacesModal({
   const [postingFrequency, setPostingFrequency] = useState<{ label: string; averageDaysBetweenPosts: number; isEstimated: boolean; hasHistory: boolean; source?: 'measured' | 'stated' | 'none' } | null>(null);
   const [postingEstimate, setPostingEstimate] = useState<{ avgDaysBetweenPosts: number | null; source: 'measured' | 'stated' | 'none'; estimates: Record<number, number> | null } | null>(null);
   const [tiktokQuote, setTikTokQuote] = useState<TikTokQuote | null>(null);
+  const [tiktokPackageCode, setTikTokPackageCode] = useState('');
   const [tiktokReports, setTikTokReports] = useState<TikTokCampaignReport[]>([]);
   const [tiktokBrandName, setTikTokBrandName] = useState('');
   const [tiktokBrief, setTikTokBrief] = useState('');
@@ -188,6 +194,7 @@ export default function AdSpacesModal({
     setCornerPackageCode('corner_ad');
     if (creator.provider === 'tiktok') {
       setTikTokQuote(null);
+      setTikTokPackageCode('');
       setTikTokReports([]);
       setTikTokMessage('');
       setTikTokCreative(null);
@@ -202,7 +209,10 @@ export default function AdSpacesModal({
         fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers, cache: 'no-store' }).then((response) => response.json()),
       ]).then(([quoteJson, reportsJson]) => {
         if (cancelled) return;
-        if (quoteJson?.success) setTikTokQuote(quoteJson.data);
+        if (quoteJson?.success) {
+          setTikTokQuote(quoteJson.data);
+          setTikTokPackageCode(quoteJson.data.packageCode || quoteJson.data.packages?.[0]?.code || '');
+        }
         else setError(quoteJson?.message || 'Could not load TikTok booking details.');
         if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
       }).catch(() => {
@@ -273,17 +283,19 @@ export default function AdSpacesModal({
         : channelPackagePricing.fiveMonthlyTotal;
 
   const submitTikTokBooking = async () => {
-    if (!creator || !tiktokQuote || !tiktokCreative || tiktokBooking) return;
+    const needsAdvertiserImage = tiktokPackageCode === 'advertiser_image_post';
+    if (!creator || !tiktokQuote || !tiktokPackageCode || (needsAdvertiserImage && !tiktokCreative) || (tiktokCreative && tiktokCreative.size > 5 * 1024 * 1024) || tiktokBooking) return;
     setTikTokBooking(true);
     setTikTokMessage('');
     setError('');
     try {
       const token = getToken();
       const formData = new FormData();
-      formData.append('image', tiktokCreative);
+      if (needsAdvertiserImage && tiktokCreative) formData.append('image', tiktokCreative);
       formData.append('brandName', tiktokBrandName);
       formData.append('campaignBrief', tiktokBrief);
       formData.append('destinationUrl', tiktokDestination);
+      formData.append('packageCode', tiktokPackageCode);
       const response = await fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}`, {
         method: 'POST',
         credentials: 'include',
@@ -306,7 +318,10 @@ export default function AdSpacesModal({
         fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
         fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
       ]);
-      if (quoteJson?.success) setTikTokQuote(quoteJson.data);
+      if (quoteJson?.success) {
+        setTikTokQuote(quoteJson.data);
+        setTikTokPackageCode(quoteJson.data.packageCode || quoteJson.data.packages?.[0]?.code || '');
+      }
       if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not book this TikTok promotion');
@@ -343,6 +358,7 @@ export default function AdSpacesModal({
       : price;
 
   const previewPosition = selectedSlot ? selectedSlotPosition : 45;
+  const selectedTikTokPackage = tiktokQuote?.packages.find((item) => item.code === tiktokPackageCode) ?? null;
 
   const submitClaim = async () => {
     if (!pendingFile || !selectedSlot) return;
@@ -434,10 +450,12 @@ export default function AdSpacesModal({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={creator.avatar} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-(--color-surface-2) shrink-0" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-(--color-surface-2) text-sm font-bold text-(--color-white)">
+                {(creator.channelName || creator.username || creator.name).trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
+              </div>
             )}
             <div className="min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-(--color-white) truncate">{creator.channelName || creator.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-(--color-white) truncate">{creator.provider === 'tiktok' && creator.username ? `@${creator.username.replace(/^@+/, '')}` : creator.channelName || creator.name}</h2>
               <p className="text-sm text-(--color-muted)">
                 {creator.provider === 'tiktok' ? creator.followers?.toLocaleString() ?? 0 : creator.subscribers?.toLocaleString() ?? 0} {creator.provider === 'tiktok' ? 'followers' : 'subscribers'}
               </p>
@@ -486,9 +504,34 @@ export default function AdSpacesModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-base font-bold text-(--color-white)">Book a sponsored post</h3>
-                  {tiktokQuote && <span className="text-xs font-bold text-emerald-300">{TIKTOK_PACKAGE_LABELS[tiktokQuote.packageCode] || 'TikTok package'} · {tiktokQuote.amount.toLocaleString()} RWF · {tiktokQuote.tier}</span>}
+                  {selectedTikTokPackage && <span className="text-xs font-bold text-emerald-300">{selectedTikTokPackage.name} · {selectedTikTokPackage.amount.toLocaleString()} RWF · {selectedTikTokPackage.tier}</span>}
                 </div>
-                <p className="text-xs text-(--color-muted)">One sponsored TikTok video. Add your destination URL; Yepper creates a unique bio link and tracks visits separately from video views.</p>
+                <p className="text-xs text-(--color-muted)">Choose an available campaign format and add a destination URL. Yepper creates a unique bio link and tracks visits separately from video views.</p>
+                <fieldset className="space-y-2">
+                  <legend className="text-xs font-semibold text-(--color-white)">Available packages</legend>
+                  {tiktokQuote?.packages.map((item) => (
+                    <label key={item.code} className={`flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-3 transition-colors ${tiktokPackageCode === item.code ? 'border-emerald-400 bg-emerald-400/5' : 'border-(--color-border) bg-(--color-surface-2)'}`}>
+                      <span className="flex min-w-0 items-start gap-2">
+                        <input
+                          type="radio"
+                          name={`tiktok-package-${creator.id}`}
+                          value={item.code}
+                          checked={tiktokPackageCode === item.code}
+                          onChange={() => {
+                            setTikTokPackageCode(item.code);
+                            if (item.code !== 'advertiser_image_post') setTikTokCreative(null);
+                          }}
+                          className="mt-0.5 accent-emerald-500"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-xs font-semibold text-(--color-white)">{item.name}</span>
+                          <span className="mt-0.5 block text-[10px] text-(--color-muted)">{item.description}</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-emerald-300">{item.amount.toLocaleString()} RWF</span>
+                    </label>
+                  ))}
+                </fieldset>
                 <label className="block text-xs font-semibold text-(--color-white)">
                   Brand name
                   <input value={tiktokBrandName} onChange={(event) => setTikTokBrandName(event.target.value)} maxLength={160} className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal" />
@@ -497,24 +540,27 @@ export default function AdSpacesModal({
                   Creator brief
                   <textarea value={tiktokBrief} onChange={(event) => setTikTokBrief(event.target.value)} maxLength={2000} rows={3} placeholder="Key message, required mention, or product details" className="mt-1.5 w-full resize-y rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-(--color-white)">Ad creative image</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => setTikTokCreative(event.target.files?.[0] ?? null)}
-                    className="block w-full cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-2) text-xs text-(--color-muted) file:mr-3 file:border-0 file:bg-(--color-surface-3) file:px-3 file:py-2.5 file:text-xs file:font-semibold file:text-(--color-white)"
-                  />
-                  <p className="mt-1 text-[10px] text-(--color-muted)">{tiktokCreative ? `${tiktokCreative.name} · ${(tiktokCreative.size / 1024 / 1024).toFixed(1)} MB` : 'Import an image file, up to 5 MB.'}</p>
-                </div>
+                {tiktokPackageCode === 'advertiser_image_post' && (
+                  <div>
+                    <label htmlFor="tiktok-advertiser-image" className="mb-1.5 block text-xs font-semibold text-(--color-white)">Image to publish</label>
+                    <input
+                      id="tiktok-advertiser-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setTikTokCreative(event.target.files?.[0] ?? null)}
+                      className="block w-full cursor-pointer rounded-lg border border-(--color-border) bg-(--color-surface-2) text-xs text-(--color-muted) file:mr-3 file:border-0 file:bg-(--color-surface-3) file:px-3 file:py-2.5 file:text-xs file:font-semibold file:text-(--color-white)"
+                    />
+                    <p className="mt-1 text-[10px] text-(--color-muted)">{tiktokCreative ? `${tiktokCreative.name} · ${(tiktokCreative.size / 1024 / 1024).toFixed(1)} MB` : 'Required for this package. Image limit: 5 MB.'}</p>
+                  </div>
+                )}
                 <label className="block text-xs font-semibold text-(--color-white)">
                   Destination URL
                   <input type="url" value={tiktokDestination} onChange={(event) => setTikTokDestination(event.target.value)} placeholder="https://brand.example/product" className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-xs text-(--color-muted)">{tiktokQuote?.remainingCapacity ? 'One campaign slot available now' : 'No campaign slot available now'}</span>
-                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !tiktokBrandName.trim() || !tiktokBrief.trim() || !tiktokCreative || tiktokCreative.size > 5 * 1024 * 1024 || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
-                    {tiktokBooking ? 'Starting checkout…' : `Book · ${tiktokQuote?.amount.toLocaleString() ?? '—'} RWF`}
+                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !selectedTikTokPackage || !tiktokBrandName.trim() || !tiktokBrief.trim() || (tiktokPackageCode === 'advertiser_image_post' && !tiktokCreative) || (!!tiktokCreative && tiktokCreative.size > 5 * 1024 * 1024) || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    {tiktokBooking ? 'Starting checkout…' : `Book · ${selectedTikTokPackage?.amount.toLocaleString() ?? '—'} RWF`}
                   </button>
                 </div>
                 {tiktokMessage && <p role="status" className="text-xs text-emerald-300">{tiktokMessage}</p>}

@@ -55,7 +55,7 @@ interface AdPost {
 interface TikTokSponsorship {
   id: number;
   brandName: string;
-  creativeImageUrl: string;
+  creativeImageUrl: string | null;
   trackingUrl: string;
   status: string;
   videoUrl: string | null;

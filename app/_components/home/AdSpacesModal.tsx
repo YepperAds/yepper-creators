@@ -50,6 +50,9 @@ interface TikTokPackageQuote {
   name: string;
   description: string;
   amount: number;
+  monthlyPrice: number;
+  commitmentMonths: number;
+  commitmentDiscountRate: number;
   tier: string;
 }
 
@@ -58,6 +61,9 @@ interface TikTokQuote {
   tier: string;
   packageCode: string;
   amount: number;
+  monthlyPrice: number;
+  commitmentMonths: number;
+  commitmentDiscountRate: number;
   packages: TikTokPackageQuote[];
   monthlyCapacity: number;
   remainingCapacity: number;
@@ -67,6 +73,7 @@ interface TikTokCampaignReport {
   id: number;
   brandName: string;
   amount: number;
+  commitmentMonths: number;
   status: string;
   videoUrl: string | null;
   views: number;
@@ -170,6 +177,8 @@ export default function AdSpacesModal({
   const [postingEstimate, setPostingEstimate] = useState<{ avgDaysBetweenPosts: number | null; source: 'measured' | 'stated' | 'none'; estimates: Record<number, number> | null } | null>(null);
   const [tiktokQuote, setTikTokQuote] = useState<TikTokQuote | null>(null);
   const [tiktokPackageCode, setTikTokPackageCode] = useState('');
+  const [tiktokCommitmentMonths, setTikTokCommitmentMonths] = useState(1);
+  const [tiktokQuoteError, setTikTokQuoteError] = useState('');
   const [tiktokReports, setTikTokReports] = useState<TikTokCampaignReport[]>([]);
   const [tiktokBrandName, setTikTokBrandName] = useState('');
   const [tiktokBrief, setTikTokBrief] = useState('');
@@ -195,6 +204,7 @@ export default function AdSpacesModal({
     if (creator.provider === 'tiktok') {
       setTikTokQuote(null);
       setTikTokPackageCode('');
+      setTikTokCommitmentMonths(1);
       setTikTokReports([]);
       setTikTokMessage('');
       setTikTokCreative(null);
@@ -204,19 +214,12 @@ export default function AdSpacesModal({
       let cancelled = false;
       const token = getToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      Promise.all([
-        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers, cache: 'no-store' }).then((response) => response.json()),
-        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers, cache: 'no-store' }).then((response) => response.json()),
-      ]).then(([quoteJson, reportsJson]) => {
+      fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers, cache: 'no-store' })
+        .then((response) => response.json()).then((reportsJson) => {
         if (cancelled) return;
-        if (quoteJson?.success) {
-          setTikTokQuote(quoteJson.data);
-          setTikTokPackageCode(quoteJson.data.packageCode || quoteJson.data.packages?.[0]?.code || '');
-        }
-        else setError(quoteJson?.message || 'Could not load TikTok booking details.');
         if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
       }).catch(() => {
-        if (!cancelled) setError('Could not load TikTok booking details.');
+        if (!cancelled) setError('Could not load TikTok campaign reports.');
       }).finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -251,6 +254,37 @@ export default function AdSpacesModal({
       .catch(() => setError('Failed to load ad spaces.'))
       .finally(() => setLoading(false));
   }, [open, creator]);
+
+  useEffect(() => {
+    if (!open || creator?.provider !== 'tiktok') return;
+    let cancelled = false;
+    const token = getToken();
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(
+      `${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote?commitmentMonths=${tiktokCommitmentMonths}`,
+      { credentials: 'include', headers, cache: 'no-store' },
+    ).then((response) => response.json()).then((quoteJson) => {
+      if (cancelled) return;
+      if (!quoteJson?.success) {
+        setTikTokQuoteError(quoteJson?.message || 'Could not load TikTok booking details.');
+        setError(quoteJson?.message || 'Could not load TikTok booking details.');
+        return;
+      }
+      setTikTokQuoteError('');
+      setTikTokQuote(quoteJson.data);
+      setTikTokPackageCode((current) => (
+        quoteJson.data.packages.some((item: TikTokPackageQuote) => item.code === current)
+          ? current
+          : quoteJson.data.packageCode || quoteJson.data.packages?.[0]?.code || ''
+      ));
+    }).catch(() => {
+      if (!cancelled) {
+        setTikTokQuoteError('Could not load TikTok booking details.');
+        setError('Could not load TikTok booking details.');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [open, creator, tiktokCommitmentMonths]);
 
   // Build/revoke an object URL for the chosen ad image so the preview panel
   // can show it without re-reading the file on every render.
@@ -296,6 +330,7 @@ export default function AdSpacesModal({
       formData.append('campaignBrief', tiktokBrief);
       formData.append('destinationUrl', tiktokDestination);
       formData.append('packageCode', tiktokPackageCode);
+      formData.append('commitmentMonths', String(tiktokCommitmentMonths));
       const response = await fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}`, {
         method: 'POST',
         credentials: 'include',
@@ -315,12 +350,11 @@ export default function AdSpacesModal({
       setTikTokCreative(null);
       const tokenHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [quoteJson, reportsJson] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
+        fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/quote?commitmentMonths=${tiktokCommitmentMonths}`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
         fetch(`${BACKEND_URL}/api/social/tiktok/sponsorships/${creator.id}/reports`, { credentials: 'include', headers: tokenHeader, cache: 'no-store' }).then((result) => result.json()),
       ]);
       if (quoteJson?.success) {
         setTikTokQuote(quoteJson.data);
-        setTikTokPackageCode(quoteJson.data.packageCode || quoteJson.data.packages?.[0]?.code || '');
       }
       if (reportsJson?.success) setTikTokReports(reportsJson.data || []);
     } catch (err) {
@@ -359,6 +393,7 @@ export default function AdSpacesModal({
 
   const previewPosition = selectedSlot ? selectedSlotPosition : 45;
   const selectedTikTokPackage = tiktokQuote?.packages.find((item) => item.code === tiktokPackageCode) ?? null;
+  const tiktokQuoteIsCurrent = tiktokQuote?.commitmentMonths === tiktokCommitmentMonths;
 
   const submitClaim = async () => {
     if (!pendingFile || !selectedSlot) return;
@@ -504,12 +539,30 @@ export default function AdSpacesModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-base font-bold text-(--color-white)">Book a sponsored post</h3>
-                  {selectedTikTokPackage && <span className="text-xs font-bold text-emerald-300">{selectedTikTokPackage.name} · {selectedTikTokPackage.amount.toLocaleString()} RWF · {selectedTikTokPackage.tier}</span>}
+                  {selectedTikTokPackage && <span className="text-right text-xs font-bold text-emerald-300">{selectedTikTokPackage.name} · {selectedTikTokPackage.amount.toLocaleString()} RWF total <span className="block font-normal text-(--color-muted)">{selectedTikTokPackage.monthlyPrice.toLocaleString()} RWF/month × {selectedTikTokPackage.commitmentMonths} months · {selectedTikTokPackage.tier}</span></span>}
                 </div>
-                <p className="text-xs text-(--color-muted)">Choose an available campaign format and add a destination URL. Yepper creates a unique bio link and tracks visits separately from video views.</p>
+                <p className="text-xs text-(--color-muted)">Choose a package and commitment period. Creator brief and destination URL are optional; if you add a destination, Yepper creates a bio link and tracks visits separately from video views.</p>
+                <label className="block text-xs font-semibold text-(--color-white)">
+                  Commitment period
+                  <select
+                    value={tiktokCommitmentMonths}
+                    onChange={(event) => {
+                      setTikTokQuote(null);
+                      setTikTokQuoteError('');
+                      setTikTokCommitmentMonths(Number(event.target.value));
+                    }}
+                    className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal text-(--color-white)"
+                  >
+                    <option value={1}>1 month · no discount</option>
+                    <option value={3}>3 months · 5% off</option>
+                    <option value={6}>6 months · 10% off</option>
+                  </select>
+                </label>
                 <fieldset className="space-y-2">
                   <legend className="text-xs font-semibold text-(--color-white)">Available packages</legend>
-                  {tiktokQuote?.packages.map((item) => (
+                  {!tiktokQuoteIsCurrent
+                    ? <p className="text-xs text-(--color-muted)">{tiktokQuoteError || 'Calculating package prices…'}</p>
+                    : tiktokQuote?.packages.map((item) => (
                     <label key={item.code} className={`flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-3 transition-colors ${tiktokPackageCode === item.code ? 'border-emerald-400 bg-emerald-400/5' : 'border-(--color-border) bg-(--color-surface-2)'}`}>
                       <span className="flex min-w-0 items-start gap-2">
                         <input
@@ -528,7 +581,7 @@ export default function AdSpacesModal({
                           <span className="mt-0.5 block text-[10px] text-(--color-muted)">{item.description}</span>
                         </span>
                       </span>
-                      <span className="shrink-0 text-xs font-bold text-emerald-300">{item.amount.toLocaleString()} RWF</span>
+                      <span className="shrink-0 text-right text-xs font-bold text-emerald-300">{item.amount.toLocaleString()} RWF total<span className="mt-0.5 block text-[10px] font-normal text-(--color-muted)">{item.monthlyPrice.toLocaleString()} / month</span></span>
                     </label>
                   ))}
                 </fieldset>
@@ -537,7 +590,7 @@ export default function AdSpacesModal({
                   <input value={tiktokBrandName} onChange={(event) => setTikTokBrandName(event.target.value)} maxLength={160} className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal" />
                 </label>
                 <label className="block text-xs font-semibold text-(--color-white)">
-                  Creator brief
+                  Creator brief <span className="font-normal text-(--color-muted)">(optional)</span>
                   <textarea value={tiktokBrief} onChange={(event) => setTikTokBrief(event.target.value)} maxLength={2000} rows={3} placeholder="Key message, required mention, or product details" className="mt-1.5 w-full resize-y rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
                 {tiktokPackageCode === 'advertiser_image_post' && (
@@ -554,12 +607,12 @@ export default function AdSpacesModal({
                   </div>
                 )}
                 <label className="block text-xs font-semibold text-(--color-white)">
-                  Destination URL
+                  Destination URL <span className="font-normal text-(--color-muted)">(optional)</span>
                   <input type="url" value={tiktokDestination} onChange={(event) => setTikTokDestination(event.target.value)} placeholder="https://brand.example/product" className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-sm font-normal placeholder:text-(--color-muted)" />
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-xs text-(--color-muted)">{tiktokQuote?.remainingCapacity ? 'One campaign slot available now' : 'No campaign slot available now'}</span>
-                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuote?.remainingCapacity || !selectedTikTokPackage || !tiktokBrandName.trim() || !tiktokBrief.trim() || (tiktokPackageCode === 'advertiser_image_post' && !tiktokCreative) || (!!tiktokCreative && tiktokCreative.size > 5 * 1024 * 1024) || !/^https?:\/\//i.test(tiktokDestination.trim()) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="button" onClick={submitTikTokBooking} disabled={!tiktokQuoteIsCurrent || !tiktokQuote?.remainingCapacity || !selectedTikTokPackage || !tiktokBrandName.trim() || (tiktokPackageCode === 'advertiser_image_post' && !tiktokCreative) || (!!tiktokCreative && tiktokCreative.size > 5 * 1024 * 1024) || (!!tiktokDestination.trim() && !/^https?:\/\//i.test(tiktokDestination.trim())) || tiktokBooking} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
                     {tiktokBooking ? 'Starting checkout…' : `Book · ${selectedTikTokPackage?.amount.toLocaleString() ?? '—'} RWF`}
                   </button>
                 </div>
@@ -573,6 +626,7 @@ export default function AdSpacesModal({
                       <p className="text-xs font-bold text-(--color-white)">{report.brandName}</p>
                       <span className="text-[10px] text-(--color-muted)">{report.status.replace('_', ' ')}</span>
                     </div>
+                    <p className="mt-1 text-[10px] text-(--color-muted)">{report.commitmentMonths} month{report.commitmentMonths === 1 ? '' : 's'} · {report.amount.toLocaleString()} RWF total</p>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--color-muted)">
                       <span>{report.views.toLocaleString()} video views</span>
                       <span>{report.clicks.toLocaleString()} link clicks</span>

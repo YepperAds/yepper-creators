@@ -265,9 +265,9 @@ async function initCreatorsDatabase() {
        creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
        advertiser_id VARCHAR(255) NOT NULL,
        brand_name VARCHAR(160) NOT NULL,
-       campaign_brief TEXT NOT NULL,
+       campaign_brief TEXT,
       creative_image_url TEXT,
-       destination_url TEXT NOT NULL,
+       destination_url TEXT,
        tracking_token VARCHAR(48) UNIQUE NOT NULL,
        amount NUMERIC(12,2) NOT NULL,
        creator_earnings NUMERIC(12,2) NOT NULL,
@@ -294,6 +294,9 @@ async function initCreatorsDatabase() {
      `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS shares BIGINT NOT NULL DEFAULT 0`,
      `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS package_code VARCHAR(64) NOT NULL DEFAULT 'brand_visit_video'`,
      `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS pricing_breakdown JSONB NOT NULL DEFAULT '{}'`,
+     `ALTER TABLE tiktok_sponsorships
+        ALTER COLUMN campaign_brief DROP NOT NULL,
+        ALTER COLUMN destination_url DROP NOT NULL`,
      `CREATE TABLE IF NOT EXISTS whatsapp_report_deliveries (
         advertiser_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
         report_week DATE NOT NULL,

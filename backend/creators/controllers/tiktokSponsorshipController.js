@@ -179,6 +179,10 @@ exports.fetchLatestTikTokVideo = fetchLatestTikTokVideo;
 exports.getQuote = async (req, res) => {
   if (!getSessionUserId(req)) return res.status(401).json({ success: false, message: 'Log in to view TikTok promotion pricing' });
   try {
+    const commitmentMonths = Number(req.query?.commitmentMonths ?? 1);
+    if (![1, 3, 6].includes(commitmentMonths)) {
+      return res.status(400).json({ success: false, message: 'Choose a 1, 3, or 6 month commitment' });
+    }
     const creatorId = String(req.params.creatorId || '');
     const connection = await query(
       `SELECT followers_count, tiktok_profile FROM social_connections
@@ -219,9 +223,16 @@ exports.getQuote = async (req, res) => {
         platform: 'tiktok',
         audienceCount: followerCount,
         packageCode: item.code,
-        commitmentMonths: 1,
+        commitmentMonths,
       });
-      return { ...item, amount: itemPrice.totalPrice, tier: itemPrice.tier };
+      return {
+        ...item,
+        amount: itemPrice.totalPrice,
+        monthlyPrice: itemPrice.monthlyPrice,
+        commitmentMonths: itemPrice.commitmentMonths,
+        commitmentDiscountRate: itemPrice.commitmentDiscountRate,
+        tier: itemPrice.tier,
+      };
     });
     const priced = packagePrices.find((item) => item.code === packageCode);
     return res.json({
@@ -231,6 +242,9 @@ exports.getQuote = async (req, res) => {
         tier: priced.tier,
         packageCode: priced.code,
         amount: priced.amount,
+        monthlyPrice: priced.monthlyPrice,
+        commitmentMonths,
+        commitmentDiscountRate: priced.commitmentDiscountRate,
         packages: packagePrices,
         monthlyCapacity,
         remainingCapacity: activeBooking.rowCount
@@ -252,16 +266,21 @@ exports.initiate = async (req, res) => {
   const brandName = String(req.body?.brandName || '').trim();
   const campaignBrief = String(req.body?.campaignBrief || '').trim();
   const packageCode = String(req.body?.packageCode || TIKTOK_SPONSORSHIP_PACKAGE_CODE);
-  const destinationUrl = safeUrl(req.body?.destinationUrl);
+  const commitmentMonths = Number(req.body?.commitmentMonths ?? 1);
+  const rawDestinationUrl = String(req.body?.destinationUrl || '').trim();
+  const destinationUrl = rawDestinationUrl ? safeUrl(rawDestinationUrl) : null;
   if (!TIKTOK_PACKAGES.some((item) => item.code === packageCode)) {
     return res.status(400).json({ success: false, message: 'Choose a valid TikTok package' });
+  }
+  if (![1, 3, 6].includes(commitmentMonths)) {
+    return res.status(400).json({ success: false, message: 'Choose a 1, 3, or 6 month commitment' });
   }
   if (packageCode === 'advertiser_image_post' && !req.file) {
     return res.status(400).json({ success: false, message: 'Import an image for the Advertiser-Provided Image Post package' });
   }
   if (!brandName || brandName.length > 160) return res.status(400).json({ success: false, message: 'Brand name is required (160 characters max)' });
-  if (!campaignBrief || campaignBrief.length > 2000) return res.status(400).json({ success: false, message: 'Campaign brief is required (2,000 characters max)' });
-  if (!destinationUrl) return res.status(400).json({ success: false, message: 'Enter a valid http or https destination link' });
+  if (campaignBrief.length > 2000) return res.status(400).json({ success: false, message: 'Campaign brief must be 2,000 characters or fewer' });
+  if (rawDestinationUrl && !destinationUrl) return res.status(400).json({ success: false, message: 'Enter a valid http or https destination link' });
   if (String(advertiserId) === creatorId) return res.status(400).json({ success: false, message: 'You cannot book a promotion on your own account' });
 
   try {
@@ -320,7 +339,7 @@ exports.initiate = async (req, res) => {
       platform: 'tiktok',
       audienceCount: Number(connection.rows[0].followers_count || 0),
       packageCode,
-      commitmentMonths: 1,
+      commitmentMonths,
     });
     const amount = priced.totalPrice;
     const creatorEarnings = priced.creatorEarnings;
@@ -351,7 +370,7 @@ exports.initiate = async (req, res) => {
              (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
               amount, creator_earnings, yepper_cut, package_code, pricing_breakdown, payment_status, status, tx_ref)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'paid','pending_post',$13) RETURNING id`,
-          [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
+          [creatorId, String(advertiserId), brandName, campaignBrief || null, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
         );
         sponsorshipId = sponsorship.rows[0].id;
         await client.query(
@@ -374,7 +393,7 @@ exports.initiate = async (req, res) => {
         paidAt: new Date(),
       });
       createNotification(creatorId, 'tiktok_sponsorship', 'New TikTok sponsored post', `${brandName} booked a paid TikTok promotion.`, { sponsorshipId }).catch(() => {});
-      return res.json({ success: true, allPaid: true, data: { sponsorshipId, amount, trackingUrl: trackingUrl(token) } });
+      return res.json({ success: true, allPaid: true, data: { sponsorshipId, amount, trackingUrl: destinationUrl ? trackingUrl(token) : null } });
     }
 
     const sponsorship = await query(
@@ -382,7 +401,7 @@ exports.initiate = async (req, res) => {
         (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
           amount, creator_earnings, yepper_cut, package_code, pricing_breakdown, payment_status, status, tx_ref)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending','pending_payment',$13) RETURNING id`,
-      [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
+      [creatorId, String(advertiserId), brandName, campaignBrief || null, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
     );
     const sponsorshipId = sponsorship.rows[0].id;
     let paymentUrl;
@@ -502,8 +521,8 @@ exports.getPendingForCreator = async (req, res) => {
   try {
     const result = await query(
                   `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, campaign_brief,
-                    creative_image_url,
-              destination_url, tracking_token, amount, status, video_url, views, likes,
+                    creative_image_url, destination_url, tracking_token, amount, pricing_breakdown,
+              status, video_url, views, likes,
               comments, shares, clicks, created_at, posted_at
        FROM tiktok_sponsorships
        WHERE creator_id = $1 AND payment_status = 'paid' AND status <> 'cancelled'
@@ -526,8 +545,9 @@ exports.getPendingForCreator = async (req, res) => {
         campaignBrief: row.campaign_brief,
         creativeImageUrl: row.creative_image_url,
         destinationUrl: row.destination_url,
-        trackingUrl: trackingUrl(row.tracking_token),
+        trackingUrl: row.destination_url ? trackingUrl(row.tracking_token) : null,
         amount: Number(row.amount),
+        commitmentMonths: Number(row.pricing_breakdown?.commitmentMonths || 1),
         status: row.status,
         videoUrl: row.video_url,
         views: Number(row.views || 0),
@@ -598,15 +618,18 @@ exports.submitVideo = async (req, res) => {
   const videoUrl = safeUrl(req.body?.videoUrl);
   const videoId = extractTikTokVideoId(videoUrl);
   if (!videoId) return res.status(400).json({ success: false, message: 'Enter a public TikTok video link with a video ID' });
-  if (req.body?.linkAdded !== true) return res.status(400).json({ success: false, message: 'Confirm that you added the campaign tracking link to your TikTok bio' });
 
   try {
     const sponsorshipRes = await query(
-      `SELECT id FROM tiktok_sponsorships
+      `SELECT id, destination_url FROM tiktok_sponsorships
        WHERE id = $1 AND creator_id = $2 AND payment_status = 'paid' AND status = 'pending_post' LIMIT 1`,
       [req.params.id, creatorId],
     );
     if (!sponsorshipRes.rowCount) return res.status(404).json({ success: false, message: 'No active TikTok sponsorship is awaiting a post' });
+    const linkAdded = Boolean(sponsorshipRes.rows[0].destination_url);
+    if (linkAdded && req.body?.linkAdded !== true) {
+      return res.status(400).json({ success: false, message: 'Confirm that you added the campaign tracking link to your TikTok bio' });
+    }
     const accessToken = await getCreatorTikTokToken(creatorId);
     if (!accessToken) return res.status(409).json({ success: false, message: 'Reconnect TikTok with the approved video.list scope before submitting a post' });
     const video = await getTikTokVideo(accessToken, videoId);
@@ -615,9 +638,9 @@ exports.submitVideo = async (req, res) => {
     const result = await query(
       `UPDATE tiktok_sponsorships
        SET tiktok_video_id = $1, video_url = $2, views = $3, likes = $4, comments = $5, shares = $6,
-           link_added = TRUE, status = 'submitted', posted_at = NOW(), last_stats_at = NOW(), updated_at = NOW()
-       WHERE id = $7 AND creator_id = $8 AND status = 'pending_post' RETURNING id, views, likes, comments, shares, clicks, video_url`,
-      [videoId, video.share_url || videoUrl, Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), Number(video.share_count || 0), req.params.id, creatorId],
+           link_added = $7, status = 'submitted', posted_at = NOW(), last_stats_at = NOW(), updated_at = NOW()
+       WHERE id = $8 AND creator_id = $9 AND status = 'pending_post' RETURNING id, views, likes, comments, shares, clicks, video_url`,
+      [videoId, video.share_url || videoUrl, Number(video.view_count || 0), Number(video.like_count || 0), Number(video.comment_count || 0), Number(video.share_count || 0), linkAdded, req.params.id, creatorId],
     );
     if (!result.rowCount) return res.status(409).json({ success: false, message: 'This sponsorship was already submitted' });
     return res.json({ success: true, data: result.rows[0] });
@@ -632,7 +655,7 @@ exports.getAdvertiserReports = async (req, res) => {
   if (!advertiserId) return res.status(401).json({ success: false, message: 'Log in to view TikTok campaign results' });
   try {
     const result = await query(
-            `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, amount, status,
+            `SELECT id, creator_id, tiktok_video_id, last_stats_at, brand_name, amount, pricing_breakdown, status,
               video_url, views, likes, comments, shares, clicks, created_at, posted_at
        FROM tiktok_sponsorships
        WHERE advertiser_id = $1 AND creator_id = $2 AND payment_status = 'paid'
@@ -649,6 +672,7 @@ exports.getAdvertiserReports = async (req, res) => {
         id: current.id,
         brandName: current.brand_name,
         amount: Number(current.amount),
+        commitmentMonths: Number(current.pricing_breakdown?.commitmentMonths || 1),
         status: current.status,
         videoUrl: current.video_url,
         views: Number(current.views || 0),
@@ -671,7 +695,8 @@ exports.trackClick = async (req, res) => {
   try {
     const result = await query(
       `UPDATE tiktok_sponsorships SET clicks = clicks + 1, updated_at = NOW()
-       WHERE tracking_token = $1 AND payment_status = 'paid' AND status <> 'cancelled'
+       WHERE tracking_token = $1 AND destination_url IS NOT NULL
+         AND payment_status = 'paid' AND status <> 'cancelled'
        RETURNING destination_url`,
       [req.params.token],
     );

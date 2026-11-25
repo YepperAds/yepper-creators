@@ -239,7 +239,7 @@ exports.getTiktokers = async (req, res) => {
       channelName: row.channel_name,
       channelUrl: row.channel_url,
       channelAvatar: row.channel_avatar,
-      isMock: Boolean(row.is_mock),
+      isManuallyAdded: Boolean(row.is_mock),
       followers: row.followers,
       totalViews: row.total_views,
       totalPosts: row.total_posts,
@@ -252,7 +252,7 @@ exports.getTiktokers = async (req, res) => {
   }
 };
 
-exports.createMockTiktoker = async (req, res) => {
+exports.createManualTiktoker = async (req, res) => {
   const { channelName, username, followers, avatarUrl, featuredVideoUrl, videoThumbnailUrl } = req.body || {};
   const name = typeof channelName === 'string' ? channelName.trim() : '';
   const handle = typeof username === 'string' ? username.trim().replace(/^@+/, '') : '';
@@ -296,15 +296,15 @@ exports.createMockTiktoker = async (req, res) => {
 
     const { randomUUID } = require('crypto');
     const mockId = randomUUID();
-    const googleId = `mock-tiktok:${mockId}`;
-    const email = `mock-tiktok-${mockId}@mock.yepper.invalid`;
+    const googleId = `manual-tiktok:${mockId}`;
+    const email = `manual-tiktok-${mockId}@profiles.yepper.invalid`;
     const profileUrl = `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
     connection = await getClient();
     await connection.query('BEGIN');
     const creatorRes = await connection.query(
       `INSERT INTO creators (google_id, email, full_name, avatar, username, is_mock)
        VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING id`,
-      [googleId, email, name, imageUrl, `mock_tiktok_${mockId.slice(0, 8)}`],
+      [googleId, email, name, imageUrl, `manual_tiktok_${mockId.slice(0, 8)}`],
     );
     const creatorId = creatorRes.rows[0].id;
     await connection.query(
@@ -323,17 +323,17 @@ exports.createMockTiktoker = async (req, res) => {
       );
     }
     await connection.query('COMMIT');
-    return res.status(201).json({ success: true, tiktokerId: creatorId });
+    return res.status(201).json({ success: true, creatorId });
   } catch (err) {
     if (connection) await connection.query('ROLLBACK');
-    console.error('createMockTiktoker error:', err);
-    return res.status(err.status || 500).json({ success: false, message: err.message || 'Could not add mock TikTok profile' });
+    console.error('createManualTiktoker error:', err);
+    return res.status(err.status || 500).json({ success: false, message: err.message || 'Could not add TikTok creator' });
   } finally {
     if (connection) connection.release();
   }
 };
 
-exports.deleteMockTiktoker = async (req, res) => {
+exports.deleteManualTiktoker = async (req, res) => {
   let connection;
   try {
     connection = await getClient();
@@ -348,7 +348,7 @@ exports.deleteMockTiktoker = async (req, res) => {
     const creator = creatorRes.rows[0];
     if (!creator) {
       await connection.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'Mock TikTok profile not found' });
+      return res.status(404).json({ success: false, message: 'Manually added TikTok profile not found' });
     }
     await connection.query('DELETE FROM hot_deal_items WHERE creator_id = $1', [creator.id]);
     await connection.query('DELETE FROM creators WHERE id = $1 AND is_mock = TRUE', [creator.id]);
@@ -356,8 +356,8 @@ exports.deleteMockTiktoker = async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     if (connection) await connection.query('ROLLBACK');
-    console.error('deleteMockTiktoker error:', err);
-    return res.status(500).json({ success: false, message: err.message || 'Could not remove mock TikTok profile' });
+    console.error('deleteManualTiktoker error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Could not remove TikTok profile' });
   } finally {
     if (connection) connection.release();
   }

@@ -30,6 +30,16 @@ test('calculates platform-specific prices and commitment discounts once', () => 
   assert.equal(tiktok.totalPrice, 85_500);
   assert.equal(tiktok.creatorEarnings, 59_850);
   assert.equal(tiktok.yepperRevenue, 25_650);
+
+  const sixMonthTikTok = calculateSocialItemPrice({
+    platform: 'tiktok',
+    audienceCount: 1_000,
+    packageCode: 'brand_visit_video',
+    commitmentMonths: 6,
+  });
+  assert.equal(sixMonthTikTok.monthlyPrice, 27_000);
+  assert.equal(sixMonthTikTok.totalPrice, 162_000);
+  assert.equal(sixMonthTikTok.commitmentDiscountRate, 0.1);
 });
 
 test('matches workbook Entry-tier prices for all TikTok packages', () => {

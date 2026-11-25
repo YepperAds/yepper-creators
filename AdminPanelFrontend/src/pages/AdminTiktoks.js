@@ -57,40 +57,40 @@ export default function AdminTiktoks() {
 
   useEffect(() => { load(); }, [load]);
 
-  const addMockTiktok = async (event) => {
+  const addManualTiktoker = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError('');
     setNotice('');
     try {
-      await adminFetch('/tiktoks/mocks', {
+      await adminFetch('/tiktoks/manual', {
         method: 'POST',
         body: JSON.stringify(form),
       }, adminHeaders);
       setForm(EMPTY_FORM);
       setFormOpen(false);
-      setNotice('Test TikTok enabled. It is now listed in the public TikTok marketplace and uses the follower count you entered for pricing.');
+      setNotice('TikTok creator added. The profile now appears alongside connected creators in the marketplace.');
       setPage(1);
       setSearch('');
       await load('', 1);
     } catch (saveError) {
-      setError(saveError.message || 'Could not enable the test TikTok.');
+      setError(saveError.message || 'Could not add the TikTok creator.');
     } finally {
       setSaving(false);
     }
   };
 
-  const removeMockTiktok = async (creator) => {
-    const name = creator.channelName || creator.name || 'this test profile';
-    if (!window.confirm(`Disable and permanently remove "${name}" from the TikTok marketplace?`)) return;
+  const removeManualTiktoker = async (creator) => {
+    const name = creator.channelName || creator.name || 'this manually added profile';
+    if (!window.confirm(`Remove "${name}" from the TikTok marketplace?`)) return;
     setDeleting(current => ({ ...current, [creator._id]: true }));
     setError('');
     setNotice('');
     try {
-      await adminFetch(`/tiktoks/mocks/${encodeURIComponent(creator._id)}`, {
+      await adminFetch(`/tiktoks/manual/${encodeURIComponent(creator._id)}`, {
         method: 'DELETE',
       }, adminHeaders);
-      setNotice(`Test TikTok "${name}" has been removed from the marketplace.`);
+      setNotice(`TikTok profile "${name}" has been removed from the marketplace.`);
       await load();
     } catch (deleteError) {
       setError(deleteError.message || `Could not remove "${name}".`);
@@ -105,9 +105,9 @@ export default function AdminTiktoks() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 700 }}>TikToks</h2>
+          <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 700 }}>TikTok creators</h2>
           <p style={{ margin: 0, color: '#888', fontSize: 14 }}>
-            {total} connected TikTok profiles. Add test profiles with custom follower counts to check marketplace pricing and booking.
+            {total} TikTok profiles in the marketplace. Add creators who have not connected their accounts to Yepper yet.
           </p>
         </div>
         <button
@@ -115,7 +115,7 @@ export default function AdminTiktoks() {
           onClick={() => setFormOpen(open => !open)}
           style={{ padding: '9px 14px', border: '1px solid #111', borderRadius: 6, background: '#111', color: '#fff', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
         >
-          {formOpen ? 'Cancel' : '+ Enable test TikTok'}
+          {formOpen ? 'Cancel' : '+ Add TikTok creator'}
         </button>
       </div>
 
@@ -123,10 +123,10 @@ export default function AdminTiktoks() {
       {notice && <div role="status" style={{ background: '#f0fff4', border: '1px solid #9ae6b4', borderRadius: 8, padding: '10px 14px', color: '#276749', marginBottom: 14, fontSize: 13 }}>{notice}</div>}
 
       {formOpen && (
-        <form onSubmit={addMockTiktok} style={{ background: '#fff', border: '1px solid #e6eaf0', borderRadius: 10, padding: 18, marginBottom: 18 }}>
-          <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Enable a test TikTok profile</h3>
+        <form onSubmit={addManualTiktoker} style={{ background: '#fff', border: '1px solid #e6eaf0', borderRadius: 10, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Manually add a TikTok creator</h3>
           <p style={{ margin: '0 0 14px', color: '#888', fontSize: 12 }}>
-            Test profiles appear in the same TikTok marketplace as connected creators. Sponsorship packages are enabled for testing.
+            Add the creator’s real TikTok details. Their listing appears to advertisers like any other TikTok creator, even before they connect an account.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
             <label style={labelStyle}>Display name
@@ -149,7 +149,7 @@ export default function AdminTiktoks() {
             </label>
           </div>
           <button type="submit" disabled={saving} style={{ marginTop: 14, padding: '9px 14px', border: '1px solid #111', borderRadius: 6, background: '#111', color: '#fff', fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Enabling…' : 'Enable test TikTok'}
+            {saving ? 'Adding…' : 'Add TikTok creator'}
           </button>
         </form>
       )}
@@ -167,7 +167,7 @@ export default function AdminTiktoks() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead style={{ background: '#fafafa' }}>
             <tr>
-              {['Name', 'TikTok profile', 'Followers', 'Type', 'Connected', 'Actions'].map(heading => (
+              {['Name', 'TikTok profile', 'Followers', 'Listing', 'Connected / added', 'Actions'].map(heading => (
                 <th key={heading} style={{ textAlign: 'left', padding: '12px 16px', color: '#888', fontWeight: 500, fontSize: 12, borderBottom: '1px solid #f0f0f0' }}>{heading}</th>
               ))}
             </tr>
@@ -187,17 +187,17 @@ export default function AdminTiktoks() {
                 </td>
                 <td style={{ padding: '12px 16px', color: '#666' }}>{Number(creator.followers || 0).toLocaleString()}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  {creator.isMock
-                    ? <span style={{ padding: '2px 6px', borderRadius: 999, background: '#fff4d6', color: '#8a5a00', fontSize: 10, fontWeight: 700 }}>TEST</span>
+                  {creator.isManuallyAdded
+                    ? <span style={{ padding: '2px 6px', borderRadius: 999, background: '#edf2ff', color: '#3c5285', fontSize: 10, fontWeight: 700 }}>MANUAL</span>
                     : <span style={{ color: '#777' }}>Connected</span>}
                 </td>
                 <td style={{ padding: '12px 16px', color: '#aaa', fontSize: 13 }}>
                   {creator.connectedAt ? new Date(creator.connectedAt).toLocaleDateString() : '—'}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
-                  {creator.isMock
-                    ? <button type="button" onClick={() => removeMockTiktok(creator)} disabled={Boolean(deleting[creator._id])} style={{ padding: '5px 9px', border: '1px solid #f3c7c4', borderRadius: 6, background: '#fff', color: '#b42318', cursor: deleting[creator._id] ? 'wait' : 'pointer' }}>
-                      {deleting[creator._id] ? 'Removing…' : 'Disable test profile'}
+                  {creator.isManuallyAdded
+                    ? <button type="button" onClick={() => removeManualTiktoker(creator)} disabled={Boolean(deleting[creator._id])} style={{ padding: '5px 9px', border: '1px solid #f3c7c4', borderRadius: 6, background: '#fff', color: '#b42318', cursor: deleting[creator._id] ? 'wait' : 'pointer' }}>
+                      {deleting[creator._id] ? 'Removing…' : 'Remove listing'}
                     </button>
                     : <span style={{ color: '#aaa' }}>—</span>}
                 </td>

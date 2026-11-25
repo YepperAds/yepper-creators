@@ -8,11 +8,12 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 interface TikTokSponsorship {
   id: number;
   brandName: string;
-  campaignBrief: string;
+  campaignBrief: string | null;
   creativeImageUrl: string | null;
-  destinationUrl: string;
-  trackingUrl: string;
+  destinationUrl: string | null;
+  trackingUrl: string | null;
   amount: number;
+  commitmentMonths: number;
   status: 'pending_post' | 'submitted';
   videoUrl: string | null;
   views: number;
@@ -102,7 +103,7 @@ export default function TikTokSponsoredPosts({ onClose }: { onClose: () => void 
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-(--color-white)">TikTok sponsored posts</h2>
-            <p className="mt-1 text-xs text-(--color-muted)">Add each campaign link to your TikTok bio while the promotion is active, then submit your published video.</p>
+            <p className="mt-1 text-xs text-(--color-muted)">Add the campaign link to your TikTok bio when one was provided, then submit your published video.</p>
           </div>
           <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-(--color-muted) hover:bg-(--color-surface-2) hover:text-(--color-white)">Close</button>
         </div>
@@ -119,7 +120,8 @@ export default function TikTokSponsoredPosts({ onClose }: { onClose: () => void 
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-bold text-(--color-white)">{post.brandName}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-(--color-muted)">{post.campaignBrief}</p>
+                    {post.campaignBrief && <p className="mt-1 text-xs leading-relaxed text-(--color-muted)">{post.campaignBrief}</p>}
+                    <p className="mt-1 text-[10px] text-(--color-muted)">{post.commitmentMonths} month{post.commitmentMonths === 1 ? '' : 's'} · {post.amount.toLocaleString()} RWF total</p>
                   </div>
                   <span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase ${post.status === 'submitted' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-200'}`}>
                     {post.status === 'submitted' ? 'Submitted' : 'Awaiting post'}
@@ -129,30 +131,36 @@ export default function TikTokSponsoredPosts({ onClose }: { onClose: () => void 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={post.creativeImageUrl} alt={`${post.brandName} ad creative`} className="mt-3 max-h-56 w-full rounded-lg border border-(--color-border) bg-(--color-surface-1) object-contain" />
                 )}
-                <a href={post.destinationUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block break-all text-xs font-semibold text-emerald-300 underline underline-offset-2">
-                  Campaign destination: {new URL(post.destinationUrl).hostname}
-                </a>
+                {post.destinationUrl && (
+                  <a href={post.destinationUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block break-all text-xs font-semibold text-emerald-300 underline underline-offset-2">
+                    Campaign destination: {new URL(post.destinationUrl).hostname}
+                  </a>
+                )}
 
-                <div className="mt-4">
+                {post.trackingUrl && (
+                  <div className="mt-4">
                   <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-(--color-muted)">Campaign link for your TikTok bio</p>
                   <div className="flex gap-2">
                     <input readOnly value={post.trackingUrl} className="min-w-0 flex-1 rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2 text-xs text-(--color-white)" />
-                    <button type="button" onClick={() => navigator.clipboard?.writeText(post.trackingUrl)} className="rounded-lg border border-(--color-border) px-3 text-xs font-semibold text-(--color-white)">Copy</button>
+                    <button type="button" onClick={() => post.trackingUrl && navigator.clipboard?.writeText(post.trackingUrl)} className="rounded-lg border border-(--color-border) px-3 text-xs font-semibold text-(--color-white)">Copy</button>
                   </div>
                   <p className="mt-1 text-[10px] text-(--color-muted)">Clicks are tracked when people open this URL. Keep it in your bio while this campaign is active.</p>
-                </div>
+                  </div>
+                )}
 
                 {post.status === 'pending_post' ? (
                   <div className="mt-4 space-y-3 border-t border-(--color-border) pt-4">
-                    <label className="flex items-start gap-2 text-xs text-(--color-white)">
-                      <input type="checkbox" checked={linkAdded[post.id] === true} onChange={(event) => setLinkAdded((current) => ({ ...current, [post.id]: event.target.checked }))} className="mt-0.5 accent-emerald-500" />
-                      I added this campaign link to my TikTok bio.
-                    </label>
+                    {post.destinationUrl && (
+                      <label className="flex items-start gap-2 text-xs text-(--color-white)">
+                        <input type="checkbox" checked={linkAdded[post.id] === true} onChange={(event) => setLinkAdded((current) => ({ ...current, [post.id]: event.target.checked }))} className="mt-0.5 accent-emerald-500" />
+                        I added this campaign link to my TikTok bio.
+                      </label>
+                    )}
                     <label className="block text-xs font-semibold text-(--color-white)">
                       Published TikTok video link
                       <input value={videoLinks[post.id] || ''} onChange={(event) => setVideoLinks((current) => ({ ...current, [post.id]: event.target.value }))} placeholder="https://www.tiktok.com/@you/video/..." className="mt-1.5 w-full rounded-lg border border-(--color-border) bg-(--color-surface-1) px-3 py-2.5 text-xs font-normal text-(--color-white) placeholder:text-(--color-muted)" />
                     </label>
-                    <button type="button" onClick={() => submitPost(post)} disabled={submitting === post.id || !linkAdded[post.id] || !videoLinks[post.id]?.trim()} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                    <button type="button" onClick={() => submitPost(post)} disabled={submitting === post.id || (Boolean(post.destinationUrl) && !linkAdded[post.id]) || !videoLinks[post.id]?.trim()} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
                       {submitting === post.id ? 'Verifying…' : 'Submit published post'}
                     </button>
                   </div>

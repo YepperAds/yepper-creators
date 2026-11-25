@@ -925,7 +925,7 @@ exports.getPublicCreators = async (req, res) => {
       return {
         id:          String(r.id),
         provider:    r.provider || 'youtube',
-        isPartnerChannel: Boolean(r.is_mock),
+        isPartnerChannel: r.provider === 'youtube' && Boolean(r.is_mock),
         username:    channelHandle,
         name:        channelHandle || (r.provider === 'youtube' ? 'YouTube channel' : 'TikTok profile'),
         avatar:      r.platform_avatar || null,

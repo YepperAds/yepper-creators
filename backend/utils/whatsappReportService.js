@@ -3,11 +3,18 @@
 const { query } = require('../config/db');
 
 const isConfigured = () => Boolean(
+  (process.env.WHATSAPP_MARKETING_ENABLED || '').toLowerCase() === 'true' &&
   process.env.WHATSAPP_ACCESS_TOKEN &&
   process.env.WHATSAPP_PHONE_NUMBER_ID &&
   process.env.WHATSAPP_REPORT_TEMPLATE_NAME &&
   process.env.WHATSAPP_GRAPH_API_VERSION,
 );
+
+const getAnalyticsUrl = () => {
+  const frontendUrl = (process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'https://yepper.cc')
+    .replace(/\/+$/, '');
+  return `${frontendUrl}/analytics`;
+};
 
 function getWeekStart(date = new Date()) {
   const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -17,54 +24,36 @@ function getWeekStart(date = new Date()) {
 }
 
 function formatReport(name, videos, reportWeek) {
-  const totals = videos.reduce((acc, video) => {
-    acc.views += Number(video.views) || 0;
-    acc.likes += Number(video.likes) || 0;
-    acc.comments += Number(video.comments) || 0;
-    acc.shares += Number(video.shares) || 0;
-    acc.clicks += Number(video.clicks) || 0;
-    acc[video.platform] = (acc[video.platform] || 0) + 1;
-    return acc;
-  }, { views: 0, likes: 0, comments: 0, shares: 0, clicks: 0 });
-
-  const platformCounts = Object.keys(totals)
-    .filter((key) => !['views', 'likes', 'comments', 'shares', 'clicks'].includes(key))
-    .map((platform) => `${platform}: ${totals[platform]} video${totals[platform] === 1 ? '' : 's'}`)
-    .join(' | ');
-  const details = videos
-    .slice()
-    .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0))
-    .map((video) => {
-      const title = String(video.title || `${video.platform} video`).replace(/\s+/g, ' ').trim().slice(0, 55);
-      const engagement = `${Number(video.views) || 0} views, ${Number(video.likes) || 0} likes, ${Number(video.comments) || 0} comments`;
-      return `- ${video.platform}: ${title} (${engagement}${Number(video.shares) ? `, ${Number(video.shares)} shares` : ''}${Number(video.clicks) ? `, ${Number(video.clicks)} clicks` : ''})`;
-    });
-
-  const lines = [
-    `Week of ${reportWeek} - latest tracked totals (cumulative across ${videos.length} videos):`,
-    `${platformCounts}`,
-    `All videos: ${totals.views} views, ${totals.likes} likes, ${totals.comments} comments, ${totals.shares} shares, ${totals.clicks} clicks.`,
-    'Video-by-video:',
-    ...details,
-  ];
-  const chunks = [];
-  let chunk = '';
-  for (const line of lines) {
-    const next = chunk ? `${chunk}\n${line}` : line;
-    if (chunk && next.length > 850) {
-      chunks.push(chunk);
-      chunk = line;
-    } else {
-      chunk = next;
+  const totals = { views: 0, likes: 0, comments: 0, shares: 0, clicks: 0 };
+  const platforms = new Map();
+  for (const video of videos) {
+    const platform = video.platform || 'Other';
+    const stats = platforms.get(platform) || { count: 0, views: 0, likes: 0, comments: 0 };
+    stats.count += 1;
+    for (const metric of ['views', 'likes', 'comments', 'shares', 'clicks']) {
+      const value = Number(video[metric]) || 0;
+      totals[metric] += value;
+      if (metric in stats) stats[metric] += value;
     }
+    platforms.set(platform, stats);
   }
-  if (chunk) chunks.push(chunk);
-  const messages = chunks.map((text, index) => `Part ${index + 1}/${chunks.length}\n${text}`);
+
+  const platformSummary = [...platforms.entries()]
+    .map(([platform, stats]) =>
+      `${platform} (${stats.count} video${stats.count === 1 ? '' : 's'}): ${stats.views} views, ${stats.likes} likes, ${stats.comments} comments`)
+    .join('\n');
+  const body = [
+    `Your weekly campaign update for the week of ${reportWeek} (current tracked totals):`,
+    platformSummary,
+    `All platforms: ${totals.views} views, ${totals.likes} likes, ${totals.comments} comments, ${totals.shares} shares, ${totals.clicks} clicks.`,
+    `More analytics: ${getAnalyticsUrl()}`,
+    'For more information: +250792051768 | Yepperads@gmail.com',
+  ].filter(Boolean).join('\n');
 
   return {
     greeting: String(name || 'there').trim().split(/\s+/)[0].slice(0, 40) || 'there',
-    body: messages.join('\n\n'),
-    messages,
+    body,
+    messages: [body],
   };
 }
 
@@ -185,19 +174,19 @@ async function sendTemplateMessage(phoneNumber, greeting, body) {
 
 async function sendTestMessage(phoneNumber, name) {
   if (!isConfigured()) {
-    throw new Error('WhatsApp sending is not configured. Add the Meta API credentials and approved template on the backend.');
+    throw new Error('WhatsApp sending is disabled or not configured. Enable marketing and add the Meta API credentials and approved template on the backend.');
   }
   const greeting = String(name || 'there').trim().split(/\s+/)[0].slice(0, 40) || 'there';
   await sendTemplateMessage(
     phoneNumber,
     greeting,
-    'This is a test of Yepper weekly campaign reports. Your WhatsApp number is connected.',
+    `This is a test of Yepper weekly campaign reports. Your WhatsApp number is connected.\nMore analytics: ${getAnalyticsUrl()}\nFor more information: +250792051768 | Yepperads@gmail.com`,
   );
 }
 
 async function sendWeeklyReports(now = new Date()) {
   if (!isConfigured()) {
-    console.warn('[whatsapp-reports] Weekly reports are disabled: configure the WhatsApp API credentials and approved template.');
+    console.warn('[whatsapp-reports] Weekly reports are disabled: set WHATSAPP_MARKETING_ENABLED=true and configure the WhatsApp API credentials and approved template.');
     return { sent: 0, skipped: true };
   }
 
@@ -221,9 +210,9 @@ async function sendWeeklyReports(now = new Date()) {
 
     try {
       let payload = reserved.rows[0].payload;
-      if (!payload) {
+      if (!payload || payload.version !== 2 || typeof payload.message !== 'string') {
         const report = formatReport(advertiser.name, advertiser.videos, reportWeek);
-        payload = { greeting: report.greeting, messages: report.messages };
+        payload = { version: 2, greeting: report.greeting, message: report.body };
         await query(
           `UPDATE whatsapp_report_deliveries SET payload = $3::jsonb
            WHERE advertiser_id = $1 AND report_week = $2`,
@@ -231,14 +220,7 @@ async function sendWeeklyReports(now = new Date()) {
         );
       }
 
-      for (let index = Number(reserved.rows[0].sent_parts) || 0; index < payload.messages.length; index += 1) {
-        await sendTemplateMessage(advertiser.phoneNumber, payload.greeting, payload.messages[index]);
-        await query(
-          `UPDATE whatsapp_report_deliveries SET sent_parts = $3
-           WHERE advertiser_id = $1 AND report_week = $2`,
-          [advertiser.id, reportWeek, index + 1],
-        );
-      }
+      await sendTemplateMessage(advertiser.phoneNumber, payload.greeting, payload.message);
       await query(
         `UPDATE whatsapp_report_deliveries
          SET status = 'sent', sent_at = NOW(), error_message = NULL

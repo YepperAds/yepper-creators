@@ -8,6 +8,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminYoutubers from './pages/AdminYoutubers';
+import AdminTiktoks from './pages/AdminTiktoks';
 import AdminUserDetail from './pages/AdminUserDetail';
 import AdminGrants from './pages/AdminGrants';
 import AdminUserContent from './pages/AdminUserContent';
@@ -48,6 +49,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="youtubers" element={<AdminYoutubers />} />
+            <Route path="tiktoks" element={<AdminTiktoks />} />
             <Route path="users/:userId" element={<AdminUserDetail />} />
             <Route path="users/:userId/content" element={<AdminUserContent />} />
             <Route path="grants" element={<AdminGrants />} />

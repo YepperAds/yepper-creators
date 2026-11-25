@@ -7,6 +7,7 @@ const NAV = [
   { to: '/',        label: 'Dashboard', icon: '▦',  exact: true },
   { to: '/users',     label: 'Users',     icon: '👤' },
   { to: '/youtubers', label: 'Youtubers', icon: '▶️' },
+  { to: '/tiktoks',    label: 'TikToks',   icon: '♪' },
   { to: '/grants',    label: 'Grants',    icon: '🎁' },
   { to: '/pricing',label: 'Pricing',   icon: '💲' },
   { to: '/hot-deals', label: 'Hot Deals', icon: '🔥' },

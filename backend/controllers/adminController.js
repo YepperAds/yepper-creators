@@ -203,6 +203,166 @@ exports.getYoutubers = async (req, res) => {
   }
 };
 
+exports.getTiktokers = async (req, res) => {
+  try {
+    const { search = '', page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const lim = parseInt(limit);
+    const params = [];
+    let where = '';
+    if (search) {
+      params.push(`%${search}%`);
+      where = `WHERE c.full_name ILIKE $1 OR c.email ILIKE $1 OR c.username ILIKE $1 OR sc.username ILIKE $1`;
+    }
+
+    const countRes = await query(
+      `SELECT COUNT(*) FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'tiktok'
+       ${where}`,
+      params,
+    );
+    const total = parseInt(countRes.rows[0].count, 10);
+    const result = await query(
+      `SELECT c.id, c.full_name, c.username, c.email, c.avatar, c.google_id, c.created_at, c.updated_at,
+              c.is_mock, sc.username AS channel_name, sc.profile_url AS channel_url,
+              sc.avatar_url AS channel_avatar, sc.followers_count AS followers,
+              sc.total_views, sc.total_posts, sc.connected_at
+       FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'tiktok'
+       ${where}
+       ORDER BY sc.connected_at DESC
+       OFFSET $${params.length + 1} LIMIT $${params.length + 2}`,
+      [...params, offset, lim],
+    );
+    const tiktokers = result.rows.map(row => ({
+      ...safeUser(row),
+      channelName: row.channel_name,
+      channelUrl: row.channel_url,
+      channelAvatar: row.channel_avatar,
+      isMock: Boolean(row.is_mock),
+      followers: row.followers,
+      totalViews: row.total_views,
+      totalPosts: row.total_posts,
+      connectedAt: row.connected_at,
+    }));
+    return res.json({ success: true, tiktokers, total, page: parseInt(page), limit: lim });
+  } catch (err) {
+    console.error('getTiktokers error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.createMockTiktoker = async (req, res) => {
+  const { channelName, username, followers, avatarUrl, featuredVideoUrl, videoThumbnailUrl } = req.body || {};
+  const name = typeof channelName === 'string' ? channelName.trim() : '';
+  const handle = typeof username === 'string' ? username.trim().replace(/^@+/, '') : '';
+  if (!name || name.length > 255) {
+    return res.status(400).json({ success: false, message: 'Display name is required and must be 255 characters or fewer' });
+  }
+  if (!handle || handle.length > 24 || !/^[a-zA-Z0-9._]+$/.test(handle)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid TikTok username (letters, numbers, periods, or underscores)' });
+  }
+
+  const parseCount = (value, label, max) => {
+    if (value === undefined || value === null || value === '') return 0;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > max) {
+      throw Object.assign(new Error(`${label} must be a non-negative whole number`), { status: 400 });
+    }
+    return parsed;
+  };
+  const validateUrl = (value, label, allowedHosts) => {
+    if (!value) return null;
+    try {
+      const url = new URL(String(value).trim());
+      if (!['http:', 'https:'].includes(url.protocol) || (allowedHosts && !allowedHosts.includes(url.hostname.toLowerCase()))) {
+        throw new Error();
+      }
+      return url.toString();
+    } catch {
+      throw Object.assign(new Error(`${label} must be a valid ${allowedHosts ? 'TikTok' : 'HTTP(S)'} URL`), { status: 400 });
+    }
+  };
+
+  let connection;
+  try {
+    const followerCount = parseCount(followers, 'Followers', 2_147_483_647);
+    const imageUrl = validateUrl(avatarUrl, 'Avatar URL');
+    const videoUrl = validateUrl(featuredVideoUrl, 'Featured video URL', ['tiktok.com', 'www.tiktok.com', 'm.tiktok.com']);
+    const thumbnailUrl = validateUrl(videoThumbnailUrl, 'Video thumbnail URL');
+    if (videoUrl && !/\/video\/\d+/.test(new URL(videoUrl).pathname)) {
+      return res.status(400).json({ success: false, message: 'Featured video URL must link to a TikTok video' });
+    }
+
+    const { randomUUID } = require('crypto');
+    const mockId = randomUUID();
+    const googleId = `mock-tiktok:${mockId}`;
+    const email = `mock-tiktok-${mockId}@mock.yepper.invalid`;
+    const profileUrl = `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
+    connection = await getClient();
+    await connection.query('BEGIN');
+    const creatorRes = await connection.query(
+      `INSERT INTO creators (google_id, email, full_name, avatar, username, is_mock)
+       VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING id`,
+      [googleId, email, name, imageUrl, `mock_tiktok_${mockId.slice(0, 8)}`],
+    );
+    const creatorId = creatorRes.rows[0].id;
+    await connection.query(
+      `INSERT INTO social_connections
+         (creator_id, provider, username, followers_count, profile_url, avatar_url, total_views, total_posts, tiktok_profile, last_public_video_refresh_at)
+       VALUES ($1,'tiktok',$2,$3,$4,$5,0,0,
+         '{"postsPerWeek":1,"sponsoredPostsPerMonth":100,"enabledPackages":["brand_visit_video","creator_location_video","creator_captured_photo","advertiser_image_post","story"]}'::jsonb,
+         NOW())`,
+      [creatorId, handle, followerCount, profileUrl, imageUrl],
+    );
+    if (videoUrl) {
+      await connection.query(
+        `INSERT INTO social_video_stats (creator_id, provider, title, thumbnail_url, video_url, fetched_at)
+         VALUES ($1,'tiktok','Featured TikTok video',$2,$3,NOW())`,
+        [creatorId, thumbnailUrl, videoUrl],
+      );
+    }
+    await connection.query('COMMIT');
+    return res.status(201).json({ success: true, tiktokerId: creatorId });
+  } catch (err) {
+    if (connection) await connection.query('ROLLBACK');
+    console.error('createMockTiktoker error:', err);
+    return res.status(err.status || 500).json({ success: false, message: err.message || 'Could not add mock TikTok profile' });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+exports.deleteMockTiktoker = async (req, res) => {
+  let connection;
+  try {
+    connection = await getClient();
+    await connection.query('BEGIN');
+    const creatorRes = await connection.query(
+      `SELECT c.id, c.google_id FROM creators c
+       JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'tiktok'
+       WHERE c.id = $1 AND c.is_mock = TRUE
+       FOR UPDATE OF c`,
+      [req.params.creatorId],
+    );
+    const creator = creatorRes.rows[0];
+    if (!creator) {
+      await connection.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Mock TikTok profile not found' });
+    }
+    await connection.query('DELETE FROM hot_deal_items WHERE creator_id = $1', [creator.id]);
+    await connection.query('DELETE FROM creators WHERE id = $1 AND is_mock = TRUE', [creator.id]);
+    await connection.query('COMMIT');
+    return res.json({ success: true });
+  } catch (err) {
+    if (connection) await connection.query('ROLLBACK');
+    console.error('deleteMockTiktoker error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Could not remove mock TikTok profile' });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 // POST /api/admin/youtubers/mocks
 exports.createMockYoutuber = async (req, res) => {
   const { channelName, channelUrl, subscribers, totalViews, totalPosts, avatarUrl, featuredVideoUrl } = req.body || {};

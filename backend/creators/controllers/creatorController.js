@@ -964,16 +964,82 @@ exports.refreshSocialStats = async (req, res) => {
   if (!session) return res.status(401).json({ success: false });
   const { provider } = req.params;
 
-  if (provider !== 'youtube') return res.json({ success: false, message: 'Unsupported provider' });
+  if (!['youtube', 'tiktok'].includes(provider)) return res.json({ success: false, message: 'Unsupported provider' });
 
   try {
     const conn = await query(
-      `SELECT access_token, refresh_token FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
+      `SELECT access_token, refresh_token, access_token_expires_at
+       FROM social_connections WHERE creator_id=$1 AND provider=$2 LIMIT 1`,
       [session, provider],
     );
     if (!conn.rowCount) return res.json({ success: false, message: 'Not connected' });
 
     let { access_token: token, refresh_token: refreshToken } = conn.rows[0];
+
+    if (provider === 'tiktok') {
+      if (!token) return res.json({ success: false, message: 'TikTok is not connected with OAuth' });
+      const savedExpiry = conn.rows[0].access_token_expires_at;
+      if (refreshToken && (!savedExpiry || new Date(savedExpiry).getTime() <= Date.now() + 60_000)) {
+        const refreshRes = await fetch(TIKTOK_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_key: TIKTOK_CLIENT_KEY,
+            client_secret: TIKTOK_CLIENT_SECRET,
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+          }),
+        });
+        const refreshData = await refreshRes.json().catch(() => null);
+        if (refreshRes.ok && refreshData?.access_token) {
+          token = refreshData.access_token;
+          refreshToken = refreshData.refresh_token || refreshToken;
+          await query(
+            `UPDATE social_connections
+             SET access_token = $1, refresh_token = $2,
+                 access_token_expires_at = CASE WHEN $3::numeric > 0 THEN NOW() + ($3::text || ' seconds')::interval ELSE NULL END
+             WHERE creator_id = $4 AND provider = 'tiktok'`,
+            [token, refreshToken, Number(refreshData.expires_in || 0), session],
+          );
+        }
+      }
+
+      const profileRes = await fetch(
+        'https://open.tiktokapis.com/v2/user/info/?fields=open_id,username,display_name,avatar_url,avatar_url_100,avatar_large_url,profile_deep_link,follower_count,video_count',
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const profileData = await profileRes.json().catch(() => null);
+      const tiktokUser = profileData?.data?.user || profileData?.data || null;
+      if (!profileRes.ok || !tiktokUser || profileData?.error?.code !== 'ok') {
+        console.error('[creators] TikTok profile refresh failed:', profileData?.error?.message || profileRes.status);
+        return res.status(502).json({ success: false, message: 'Could not refresh TikTok profile data' });
+      }
+
+      const profileDeepLink = String(tiktokUser.profile_deep_link || '');
+      const linkedUsername = profileDeepLink.match(/\/@([^/?]+)/)?.[1];
+      const username = String(tiktokUser.username || linkedUsername || tiktokUser.display_name || '').trim().replace(/^@+/, '');
+      const avatar = tiktokUser.avatar_large_url || tiktokUser.avatar_url || tiktokUser.avatar_url_100 || null;
+      const followerValue = tiktokUser.follower_count;
+      const followers = followerValue === undefined || followerValue === null
+        ? null
+        : normalizeSocialFollowerCount(followerValue);
+      const postsValue = tiktokUser.video_count;
+      const totalPosts = postsValue === undefined || postsValue === null
+        ? null
+        : normalizeSocialFollowerCount(postsValue);
+      const profileUrl = profileDeepLink || (username ? `https://www.tiktok.com/@${encodeURIComponent(username)}` : null);
+      await query(
+        `UPDATE social_connections
+         SET username = COALESCE(NULLIF($1, ''), username),
+             followers_count = COALESCE($2, followers_count),
+             avatar_url = COALESCE(NULLIF($3, ''), avatar_url),
+             profile_url = COALESCE(NULLIF($4, ''), profile_url),
+             total_posts = COALESCE($5, total_posts)
+         WHERE creator_id = $6 AND provider = 'tiktok'`,
+        [username, followers, avatar, profileUrl, totalPosts, session],
+      );
+      return res.json({ success: true });
+    }
 
     const fetchChannel = async (t) => {
       try {

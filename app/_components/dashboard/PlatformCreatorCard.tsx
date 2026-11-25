@@ -12,26 +12,25 @@ function formatCount(value: number): string {
 function CurrentVideo({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   if (!video) {
-    return <div className="flex aspect-video items-center justify-center bg-black text-xs text-white/55">No recent video available</div>;
+    return <div className="flex h-full w-full items-center justify-center text-xs text-white/45">No recent video available</div>;
   }
 
-  if (creator.provider === 'tiktok' && video.embedUrl) {
+  // TikTok's embed player always exposes its own controls. Use the public
+  // cover image in marketplace cards so previews stay silent and control-free.
+  if (creator.provider === 'tiktok') {
     return (
-      <div className="flex h-[260px] items-center justify-center bg-black p-2">
-        <iframe
-          src={video.embedUrl}
-          title={video.title || `${creator.channelName} TikTok video`}
-          loading="lazy"
-          allow="encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="h-full aspect-[9/16] rounded-md bg-black"
-        />
+      <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
+        {video.thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={video.thumbnail} alt={video.title || `${creator.channelName} TikTok video`} className="h-full w-auto max-w-full object-contain" />
+        ) : (
+          <span className="text-xs text-white/45">No recent video available</span>
+        )}
       </div>
     );
   }
 
-  return <div className="aspect-video overflow-hidden bg-black"><VideoEmbed url={video.url} thumbnail={video.thumbnail} title={video.title} /></div>;
+  return <div className="h-full w-full overflow-hidden bg-black"><VideoEmbed url={video.url} thumbnail={video.thumbnail} title={video.title} /></div>;
 }
 
 export default function PlatformCreatorCard({
@@ -52,7 +51,7 @@ export default function PlatformCreatorCard({
   const isTikTok = creator.provider === 'tiktok';
   const platformName = isTikTok ? 'TikTok' : 'YouTube';
   const logoUrl = isTikTok ? '/socials-icon/tiktok-icon.png' : '/socials-icon/youtube-icon.png';
-  const accent = isTikTok ? '#25F4EE' : '#FF0033';
+  const accent = '#E8472B';
   const audienceCount = creator.followers ?? creator.subscribers ?? 0;
   const audienceLabel = isTikTok ? 'followers' : 'subscribers';
   const channelName = creator.channelName || creator.username || creator.name;
@@ -67,16 +66,16 @@ export default function PlatformCreatorCard({
       onClick={onClick}
       disabled={creator.isPartnerChannel && !enablePartnerSelection}
       aria-pressed={creator.isPartnerChannel && enablePartnerSelection ? selected : undefined}
-      className={`shrink-0 overflow-hidden rounded-xl border bg-[#101010] text-left transition-colors ${className}`}
-      style={{ borderColor: selected ? accent : `${accent}88` }}
+      className={`flex h-full min-h-[360px] w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-2 text-left transition-colors hover:border-white/20 disabled:cursor-default ${className}`}
+      style={selected ? { borderColor: accent } : undefined}
     >
-      <span className="block h-1 w-full" style={{ backgroundColor: accent }} />
-      <span className="flex items-center gap-3 px-3.5 py-3">
+      <span className="block h-1 w-full shrink-0 bg-coral" />
+      <span className="flex h-[68px] shrink-0 items-center gap-3 px-4">
         {creator.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={creator.avatar} alt={`${channelName} profile`} className="h-10 w-10 rounded-full border border-white/15 object-cover" />
         ) : isTikTok ? (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[#25F4EE]/15 text-sm font-bold text-white">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-surface-3 text-sm font-bold text-white">
             {channelName.trim().replace(/^@+/, '').charAt(0).toUpperCase() || 'T'}
           </span>
         ) : (
@@ -93,12 +92,12 @@ export default function PlatformCreatorCard({
         </span>
       </span>
 
-      <span className="mx-3.5 block overflow-hidden rounded-lg border border-white/10">
+      <span className="mx-3.5 block aspect-video shrink-0 overflow-hidden rounded-xl border border-border bg-black">
         <CurrentVideo creator={creator} />
       </span>
 
-      <span className="flex items-center justify-between gap-3 px-3.5 py-3">
-        <span className="min-w-0">
+      <span className="flex min-h-[80px] flex-1 items-start justify-between gap-3 px-4 py-3">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold text-white">{video?.title || `Latest ${platformName} video`}</span>
           {isTikTok && creator.tiktokProfile && (
             <span className="mt-1 block truncate text-[10px] text-white/55">
@@ -108,7 +107,7 @@ export default function PlatformCreatorCard({
         </span>
         {video && (!creator.isPartnerChannel || video.views > 0) && <span className="shrink-0 text-[10px] text-white/55">{formatCount(video.views)} views</span>}
       </span>
-      <span className="block border-t border-white/10 px-3.5 py-2.5 text-xs font-semibold" style={{ color: accent }}>
+      <span className="mt-auto flex min-h-10 shrink-0 items-center border-t border-border px-4 py-2.5 text-xs font-semibold text-coral-text">
         {creator.isPartnerChannel && enablePartnerSelection
           ? selected ? 'Selected' : actionText || 'View packages'
           : actionText || `Advertise on ${channelName}`}

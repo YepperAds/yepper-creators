@@ -11,11 +11,13 @@ const {
   upsertWallet,
   generateUniqueTransactionRef,
 } = require('../../AdOwner/controllers/PaymentController');
-const { priceFor } = require('../utils/youtubeTierPricing');
+const {
+  TIKTOK_SPONSORSHIP_PACKAGE_CODE,
+  calculateSocialItemPrice,
+} = require('../utils/socialCampaignPricing');
 const { getSessionUserId, uploadCreativeToCloudinary } = require('./adSpaceController');
 const { createNotification } = require('../utils/notificationUtils');
 
-const CREATOR_SHARE = 0.70;
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
@@ -175,6 +177,7 @@ exports.fetchLatestTikTokVideo = fetchLatestTikTokVideo;
 
 exports.getQuote = async (req, res) => {
   if (!getSessionUserId(req)) return res.status(401).json({ success: false, message: 'Log in to view TikTok promotion pricing' });
+  const packageCode = TIKTOK_SPONSORSHIP_PACKAGE_CODE;
   try {
     const creatorId = String(req.params.creatorId || '');
     const connection = await query(
@@ -201,13 +204,22 @@ exports.getQuote = async (req, res) => {
       [creatorId],
     );
     const followerCount = Number(connection.rows[0].followers_count || 0);
-    const priced = priceFor(followerCount, '30 seconds', 'corner');
+    if (followerCount < 1_000) {
+      return res.status(409).json({ success: false, message: 'TikTok pricing starts at 1,000 followers' });
+    }
+    const priced = calculateSocialItemPrice({
+      platform: 'tiktok',
+      audienceCount: followerCount,
+      packageCode,
+      commitmentMonths: 1,
+    });
     return res.json({
       success: true,
       data: {
         followers: followerCount,
-        tier: priced?.tier || 'Test',
-        amount: priced?.amount || 0,
+        tier: priced.tier,
+        packageCode: priced.packageCode,
+        amount: priced.totalPrice,
         monthlyCapacity,
         remainingCapacity: activeBooking.rowCount
           ? 0
@@ -227,6 +239,7 @@ exports.initiate = async (req, res) => {
   const creatorId = String(req.params.creatorId || '');
   const brandName = String(req.body?.brandName || '').trim();
   const campaignBrief = String(req.body?.campaignBrief || '').trim();
+  const packageCode = TIKTOK_SPONSORSHIP_PACKAGE_CODE;
   const destinationUrl = safeUrl(req.body?.destinationUrl);
   if (!req.file) return res.status(400).json({ success: false, message: 'Import an image creative for this TikTok promotion' });
   if (!brandName || brandName.length > 160) return res.status(400).json({ success: false, message: 'Brand name is required (160 characters max)' });
@@ -277,11 +290,18 @@ exports.initiate = async (req, res) => {
       return res.status(409).json({ success: false, message: 'This creator has reached their stated sponsored-post capacity for this month' });
     }
 
-    const priced = priceFor(Number(connection.rows[0].followers_count || 0), '30 seconds', 'corner');
-    if (!priced) return res.status(400).json({ success: false, message: 'Could not calculate the TikTok post price' });
-    const amount = priced.amount;
-    const creatorEarnings = Math.round(amount * CREATOR_SHARE);
-    const yepperCut = amount - creatorEarnings;
+    if (Number(connection.rows[0].followers_count || 0) < 1_000) {
+      return res.status(409).json({ success: false, message: 'TikTok pricing starts at 1,000 followers' });
+    }
+    const priced = calculateSocialItemPrice({
+      platform: 'tiktok',
+      audienceCount: Number(connection.rows[0].followers_count || 0),
+      packageCode,
+      commitmentMonths: 1,
+    });
+    const amount = priced.totalPrice;
+    const creatorEarnings = priced.creatorEarnings;
+    const yepperCut = priced.yepperRevenue;
     const creativeImageUrl = await uploadCreativeToCloudinary(req.file);
     const advertiser = await Creator.findById(advertiserId);
     if (!advertiser?.email) return res.status(404).json({ success: false, message: 'Advertiser account not found' });
@@ -306,9 +326,9 @@ exports.initiate = async (req, res) => {
         const sponsorship = await client.query(
           `INSERT INTO tiktok_sponsorships
              (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
-              amount, creator_earnings, yepper_cut, payment_status, status, tx_ref)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid','pending_post',$11) RETURNING id`,
-           [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
+              amount, creator_earnings, yepper_cut, package_code, pricing_breakdown, payment_status, status, tx_ref)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'paid','pending_post',$13) RETURNING id`,
+          [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
         );
         sponsorshipId = sponsorship.rows[0].id;
         await client.query(
@@ -327,7 +347,7 @@ exports.initiate = async (req, res) => {
         paymentId: txRef, tx_ref: txRef, advertiserId: String(advertiserId), webOwnerId: String(creatorId),
         amount, currency: 'RWF', status: 'successful', walletApplied: amount, amountPaid: 0,
         paymentMethod: 'wallet_only',
-        metadata: { kind: 'tiktok_sponsorship', sponsorshipId, creatorId, creatorEarnings, yepperCut },
+        metadata: { kind: 'tiktok_sponsorship', sponsorshipId, creatorId, creatorEarnings, yepperCut, pricing: priced },
         paidAt: new Date(),
       });
       createNotification(creatorId, 'tiktok_sponsorship', 'New TikTok sponsored post', `${brandName} booked a paid TikTok promotion.`, { sponsorshipId }).catch(() => {});
@@ -337,9 +357,9 @@ exports.initiate = async (req, res) => {
     const sponsorship = await query(
       `INSERT INTO tiktok_sponsorships
         (creator_id, advertiser_id, brand_name, campaign_brief, creative_image_url, destination_url, tracking_token,
-          amount, creator_earnings, yepper_cut, payment_status, status, tx_ref)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending','pending_payment',$11) RETURNING id`,
-      [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, txRef],
+          amount, creator_earnings, yepper_cut, package_code, pricing_breakdown, payment_status, status, tx_ref)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending','pending_payment',$13) RETURNING id`,
+      [creatorId, String(advertiserId), brandName, campaignBrief, creativeImageUrl, destinationUrl, token, amount, creatorEarnings, yepperCut, packageCode, JSON.stringify(priced), txRef],
     );
     const sponsorshipId = sponsorship.rows[0].id;
     let paymentUrl;
@@ -359,7 +379,7 @@ exports.initiate = async (req, res) => {
       paymentId: txRef, tx_ref: txRef, advertiserId: String(advertiserId), webOwnerId: String(creatorId),
       amount, currency: 'RWF', status: 'pending', flutterwaveData: { paymentUrl },
       amountPaid: amount, paymentMethod: 'flutterwave',
-      metadata: { kind: 'tiktok_sponsorship', sponsorshipId, creatorId, creatorEarnings, yepperCut },
+      metadata: { kind: 'tiktok_sponsorship', sponsorshipId, creatorId, creatorEarnings, yepperCut, pricing: priced },
     });
     return res.json({ success: true, allPaid: false, data: { sponsorshipId, amount, paymentUrl } });
   } catch (err) {

@@ -272,6 +272,8 @@ async function initCreatorsDatabase() {
        amount NUMERIC(12,2) NOT NULL,
        creator_earnings NUMERIC(12,2) NOT NULL,
        yepper_cut NUMERIC(12,2) NOT NULL,
+       package_code VARCHAR(64) NOT NULL DEFAULT 'brand_visit_video',
+       pricing_breakdown JSONB NOT NULL DEFAULT '{}',
        currency VARCHAR(8) NOT NULL DEFAULT 'RWF',
        payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
        status VARCHAR(24) NOT NULL DEFAULT 'pending_payment',
@@ -290,6 +292,8 @@ async function initCreatorsDatabase() {
        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
      )`,
      `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS shares BIGINT NOT NULL DEFAULT 0`,
+     `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS package_code VARCHAR(64) NOT NULL DEFAULT 'brand_visit_video'`,
+     `ALTER TABLE tiktok_sponsorships ADD COLUMN IF NOT EXISTS pricing_breakdown JSONB NOT NULL DEFAULT '{}'`,
      `CREATE TABLE IF NOT EXISTS whatsapp_report_deliveries (
         advertiser_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
         report_week DATE NOT NULL,

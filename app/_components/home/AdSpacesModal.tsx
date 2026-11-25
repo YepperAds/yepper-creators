@@ -48,10 +48,15 @@ interface ChannelPackagePricing {
 interface TikTokQuote {
   followers: number;
   tier: string;
+  packageCode: string;
   amount: number;
   monthlyCapacity: number;
   remainingCapacity: number;
 }
+
+const TIKTOK_PACKAGE_LABELS: Record<string, string> = {
+  brand_visit_video: 'Brand Visit Video',
+};
 
 interface TikTokCampaignReport {
   id: number;
@@ -481,7 +486,7 @@ export default function AdSpacesModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-base font-bold text-(--color-white)">Book a sponsored post</h3>
-                  {tiktokQuote && <span className="text-xs font-bold text-emerald-300">{tiktokQuote.amount.toLocaleString()} RWF · {tiktokQuote.tier}</span>}
+                  {tiktokQuote && <span className="text-xs font-bold text-emerald-300">{TIKTOK_PACKAGE_LABELS[tiktokQuote.packageCode] || 'TikTok package'} · {tiktokQuote.amount.toLocaleString()} RWF · {tiktokQuote.tier}</span>}
                 </div>
                 <p className="text-xs text-(--color-muted)">One sponsored TikTok video. Add your destination URL; Yepper creates a unique bio link and tracks visits separately from video views.</p>
                 <label className="block text-xs font-semibold text-(--color-white)">
@@ -532,7 +537,7 @@ export default function AdSpacesModal({
                 ))}
               </div>
             </div>
-            <p className="text-[10px] text-(--color-muted)">Pricing uses Yepper’s existing follower-tier rate. TikTok views come from its Display API; tracked URL opens are clicks, not impressions.</p>
+            <p className="text-[10px] text-(--color-muted)">Pricing uses the approved TikTok creator-tier package rate. TikTok views come from its Display API; tracked URL opens are clicks, not impressions.</p>
           </div>
         ) : loading ? (
           <div className="flex-1 grid sm:grid-cols-2 gap-6">

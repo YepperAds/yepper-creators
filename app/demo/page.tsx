@@ -4,7 +4,7 @@ import DemoExperience from './DemoExperience';
 
 export const metadata: Metadata = {
   title: 'Advertiser Demo',
-  description: 'Try a simulated YouTube advertising campaign on Yepper.',
+  description: 'Try simulated YouTube and TikTok advertising campaigns on Yepper.',
 };
 
 export default function DemoPage() {

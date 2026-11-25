@@ -9,10 +9,13 @@ export interface DemoViewer {
 
 export interface DemoCampaign {
   id: string;
+  creatorId?: string;
+  provider?: 'youtube' | 'tiktok';
   channelName: string;
   channelSubscribers: number;
   videoTitle: string;
   packageName: string;
+  commitmentMonths?: number;
   paymentMethod: 'mobile_money' | 'card';
   amount: number;
   brandName: string;
@@ -20,6 +23,8 @@ export interface DemoCampaign {
   description: string;
   destinationUrl: string;
   creativeImage: string;
+  creativeName?: string;
+  creatorAvatar?: string | null;
   createdAt: string;
   views: number;
   likes: number;

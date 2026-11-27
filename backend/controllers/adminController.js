@@ -9,6 +9,7 @@ const AdCategory  = require('../AdPromoter/models/CreateCategoryModel');
 const ImportAd    = require('../AdOwner/models/WebAdvertiseModel');
 const sendEmailNotification = require('./emailService');
 const { getCampaignProcessingBudget } = require('../creators/utils/processingBudgetService');
+const { TIKTOK_PACKAGES } = require('../creators/utils/socialCampaignPricing');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -226,7 +227,7 @@ exports.getTiktokers = async (req, res) => {
       `SELECT c.id, c.full_name, c.username, c.email, c.avatar, c.google_id, c.created_at, c.updated_at,
               c.is_mock, sc.username AS channel_name, sc.profile_url AS channel_url,
               sc.avatar_url AS channel_avatar, sc.followers_count AS followers,
-              sc.total_views, sc.total_posts, sc.connected_at
+              sc.total_views, sc.total_posts, sc.tiktok_profile, sc.connected_at
        FROM creators c
        JOIN social_connections sc ON sc.creator_id = c.id AND sc.provider = 'tiktok'
        ${where}
@@ -243,6 +244,9 @@ exports.getTiktokers = async (req, res) => {
       followers: row.followers,
       totalViews: row.total_views,
       totalPosts: row.total_posts,
+      enabledPackages: Array.isArray(row.tiktok_profile?.enabledPackages)
+        ? row.tiktok_profile.enabledPackages
+        : TIKTOK_PACKAGES.map((item) => item.code),
       connectedAt: row.connected_at,
     }));
     return res.json({ success: true, tiktokers, total, page: parseInt(page), limit: lim });

@@ -13,6 +13,13 @@ const SLOT_TYPES = [
   { value: 'end',    label: 'Near the end (80%)' },
 ];
 const DURATION_BANDS = ['5–15s', '15–30s'];
+const TIKTOK_PACKAGE_LABELS = {
+  brand_visit_video: 'Brand Visit Video',
+  creator_location_video: 'Creator-Location Video',
+  creator_captured_photo: 'Creator-Captured Photo',
+  advertiser_image_post: 'Advertiser-Provided Image Post',
+  story: 'Story',
+};
 
 const BUSINESS_CATEGORIES = [
   'technology', 'food-beverage', 'real-estate', 'automotive', 'health-wellness',
@@ -64,6 +71,17 @@ export default function AdminHotDealBuilder() {
           } catch { /* fall back to id */ }
           return { ...base, itemType: 'youtube', creatorId: it.creatorId, creatorLabel, slotType: it.slotType, durationBand: it.durationBand, adType: it.adType, tier: it.tier };
         }
+        if (it.itemType === 'tiktok') {
+          let creatorLabel = `TikTok creator #${it.creatorId}`;
+          try {
+            const u = await adminFetch(`/users/${it.creatorId}`, {}, adminHeaders);
+            creatorLabel = u?.user?.name || creatorLabel;
+          } catch { /* fall back to id */ }
+          return {
+            ...base, itemType: 'tiktok', creatorId: it.creatorId, creatorLabel,
+            packageCode: it.packageCode, tier: it.tier,
+          };
+        }
         let websiteLabel = `Website ${it.websiteId}`;
         let categoryLabel = `Category ${it.categoryId}`;
         try {
@@ -101,6 +119,12 @@ export default function AdminHotDealBuilder() {
   const [ytDuration, setYtDuration] = useState(DURATION_BANDS[0]);
   const [ytPreview, setYtPreview] = useState(null);
   const [ytLoading, setYtLoading] = useState(false);
+  const [ttSearch, setTtSearch] = useState('');
+  const [ttResults, setTtResults] = useState([]);
+  const [ttPicked, setTtPicked] = useState(null);
+  const [ttPackageCode, setTtPackageCode] = useState('');
+  const [ttPreview, setTtPreview] = useState(null);
+  const [ttLoading, setTtLoading] = useState(false);
 
   useEffect(() => {
     if (!ytSearch.trim()) { setYtResults([]); return; }
@@ -121,6 +145,39 @@ export default function AdminHotDealBuilder() {
       .catch(() => setYtPreview(null))
       .finally(() => setYtLoading(false));
   }, [ytPicked, ytDuration, adminHeaders]);
+
+  useEffect(() => {
+    if (!ttSearch.trim()) { setTtResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const d = await adminFetch(`/tiktoks?search=${encodeURIComponent(ttSearch)}&limit=10`, {}, adminHeaders);
+        setTtResults(d.tiktokers || []);
+      } catch (e) {
+        setError(e.message);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [ttSearch, adminHeaders]);
+
+  useEffect(() => {
+    if (!ttPicked || !ttPackageCode) { setTtPreview(null); return; }
+    setTtLoading(true);
+    adminFetch(`/hot-deals/tiktok-price-preview?creatorId=${ttPicked._id}&packageCode=${encodeURIComponent(ttPackageCode)}`, {}, adminHeaders)
+      .then((d) => setTtPreview(d.data))
+      .catch((e) => { setTtPreview(null); setError(e.message); })
+      .finally(() => setTtLoading(false));
+  }, [ttPicked, ttPackageCode, adminHeaders]);
+
+  const addTikTokItem = () => {
+    if (!ttPicked || !ttPackageCode || !ttPreview) return;
+    setItems((prev) => [...prev, {
+      key: nextKey++, itemType: 'tiktok',
+      creatorId: ttPicked._id, creatorLabel: `@${String(ttPicked.channelName || ttPicked.username || '').replace(/^@+/, '')}`,
+      packageCode: ttPackageCode, tier: ttPreview.tier,
+      systemPrice: ttPreview.systemPrice, dealPrice: ttPreview.systemPrice,
+    }]);
+    setTtPicked(null); setTtSearch(''); setTtResults([]); setTtPackageCode(''); setTtPreview(null);
+  };
 
   const addYoutubeItem = () => {
     if (!ytPicked || !ytPreview) return;
@@ -172,6 +229,8 @@ export default function AdminHotDealBuilder() {
       title: title.trim(), description: description.trim() || null, businessCategory, status,
       items: items.map((it) => it.itemType === 'youtube'
         ? { itemType: 'youtube', creatorId: it.creatorId, slotType: it.slotType, durationBand: it.durationBand, dealPrice: Number(it.dealPrice) }
+        : it.itemType === 'tiktok'
+          ? { itemType: 'tiktok', creatorId: it.creatorId, packageCode: it.packageCode, dealPrice: Number(it.dealPrice) }
         : { itemType: 'website', categoryId: it.categoryId, dealPrice: Number(it.dealPrice) }),
     };
     try {
@@ -247,7 +306,7 @@ export default function AdminHotDealBuilder() {
       <div style={{ ...S.card, marginTop: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Bundled items</div>
         {items.length === 0 ? (
-          <p style={{ color: '#999', fontSize: 13 }}>No items yet — add a YouTube slot or website space below.</p>
+          <p style={{ color: '#999', fontSize: 13 }}>No items yet — add creator packages or website ad spaces below.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
             <thead>
@@ -256,10 +315,12 @@ export default function AdminHotDealBuilder() {
             <tbody>
               {items.map((it) => (
                 <tr key={it.key}>
-                  <td style={S.td}>{it.itemType === 'youtube' ? 'YouTube' : 'Website'}</td>
+                  <td style={S.td}>{it.itemType === 'youtube' ? 'YouTube' : it.itemType === 'tiktok' ? 'TikTok' : 'Website'}</td>
                   <td style={S.td}>
                     {it.itemType === 'youtube'
                       ? `${it.creatorLabel} — ${it.slotType}, ${it.durationBand}, ${it.adType === 'lbar' ? 'L-bar' : 'corner'}`
+                    : it.itemType === 'tiktok'
+                      ? `${it.creatorLabel} — ${TIKTOK_PACKAGE_LABELS[it.packageCode] || it.packageCode}`
                       : `${it.websiteLabel} — ${it.categoryLabel}`}
                   </td>
                   <td style={{ ...S.td, color: '#999' }}>{fmt(it.systemPrice)} RWF</td>
@@ -283,7 +344,7 @@ export default function AdminHotDealBuilder() {
       </div>
 
       {!locked && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 16 }}>
           {/* Add YouTube item */}
           <div style={S.card}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Add YouTube item</div>
@@ -322,6 +383,61 @@ export default function AdminHotDealBuilder() {
                   </p>
                 ) : null}
                 <button onClick={addYoutubeItem} disabled={!ytPreview} style={S.btnPrimary}>Add item</button>
+              </div>
+            )}
+          </div>
+
+          {/* Add TikTok item */}
+          <div style={S.card}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Add TikTok package</div>
+            <input
+              placeholder="Search TikTok creators by name or username…"
+              value={ttSearch}
+              onChange={(e) => { setTtSearch(e.target.value); setTtPicked(null); setTtPackageCode(''); }}
+              style={S.input}
+            />
+            {ttResults.length > 0 && !ttPicked && (
+              <div style={{ border: '1px solid #eee', borderRadius: 8, marginTop: 6, maxHeight: 160, overflowY: 'auto' }}>
+                {ttResults.map((u) => (
+                  <div
+                    key={u._id}
+                    onClick={() => {
+                      setTtPicked(u);
+                      setTtPackageCode(u.enabledPackages?.[0] || '');
+                      setTtResults([]);
+                    }}
+                    style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f5f5f5' }}
+                  >
+                    <b>{u.name}</b> — @{String(u.channelName || u.username || '').replace(/^@+/, '')} ({Number(u.followers || 0).toLocaleString()} followers)
+                  </div>
+                ))}
+              </div>
+            )}
+            {ttPicked && (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ fontSize: 13, marginBottom: 8 }}>
+                  Picked: <b>@{String(ttPicked.channelName || ttPicked.username || '').replace(/^@+/, '')}</b>
+                </p>
+                <select
+                  value={ttPackageCode}
+                  onChange={(e) => setTtPackageCode(e.target.value)}
+                  style={S.input}
+                >
+                  <option value="">Select an enabled package…</option>
+                  {(ttPicked.enabledPackages || []).map((code) => (
+                    <option key={code} value={code}>{TIKTOK_PACKAGE_LABELS[code] || code}</option>
+                  ))}
+                </select>
+                {ttLoading ? (
+                  <p style={{ fontSize: 12, color: '#999' }}>Pricing…</p>
+                ) : ttPreview ? (
+                  <p style={{ fontSize: 13, marginBottom: 8 }}>
+                    Tier <b>{ttPreview.tier}</b> · System price <b>{fmt(ttPreview.systemPrice)} RWF</b>
+                  </p>
+                ) : (ttPicked.enabledPackages || []).length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#b91c1c' }}>This creator has no enabled TikTok packages.</p>
+                ) : null}
+                <button onClick={addTikTokItem} disabled={!ttPreview} style={{ ...S.btnPrimary, marginTop: 8 }}>Add item</button>
               </div>
             )}
           </div>

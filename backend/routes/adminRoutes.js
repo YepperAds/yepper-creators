@@ -72,6 +72,7 @@ router.post('/pricing/apply',     adminAuth, pricing.applyPricingToExisting);
 router.get('/hot-deals',                       adminAuth, hotDeals.adminListDeals);
 router.post('/hot-deals',                      adminAuth, hotDeals.adminCreateDeal);
 router.get('/hot-deals/youtube-price-preview', adminAuth, hotDeals.adminYoutubePricePreview);
+router.get('/hot-deals/tiktok-price-preview',  adminAuth, hotDeals.adminTikTokPricePreview);
 router.get('/hot-deals/:id',                   adminAuth, hotDeals.adminGetDeal);
 router.put('/hot-deals/:id',                   adminAuth, hotDeals.adminUpdateDeal);
 router.delete('/hot-deals/:id',                adminAuth, hotDeals.adminDeleteDeal);

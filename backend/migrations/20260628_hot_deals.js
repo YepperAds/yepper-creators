@@ -2,7 +2,7 @@
 
 const { query } = require('../config/db');
 
-// Admin-curated bundles of YouTube ad slots + website ad categories, sold as
+// Admin-curated bundles of creator packages + website ad categories, sold as
 // one fixed-price package. See controllers/hotDealsController.js.
 async function up() {
   const statements = [
@@ -21,10 +21,11 @@ async function up() {
     `CREATE TABLE IF NOT EXISTS hot_deal_items (
        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
        hot_deal_id    UUID NOT NULL REFERENCES hot_deals(id) ON DELETE CASCADE,
-       item_type      VARCHAR(10) NOT NULL CHECK (item_type IN ('youtube','website')),
+       item_type      VARCHAR(10) NOT NULL CHECK (item_type IN ('youtube','tiktok','website')),
        creator_id     INTEGER REFERENCES creators(id),
        slot_type      VARCHAR(20),
        duration_band  VARCHAR(10),
+       package_code   VARCHAR(64),
        ad_type        VARCHAR(20),
        tier           VARCHAR(20),
        website_id     UUID REFERENCES websites(id),
@@ -33,6 +34,9 @@ async function up() {
        deal_price     NUMERIC(12,2) NOT NULL,
        created_at     TIMESTAMPTZ DEFAULT NOW()
      )`,
+    `ALTER TABLE hot_deal_items ADD COLUMN IF NOT EXISTS package_code VARCHAR(64)`,
+    `ALTER TABLE hot_deal_items DROP CONSTRAINT IF EXISTS hot_deal_items_item_type_check`,
+    `ALTER TABLE hot_deal_items ADD CONSTRAINT hot_deal_items_item_type_check CHECK (item_type IN ('youtube','tiktok','website'))`,
     `CREATE INDEX IF NOT EXISTS hot_deal_items_deal_idx ON hot_deal_items (hot_deal_id)`,
     `CREATE INDEX IF NOT EXISTS hot_deals_public_idx ON hot_deals (status, sold_at)`,
   ];

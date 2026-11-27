@@ -10,8 +10,20 @@ import CategoryCard from '@/app/_components/shared/CategoryCard';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 function itemLabel(item: HotDeal['items'][number]): string {
-  if (item.itemType === 'youtube') return `YouTube: ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
-  return 'Website ad space';
+  if (item.itemType === 'youtube') {
+    return `YouTube ${item.creatorName || ''}: ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
+  }
+  if (item.itemType === 'tiktok') {
+    const packageLabels: Record<string, string> = {
+      brand_visit_video: 'Brand Visit Video',
+      creator_location_video: 'Creator-Location Video',
+      creator_captured_photo: 'Creator-Captured Photo',
+      advertiser_image_post: 'Advertiser-Provided Image Post',
+      story: 'Story',
+    };
+    return `TikTok ${item.creatorName || ''}: ${packageLabels[item.packageCode || ''] || item.packageCode || 'Creator package'}`;
+  }
+  return `Website ${item.websiteDomain || ''} ad space`;
 }
 
 // One checkout for an entire admin-curated Hot Deal bundle: every item gets

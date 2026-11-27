@@ -75,13 +75,18 @@ export async function getPublicCreators(): Promise<PublicCreator[]> {
 
 export interface HotDealItem {
   id: string;
-  itemType: 'youtube' | 'website';
+  itemType: 'youtube' | 'tiktok' | 'website';
   creatorId: number | null;
   slotType: string | null;
   durationBand: string | null;
+  packageCode: string | null;
   adType: string | null;
   websiteId: string | null;
   categoryId: string | null;
+  creatorName?: string | null;
+  creatorAvatar?: string | null;
+  audienceCount?: number | null;
+  websiteDomain?: string | null;
   systemPrice: number;
   dealPrice: number;
 }

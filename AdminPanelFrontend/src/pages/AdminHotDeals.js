@@ -51,7 +51,7 @@ export default function AdminHotDeals() {
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 700 }}>Hot Deals</h2>
           <p style={{ margin: 0, color: '#888', fontSize: 14 }}>
-            Bundle YouTube channels and websites into one fixed-price package, shown to every visitor as trending.
+            Bundle YouTube or TikTok creator packages with website ad spaces into one fixed-price deal.
           </p>
         </div>
         <Link to="/hot-deals/new" style={{ ...btnPrimary, textDecoration: 'none' }}>+ New Hot Deal</Link>

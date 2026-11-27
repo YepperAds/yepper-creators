@@ -22,7 +22,7 @@ function getDomain(link: string): string {
 // hot deal's YouTube slot shows off real content instead of a placeholder.
 // The red ring + play sticker just dress the frame up to match the
 // cartoonish website tile next to it; the avatar/video themselves are real.
-function YoutubePlatformCard({ creator }: { creator: PublicCreator }) {
+function CreatorPlatformCard({ creator }: { creator: PublicCreator }) {
   const video = creator.videos?.[0];
   const metricLabel = creator.provider === 'tiktok' ? 'followers' : 'subscribers';
   const followerCount = creator.followers ?? creator.subscribers ?? 0;
@@ -119,12 +119,42 @@ function renderTile(
   websiteById: Map<string, PublicWebsite>,
   keyPrefix: string,
 ) {
-  if (item.itemType === 'youtube') {
-    const creator = item.creatorId != null ? creatorById.get(String(item.creatorId)) : undefined;
-    return creator ? <YoutubePlatformCard key={`${keyPrefix}-${item.id}`} creator={creator} /> : null;
+  if (item.itemType === 'youtube' || item.itemType === 'tiktok') {
+    const creator = item.creatorId != null
+      ? creatorById.get(`${item.itemType}:${item.creatorId}`)
+      : undefined;
+    const fallbackCreator = item.creatorName
+      ? {
+          id: String(item.creatorId || item.id),
+          provider: item.itemType,
+          username: '',
+          name: item.creatorName,
+          avatar: item.creatorAvatar || null,
+          whatTheyDo: null,
+          channelName: item.creatorName,
+          channelUrl: null,
+          subscribers: item.audienceCount || 0,
+          followers: item.audienceCount || 0,
+          totalViews: 0,
+          videos: [],
+        }
+      : undefined;
+    const selectedCreator = creator || fallbackCreator;
+    return selectedCreator ? <CreatorPlatformCard key={`${keyPrefix}-${item.id}`} creator={selectedCreator} /> : null;
   }
   const website = item.websiteId ? websiteById.get(String(item.websiteId)) : undefined;
-  return website ? <WebsitePlatformCard key={`${keyPrefix}-${item.id}`} website={website} /> : null;
+  const fallbackWebsite = item.websiteDomain
+    ? {
+        id: item.websiteId || item.id,
+        websiteName: item.websiteDomain,
+        websiteLink: item.websiteDomain,
+        imageUrl: null,
+        businessCategories: [],
+        trafficTier: '',
+      }
+    : undefined;
+  const selectedWebsite = website || fallbackWebsite;
+  return selectedWebsite ? <WebsitePlatformCard key={`${keyPrefix}-${item.id}`} website={selectedWebsite} /> : null;
 }
 
 // Slides slowly (only once there are enough tiles that sliding is actually
@@ -139,13 +169,13 @@ export default function PlatformCarousel({
   creators: PublicCreator[];
   websites: PublicWebsite[];
 }) {
-  const creatorById = new Map(creators.map((c) => [String(c.id), c]));
+  const creatorById = new Map(creators.map((c) => [`${c.provider || 'youtube'}:${c.id}`, c]));
   const websiteById = new Map(websites.map((w) => [String(w.id), w]));
 
   const validItems = items.filter((item) =>
-    item.itemType === 'youtube'
-      ? item.creatorId != null && creatorById.has(String(item.creatorId))
-      : !!item.websiteId && websiteById.has(String(item.websiteId)),
+    item.itemType === 'youtube' || item.itemType === 'tiktok'
+      ? (item.creatorId != null && creatorById.has(`${item.itemType}:${item.creatorId}`)) || !!item.creatorName
+      : (!!item.websiteId && websiteById.has(String(item.websiteId))) || !!item.websiteDomain,
   );
   if (!validItems.length) return null;
 

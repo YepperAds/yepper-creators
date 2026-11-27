@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ChatBubbleLeftRightIcon, CheckCircleIcon, ExclamationCircleIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 type Settings = { phoneNumber: string; enabled: boolean };
 type Props = {
@@ -100,10 +101,10 @@ export default function WhatsAppReportsSettings({ mode = 'settings', onClose, on
   }
 
   const form = (
-    <form onSubmit={saveSettings} className="space-y-4">
-      <div>
-        <label htmlFor="whatsapp-phone" className="mb-1.5 block text-sm font-medium text-white">
-          WhatsApp phone number
+    <form onSubmit={saveSettings} className="space-y-5">
+      <div className="max-w-xl">
+        <label htmlFor="whatsapp-phone" className="mb-2 block text-sm font-semibold text-white">
+          WhatsApp number
         </label>
         <input
           id="whatsapp-phone"
@@ -111,89 +112,134 @@ export default function WhatsAppReportsSettings({ mode = 'settings', onClose, on
           autoComplete="tel"
           value={settings.phoneNumber}
           onChange={(event) => setSettings((current) => ({ ...current, phoneNumber: event.target.value }))}
-          placeholder="+14155552671"
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-white outline-none focus:border-coral"
+          placeholder="+1 415 555 2671"
+          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-muted focus:border-coral focus:ring-2 focus:ring-coral/15"
           aria-describedby="whatsapp-phone-help"
         />
-        <p id="whatsapp-phone-help" className="mt-1.5 text-xs leading-5 text-subtle">
-          Use the international format, including country code.
+        <p id="whatsapp-phone-help" className="mt-2 text-xs leading-5 text-subtle">
+          Enter the number that should receive reports, including the country code.
         </p>
       </div>
 
-      <label className="flex items-start gap-3 rounded-xl border border-border bg-background/50 p-3 text-sm leading-5 text-subtle">
+      <label className="flex cursor-pointer items-start gap-3.5 rounded-xl border border-border bg-background/60 p-4 transition-colors hover:border-white/20">
         <input
           type="checkbox"
           checked={settings.enabled}
           onChange={(event) => setSettings((current) => ({ ...current, enabled: event.target.checked }))}
-          className="mt-1 accent-coral"
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[#25D366] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]"
         />
-        <span>
-          I agree to receive weekly WhatsApp updates about the engagement on videos in my paid creator campaigns.
-          I can turn reports off here at any time.
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-white">Send me weekly campaign reports</span>
+          <span className="mt-1 block text-xs leading-5 text-subtle">
+            I agree to receive WhatsApp updates about engagement on videos in my paid creator campaigns. I can turn reports off here at any time.
+          </span>
         </span>
       </label>
 
-      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      {message && <p role="status" className="text-sm text-emerald-400">{message}</p>}
+      {error && (
+        <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3.5 py-3 text-sm text-red-300">
+          <ExclamationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm text-emerald-300">
+          <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          {message}
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={loading || saving || (mode === 'prompt' && (!settings.phoneNumber.trim() || !settings.enabled))}
-        className="rounded-xl bg-coral px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving ? 'Saving…' : mode === 'prompt' ? 'Save and enable reports' : 'Save WhatsApp settings'}
-      </button>
-      {mode === 'settings' && settings.enabled && settings.phoneNumber && (
-        <div className="flex flex-col items-start gap-2">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center">
+        <button
+          type="submit"
+          disabled={loading || saving || (mode === 'prompt' && (!settings.phoneNumber.trim() || !settings.enabled))}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-coral px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-coral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : mode === 'prompt' ? 'Save and enable reports' : 'Save preferences'}
+        </button>
+        {mode === 'settings' && settings.enabled && settings.phoneNumber && (
           <button
             type="button"
             onClick={sendTest}
             disabled={testing || saving || settings.phoneNumber !== savedPhoneNumber}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-white hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <PaperAirplaneIcon className="h-4 w-4" />
             {testing ? 'Sending test…' : 'Send test message'}
           </button>
-          <p className="text-xs text-subtle">
-            Meta test senders can message only recipients added to the test sender in WhatsApp setup.
-          </p>
-        </div>
+        )}
+      </div>
+      {mode === 'settings' && settings.enabled && settings.phoneNumber && (
+        <p className="text-xs leading-5 text-subtle">
+          Meta test senders can message only recipients added to the test sender in WhatsApp setup.
+        </p>
       )}
     </form>
   );
 
   if (mode === 'prompt') {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="whatsapp-setup-title">
-        <section className="w-full max-w-lg rounded-3xl border border-border bg-surface-2 p-6 shadow-2xl sm:p-8">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-text">Optional setup</p>
-              <h2 id="whatsapp-setup-title" className="mt-2 text-xl font-bold text-white">Get weekly campaign reports</h2>
-              <p className="mt-2 text-sm leading-6 text-subtle">
-                Add your WhatsApp number to receive views, likes, comments, and other tracked engagement from videos in your paid campaigns.
-              </p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="whatsapp-setup-title">
+        <section className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-2xl">
+          <div className="flex items-start justify-between gap-4 border-b border-border p-5 sm:p-6">
+            <div className="flex items-start gap-3.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-3 text-subtle">
+                <ChatBubbleLeftRightIcon className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-subtle">Optional setup</p>
+                <h2 id="whatsapp-setup-title" className="mt-1 text-lg font-bold text-white">Get weekly campaign reports</h2>
+                <p className="mt-1.5 text-sm leading-5 text-subtle">
+                  Receive views, likes, comments, and other tracked engagement from videos in your paid campaigns.
+                </p>
+              </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-subtle hover:text-white" aria-label="Close WhatsApp setup">
-              Close
+            <button type="button" onClick={onClose} className="rounded-lg p-2 text-subtle transition-colors hover:bg-surface-3 hover:text-white" aria-label="Close WhatsApp setup">
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
-          {loading ? <p className="text-sm text-subtle">Loading settings…</p> : form}
-          <button type="button" onClick={onClose} className="mt-3 text-sm font-medium text-subtle hover:text-white">
-            Not now
-          </button>
+          <div className="p-5 sm:p-6">
+            {loading ? <p className="text-sm text-subtle">Loading settings…</p> : form}
+            <button type="button" onClick={onClose} className="mt-4 text-sm font-medium text-subtle transition-colors hover:text-white">
+              Not now
+            </button>
+          </div>
         </section>
       </div>
     );
   }
 
   return (
-    <section className="rounded-3xl border border-border bg-surface-2 p-5 sm:p-8">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-text">Notifications</p>
-      <h2 className="mt-2 text-xl font-bold text-white">Weekly WhatsApp campaign reports</h2>
-      <p className="mb-5 mt-2 max-w-2xl text-sm leading-6 text-subtle">
-        Receive a weekly summary of engagement for creator videos you paid to advertise on.
-      </p>
-      {loading ? <p className="text-sm text-subtle">Loading settings…</p> : form}
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface-2">
+      <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div className="flex items-start gap-3.5">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-3 text-subtle">
+            <ChatBubbleLeftRightIcon className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-subtle">Notifications</p>
+            <h2 className="mt-1 text-lg font-bold tracking-tight text-white">Weekly WhatsApp reports</h2>
+            <p className="mt-1.5 max-w-xl text-sm leading-5 text-subtle">
+              Get a weekly summary of engagement for creator videos you paid to advertise on.
+            </p>
+          </div>
+        </div>
+        {!loading && (
+          <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${settings.enabled ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-border bg-background/70 text-subtle'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${settings.enabled ? 'bg-emerald-400' : 'bg-muted'}`} />
+            {settings.enabled ? 'Reports on' : 'Reports off'}
+          </span>
+        )}
+      </div>
+      <div className="p-5 sm:p-6">
+        {loading ? (
+          <div className="max-w-xl space-y-3" aria-label="Loading settings">
+            <div className="h-4 w-36 animate-pulse rounded bg-surface-3" />
+            <div className="h-11 w-full animate-pulse rounded-xl bg-surface-3" />
+            <div className="h-16 w-full animate-pulse rounded-xl bg-surface-3" />
+          </div>
+        ) : form}
+      </div>
     </section>
   );
 }

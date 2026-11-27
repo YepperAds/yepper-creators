@@ -133,7 +133,7 @@ function creatorVideoTitle(creator: PublicCreator): string {
 
 function VideoPlacementPreview({ creativeImage, channelName, videoTitle, provider = 'youtube' }: { creativeImage: string; channelName: string; videoTitle: string; provider?: 'youtube' | 'tiktok' }) {
   return (
-    <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-[#151515]">
+    <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-surface-3">
       {provider === 'youtube' ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -422,16 +422,16 @@ export default function DemoExperience() {
   };
 
   if (!session && !error) {
-    return <div className="flex min-h-screen items-center justify-center bg-[#0b0b0b] text-sm text-white/55">Opening your private demo…</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-white/55">Opening your private demo…</div>;
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0b0b] text-white">
+    <main className="min-h-screen bg-background text-white">
       <div className="min-h-screen lg:flex">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-white/10 bg-[#101010] p-4 lg:flex">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-white/10 bg-surface-1 p-4 lg:flex">
           <div className="mb-8 flex items-center gap-3 px-2 pt-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-coral/15 text-coral-text"><FilmIcon className="h-5 w-5" /></div>
-            <div><p className="text-sm font-bold">Yepper</p><p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300">Demo workspace</p></div>
+            <div><p className="text-sm font-bold">Yepper</p><p className="text-[10px] font-semibold uppercase tracking-wide text-coral-text">Demo workspace</p></div>
           </div>
           <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Advertiser</p>
           <nav className="space-y-1">
@@ -444,7 +444,7 @@ export default function DemoExperience() {
               </button>
             ))}
           </nav>
-          <div className="mt-auto rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-3 text-[10px] leading-5 text-amber-100/70">
+          <div className="mt-auto rounded-xl border border-border bg-surface-2 p-3 text-[10px] leading-5 text-subtle">
             Demo only. No real bookings, payments, or campaign results are created.
           </div>
           <button type="button" onClick={exitDemo} className="mt-3 rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/45 hover:bg-white/5 hover:text-white">Exit demo</button>
@@ -456,7 +456,7 @@ export default function DemoExperience() {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-coral/15 text-coral-text"><FilmIcon className="h-5 w-5" /></div>
             <div>
-              <p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">Demo</span></p>
+              <p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-coral-text">Demo</span></p>
               <p className="mt-0.5 text-[11px] text-white/45">Advertiser dashboard · simulated</p>
             </div>
           </div>
@@ -470,7 +470,7 @@ export default function DemoExperience() {
           </div>
         </header>
 
-        <div className="mb-6 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-xs leading-5 text-amber-100/80">
+        <div className="mb-6 rounded-xl border border-border bg-surface-2 px-4 py-3 text-xs leading-5 text-subtle">
           Demo mode: creator listings come from the marketplace. Checkout and campaign results are simulated and stored only in this browser tab. No real booking or payment is made.
         </div>
 
@@ -483,7 +483,7 @@ export default function DemoExperience() {
 
         {view === 'channels' && (
           <section>
-            <div className="mb-5 rounded-2xl border border-white/10 bg-gradient-to-br from-[#191919] to-[#111] p-5 sm:p-7">
+            <div className="mb-5 rounded-2xl border border-white/10 bg-surface-2 p-5 sm:p-7">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-text">Advertise on Yepper</p>
               <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Choose a creator</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Explore YouTube and TikTok listings, review their booking options, and try a simulated checkout.</p>
@@ -527,17 +527,17 @@ export default function DemoExperience() {
         )}
 
         {view === 'create' && selectedChannel?.provider !== 'tiktok' && selectedChannel && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b0b0b] px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="YouTube campaign setup">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-background px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="YouTube campaign setup">
             <div className="mx-auto max-w-6xl">
               <header className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
-                <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">Demo</span></p><p className="mt-1 text-[11px] text-white/45">YouTube advertiser experience</p></div>
+                <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-bold uppercase text-coral-text">Demo</span></p><p className="mt-1 text-[11px] text-white/45">YouTube advertiser experience</p></div>
                 <button type="button" onClick={() => setView('channels')} aria-label="Close demo booking" className="rounded-full p-2 text-white/55 hover:bg-white/10 hover:text-white"><XMarkIcon className="h-5 w-5" /></button>
               </header>
               <div className="mb-5 flex flex-wrap items-center gap-2">
                 <StepPill active={false} complete>1 · Choose a channel</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active>2 · Add your ad</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false}>3 · Test payment</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false}>4 · View results</StepPill>
               </div>
           <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <form onSubmit={continueToPayment} className="space-y-5 rounded-2xl border border-white/10 bg-[#141414] p-5 sm:p-6">
+            <form onSubmit={continueToPayment} className="space-y-5 rounded-2xl border border-white/10 bg-surface-2 p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-coral-text">Campaign setup</p>
@@ -593,7 +593,7 @@ export default function DemoExperience() {
             </form>
 
             <aside className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-[#141414] p-4">
+              <div className="rounded-2xl border border-white/10 bg-surface-2 p-4">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wide text-white/50">Placement preview</p>
                 <VideoPlacementPreview creativeImage={creativeImage} channelName={selectedChannelName} videoTitle={selectedVideoTitle} />
                 <p className="mt-3 text-sm font-bold">{headline || 'Your ad headline'}</p>
@@ -609,17 +609,17 @@ export default function DemoExperience() {
         )}
 
         {view === 'create' && selectedChannel?.provider === 'tiktok' && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b0b0b] px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="TikTok campaign setup">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-background px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="TikTok campaign setup">
             <div className="mx-auto max-w-6xl">
               <header className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
-                <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">Demo</span></p><p className="mt-1 text-[11px] text-white/45">TikTok advertiser experience</p></div>
+                <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-bold uppercase text-coral-text">Demo</span></p><p className="mt-1 text-[11px] text-white/45">TikTok advertiser experience</p></div>
                 <button type="button" onClick={() => setView('channels')} aria-label="Close demo booking" className="rounded-full p-2 text-white/55 hover:bg-white/10 hover:text-white"><XMarkIcon className="h-5 w-5" /></button>
               </header>
               <div className="mb-5 flex flex-wrap items-center gap-2">
                 <StepPill active={false} complete>1 · Choose a creator</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active>2 · Book a sponsored post</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false}>3 · Test payment</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false}>4 · View results</StepPill>
               </div>
               <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-                <form onSubmit={continueToPayment} className="space-y-5 rounded-2xl border border-white/10 bg-[#141414] p-5 sm:p-6">
+                <form onSubmit={continueToPayment} className="space-y-5 rounded-2xl border border-white/10 bg-surface-2 p-5 sm:p-6">
                   <div className="flex items-start gap-3">
                     {selectedChannel.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -690,7 +690,7 @@ export default function DemoExperience() {
                 </form>
 
                 <aside className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-[#141414] p-4">
+                  <div className="rounded-2xl border border-white/10 bg-surface-2 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-white/50">Your TikTok campaigns</p>
                     <p className="mt-1 text-[11px] text-white/40">Demo bookings appear here after simulated checkout.</p>
                     <div className="mt-4 space-y-2">
@@ -703,7 +703,7 @@ export default function DemoExperience() {
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-4 text-xs leading-5 text-amber-100/70">
+                  <div className="rounded-xl border border-border bg-surface-2 p-4 text-xs leading-5 text-subtle">
                     You will not be charged. Demo checkout creates only a sample campaign in this browser session.
                   </div>
                 </aside>
@@ -713,17 +713,17 @@ export default function DemoExperience() {
         )}
 
         {view === 'payment' && selectedChannel && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b0b0b] px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="Demo checkout">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-background px-4 py-5 text-white sm:px-7 sm:py-7" role="dialog" aria-modal="true" aria-label="Demo checkout">
           <div className="mx-auto max-w-6xl">
             <header className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
-              <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">Demo</span></p><p className="mt-1 text-[11px] text-white/45">Test checkout</p></div>
+              <div><p className="text-sm font-bold">Yepper <span className="ml-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-bold uppercase text-coral-text">Demo</span></p><p className="mt-1 text-[11px] text-white/45">Test checkout</p></div>
               <button type="button" onClick={() => setView('channels')} aria-label="Close demo checkout" className="rounded-full p-2 text-white/55 hover:bg-white/10 hover:text-white"><XMarkIcon className="h-5 w-5" /></button>
             </header>
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <StepPill active={false} complete>1 · Choose a creator</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false} complete>2 · Add your ad</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active>3 · Test payment</StepPill><ArrowRightIcon className="h-3 w-3 text-white/25" /><StepPill active={false}>4 · View results</StepPill>
             </div>
           <section className="mx-auto grid max-w-4xl gap-5 lg:grid-cols-[1fr_0.85fr]">
-            <div className="rounded-2xl border border-white/10 bg-[#141414] p-5 sm:p-6">
+            <div className="rounded-2xl border border-white/10 bg-surface-2 p-5 sm:p-6">
               <p className="text-xs font-bold uppercase tracking-wide text-coral-text">Test checkout</p>
               <h1 className="mt-1 text-xl font-bold">Review your campaign</h1>
               <div className="mt-5 space-y-3 rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
@@ -747,7 +747,7 @@ export default function DemoExperience() {
                   ))}
                 </div>
               </fieldset>
-              <div className="mt-5 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-3 text-xs leading-5 text-amber-100/70">
+              <div className="mt-5 rounded-xl border border-border bg-surface-2 p-3 text-xs leading-5 text-subtle">
                 This is a safe simulation. Do not enter card numbers, PINs, or mobile money details. Clicking below records a demo-only successful payment in this tab.
               </div>
               {error && <p role="alert" className="mt-3 text-xs text-rose-300">{error}</p>}
@@ -758,7 +758,7 @@ export default function DemoExperience() {
                 </button>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#141414] p-5">
+            <div className="rounded-2xl border border-white/10 bg-surface-2 p-5">
               <p className="text-xs font-bold uppercase tracking-wide text-white/50">You are paying for</p>
               <div className="mt-4"><VideoPlacementPreview creativeImage={creativeImage} channelName={selectedChannelName} videoTitle={selectedVideoTitle} provider={selectedChannel.provider === 'tiktok' ? 'tiktok' : 'youtube'} /></div>
               <p className="mt-3 text-sm font-bold">{selectedChannel.provider === 'tiktok' ? brandName : `${brandName} · ${headline}`}</p>
@@ -786,7 +786,7 @@ export default function DemoExperience() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {session.campaigns.map((campaign) => (
-                  <article key={campaign.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414]">
+                  <article key={campaign.id} className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2">
                     <div className="relative aspect-video bg-black">
                       {campaign.provider === 'tiktok' ? (
                         <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-[#1b1018] via-[#111] to-[#092126]">
@@ -797,7 +797,7 @@ export default function DemoExperience() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={campaign.creativeImage} alt={`${campaign.brandName} ad creative`} className="h-full w-full object-cover" />
                       )}
-                      <span className="absolute left-3 top-3 rounded-full bg-amber-400/90 px-2 py-1 text-[9px] font-bold uppercase text-black">Demo</span>
+                      <span className="absolute left-3 top-3 rounded-full bg-surface-3 px-2 py-1 text-[9px] font-bold uppercase text-white">Demo</span>
                     </div>
                     <div className="p-4">
                       <p className="text-xs text-white/45">{campaign.provider === 'tiktok' ? 'TikTok' : 'YouTube'} · {campaign.channelName} · {campaign.packageName}</p>
@@ -818,7 +818,7 @@ export default function DemoExperience() {
             <button type="button" onClick={() => setView('ads')} className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/65 hover:bg-white/5"><ArrowLeftIcon className="h-3.5 w-3.5" />Back to My ads</button>
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-text">Simulated campaign report</p><h1 className="mt-2 text-2xl font-bold">{selectedReport.headline}</h1><p className="mt-1 text-sm text-white/50">{selectedReport.provider === 'tiktok' ? 'TikTok' : 'YouTube'} · {selectedReport.brandName} · {selectedReport.channelName} · {selectedReport.packageName}{selectedReport.commitmentMonths ? ` · ${selectedReport.commitmentMonths} month${selectedReport.commitmentMonths === 1 ? '' : 's'}` : ''}</p></div>
-              <span className="rounded-full bg-amber-400/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">Demo results</span>
+              <span className="rounded-full bg-coral/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-coral-text">Demo results</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard label={selectedReport.provider === 'tiktok' ? 'TikTok views' : 'Video views'} value={selectedReport.views.toLocaleString()} icon={EyeIcon} />
@@ -829,14 +829,14 @@ export default function DemoExperience() {
 
             <div className="mt-5 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="space-y-5">
-                <div className="rounded-2xl border border-white/10 bg-[#141414] p-4 sm:p-5">
+                <div className="rounded-2xl border border-white/10 bg-surface-2 p-4 sm:p-5">
                   <h2 className="mb-3 text-sm font-bold">{selectedReport.provider === 'tiktok' ? 'Sponsored TikTok post' : 'Ad in the demo video'}</h2>
                   <VideoPlacementPreview creativeImage={selectedReport.creativeImage} channelName={selectedReport.channelName} videoTitle={selectedReport.videoTitle} provider={selectedReport.provider === 'tiktok' ? 'tiktok' : 'youtube'} />
                   <p className="mt-3 text-sm font-semibold">{selectedReport.brandName}{selectedReport.provider === 'tiktok' ? '' : ` · ${selectedReport.headline}`}</p>
                   <p className="mt-1 text-xs leading-5 text-white/50">{selectedReport.description}</p>
                   {selectedReport.destinationUrl && <p className="mt-3 text-xs text-white/40">Destination: {selectedReport.destinationUrl}</p>}
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-[#141414] p-4 sm:p-5">
+                <div className="rounded-2xl border border-white/10 bg-surface-2 p-4 sm:p-5">
                   <h2 className="flex items-center gap-2 text-sm font-bold"><ChartBarIcon className="h-4 w-4 text-coral-text" />Views over the last 7 days</h2>
                   <div className="mt-5 flex h-28 items-end gap-2">
                     {[36, 52, 44, 71, 58, 84, 100].map((height, index) => (
@@ -851,7 +851,7 @@ export default function DemoExperience() {
               </div>
 
               <div className="space-y-5">
-                <div className="rounded-2xl border border-white/10 bg-[#141414] p-4 sm:p-5">
+                <div className="rounded-2xl border border-white/10 bg-surface-2 p-4 sm:p-5">
                   <h2 className="text-sm font-bold">Audience overview</h2>
                   <p className="mt-1 text-xs text-white/45">Sample audience breakdown for this fictional campaign.</p>
                   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -873,14 +873,14 @@ export default function DemoExperience() {
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414]">
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2">
                   <div className="border-b border-white/10 px-4 py-3">
                     <h2 className="text-sm font-bold">Sample viewer sessions</h2>
                     <p className="mt-1 text-[10px] text-white/45">Showing {selectedReport.viewers.length} anonymous examples from {selectedReport.views.toLocaleString()} simulated views.</p>
                   </div>
                   <div className="max-h-72 overflow-auto">
                     <table className="w-full text-left text-[10px]">
-                      <thead className="sticky top-0 bg-[#181818] text-white/40"><tr><th className="px-3 py-2 font-semibold">Viewer</th><th className="px-3 py-2 font-semibold">Location</th><th className="px-3 py-2 font-semibold">Device</th><th className="px-3 py-2 font-semibold">Watched</th><th className="px-3 py-2 font-semibold">Viewed at</th></tr></thead>
+                      <thead className="sticky top-0 bg-surface-3 text-white/40"><tr><th className="px-3 py-2 font-semibold">Viewer</th><th className="px-3 py-2 font-semibold">Location</th><th className="px-3 py-2 font-semibold">Device</th><th className="px-3 py-2 font-semibold">Watched</th><th className="px-3 py-2 font-semibold">Viewed at</th></tr></thead>
                       <tbody>
                         {selectedReport.viewers.map((viewer) => (
                           <tr key={viewer.id} className="border-t border-white/5 text-white/65">
@@ -897,7 +897,7 @@ export default function DemoExperience() {
                 </div>
               </div>
             </div>
-            <div className="mt-5 flex items-center gap-2 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] px-4 py-3 text-xs leading-5 text-amber-100/70">
+            <div className="mt-5 flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3 text-xs leading-5 text-subtle">
               <XMarkIcon className="h-4 w-4 shrink-0" />
               All views, engagement, audience breakdowns, and viewer sessions above are generated examples. No real people watched this ad.
             </div>

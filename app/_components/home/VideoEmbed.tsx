@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { PlayIcon } from '@heroicons/react/24/solid';
 import { getYouTubeVideoId } from '@/app/_lib/youtube';
 
 // Loops the first ~6s of the video, muted, while the card is on screen.
@@ -53,9 +52,6 @@ export default function VideoEmbed({ url, thumbnail, title }: { url: string | nu
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={thumbnail} alt={title} className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <PlayIcon className="w-8 h-8 text-[#fff]/90" />
-          </div>
         </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-muted text-[10px]">No preview</div>

@@ -27,6 +27,20 @@ const BUSINESS_CATEGORIES = [
   'arts-culture', 'photography', 'gifts-events', 'government-public', 'general-retail', 'other',
 ];
 
+async function fetchAllAdminPages(path, listKey, adminHeaders) {
+  const pageSize = 100;
+  const first = await adminFetch(`${path}?page=1&limit=${pageSize}`, {}, adminHeaders);
+  const rows = first[listKey] || [];
+  const pageCount = Math.ceil(Number(first.total || rows.length) / pageSize);
+  if (pageCount <= 1) return rows;
+  const rest = await Promise.all(
+    Array.from({ length: pageCount - 1 }, (_, index) =>
+      adminFetch(`${path}?page=${index + 2}&limit=${pageSize}`, {}, adminHeaders),
+    ),
+  );
+  return rows.concat(...rest.map((result) => result[listKey] || []));
+}
+
 let nextKey = 1;
 
 export default function AdminHotDealBuilder() {
@@ -112,60 +126,66 @@ export default function AdminHotDealBuilder() {
   const removeItem = (key) => setItems((prev) => prev.filter((it) => it.key !== key));
 
   // ── YouTube item picker ──────────────────────────────────────────────────
-  const [ytSearch, setYtSearch] = useState('');
-  const [ytResults, setYtResults] = useState([]);
+  const [youtubers, setYoutubers] = useState([]);
+  const [youtubersLoading, setYoutubersLoading] = useState(true);
   const [ytPicked, setYtPicked] = useState(null);
   const [ytSlot, setYtSlot] = useState(SLOT_TYPES[0].value);
   const [ytDuration, setYtDuration] = useState(DURATION_BANDS[0]);
   const [ytPreview, setYtPreview] = useState(null);
   const [ytLoading, setYtLoading] = useState(false);
-  const [ttSearch, setTtSearch] = useState('');
-  const [ttResults, setTtResults] = useState([]);
+  const [ytError, setYtError] = useState('');
+  const [tiktokers, setTiktokers] = useState([]);
+  const [tiktokersLoading, setTiktokersLoading] = useState(true);
   const [ttPicked, setTtPicked] = useState(null);
   const [ttPackageCode, setTtPackageCode] = useState('');
   const [ttPreview, setTtPreview] = useState(null);
   const [ttLoading, setTtLoading] = useState(false);
+  const [ttError, setTtError] = useState('');
 
   useEffect(() => {
-    if (!ytSearch.trim()) { setYtResults([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const d = await adminFetch(`/youtubers?search=${encodeURIComponent(ytSearch)}&limit=10`, {}, adminHeaders);
-        setYtResults(d.youtubers || []);
-      } catch { /* ignore */ }
-    }, 350);
-    return () => clearTimeout(t);
-  }, [ytSearch, adminHeaders]);
+    let active = true;
+    setYoutubersLoading(true);
+    fetchAllAdminPages('/youtubers', 'youtubers', adminHeaders)
+      .then((rows) => { if (active) setYoutubers(rows); })
+      .catch((e) => { if (active) setYtError(`Could not load YouTube channels: ${e.message}`); })
+      .finally(() => { if (active) setYoutubersLoading(false); });
+    return () => { active = false; };
+  }, [adminHeaders]);
 
   useEffect(() => {
-    if (!ytPicked) { setYtPreview(null); return; }
+    let active = true;
+    setYtPreview(null);
+    if (!ytPicked) { setYtLoading(false); return () => { active = false; }; }
     setYtLoading(true);
+    setYtError('');
     adminFetch(`/hot-deals/youtube-price-preview?creatorId=${ytPicked._id}&durationBand=${encodeURIComponent(ytDuration)}`, {}, adminHeaders)
-      .then((d) => setYtPreview(d.data))
-      .catch(() => setYtPreview(null))
-      .finally(() => setYtLoading(false));
+      .then((d) => { if (active) setYtPreview(d.data); })
+      .catch((e) => { if (active) setYtError(`Could not load YouTube package price: ${e.message}`); })
+      .finally(() => { if (active) setYtLoading(false); });
+    return () => { active = false; };
   }, [ytPicked, ytDuration, adminHeaders]);
 
   useEffect(() => {
-    if (!ttSearch.trim()) { setTtResults([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const d = await adminFetch(`/tiktoks?search=${encodeURIComponent(ttSearch)}&limit=10`, {}, adminHeaders);
-        setTtResults(d.tiktokers || []);
-      } catch (e) {
-        setError(e.message);
-      }
-    }, 350);
-    return () => clearTimeout(t);
-  }, [ttSearch, adminHeaders]);
+    let active = true;
+    setTiktokersLoading(true);
+    fetchAllAdminPages('/tiktoks', 'tiktokers', adminHeaders)
+      .then((rows) => { if (active) setTiktokers(rows); })
+      .catch((e) => { if (active) setTtError(`Could not load TikTok creators: ${e.message}`); })
+      .finally(() => { if (active) setTiktokersLoading(false); });
+    return () => { active = false; };
+  }, [adminHeaders]);
 
   useEffect(() => {
-    if (!ttPicked || !ttPackageCode) { setTtPreview(null); return; }
+    let active = true;
+    setTtPreview(null);
+    if (!ttPicked || !ttPackageCode) { setTtLoading(false); return () => { active = false; }; }
     setTtLoading(true);
+    setTtError('');
     adminFetch(`/hot-deals/tiktok-price-preview?creatorId=${ttPicked._id}&packageCode=${encodeURIComponent(ttPackageCode)}`, {}, adminHeaders)
-      .then((d) => setTtPreview(d.data))
-      .catch((e) => { setTtPreview(null); setError(e.message); })
-      .finally(() => setTtLoading(false));
+      .then((d) => { if (active) setTtPreview(d.data); })
+      .catch((e) => { if (active) setTtError(`Could not load TikTok package price: ${e.message}`); })
+      .finally(() => { if (active) setTtLoading(false); });
+    return () => { active = false; };
   }, [ttPicked, ttPackageCode, adminHeaders]);
 
   const addTikTokItem = () => {
@@ -176,7 +196,8 @@ export default function AdminHotDealBuilder() {
       packageCode: ttPackageCode, tier: ttPreview.tier,
       systemPrice: ttPreview.systemPrice, dealPrice: ttPreview.systemPrice,
     }]);
-    setTtPicked(null); setTtSearch(''); setTtResults([]); setTtPackageCode(''); setTtPreview(null);
+    setTtPicked(null); setTtPackageCode(''); setTtPreview(null); setTtError('');
+    showToast('TikTok package added. Select another creator to add more.');
   };
 
   const addYoutubeItem = () => {
@@ -187,25 +208,42 @@ export default function AdminHotDealBuilder() {
       slotType: ytSlot, durationBand: ytDuration, adType: ytPreview.adType, tier: ytPreview.tier,
       systemPrice: ytPreview.systemPrice, dealPrice: ytPreview.systemPrice,
     }]);
-    setYtPicked(null); setYtSearch(''); setYtResults([]); setYtPreview(null);
+    setYtPicked(null); setYtPreview(null); setYtError('');
+    showToast('YouTube package added. Select another channel to add more.');
   };
 
   // ── Website item picker ──────────────────────────────────────────────────
   const [websites, setWebsites] = useState([]);
+  const [websitesLoading, setWebsitesLoading] = useState(true);
+  const [websiteError, setWebsiteError] = useState('');
   const [websitePicked, setWebsitePicked] = useState(null);
   const [categories, setCategories] = useState([]);
   const [categoryPicked, setCategoryPicked] = useState(null);
   const [catLoading, setCatLoading] = useState(false);
-
-  useEffect(() => { publicFetch('/api/websites').then((d) => setWebsites(d || [])).catch(() => setWebsites([])); }, []);
+  const [categoryError, setCategoryError] = useState('');
 
   useEffect(() => {
-    if (!websitePicked) { setCategories([]); return; }
+    publicFetch('/api/websites')
+      .then((d) => setWebsites(d || []))
+      .catch((e) => setWebsiteError(`Could not load websites: ${e.message}`))
+      .finally(() => setWebsitesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!websitePicked) { setCategories([]); setCategoryError(''); return () => { active = false; }; }
     setCatLoading(true);
+    setCategoryError('');
     publicFetch(`/api/ad-categories/${websitePicked.id}/advertiser`)
-      .then((d) => setCategories(d.categories || []))
-      .catch(() => setCategories([]))
-      .finally(() => setCatLoading(false));
+      .then((d) => { if (active) setCategories(d.categories || []); })
+      .catch((e) => {
+        if (active) {
+          setCategories([]);
+          setCategoryError(`Could not load this website's ad spaces: ${e.message}`);
+        }
+      })
+      .finally(() => { if (active) setCatLoading(false); });
+    return () => { active = false; };
   }, [websitePicked]);
 
   const addWebsiteItem = () => {
@@ -217,6 +255,7 @@ export default function AdminHotDealBuilder() {
       systemPrice: Number(categoryPicked.price), dealPrice: Number(categoryPicked.price),
     }]);
     setWebsitePicked(null); setCategoryPicked(null); setCategories([]);
+    showToast('Website ad space added. Select another website to add more.');
   };
 
   // ── save ──────────────────────────────────────────────────────────────────
@@ -263,7 +302,7 @@ export default function AdminHotDealBuilder() {
             {locked ? 'This deal has been sold and can no longer be edited.' : 'Bundle items, override their price, and save.'}
           </p>
         </div>
-        <button onClick={save} disabled={saving || locked} style={{ ...S.btnPrimary, opacity: saving || locked ? 0.5 : 1 }}>
+        <button type="button" onClick={save} disabled={saving || locked} style={{ ...S.btnPrimary, opacity: saving || locked ? 0.5 : 1 }}>
           {saving ? 'Saving…' : 'Save Hot Deal'}
         </button>
       </div>
@@ -333,7 +372,7 @@ export default function AdminHotDealBuilder() {
                     />
                   </td>
                   <td style={S.td}>
-                    {!locked && <button onClick={() => removeItem(it.key)} style={S.btnGhostSmall}>Remove</button>}
+                    {!locked && <button type="button" onClick={() => removeItem(it.key)} style={S.btnGhostSmall}>Remove</button>}
                   </td>
                 </tr>
               ))}
@@ -348,22 +387,23 @@ export default function AdminHotDealBuilder() {
           {/* Add YouTube item */}
           <div style={S.card}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Add YouTube item</div>
-            <input
-              placeholder="Search creators by name, email, channel…"
-              value={ytSearch}
-              onChange={(e) => { setYtSearch(e.target.value); setYtPicked(null); }}
+            <label style={S.label}>Choose a channel</label>
+            <select
+              value={ytPicked?._id || ''}
+              disabled={youtubersLoading || youtubers.length === 0}
+              onChange={(e) => {
+                setYtPicked(youtubers.find((creator) => String(creator._id) === e.target.value) || null);
+                setYtPreview(null);
+              }}
               style={S.input}
-            />
-            {ytResults.length > 0 && !ytPicked && (
-              <div style={{ border: '1px solid #eee', borderRadius: 8, marginTop: 6, maxHeight: 160, overflowY: 'auto' }}>
-                {ytResults.map((u) => (
-                  <div key={u._id} onClick={() => { setYtPicked(u); setYtResults([]); }} style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f5f5f5' }}>
-                    <b>{u.name}</b> — {u.channelName || u.email} ({u.subscribers ?? 0} subs)
-                    {u.isMock && <span style={{ marginLeft: 6, color: '#8a5a00', fontSize: 10, fontWeight: 700 }}>MOCK</span>}
-                  </div>
-                ))}
-              </div>
-            )}
+            >
+              <option value="">{youtubersLoading ? 'Loading channels…' : youtubers.length ? 'Select a YouTube channel…' : 'No YouTube channels available'}</option>
+              {youtubers.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.channelName || u.name} — {Number(u.subscribers || 0).toLocaleString()} subscribers{u.isMock ? ' (mock)' : ''}
+                </option>
+              ))}
+            </select>
             {ytPicked && (
               <div style={{ marginTop: 10 }}>
                 <p style={{ fontSize: 13, marginBottom: 8 }}>Picked: <b>{ytPicked.channelName || ytPicked.name}</b></p>
@@ -382,37 +422,42 @@ export default function AdminHotDealBuilder() {
                     Tier <b>{ytPreview.tier}</b> · System price <b>{fmt(ytPreview.systemPrice)} RWF</b> · Format <b>{ytPreview.adType}</b>
                   </p>
                 ) : null}
-                <button onClick={addYoutubeItem} disabled={!ytPreview} style={S.btnPrimary}>Add item</button>
+                {ytError && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{ytError}</p>}
+                <button type="button" onClick={addYoutubeItem} disabled={!ytPreview || ytLoading} style={{ ...S.btnPrimary, opacity: !ytPreview || ytLoading ? 0.5 : 1 }}>
+                  {ytLoading ? 'Loading package…' : 'Add channel'}
+                </button>
               </div>
             )}
+            {ytError && !ytPicked && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{ytError}</p>}
           </div>
 
           {/* Add TikTok item */}
           <div style={S.card}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Add TikTok package</div>
-            <input
-              placeholder="Search TikTok creators by name or username…"
-              value={ttSearch}
-              onChange={(e) => { setTtSearch(e.target.value); setTtPicked(null); setTtPackageCode(''); }}
+            <label style={S.label}>Choose a creator</label>
+            <select
+              value={ttPicked?._id || ''}
+              disabled={tiktokersLoading || tiktokers.length === 0}
+              onChange={(e) => {
+                const creator = tiktokers.find((entry) => String(entry._id) === e.target.value) || null;
+                setTtPicked(creator);
+                setTtPackageCode(creator?.enabledPackages?.[0] || '');
+                setTtPreview(null);
+              }}
               style={S.input}
-            />
-            {ttResults.length > 0 && !ttPicked && (
-              <div style={{ border: '1px solid #eee', borderRadius: 8, marginTop: 6, maxHeight: 160, overflowY: 'auto' }}>
-                {ttResults.map((u) => (
-                  <div
-                    key={u._id}
-                    onClick={() => {
-                      setTtPicked(u);
-                      setTtPackageCode(u.enabledPackages?.[0] || '');
-                      setTtResults([]);
-                    }}
-                    style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f5f5f5' }}
-                  >
-                    <b>{u.name}</b> — @{String(u.channelName || u.username || '').replace(/^@+/, '')} ({Number(u.followers || 0).toLocaleString()} followers)
-                  </div>
-                ))}
-              </div>
-            )}
+            >
+              <option value="">{tiktokersLoading ? 'Loading creators…' : tiktokers.length ? 'Select a TikTok creator…' : 'No TikTok creators available'}</option>
+              {tiktokers.map((u) => (
+                <option
+                  key={u._id}
+                  value={u._id}
+                  disabled={items.some((item) => item.itemType === 'tiktok' && String(item.creatorId) === String(u._id))}
+                >
+                  @{String(u.channelName || u.username || '').replace(/^@+/, '')} — {Number(u.followers || 0).toLocaleString()} followers
+                  {items.some((item) => item.itemType === 'tiktok' && String(item.creatorId) === String(u._id)) ? ' (already added)' : ''}
+                </option>
+              ))}
+            </select>
             {ttPicked && (
               <div style={{ marginTop: 10 }}>
                 <p style={{ fontSize: 13, marginBottom: 8 }}>
@@ -420,7 +465,7 @@ export default function AdminHotDealBuilder() {
                 </p>
                 <select
                   value={ttPackageCode}
-                  onChange={(e) => setTtPackageCode(e.target.value)}
+                  onChange={(e) => { setTtPackageCode(e.target.value); setTtPreview(null); }}
                   style={S.input}
                 >
                   <option value="">Select an enabled package…</option>
@@ -437,33 +482,47 @@ export default function AdminHotDealBuilder() {
                 ) : (ttPicked.enabledPackages || []).length === 0 ? (
                   <p style={{ fontSize: 12, color: '#b91c1c' }}>This creator has no enabled TikTok packages.</p>
                 ) : null}
-                <button onClick={addTikTokItem} disabled={!ttPreview} style={{ ...S.btnPrimary, marginTop: 8 }}>Add item</button>
+                {ttError && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{ttError}</p>}
+                <button type="button" onClick={addTikTokItem} disabled={!ttPreview || ttLoading} style={{ ...S.btnPrimary, marginTop: 8, opacity: !ttPreview || ttLoading ? 0.5 : 1 }}>
+                  {ttLoading ? 'Loading package…' : 'Add TikTok package'}
+                </button>
               </div>
             )}
+            {ttError && !ttPicked && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{ttError}</p>}
           </div>
 
           {/* Add website item */}
           <div style={S.card}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Add website item</div>
+            <label style={S.label}>Choose a website</label>
             <select
               value={websitePicked?.id || ''}
-              onChange={(e) => { setWebsitePicked(websites.find((w) => w.id === e.target.value) || null); setCategoryPicked(null); }}
+              disabled={websitesLoading || websites.length === 0}
+              onChange={(e) => {
+                setWebsitePicked(websites.find((w) => w.id === e.target.value) || null);
+                setCategoryPicked(null);
+                setCategories([]);
+              }}
               style={S.input}
             >
-              <option value="">Select a website…</option>
+              <option value="">{websitesLoading ? 'Loading websites…' : websites.length ? 'Select a website…' : 'No websites available'}</option>
               {websites.map((w) => <option key={w.id} value={w.id}>{w.websiteName}</option>)}
             </select>
+            {websiteError && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{websiteError}</p>}
             {websitePicked && (
               <div style={{ marginTop: 10 }}>
                 {catLoading ? (
                   <p style={{ fontSize: 12, color: '#999' }}>Loading categories…</p>
                 ) : (
                   <select value={categoryPicked?._id || ''} onChange={(e) => setCategoryPicked(categories.find((c) => c._id === e.target.value) || null)} style={S.input}>
-                    <option value="">Select an ad space…</option>
+                    <option value="">{categories.length ? 'Select an ad space…' : 'No ad spaces available'}</option>
                     {categories.map((c) => <option key={c._id} value={c._id}>{c.categoryName} — {c.spaceType} ({fmt(c.price)} RWF)</option>)}
                   </select>
                 )}
-                <button onClick={addWebsiteItem} disabled={!categoryPicked} style={{ ...S.btnPrimary, marginTop: 8 }}>Add item</button>
+                {categoryError && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{categoryError}</p>}
+                <button type="button" onClick={addWebsiteItem} disabled={!categoryPicked || catLoading} style={{ ...S.btnPrimary, marginTop: 8, opacity: !categoryPicked || catLoading ? 0.5 : 1 }}>
+                  Add ad space
+                </button>
               </div>
             )}
           </div>

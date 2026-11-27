@@ -12,7 +12,7 @@ const SLOT_TYPES = [
   { value: 'middle', label: 'Middle' },
   { value: 'end',    label: 'Near the end (80%)' },
 ];
-const DURATION_BANDS = ['5–15s', '15–30s'];
+const DURATION_BANDS = ['30 seconds'];
 const TIKTOK_PACKAGE_LABELS = {
   brand_visit_video: 'Brand Visit Video',
   creator_location_video: 'Creator-Location Video',
@@ -399,8 +399,13 @@ export default function AdminHotDealBuilder() {
             >
               <option value="">{youtubersLoading ? 'Loading channels…' : youtubers.length ? 'Select a YouTube channel…' : 'No YouTube channels available'}</option>
               {youtubers.map((u) => (
-                <option key={u._id} value={u._id}>
+                <option
+                  key={u._id}
+                  value={u._id}
+                  disabled={items.some((item) => item.itemType === 'youtube' && String(item.creatorId) === String(u._id))}
+                >
                   {u.channelName || u.name} — {Number(u.subscribers || 0).toLocaleString()} subscribers{u.isMock ? ' (mock)' : ''}
+                  {items.some((item) => item.itemType === 'youtube' && String(item.creatorId) === String(u._id)) ? ' (already added)' : ''}
                 </option>
               ))}
             </select>

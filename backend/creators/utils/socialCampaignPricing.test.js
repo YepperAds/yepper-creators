@@ -42,6 +42,31 @@ test('calculates platform-specific prices and commitment discounts once', () => 
   assert.equal(sixMonthTikTok.commitmentDiscountRate, 0.1);
 });
 
+test('matches workbook YouTube monthly rates and contract totals for every tier', () => {
+  const tiers = [
+    { audienceCount: 0, name: 'Test', monthly: [61_830, 58_739, 55_647] },
+    { audienceCount: 1_000, name: 'Nano', monthly: [51_510, 48_935, 46_359] },
+    { audienceCount: 5_000, name: 'Micro', monthly: [82_410, 78_290, 74_169] },
+    { audienceCount: 20_000, name: 'Mid', monthly: [154_560, 146_832, 139_104] },
+    { audienceCount: 50_000, name: 'Macro', monthly: [236_970, 225_122, 213_273] },
+    { audienceCount: 150_000, name: 'Mega', monthly: [360_000, 342_000, 324_000] },
+  ];
+
+  for (const tier of tiers) {
+    for (const [index, commitmentMonths] of [1, 3, 6].entries()) {
+      const priced = calculateSocialItemPrice({
+        platform: 'youtube',
+        audienceCount: tier.audienceCount,
+        packageCode: 'youtube_video',
+        commitmentMonths,
+      });
+      assert.equal(priced.tier, tier.name);
+      assert.equal(priced.monthlyPrice, tier.monthly[index]);
+      assert.equal(priced.totalPrice, tier.monthly[index] * commitmentMonths);
+    }
+  }
+});
+
 test('matches workbook Entry-tier prices for all TikTok packages', () => {
   const expectedPrices = {
     brand_visit_video: 30_000,

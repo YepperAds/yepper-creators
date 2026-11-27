@@ -11,7 +11,9 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 function itemLabel(item: HotDeal['items'][number]): string {
   if (item.itemType === 'youtube') {
-    return `YouTube ${item.creatorName || ''}: ${item.slotType} slot, ${item.durationBand}, ${item.adType === 'lbar' ? 'L-bar' : 'corner badge'}`;
+    const months = item.commitmentMonths || 1;
+    const monthlyPrice = Math.round(item.dealPrice / months);
+    return `YouTube ${item.creatorName || ''}: daily ads · 30 placements/month · ${months}-month contract · ${monthlyPrice.toLocaleString()} RWF/month`;
   }
   if (item.itemType === 'tiktok') {
     const packageLabels: Record<string, string> = {

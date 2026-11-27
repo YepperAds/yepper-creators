@@ -7,12 +7,7 @@ import CategoryChip from '../components/CategoryChip';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
-const SLOT_TYPES = [
-  { value: 'intro',  label: 'After intro (5:00)' },
-  { value: 'middle', label: 'Middle' },
-  { value: 'end',    label: 'Near the end (80%)' },
-];
-const DURATION_BANDS = ['30 seconds'];
+const YOUTUBE_COMMITMENTS = [1, 3, 6];
 const TIKTOK_PACKAGE_LABELS = {
   brand_visit_video: 'Brand Visit Video',
   creator_location_video: 'Creator-Location Video',
@@ -83,7 +78,13 @@ export default function AdminHotDealBuilder() {
             const u = await adminFetch(`/users/${it.creatorId}`, {}, adminHeaders);
             creatorLabel = u?.user?.name || creatorLabel;
           } catch { /* fall back to id */ }
-          return { ...base, itemType: 'youtube', creatorId: it.creatorId, creatorLabel, slotType: it.slotType, durationBand: it.durationBand, adType: it.adType, tier: it.tier };
+          return {
+            ...base, itemType: 'youtube', creatorId: it.creatorId, creatorLabel,
+            commitmentMonths: Number(it.commitmentMonths || 1),
+            monthlyPrice: Number(it.systemPrice || 0) / Number(it.commitmentMonths || 1),
+            packageCode: it.packageCode || 'daily_30_days',
+            tier: it.tier,
+          };
         }
         if (it.itemType === 'tiktok') {
           let creatorLabel = `TikTok creator #${it.creatorId}`;
@@ -129,8 +130,7 @@ export default function AdminHotDealBuilder() {
   const [youtubers, setYoutubers] = useState([]);
   const [youtubersLoading, setYoutubersLoading] = useState(true);
   const [ytPicked, setYtPicked] = useState(null);
-  const [ytSlot, setYtSlot] = useState(SLOT_TYPES[0].value);
-  const [ytDuration, setYtDuration] = useState(DURATION_BANDS[0]);
+  const [ytCommitmentMonths, setYtCommitmentMonths] = useState(1);
   const [ytPreview, setYtPreview] = useState(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState('');
@@ -158,12 +158,12 @@ export default function AdminHotDealBuilder() {
     if (!ytPicked) { setYtLoading(false); return () => { active = false; }; }
     setYtLoading(true);
     setYtError('');
-    adminFetch(`/hot-deals/youtube-price-preview?creatorId=${ytPicked._id}&durationBand=${encodeURIComponent(ytDuration)}`, {}, adminHeaders)
+    adminFetch(`/hot-deals/youtube-price-preview?creatorId=${ytPicked._id}&commitmentMonths=${ytCommitmentMonths}`, {}, adminHeaders)
       .then((d) => { if (active) setYtPreview(d.data); })
       .catch((e) => { if (active) setYtError(`Could not load YouTube package price: ${e.message}`); })
       .finally(() => { if (active) setYtLoading(false); });
     return () => { active = false; };
-  }, [ytPicked, ytDuration, adminHeaders]);
+  }, [ytPicked, ytCommitmentMonths, adminHeaders]);
 
   useEffect(() => {
     let active = true;
@@ -205,7 +205,8 @@ export default function AdminHotDealBuilder() {
     setItems((prev) => [...prev, {
       key: nextKey++, itemType: 'youtube',
       creatorId: ytPicked._id, creatorLabel: ytPicked.channelName || ytPicked.name,
-      slotType: ytSlot, durationBand: ytDuration, adType: ytPreview.adType, tier: ytPreview.tier,
+      packageCode: 'daily_30_days', commitmentMonths: ytPreview.commitmentMonths,
+      monthlyPrice: ytPreview.monthlyPrice, tier: ytPreview.tier,
       systemPrice: ytPreview.systemPrice, dealPrice: ytPreview.systemPrice,
     }]);
     setYtPicked(null); setYtPreview(null); setYtError('');
@@ -267,7 +268,7 @@ export default function AdminHotDealBuilder() {
     const payload = {
       title: title.trim(), description: description.trim() || null, businessCategory, status,
       items: items.map((it) => it.itemType === 'youtube'
-        ? { itemType: 'youtube', creatorId: it.creatorId, slotType: it.slotType, durationBand: it.durationBand, dealPrice: Number(it.dealPrice) }
+        ? { itemType: 'youtube', creatorId: it.creatorId, commitmentMonths: it.commitmentMonths, dealPrice: Number(it.dealPrice) }
         : it.itemType === 'tiktok'
           ? { itemType: 'tiktok', creatorId: it.creatorId, packageCode: it.packageCode, dealPrice: Number(it.dealPrice) }
         : { itemType: 'website', categoryId: it.categoryId, dealPrice: Number(it.dealPrice) }),
@@ -357,7 +358,7 @@ export default function AdminHotDealBuilder() {
                   <td style={S.td}>{it.itemType === 'youtube' ? 'YouTube' : it.itemType === 'tiktok' ? 'TikTok' : 'Website'}</td>
                   <td style={S.td}>
                     {it.itemType === 'youtube'
-                      ? `${it.creatorLabel} — ${it.slotType}, ${it.durationBand}, ${it.adType === 'lbar' ? 'L-bar' : 'corner'}`
+                      ? `${it.creatorLabel} — Daily YouTube ads, 30 placements/month, ${it.commitmentMonths}-month commitment (${fmt(it.monthlyPrice || Number(it.systemPrice) / Number(it.commitmentMonths || 1))} RWF/month)`
                     : it.itemType === 'tiktok'
                       ? `${it.creatorLabel} — ${TIKTOK_PACKAGE_LABELS[it.packageCode] || it.packageCode}`
                       : `${it.websiteLabel} — ${it.categoryLabel}`}
@@ -412,19 +413,21 @@ export default function AdminHotDealBuilder() {
             {ytPicked && (
               <div style={{ marginTop: 10 }}>
                 <p style={{ fontSize: 13, marginBottom: 8 }}>Picked: <b>{ytPicked.channelName || ytPicked.name}</b></p>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <select value={ytSlot} onChange={(e) => setYtSlot(e.target.value)} style={{ ...S.input, flex: 1 }}>
-                    {SLOT_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                  <select value={ytDuration} onChange={(e) => setYtDuration(e.target.value)} style={{ ...S.input, flex: 1 }}>
-                    {DURATION_BANDS.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
+                <label style={S.label}>Contract length</label>
+                <select
+                  value={ytCommitmentMonths}
+                  onChange={(e) => { setYtCommitmentMonths(Number(e.target.value)); setYtPreview(null); }}
+                  style={{ ...S.input, marginBottom: 8 }}
+                >
+                  {YOUTUBE_COMMITMENTS.map((months) => (
+                    <option key={months} value={months}>{months} month{months === 1 ? '' : 's'}</option>
+                  ))}
+                </select>
                 {ytLoading ? (
                   <p style={{ fontSize: 12, color: '#999' }}>Pricing…</p>
                 ) : ytPreview ? (
                   <p style={{ fontSize: 13, marginBottom: 8 }}>
-                    Tier <b>{ytPreview.tier}</b> · System price <b>{fmt(ytPreview.systemPrice)} RWF</b> · Format <b>{ytPreview.adType}</b>
+                    Tier <b>{ytPreview.tier}</b> · 30 placements/month · <b>{fmt(ytPreview.monthlyPrice)} RWF/month</b> · Contract total <b>{fmt(ytPreview.systemPrice)} RWF</b>
                   </p>
                 ) : null}
                 {ytError && <p role="alert" style={{ color: '#b91c1c', fontSize: 12 }}>{ytError}</p>}

@@ -1,7 +1,7 @@
 'use strict';
 
-// Admin-curated bundles of YouTube ad slots + website ad categories, sold as
-// one fixed-price package (see md Plans / Hot Deals). Reuses the same
+// Admin-curated bundles of YouTube/TikTok creator packages + website ad
+// categories, sold as one fixed-price package. Reuses the same
 // pricing lookups, wallet/Flutterwave machinery, and claim/import_ads tables
 // the standalone YouTube-claim and website-ad flows already use — buying a
 // deal just substitutes the admin's snapshotted deal_price for the live
@@ -21,7 +21,6 @@ const {
   upsertWallet,
   generateUniqueTransactionRef,
 } = require('../AdOwner/controllers/PaymentController');
-const { priceFor } = require('../creators/utils/youtubeTierPricing');
 const { TIKTOK_PACKAGES, calculateSocialItemPrice } = require('../creators/utils/socialCampaignPricing');
 const { validateBusinessCategories } = require('../creators/utils/businessCategories');
 const { getSessionUserId, uploadCreativeToCloudinary, SLOT_TYPES } = require('../creators/controllers/adSpaceController');
@@ -152,6 +151,16 @@ async function buildDealEmailHtml(deal, title, description, link) {
 
   const displays = await Promise.all(deal.items.map(resolveItemDisplay));
   const tilesHtml = displays.filter(Boolean).map(buildTileHtml).join('');
+  const itemDetailsHtml = deal.items.map((item, index) => {
+    const display = displays[index];
+    const name = display?.name || display?.domain || 'Selected placement';
+    const description = item.itemType === 'youtube'
+      ? `Daily YouTube ads · 30 placements/month · ${item.commitmentMonths || 1}-month contract`
+      : item.itemType === 'tiktok'
+        ? `TikTok package · ${String(item.packageCode || '').replace(/_/g, ' ')}`
+        : 'Website ad space';
+    return `<p style="margin:5px 0;font-size:11px;color:#444;"><strong>${escapeHtml(name)}</strong> — ${escapeHtml(description)}</p>`;
+  }).join('');
 
   const bannerAttrs = categoryImageUrl
     ? `background="${categoryImageUrl}" bgcolor="#111318" style="background-image:url('${categoryImageUrl}');background-size:cover;background-position:center;"`
@@ -193,6 +202,7 @@ async function buildDealEmailHtml(deal, title, description, link) {
                 </td></tr></table>
 
                 ${tilesHtml ? `<div style="text-align:center;font-size:0;">${tilesHtml}</div>` : ''}
+                ${itemDetailsHtml ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;">${itemDetailsHtml}</div>` : ''}
               </td></tr>
             </table>
 
@@ -246,6 +256,7 @@ function mapItem(row) {
     slotType: row.slot_type,
     durationBand: row.duration_band,
     packageCode: row.package_code,
+    commitmentMonths: row.commitment_months == null ? null : Number(row.commitment_months),
     adType: row.ad_type,
     tier: row.tier,
     websiteId: row.website_id,
@@ -264,19 +275,30 @@ async function loadDealWithItems(dealId) {
 }
 
 // ── system-price lookups (single source of truth — never trust the client) ──
-async function resolveYoutubeSystemPrice(creatorId, durationBand) {
-  const creatorRes = await query(`SELECT ad_type_preference FROM creators WHERE id = $1`, [creatorId]);
-  if (!creatorRes.rowCount) throw httpError(404, 'Creator not found');
-  const adType = creatorRes.rows[0].ad_type_preference || 'corner';
-
+async function resolveYoutubeSystemPrice(creatorId, commitmentMonths) {
+  if (![1, 3, 6].includes(Number(commitmentMonths))) {
+    throw httpError(400, 'YouTube commitment must be 1, 3, or 6 months');
+  }
   const subsRes = await query(
     `SELECT followers_count FROM social_connections WHERE creator_id = $1 AND provider = 'youtube' LIMIT 1`,
     [creatorId],
   );
+  if (!subsRes.rowCount) throw httpError(404, 'YouTube channel not found');
   const subscribers = Number(subsRes.rows[0]?.followers_count || 0);
-  const priced = priceFor(subscribers, durationBand, adType);
-  if (!priced) throw httpError(400, 'Invalid duration band');
-  return { systemPrice: priced.amount, adType, tier: priced.tier, subscribers };
+  const priced = calculateSocialItemPrice({
+    platform: 'youtube',
+    audienceCount: subscribers,
+    packageCode: 'youtube_video',
+    commitmentMonths: Number(commitmentMonths),
+  });
+  return {
+    systemPrice: priced.totalPrice,
+    monthlyPrice: priced.monthlyPrice,
+    tier: priced.tier,
+    subscribers,
+    commitmentMonths: priced.commitmentMonths,
+    totalInsertions: priced.commitmentMonths * 30,
+  };
 }
 
 async function resolveWebsiteSystemPrice(categoryId) {
@@ -314,11 +336,11 @@ async function resolveTikTokSystemPrice(creatorId, packageCode) {
 
 async function buildItemRow(item) {
   if (item.itemType === 'youtube') {
-    if (!SLOT_TYPES.includes(item.slotType)) throw httpError(400, 'Invalid slot type');
-    const { systemPrice, adType, tier } = await resolveYoutubeSystemPrice(item.creatorId, item.durationBand);
+    const commitmentMonths = Number(item.commitmentMonths);
+    const { systemPrice, tier } = await resolveYoutubeSystemPrice(item.creatorId, commitmentMonths);
     return {
-      item_type: 'youtube', creator_id: item.creatorId, slot_type: item.slotType, package_code: null,
-      duration_band: item.durationBand, ad_type: adType, tier, website_id: null, category_id: null,
+      item_type: 'youtube', creator_id: item.creatorId, slot_type: '25pct', package_code: 'daily_30_days',
+      duration_band: null, commitment_months: commitmentMonths, ad_type: null, tier, website_id: null, category_id: null,
       system_price: systemPrice, deal_price: item.dealPrice != null ? Number(item.dealPrice) : systemPrice,
     };
   }
@@ -326,7 +348,7 @@ async function buildItemRow(item) {
     if (!item.creatorId || !item.packageCode) throw httpError(400, 'creatorId and packageCode are required for TikTok items');
     const { systemPrice, tier } = await resolveTikTokSystemPrice(item.creatorId, item.packageCode);
     return {
-      item_type: 'tiktok', creator_id: item.creatorId, slot_type: null, duration_band: null,
+      item_type: 'tiktok', creator_id: item.creatorId, slot_type: null, duration_band: null, commitment_months: null,
       package_code: item.packageCode, ad_type: null, tier, website_id: null, category_id: null,
       system_price: systemPrice, deal_price: item.dealPrice != null ? Number(item.dealPrice) : systemPrice,
     };
@@ -335,7 +357,7 @@ async function buildItemRow(item) {
     if (!item.categoryId) throw httpError(400, 'categoryId is required for website items');
     const { systemPrice, websiteId } = await resolveWebsiteSystemPrice(item.categoryId);
     return {
-      item_type: 'website', creator_id: null, slot_type: null, duration_band: null, package_code: null, ad_type: null, tier: null,
+      item_type: 'website', creator_id: null, slot_type: null, duration_band: null, package_code: null, commitment_months: null, ad_type: null, tier: null,
       website_id: websiteId, category_id: item.categoryId,
       system_price: systemPrice, deal_price: item.dealPrice != null ? Number(item.dealPrice) : systemPrice,
     };
@@ -346,9 +368,9 @@ async function buildItemRow(item) {
 async function insertItemRows(dealId, rows) {
   for (const r of rows) {
     await query(
-      `INSERT INTO hot_deal_items (hot_deal_id, item_type, creator_id, slot_type, duration_band, package_code, ad_type, tier, website_id, category_id, system_price, deal_price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [dealId, r.item_type, r.creator_id, r.slot_type, r.duration_band, r.package_code, r.ad_type, r.tier, r.website_id, r.category_id, r.system_price, r.deal_price],
+      `INSERT INTO hot_deal_items (hot_deal_id, item_type, creator_id, slot_type, duration_band, package_code, commitment_months, ad_type, tier, website_id, category_id, system_price, deal_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [dealId, r.item_type, r.creator_id, r.slot_type, r.duration_band, r.package_code, r.commitment_months, r.ad_type, r.tier, r.website_id, r.category_id, r.system_price, r.deal_price],
     );
   }
 }
@@ -356,12 +378,13 @@ async function insertItemRows(dealId, rows) {
 function validateTikTokItems(items) {
   const creatorIds = new Set();
   for (const item of items) {
-    if (item.itemType !== 'tiktok') continue;
+    if (item.itemType !== 'tiktok' && item.itemType !== 'youtube') continue;
     const creatorId = String(item.creatorId || '');
-    if (creatorIds.has(creatorId)) {
-      throw httpError(400, 'A Hot Deal can include only one TikTok package per creator');
+    const key = `${item.itemType}:${creatorId}`;
+    if (creatorIds.has(key)) {
+      throw httpError(400, `A Hot Deal can include only one ${item.itemType === 'youtube' ? 'YouTube package' : 'TikTok package'} per creator`);
     }
-    creatorIds.add(creatorId);
+    creatorIds.add(key);
   }
 }
 
@@ -508,13 +531,15 @@ exports.adminSendDealEmail = async (req, res) => {
   }
 };
 
-// GET /api/admin/hot-deals/youtube-price-preview?creatorId=&durationBand=
+// GET /api/admin/hot-deals/youtube-price-preview?creatorId=&commitmentMonths=
 exports.adminYoutubePricePreview = async (req, res) => {
   try {
-    const { creatorId, durationBand } = req.query;
-    if (!creatorId || !durationBand) return res.status(400).json({ success: false, message: 'creatorId and durationBand are required' });
-    const { systemPrice, adType, tier, subscribers } = await resolveYoutubeSystemPrice(creatorId, durationBand);
-    return res.json({ success: true, data: { systemPrice, adType, tier, subscribers } });
+    const { creatorId, commitmentMonths } = req.query;
+    if (!creatorId || !commitmentMonths) {
+      return res.status(400).json({ success: false, message: 'creatorId and commitmentMonths are required' });
+    }
+    const pricing = await resolveYoutubeSystemPrice(creatorId, Number(commitmentMonths));
+    return res.json({ success: true, data: pricing });
   } catch (err) {
     return res.status(err.status || 500).json({ success: false, message: err.message || 'Failed to load price preview' });
   }
@@ -597,21 +622,48 @@ async function finalizeHotDealPurchase({ deal, advertiserId, checkoutInfo, walle
 
     for (const item of deal.items) {
       if (item.itemType === 'youtube') {
+        const creator = await client.query(
+          `SELECT ad_type_preference FROM creators WHERE id = $1 FOR UPDATE`,
+          [item.creatorId],
+        );
+        if (!creator.rowCount) throw httpError(409, 'A YouTube channel in this deal is no longer available');
+        const packageMonths = Number(item.commitmentMonths || 1);
+        if (![1, 3, 6].includes(packageMonths)) throw httpError(409, 'A YouTube package in this deal has an invalid commitment');
+        const totalInsertions = packageMonths * 30;
+        const adType = creator.rows[0].ad_type_preference || 'corner';
         const creatorEarnings = Math.round(item.dealPrice * CREATOR_SHARE);
         const yepperCut = item.dealPrice - creatorEarnings;
+        const itemTxRef = `${tx_ref}_${item.id}`;
+        const expiresAt = new Date(Date.now() + packageMonths * 30 * 24 * 60 * 60 * 1000);
+        const campaignRes = await client.query(
+          `INSERT INTO ad_campaigns (
+             creator_id, advertiser_id, slot_type, total_insertions, fulfilled_insertions,
+             amount_total, amount_per_insertion, currency, status, expires_at,
+             tx_ref, payment_status, business_categories, business_category_other
+           ) VALUES ($1,$2,$3,$4,0,$5,$6,'RWF','active',$7,$8,'paid',$9,$10)
+           RETURNING id`,
+          [item.creatorId, String(advertiserId), item.slotType || '25pct', totalInsertions,
+            item.dealPrice, item.dealPrice / totalInsertions, expiresAt.toISOString(),
+            itemTxRef, JSON.stringify(checkoutInfo.businessCategories),
+            checkoutInfo.businessCategoryOther || null],
+        );
+        const campaignId = campaignRes.rows[0].id;
         const claimRes = await client.query(
           `INSERT INTO youtube_ad_claims (creator_id, advertiser_id, slot_type, image_url, ad_type, ad_size,
              duration_band, tier, amount, creator_earnings, yepper_cut, currency,
-             business_categories, business_category_other, tx_ref, payment_status)
-           VALUES ($1,$2,$3,$4,$5,'medium',$6,$7,$8,$9,$10,'RWF',$11,$12,$13,'paid') RETURNING id`,
-          [item.creatorId, String(advertiserId), item.slotType, checkoutInfo.imageUrl, item.adType,
-            item.durationBand, item.tier, item.dealPrice, creatorEarnings, yepperCut,
-            JSON.stringify(checkoutInfo.businessCategories), checkoutInfo.businessCategoryOther || null, `${tx_ref}_${item.id}`],
+             business_categories, business_category_other, tx_ref, campaign_id, payment_status)
+           VALUES ($1,$2,$3,$4,$5,'medium',NULL,$6,$7,$8,$9,'RWF',$10,$11,$12,$13,'paid') RETURNING id`,
+          [item.creatorId, String(advertiserId), item.slotType || '25pct', checkoutInfo.imageUrl, adType,
+            item.tier, item.dealPrice, creatorEarnings, yepperCut,
+            JSON.stringify(checkoutInfo.businessCategories), checkoutInfo.businessCategoryOther || null,
+            itemTxRef, campaignId],
         );
         if (creatorEarnings > 0) {
           await upsertWallet(client, String(item.creatorId), 'webOwner', null, creatorEarnings, creatorEarnings, 0);
         }
-        itemResults.push({ item, claimId: claimRes.rows[0].id, webOwnerId: String(item.creatorId) });
+        itemResults.push({
+          item, claimId: claimRes.rows[0].id, campaignId, webOwnerId: String(item.creatorId),
+        });
       } else if (item.itemType === 'tiktok') {
         const connection = await client.query(
           `SELECT followers_count, tiktok_profile FROM social_connections
@@ -741,7 +793,8 @@ async function finalizeHotDealPurchase({ deal, advertiserId, checkoutInfo, walle
       walletApplied: 0, amountPaid: 0, paymentMethod: 'wallet_only',
       metadata: {
         kind: 'hot_deal_item', dealId: deal.id, itemId: r.item.id, itemType: r.item.itemType,
-        claimId: r.claimId || null, sponsorshipId: r.sponsorshipId || null,
+        claimId: r.claimId || null, campaignId: r.campaignId || null,
+        sponsorshipId: r.sponsorshipId || null,
       },
       paidAt: new Date(),
     });

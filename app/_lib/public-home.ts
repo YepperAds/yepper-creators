@@ -80,6 +80,7 @@ export interface HotDealItem {
   slotType: string | null;
   durationBand: string | null;
   packageCode: string | null;
+  commitmentMonths: number | null;
   adType: string | null;
   websiteId: string | null;
   categoryId: string | null;
